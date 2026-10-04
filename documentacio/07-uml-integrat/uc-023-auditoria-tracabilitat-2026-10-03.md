@@ -14,7 +14,7 @@ UC-023 **no estava absent**. A `main` ja hi havia:
 - runtime SIF: `ManualInstallmentPaymentService`, `ManualInstallmentPaymentPayloadBuilder`, `ManualPaymentInvoiceRepository`, `PaymentService`, `PaymentRepository` i `PaymentStatusCalculator`;
 - proves unitàries i d'integració específiques.
 
-Però la cobertura era **parcial**: el dossier no separava de forma sistemàtica classes, seqüències i activitats ACTUAL/FINAL per pàgina, i la pantalla real d'intranet inspeccionada continua en un flux llegat basat en GET sense evidència que invoqui el servei SIF d'UC-023.
+Però la cobertura inicial era **parcial**. Durant l'auditoria s'han separat classes, seqüències i activitats ACTUAL/FINAL, s'ha securitzat el canal real i s'ha connectat la pantalla llegada al servei SIF darrere un feature flag.
 
 ## 2. Estat consolidat
 
@@ -35,7 +35,7 @@ Però la cobertura era **parcial**: el dossier no separava de forma sistemàtica
 | Activitats ACTUAL/FINAL per pàgina | CREAT EN AQUESTA BRANCA | `uc-023-activitats-pagines-actual-final.md` |
 | Classes ACTUAL/FINAL | CREAT EN AQUESTA BRANCA | `uc-023-classes-actual-final.md` |
 | Seqüències ACTUAL/FINAL | CREAT EN AQUESTA BRANCA | `uc-023-sequencies-actual-final.md` |
-| Evidència d'execució | PENDENT FINS CI/PRE | un test existent no equival a test executat |
+| Evidència d'execució | PARCIALMENT VERIFICADA / PENDENT PRE | totes les proves UC-023 van passar en la ronda 981/982; la regressió única de FK s'ha corregit i el HEAD final espera runner |
 
 ## 3. Codi PHP/JS real revisat
 
@@ -207,3 +207,25 @@ Cobertura afegida: transferència existent → fracció manual = reús; mateixa 
 ### 9.4. Estat de CI observat
 
 Al commit `afcef346c8f6a8f0a3a0d780bf45009605cb0aeb`, la suite va donar **923 passats / 7 fallats**. Un error era el contracte antic de `payments/register.php` i ja s'ha actualitzat al nou contracte HMAC/raw-body; els altres sis són PACK/Redsys aliens a UC-023. Cal executar el nou HEAD i conservar l'E2E de preproducció abans de declarar verificat el cas.
+
+
+## 10. Reconciliació del canal real — 04/10/2026
+
+Durant la inspecció final del renderer real `Intranet::mostrarPagaments()` s'han detectat i corregit tres buits que no eren visibles només mirant el servei SIF:
+
+1. **`idPag` no és `ID_INSC`.** El botó de fila usa històricament `idPag`, mentre la consulta també retorna `idInsc`. El canal ara envia tots dos: el fallback llegat usa `idPag`; UC-023 usa exclusivament l'`ID_INSC` real per validar `fact_rels`.
+2. **Faltava la identitat bancària externa.** La taula incorpora `REFERÈNCIA`. Quan `SIF_INSTALLMENT_PAYMENT_ENFORCED=1`, és obligatòria: banc `tpv` es mapeja a `DS_ORDER`; Caixa/BBVA a `REFERENCIA_BANCARIA`.
+3. **El selector de reintent era incorrecte.** El DOM crea `#upd-insc-*`, però el JS buscava `#upd-inscripcio-*`; per tant l'`operationId` no persistia. El selector queda corregit i el mateix intent conserva la mateixa identitat.
+
+També s'ha afegit `sif/scripts/preflight-manual-installment.php`, que falla si manca configuració HMAC/rols, taules UC-023, índex únic del claim, migracions o la FK de claim amb `ON DELETE CASCADE`.
+
+### Estat de tancament després d'aquest bloc
+
+- canal real POST/CSRF/HMAC: IMPLEMENTAT;
+- separació `idPag` / `ID_INSC`: IMPLEMENTADA;
+- referència bancària / DS_ORDER: IMPLEMENTADA;
+- reconciliació cross-channel: IMPLEMENTADA;
+- reintent estable de pantalla: IMPLEMENTAT;
+- preflight de cutover: IMPLEMENTAT;
+- CI del HEAD final: PENDENT DE RUNNER;
+- E2E `sif_test*`/preproducció: PENDENT.
