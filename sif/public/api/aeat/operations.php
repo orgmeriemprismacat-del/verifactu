@@ -69,8 +69,10 @@ try {
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
     $isReconcile = in_array($action, ['reconcile', 'reconcile_evidence'], true);
     $hasReadRole = $readRoles !== [] && array_intersect($roles, $readRoles) !== [];
-    $hasReconcileRole = $reconcileRoles !== [] && array_intersect($roles, $reconcileRoles) !== [];
+    $effectiveReconcileRoles = array_values(array_intersect($roles, $reconcileRoles));
+    $hasReconcileRole = $reconcileRoles !== [] && $effectiveReconcileRoles !== [];
     $canReconcile = $hasReadRole && $hasReconcileRole;
+    $effectiveReconcileRole = $canReconcile ? (string) $effectiveReconcileRoles[0] : null;
 
     if (!$hasReadRole) {
         throw SifException::forbidden('AEAT operations role is not authorized');
@@ -120,7 +122,8 @@ try {
         JsonResponse::send($service->reconcile(
             (int) ($payload['queue_id'] ?? 0),
             (string) ($payload['attempt_uuid'] ?? ''),
-            (string) ($actor['actor_id'] ?? '')
+            (string) ($actor['actor_id'] ?? ''),
+            $effectiveReconcileRole
         ));
         return;
     }
@@ -133,7 +136,8 @@ try {
         JsonResponse::send($service->reconcile(
             (int) ($payload['queue_id'] ?? 0),
             (string) ($payload['attempt_uuid'] ?? ''),
-            (string) ($actor['actor_id'] ?? '')
+            (string) ($actor['actor_id'] ?? ''),
+            $effectiveReconcileRole
         ));
         return;
     }
