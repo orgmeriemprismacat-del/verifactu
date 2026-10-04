@@ -527,18 +527,41 @@ requestMain.done(function( message ) {
 				operationId: operationId,
 				csrfToken: csrfAlumnesPagaments
 			},
-			dataType: "html"
+			dataType: sifInstallmentEnforced ? "json" : "html"
 		});
 		sendPay.done(function( msg ) {
+			if (sifInstallmentEnforced) {
+				if (msg && msg.ok === true) {
+					amagarLoadingModal();
+					afegirHeaderModalSuccess(
+						msg.status === 'REUSED' ? "Pagament ja registrat" : "Pagament efectuat!"
+					);
+					var textSif = msg.status === 'REUSED'
+						? "El cobrament ja constava registrat al SIF."
+						: "El cobrament s'ha registrat al SIF.";
+					if (msg.reconciled_existing === true) {
+						textSif += " S'ha conciliat amb un moviment econòmic existent.";
+					}
+					if (msg.uuid_payment) {
+						textSif += " UUID: " + msg.uuid_payment;
+					}
+					afegirTextModalSuccess(textSif);
+					mostrarModalSuccess();
+					$("#modalSuccess").on('hidden.bs.modal', function () {
+						reloadUrl();
+					});
+				}
+				return;
+			}
+
 			if ( !msg.toLowerCase().includes("error") ) {
 				amagarLoadingModal();
 				afegirHeaderModalSuccess("Pagament efectuat!");
 				afegirTextModalSuccess(msg);
 				mostrarModalSuccess();
-				// reloadUrl();
-				$("#modalSuccess").on('hidden.bs.modal', function (e) {
+				$("#modalSuccess").on('hidden.bs.modal', function () {
 					reloadUrl();
-				})
+				});
 			}
 			else {
 				afegirHeaderModalError("Alerta");
@@ -548,6 +571,19 @@ requestMain.done(function( message ) {
 			}
 		});
 		sendPay.fail(function( jqXHR, textStatus, errorThrown ) {
+			if (sifInstallmentEnforced && jqXHR.responseJSON) {
+				amagarLoadingModal();
+				var typed = jqXHR.responseJSON.status || 'ERROR';
+				var message = jqXHR.responseJSON.error || "No s'ha pogut completar el cobrament.";
+				if (typed === 'PENDING_RETRY') {
+					message += " Pots reintentar l'operació mantenint la mateixa referència.";
+				}
+				afegirHeaderModalError(typed === 'CONFLICT' ? "Conflicte de cobrament" : "Alerta");
+				afegirTextModalError(message);
+				mostrarModalError();
+				return;
+			}
+
 			errorFunction( jqXHR, textStatus, errorThrown,
 				"Hi ha hagut algun error a l'hora d'efectuar el pagament: " );
 		});
