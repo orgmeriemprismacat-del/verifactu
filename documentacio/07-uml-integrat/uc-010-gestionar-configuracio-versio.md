@@ -100,7 +100,8 @@ La declaració:
 - no pot sortir del root per traversal;
 - es hasheja des dels bytes;
 - queda `APPROVED` explícitament;
-- es torna a verificar en preflight.
+- es torna a verificar en preflight;
+- només es pot vincular mentre la candidata és `DRAFT`.
 
 La fila SQL no substitueix el document.
 
@@ -128,7 +129,7 @@ No es permet deduir exclusivitat del text `STATUS`: el singleton i el lock són 
 | --- | --- |
 | Activation gate | `SIF_VERSION_ACTIVATION_ENABLED` |
 | Git | `SIF_RUNTIME_GIT_REVISION` vs candidata |
-| Bytes | release manifest extern al release vs files |
+| Bytes | release manifest extern al release vs inventari exacte de fitxers governats; extres/symlinks bloquegen |
 | Artifact | hash canònic del mapa path→SHA256 |
 | Config | fingerprint runtime |
 | DB | `MigrationRunner::inspect()` · ledger + taules/columnes declarades, no tots els constraints |
@@ -213,3 +214,11 @@ Variables, storage privat, manifest real, migracions i E2E en `sif_test*`/prepro
 - la branca reutilitza `SifAuditEventRepository` del `main` actual;
 - la verificació d'esquema es descriu amb el seu abast real;
 - l'evidència UC-85 es manté com a dependència pendent, no com a garantia completa.
+
+
+## 14. Enduriments addicionals de la continuació
+
+- declaracions noves queden prohibides després que la versió deixi de ser `DRAFT`;
+- el manifest no només verifica hashes: detecta fitxers governats inesperats i symlinks;
+- el builder i el verifier comparteixen la mateixa llista de roots governats;
+- el preflight minimitza la projecció d'evidència UC-85 i no envia `EVIDENCE_JSON`, referències privades o executor al navegador.
