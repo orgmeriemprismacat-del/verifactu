@@ -483,7 +483,7 @@ Decisió aplicada: crear `audit/uc-010-reconciliacio-2026-10-04` des del `main` 
 3. **UC-85:** definir i implementar un contracte de backup/restauració que acrediti scope, resultat i recuperabilitat; avui UC-010 no pot convertir la fila existent en una prova completa.
 4. **Política de `CONFIG_HASH`:** el fingerprint actual inclou valors secrets en memòria i només persisteix el hash. Cal decidir abans de producció si una rotació de secret ha de considerar-se drift de configuració executable.
 5. **Segregació de funcions:** el mateix rol `manage` pot vincular una declaració i activar. Si es requereix maker-checker o aprovació legal separada, s'ha d'afegir com a regla explícita.
-6. **TTL de sessió del panell:** la sessió depèn del cicle de vida PHP/browser; si governança exigeix caducitat curta independent, cal incorporar-la explícitament.
+6. **TTL de sessió del panell:** RESOLT — TTL absolut configurable, default 1800 s, fail-closed i reentrada des de la intranet.
 7. **Verificació SQL profunda:** si cal acreditar índexs/constraints/tipus, cal ampliar el preflight o afegir checks específics.
 8. **Producció:** queda fora de l'abast i no s'autoritza per cap preflight tècnic.
 
@@ -507,3 +507,21 @@ Decisió aplicada: crear `audit/uc-010-reconciliacio-2026-10-04` des del `main` 
 | UC010-AUD-12 | Mitjana | El preflight retornava la fila completa `backup_restore_evidence` al rol lector | projecció mínima; s'eliminen `EVIDENCE_JSON`, `BACKUP_REFERENCE`, `EXECUTED_BY` i camps no necessaris |
 
 Aquests canvis mantenen el criteri de tancament: **CI final de la branca + E2E MySQL/preproducció continuen pendents**.
+
+
+## 24. Hardening final abans de CI
+
+| ID | Severitat | Troballa | Correcció |
+| --- | --- | --- | --- |
+| UC010-AUD-13 | Alta | Un retry de `register_current` tornava a inspeccionar runtime abans de reconèixer la mateixa idempotency key; un drift posterior podia convertir un replay legítim en 503 | fast replay per key + `VERSION_CODE` + actor abans d'inspeccionar runtime; prova amb drift posterior |
+| UC010-AUD-14 | Alta | El journal referenciava declaració/backup per UUID però no congelava el snapshot que havia justificat el GO | `RUNTIME_EVIDENCE_JSON` incorpora hash/metadades de declaració i resum mínim del backup; audit after-snapshot també els conserva |
+| UC010-AUD-15 | Mitjana | `actions.php` podia ser cachejat i un 500 podia exposar el missatge intern de l'excepció | `no-store`, `nosniff`, `Allow: POST`; 5xx genèric amb detall només al log servidor |
+| UC010-AUD-16 | Alta | La sessió guardava `authenticated_at` però no caducava; rols antics podien quedar vius fins al logout/tancament | TTL absolut configurable, default 1800 s, test de sessió fresca/expirada |
+| UC010-AUD-17 | Operativa | Molts pushes generaven gates UC-010 supersedits a la cua | `concurrency` amb `cancel-in-progress` al workflow UC-010 per als runs futurs |
+
+### Estat després del hardening
+
+- **DOCUMENTAT:** complet i reconciliat amb el codi de la branca.
+- **IMPLEMENTAT:** circuit UC-010 complet en branca, inclosos controls addicionals d'integritat, idempotència, minimització i sessió.
+- **VERIFICAT:** proves específiques existeixen i l'evidència històrica del PR #139 és positiva per UC-010; el gate del head final continua pendent d'execució perquè GitHub Actions manté els jobs en cua.
+- **PENDENT D'ENTORN:** MySQL/preproducció, manifest real, declaració real, dependència UC-85 i decisió productiva.
