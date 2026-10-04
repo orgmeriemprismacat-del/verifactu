@@ -259,6 +259,7 @@ class EnrollmentFundMovementRepository {
   +insertOrReuseExternalAllocation(db,movement)
   +availableAmountForInscription(db,idInsc,forUpdate)
   +insertOrReuseInternalTransfer(db,movement)
+  +insertOrReuseInternalTransferReversal(db,movement)
   +insertOrReuseCreditCreate(db,movement)
   +insertOrReuseRefundExit(db,movement)
   +insertOrReuseCompensationAllocation(db,movement)
@@ -316,9 +317,11 @@ class CreditBalanceService {
 }
 class EnrollmentFundTransferService {
   +transfer(input) array
+  +reverseTransfer(input) array
 }
 class EnrollmentFundTransferPayloadBuilder {
   +build(input) array
+  +buildReversal(input) array
 }
 class EnrollmentFundMovementRepository {
   +availableAmountForInscription(db,idInsc,forUpdate)
@@ -341,7 +344,7 @@ class EnrollmentFundMovement {
   +MOVEMENT_TYPE
 }
 EnrollmentFundTransferService --> EnrollmentFundTransferPayloadBuilder
-EnrollmentFundTransferService --> EnrollmentFundMovementRepository : INTERNAL_TRANSFER
+EnrollmentFundTransferService --> EnrollmentFundMovementRepository : INTERNAL_TRANSFER / REVERSAL
 ManualRefundService --> PaymentService : REFUND compartint transacció
 ManualRefundService --> EnrollmentFundMovementRepository : REFUND_EXIT
 CreditBalanceService --> CreditBalance : crea/consumeix
@@ -360,7 +363,7 @@ EnrollmentFundMovementRepository --> EnrollmentFundMovement : persisteix/locka
    - deduplicació cross-channel.
 4. `CreditBalanceService::createCredit()` ja té K/hash i `CREDIT_CREATE` opcional, però la K de dret no es deriva/obliga des de la UI.
 5. `applyCredit*` comprova saldo, deute i inscripció/línia destí quan s'informa, però no titularitat compatible.
-6. `INTERNAL_TRANSFER` té builder/servei/repositori/CLI/proves; falta l'orquestració UC-006/UC-071 que decideixi l'import i l'executi.
+6. `INTERNAL_TRANSFER` té builder/servei/repositori/CLI/proves i reversió restringida; falta l'orquestració UC-006/UC-071 que decideixi l'import, actor/event i si una reversió funcional és admissible.
 7. `PaymentActionGateway` existeix, però els serveis i scripts examinats no hi passen.
 8. `public/api/payments/register.php` instancia `PaymentService` directament: no és un endpoint UC-006 complet.
 9. La UI llegada d’anul·lació conserva semàntica “A TORNAR” sense separar estat pendent de retorn vs retorn confirmat.
