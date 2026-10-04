@@ -73,7 +73,7 @@ final class LegacyGiftInvoicePayloadBuilderTest
         $result = IssueInvoiceTest::serviceFor($db)->issueInvoice($payload);
 
         Assert::same(true, $result['ok']);
-        Assert::same('REDSYS|REGAL|IDPAG:NULL|ORDER:ORDERGIFT77', $payload['idempotency_key']);
+        Assert::same('LEGACY|REGAL|ID:77', $payload['idempotency_key']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
@@ -99,6 +99,49 @@ final class LegacyGiftInvoicePayloadBuilderTest
         Assert::same('120.00', $payment['IMPORT']);
         Assert::same('ORDERGIFT77', $payment['DS_ORDER']);
         Assert::same(null, $payment['IDPAG']);
+    }
+
+    public function testDistinctRedsysOrderCannotCreateSecondGiftInvoiceOrCharge(): void
+    {
+        $db = TestDatabase::fresh();
+        $notifications = new RedsysNotificationRepository();
+        $builder = new RedsysInvoicePayloadBuilder($notifications);
+
+        foreach (['770000000021', '770000000022'] as $order) {
+            $notifications->recordReceived(
+                $db,
+                $order,
+                null,
+                '120.00',
+                '0000',
+                true,
+                ['source' => 'gift-double-charge-boundary'],
+                'VALIDATED'
+            );
+        }
+
+        $basePayload = (new LegacyGiftInvoicePayloadBuilder())->build($this->giftSnapshot());
+        $firstPayload = $builder->buildFromValidatedNotification(
+            $db,
+            '770000000021',
+            $basePayload
+        );
+        $first = IssueInvoiceTest::serviceFor($db)->issueInvoice($firstPayload);
+        Assert::same(true, $first['ok']);
+
+        $secondPayload = $builder->buildFromValidatedNotification(
+            $db,
+            '770000000022',
+            (new LegacyGiftInvoicePayloadBuilder())->build($this->giftSnapshot())
+        );
+
+        Assert::throws(SifException::class, function () use ($db, $secondPayload): void {
+            IssueInvoiceTest::serviceFor($db)->issueInvoice($secondPayload);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
     }
 
     public function testRequiresGiftIdentifier(): void
