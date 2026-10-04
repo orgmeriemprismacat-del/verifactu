@@ -76,6 +76,67 @@ final class RedsysCourseCutoverBoundaryTest
         }
     }
 
+
+    public function testCandidateCheckoutStopsBeforeCreatingIntentDuringDrain(): void
+    {
+        $source = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_automatic.php'
+        );
+
+        Assert::stringContainsString('SIF_REDSYS_COURSE_CUTOVER_ENABLED', $source);
+        Assert::stringContainsString('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED', $source);
+        Assert::stringContainsString('http_response_code(503)', $source);
+
+        $guard = strpos($source, 'if ($courseCutoverEnabled && !$legacyDrainConfirmed)');
+        $client = strpos($source, 'SifRedsysCourseIntentClient.php');
+        Assert::same(true, $guard !== false && $client !== false && $guard < $client);
+    }
+
+    public function testCandidateCheckoutUsesEnvironmentSpecificCallbackAndReturnUrls(): void
+    {
+        $source = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_automatic.php'
+        );
+
+        Assert::stringContainsString("getenv('SIF_REDSYS_LEGACY_CALLBACK_URL')", $source);
+        Assert::stringContainsString("getenv('SIF_REDSYS_RETURN_BASE_URL')", $source);
+        Assert::stringContainsString("getenv('SIF_REDSYS_EXPECTED_PAY_HOST')", $source);
+        Assert::stringContainsString('SIF_REDSYS_LEGACY_CALLBACK_URL_NOT_CONFIGURED', $source);
+        Assert::stringContainsString('SIF_REDSYS_RETURN_BASE_URL_NOT_CONFIGURED', $source);
+        Assert::stringContainsString('SIF_REDSYS_EXPECTED_PAY_HOST_NOT_CONFIGURED', $source);
+        Assert::stringContainsString('SIF_REDSYS_RETURN_BASE_URL_HOST_MISMATCH', $source);
+        Assert::stringContainsString('SIF_REDSYS_CALLBACK_URL_HOST_MISMATCH', $source);
+        Assert::stringContainsString('SIF_REDSYS_LEGACY_CALLBACK_URL_HOST_MISMATCH', $source);
+
+        $configGuard = strpos($source, 'SIF_REDSYS_EXPECTED_PAY_HOST_NOT_CONFIGURED');
+        $client = strpos($source, 'SifRedsysCourseIntentClient.php');
+        Assert::same(true, $configGuard !== false && $client !== false && $configGuard < $client);
+
+        if (str_contains($source, 'https://pay.prisma.cat/doit.php')
+            || str_contains($source, 'https://pay.prisma.cat/respostaOkPagamentAutomatic.php')
+            || str_contains($source, 'https://pay.prisma.cat/respostaKoPagamentAutomatic.php')
+        ) {
+            Assert::fail('Candidate checkout must not hardcode production callback/return URLs.');
+        }
+    }
+
+
+    public function testCandidateNormalModeDoesNotCreateSifIntent(): void
+    {
+        $source = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_automatic.php'
+        );
+
+        $cutoverBranch = strpos($source, 'if ($courseCutoverEnabled) {');
+        $client = strpos($source, "SifRedsysCourseIntentClient.php");
+        $legacyOrder = strpos($source, 'random_int(100000000000, 999999999999)');
+
+        Assert::same(true, $cutoverBranch !== false);
+        Assert::same(true, $client !== false && $cutoverBranch < $client);
+        Assert::same(true, $legacyOrder !== false && $client < $legacyOrder);
+        Assert::stringContainsString('// NORMAL = legacy pur.', $source);
+    }
+
     public function testInternalSifClientsRequireHttpsAtRuntime(): void
     {
         foreach ([

@@ -4,6 +4,69 @@ header('Pragma: no-cache');
 header('Referrer-Policy: no-referrer');
 header('X-Content-Type-Options: nosniff');
 
+$courseCutoverEnabled = filter_var(
+    getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+$legacyDrainConfirmed = filter_var(
+    getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+
+// DRAIN is a valid operational phase, but it must stop before DB access and
+// before creating a new SIF/Redsys payment intent.
+if ($courseCutoverEnabled && !$legacyDrainConfirmed) {
+    http_response_code(503);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit('Tall SIF en preparació. No es creen noves sessions TPV fins confirmar el drenatge legacy.');
+}
+
+// Validate every environment URL before DB access or SIF intent creation.
+$sifMerchantUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
+$legacyMerchantUrl = trim((string) getenv('SIF_REDSYS_LEGACY_CALLBACK_URL'));
+$returnBaseUrl = rtrim(trim((string) getenv('SIF_REDSYS_RETURN_BASE_URL')), '/');
+$expectedPayHost = strtolower(trim((string) getenv('SIF_REDSYS_EXPECTED_PAY_HOST')));
+
+if ($expectedPayHost === '') {
+    throw new RuntimeException('SIF_REDSYS_EXPECTED_PAY_HOST_NOT_CONFIGURED');
+}
+if ($returnBaseUrl === '') {
+    throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_NOT_CONFIGURED');
+}
+if (!str_starts_with($returnBaseUrl, 'https://')) {
+    throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_MUST_USE_HTTPS');
+}
+$returnHost = strtolower((string) parse_url($returnBaseUrl, PHP_URL_HOST));
+if ($returnHost === '' || !hash_equals($expectedPayHost, $returnHost)) {
+    throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_HOST_MISMATCH');
+}
+
+if ($courseCutoverEnabled) {
+    if ($sifMerchantUrl === '') {
+        throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_REQUIRED_FOR_CUTOVER');
+    }
+    if (!str_starts_with($sifMerchantUrl, 'https://')) {
+        throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_MUST_USE_HTTPS');
+    }
+    $sifCallbackHost = strtolower((string) parse_url($sifMerchantUrl, PHP_URL_HOST));
+    if ($sifCallbackHost === '' || !hash_equals($expectedPayHost, $sifCallbackHost)) {
+        throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_HOST_MISMATCH');
+    }
+    $merchantUrl = $sifMerchantUrl;
+} else {
+    if ($legacyMerchantUrl === '') {
+        throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_NOT_CONFIGURED');
+    }
+    if (!str_starts_with($legacyMerchantUrl, 'https://')) {
+        throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_MUST_USE_HTTPS');
+    }
+    $legacyHost = strtolower((string) parse_url($legacyMerchantUrl, PHP_URL_HOST));
+    if ($legacyHost === '' || !hash_equals($expectedPayHost, $legacyHost)) {
+        throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_HOST_MISMATCH');
+    }
+    $merchantUrl = $legacyMerchantUrl;
+}
+
 // UC-111: authoritative payment gate BEFORE rendering or building Redsys data.
 // This legacy bridge reads the enrollment and secretary decision, never the
 // course/amount/approval from the POST form as its source of truth.
@@ -134,10 +197,6 @@ try {
 
       $miObj = new RedsysAPI;
 
-      // UC-014: l'import i el DS_ORDER deixen de ser autoritat del navegador.
-      // El SIF rellegeix la inscripció a la BD llegada i crea/reutilitza la intenció.
-      require_once __DIR__ . '/SifRedsysCourseIntentClient.php';
-
       $fuc = trim((string) getenv('REDSYS_MERCHANT_CODE'));
       if ($fuc === '') {
          throw new RuntimeException('REDSYS_MERCHANT_CODE_NOT_CONFIGURED');
@@ -149,58 +208,39 @@ try {
       $moneda="978";
       $trans="0";
 
-      try {
-         $intent = (new SifRedsysCourseIntentClient())->create(
-            (int) $idPag,
-            $importPagare,
-            $terminal
-         );
-      } catch (Throwable $exception) {
-         http_response_code(503);
-         exit('No podem preparar el pagament en aquest moment. Torna-ho a provar més tard o contacta amb secretaria.');
+      // NORMAL = legacy pur. No creem una intenció SIF que quedaria PENDING
+      // sense callback SIF. CUTOVER CONFIRMAT = intenció + callback SIF.
+      if ($courseCutoverEnabled) {
+         require_once __DIR__ . '/SifRedsysCourseIntentClient.php';
+         try {
+            $intent = (new SifRedsysCourseIntentClient())->create(
+               (int) $idPag,
+               $importPagare,
+               $terminal
+            );
+         } catch (Throwable $exception) {
+            http_response_code(503);
+            exit('No podem preparar el pagament en aquest moment. Torna-ho a provar més tard o contacta amb secretaria.');
+         }
+         $order = (string) $intent['ds_order'];
+         $importPagare = (string) $intent['amount'];
+      } else {
+         $order = (string) random_int(100000000000, 999999999999);
       }
-      $order = (string) $intent['ds_order'];
-      $importPagare = (string) $intent['amount'];
       $id = $order;
 
-      // El fallback rep la correlació dins MerchantData signat. No posem PII ni import al callback URL.
-      $legacyMerchantUrl="https://pay.prisma.cat/doit.php";
-
-      // UC-014: el tall de MerchantURL és explícit. Configurar una URL SIF
-      // per si sola no canvia el callback; cal habilitar també el flag de cutover.
-      $courseCutoverEnabled = filter_var(
-         getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
-         FILTER_VALIDATE_BOOLEAN
-      );
-      $legacyDrainConfirmed = filter_var(
-         getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
-         FILTER_VALIDATE_BOOLEAN
-      );
-      $sifMerchantUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
-      if ($courseCutoverEnabled && !$legacyDrainConfirmed) {
-         throw new RuntimeException('SIF_REDSYS_LEGACY_DRAIN_NOT_CONFIRMED');
-      }
-      if ($courseCutoverEnabled) {
-         if ($sifMerchantUrl === '') {
-            throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_REQUIRED_FOR_CUTOVER');
-         }
-         if (!str_starts_with($sifMerchantUrl, 'https://')) {
-            throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_MUST_USE_HTTPS');
-         }
-         $url = $sifMerchantUrl;
-      } else {
-         $url = $legacyMerchantUrl;
-      }
+      // URL resolta i validada abans de qualsevol accés a BD o creació d'intent.
+      $url = $merchantUrl;
 
       $returnQuery = http_build_query([
          'order' => $order,
          'idPag' => (int) $idPag,
       ], '', '&', PHP_QUERY_RFC3986);
-      $urlOK="https://pay.prisma.cat/respostaOkPagamentAutomatic.php?".$returnQuery;
-      $urlKO="https://pay.prisma.cat/respostaKoPagamentAutomatic.php?".$returnQuery;
+      $urlOK=$returnBaseUrl."/respostaOkPagamentAutomatic.php?".$returnQuery;
+      $urlKO=$returnBaseUrl."/respostaKoPagamentAutomatic.php?".$returnQuery;
 
       if (!preg_match('/^\d{1,10}\.\d{2}$/D', $importPagare)) {
-         throw new RuntimeException('INVALID_SIF_PAYMENT_AMOUNT');
+         throw new RuntimeException('INVALID_AUTHORISED_PAYMENT_AMOUNT');
       }
       [$amountEuros, $amountDecimals] = explode('.', $importPagare, 2);
       $amount = ((int) $amountEuros * 100) + (int) $amountDecimals;
