@@ -16,6 +16,9 @@ final class AeatIntranetUiContractTest
         $api = $this->read($root . '/sif/public/api/aeat/operations.php');
         $config = $this->read($root . '/sif/config/sif.php');
 
+        Assert::stringContainsString("getenv('SIF_AEAT_READ_ROLES')", $page);
+        Assert::stringContainsString('array_intersect($sessionRoles, $aeatReadRoles)', $page);
+        Assert::stringContainsString('http_response_code(403)', $page);
         Assert::stringContainsString('sif_aeat_csrf', $page);
         Assert::stringContainsString('random_bytes(32)', $page);
         Assert::stringContainsString('sif-registres-aeat.js', $page);
@@ -36,6 +39,10 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString('csrf_token: csrf', $js);
         Assert::stringContainsString('Conciliar resultat guardat', $js);
         Assert::stringContainsString('Validar evidència i conciliar', $js);
+        Assert::stringContainsString(
+            'const canReconcile = response.capabilities?.reconcile === true;',
+            $js
+        );
         Assert::stringContainsString("get('queue_id')", $js);
         Assert::stringContainsString('loadDetail(Number(deepQueueId))', $js);
 
@@ -61,6 +68,8 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString("['aeat']['reconcile_roles']", $api);
         Assert::stringContainsString('AeatReviewReconciliationService', $api);
         Assert::stringContainsString('AeatEvidenceReconciliationService', $api);
+        Assert::stringContainsString('$canReconcile', $api);
+        Assert::stringContainsString("'reconcile' => $canReconcile", $api);
         Assert::stringContainsString('AeatPreflight', $api);
         Assert::stringContainsString("'evidence_directory' => getenv('SIF_AEAT_EVIDENCE_DIR')", $config);
 
