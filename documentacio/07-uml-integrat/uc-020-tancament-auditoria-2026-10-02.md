@@ -74,3 +74,12 @@ Al commit `9a70516ca27ee831b8ef78e61cea524c3c3ea5f6`:
 Per tant, el tancament queda en estat **AUDIT_CLOSED + VERIFICAT_CI_ESPECIFIC + GLOBAL_CI_BLOCKED_BY_UNRELATED_FAILURES**. L'evidència detallada és [uc-020-evidencia-ci-2026-10-03.md](uc-020-evidencia-ci-2026-10-03.md).
 
 Això no canvia els gates de rollout: continua pendent l'E2E real/controlat navegador → Redsys/callback → worker → factura a preproducció.
+
+
+## 10. Revalidació 04/10/2026
+
+L'estat passa a **AUDIT_CLOSED_REVALIDATED_2026-10-04**. No s'ha detectat cap peça documental principal absent.
+
+S'han tancat dues mancances addicionals de robustesa: participant immutable en reintents i repositori dedicat de `commercial_operation_line`. Els workflows del HEAD nou estan creats però encara en cua; per tant aquests canvis són **IMPLEMENTAT + INSPECCIONAT**, no encara **VERIFICAT_CI_HEAD**.
+
+El criteri de rollout no canvia: CI actual + E2E real/preproducció continuen sent gates abans de qualsevol fusió/producció.
