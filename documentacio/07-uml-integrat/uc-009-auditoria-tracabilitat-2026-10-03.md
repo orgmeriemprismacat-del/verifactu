@@ -147,6 +147,7 @@ Això implica:
 | GAP09-20 | resultat remot retornat però fallada local en persistir l'intent podia perdre l'evidence id | fiscal/recuperació | `reviewHold(... evidenceIdOverride)` conserva `EVIDENCE_ID`; prova específica bloqueja reenviament |
 | GAP09-21 | transport/excepció podia intentar substituir l'`EVIDENCE_ID` preassignat | integritat/fiscal | relació intent↔evidència immutable; divergència → `AEAT_EVIDENCE_REFERENCE_MISMATCH` + `REVIEW` |
 | GAP09-22 | rol de reconciliació podia autoritzar mutació sense rol de lectura si la configuració divergia | autorització | **TANCAT EN CODI**: mutacions exigeixen `hasReadRole && hasReconcileRole`; UI rep només `capabilities.reconcile` |
+| GAP09-23 | certificat/evidence root podien ser symlink directe o tenir permisos per a `others` | secrets/custòdia | **TANCAT EN CODI**: `ClientCertificate` i `EvidenceStore` rebutgen symlink i permisos OS per a altres usuaris; tests específics |
 
 ## 7. Traçabilitat requisit → implementació → prova
 
@@ -166,7 +167,7 @@ Això implica:
 | reconcile `UNCERTAIN` des d'evidència | `AeatEvidenceReconciliationService` + `EvidenceVerifier::readVerifiedPair()` | `AeatEvidenceReconciliationServiceTest` |
 | evidència no reutilitzable | `aeat_submission_attempt.EVIDENCE_ID UNIQUE` | migració `2026_10_04_000033` |
 | boundary browser segur | bridge + client server-side | `AeatIntranetUiContractTest` (branca) |
-| certificat/evidència | `ClientCertificate`, `EvidenceStore` | unit tests; entorn real pendent |
+| certificat/evidència | `ClientCertificate`, `EvidenceStore`: fora repo, no symlink, sense permisos `others`, P12 usable, evidence append-only | `AeatSecurityTest`; entorn real pendent |
 
 ## 8. Criteri de tancament
 
