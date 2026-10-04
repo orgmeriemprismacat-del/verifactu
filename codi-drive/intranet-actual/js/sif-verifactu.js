@@ -150,9 +150,9 @@
         }
     }
 
-    async function launchPanel() {
+    async function launchPanel(panel = 'incidents') {
         hideAlert();
-        const launch = await post(launchEndpoint, {});
+        const launch = await post(launchEndpoint, {panel});
         if (!launch.url || !launch.fields) throw new Error('Resposta d\'accés al panell incompleta');
 
         const form = document.createElement('form');
@@ -174,7 +174,10 @@
         load().catch(error => renderUnavailableWithoutCache(error.message));
     });
     document.getElementById('sif-open-incidents').addEventListener('click', () => {
-        launchPanel().catch(error => showAlert(error.message));
+        launchPanel('incidents').catch(error => showAlert(error.message));
+    });
+    document.getElementById('sif-open-versions').addEventListener('click', () => {
+        launchPanel('versions').catch(error => showAlert(error.message));
     });
 
     load().catch(error => renderUnavailableWithoutCache(error.message));
