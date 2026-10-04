@@ -72,9 +72,17 @@ final class RectificationIntranetProxyContractTest
         Assert::stringContainsString('X-CSRF-Token', $javascript);
         Assert::stringContainsString('X-Requested-With', $javascript);
         Assert::stringContainsString('classification_event_uuid', $javascript);
+        Assert::stringContainsString('fiscal_correction_decision', $javascript);
+        Assert::stringContainsString('ready_for_uc005_ui', $javascript);
+        Assert::stringContainsString('Previsualitzar rectificativa', $javascript);
+        Assert::stringContainsString('Confirmar i emetre rectificativa', $javascript);
+        Assert::stringContainsString('Pendent de classificació fiscal UC-74', $javascript);
 
         if (str_contains($javascript, 'classification:')) {
             Assert::fail('Intranet JS must not provide an inline UC-74 fiscal classification');
+        }
+        if (str_contains($javascript, '<select') || str_contains($javascript, "name=\"invoice_type\"")) {
+            Assert::fail('Intranet UC-005 must not expose a manual R1-R5 selector');
         }
     }
 }
