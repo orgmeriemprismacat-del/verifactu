@@ -34,13 +34,13 @@ S'incorporen al repositori:
 - `.github/workflows/uc014-sif-checks.yml`;
 - `sif/tests/run-uc014-tests.php`.
 
-Aquests fitxers separen la salut específica del UC-014 de fallades alienes en suites compartides. La suite global continua sent obligatòria per detectar regressions transversals, però no és l'únic criteri per atribuir un vermell a aquest cas.
+Aquests fitxers separen la salut específica del UC-014 de fallades alienes en suites compartides. El runner inclou, a més dels tests estrictament `RedsysCourse*`, `LegacyCourseInvoicePayloadBuilderTest`, `PrismaStudentCourseCheckoutServiceTest`, `RedsysAsyncFlowTest`, `RedsysCallbackDispatcherTest`, `RedsysCallbackQueueScriptTest`, `RedsysInvoicePayloadBuilderTest`, `CourseLegacyPaymentSyncServiceTest` i `LegacyCourseSnapshotRepositoryTest`. La suite global continua sent obligatòria per detectar regressions transversals, però no és l'únic criteri per atribuir un vermell a aquest cas.
 
 ## 5. Estat
 
 **DOCUMENTAT:** complet per UC-014 ordinari.  
 **IMPLEMENTAT:** tancat a repositori via PR #118.  
-**VERIFICAT:** evidència històrica PR #79/#95/#119 i gate selectiu 125/0; la branca neta 04/10 ha de repetir el gate contra el `main` actual.  
+**VERIFICAT:** evidència històrica PR #79/#95/#119 i gate selectiu inicial 125/0. La branca neta 04/10 amplia el gate amb snapshot/builder CURS, sync llegada, checkout Alumne PrisMa, flux asíncron, dispatcher/cua i builder Redsys; aquesta versió ampliada ha de quedar verda contra el `main` actual abans del merge.  
 **ACCEPTACIÓ OPERATIVA PENDENT:** Redsys real de preproducció, secrets/rotació, drain/cutover i transport UC-058.
 
 El cas només es reobre per una regressió reproduïble del perímetre UC-014 o per una fallada del gate selectiu.
