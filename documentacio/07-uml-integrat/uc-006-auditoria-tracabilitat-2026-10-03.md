@@ -235,7 +235,7 @@ La fitxa antiga agrupava `sif_audit_event`, `operational_event`, `payment_action
 
 **No implementat/acreditat**
 - titular compatible entre saldo, pagador/receptor i factura destí;
-- identificador d'operació que permeti dues compensacions legítimes del mateix import;
+- generació/autorització de la K explícita d'ordre des del canal productiu;
 - gateway d'auditoria;
 - wiring UI.
 
@@ -343,7 +343,7 @@ Aquesta branca afegeix `assertSamePaymentPayload()`, compatible amb hash V1/V2, 
 
 S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferentPayload()`.
 
-**Gap que queda:** dues compensacions **legítimes** del mateix import sobre el mateix saldo/factura continuen necessitant un identificador d'ordre diferent perquè la K actual no les pot representar com dues operacions noves.
+**Actualització 04/10:** el builder ja accepta `idempotency_key` explícita. Dues ordres legítimes del mateix import poden coexistir amb K diferents; el gap restant és generar/autoritzar aquesta K des de l'orquestrador i conservar-ne la traça.
 
 ## 8. Idempotència i concurrència
 
@@ -359,7 +359,7 @@ S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferent
 
 ### Buit residual
 
-- la K de compensació continua derivant de saldo + factura + import; dues ordres legítimes del mateix import necessiten un identificador d'operació propi;
+- la K derivada continua sent el fallback saldo+factura+import, però una K explícita permet ordres legítimes diferents; falta que la UI/orquestrador la construeixi;
 - refund sense referència externa forta deriva la K de factura/data/import/banc;
 - falta prova de concurrència real amb dues sessions SQL intentant consumir simultàniament el mateix dret;
 - falta deduplicació cross-channel Redsys/manual basada en una identitat externa comuna.
@@ -450,7 +450,7 @@ S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferent
 | UC006-T10 | compensació > saldo | bloqueig existent |
 | UC006-T11 | compensació > deute | bloqueig existent |
 | UC006-T12 | mateixa K compensació amb payload diferent | 409; test afegit |
-| UC006-T12b | dues ordres legítimes de mateix import | PENDENT identitat d'operació |
+| UC006-T12b | dues ordres legítimes de mateix import amb K diferents | **test afegit: dos UUID_PAYMENT + reintent segur; CI pendent** |
 | UC006-T13 | rectificativa sense retorn | cap REFUND automàtic |
 | UC006-T14 | SIF confirma però sync llegat falla | PENDENT adaptador/sync |
 | UC006-T15 | saldo consumeix 80 de 120 i després refund demana 50 | refund rollback; test creuat afegit |
