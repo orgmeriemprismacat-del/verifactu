@@ -726,3 +726,19 @@ La infraestructura `PaymentLinkService` ja no es limita a token/expiració/impor
 7. només si tot coincideix: reutilització idempotent.
 
 No s'ha detectat cap pàgina/apartat P01–P06 sense secció ACTUAL/FINAL al document.
+
+
+### 13.2. P02 — hardening de concurrència i command POST
+
+**ACTUAL hardenitzat 04/10:**
+
+1. qualsevol `calcularPreu()` incrementa una versió monotònica;
+2. callbacks de versions anteriors retornen sense mutar globals comercials;
+3. també el `setTimeout` de render diferit comprova la versió;
+4. mentre la versió vigent és pendent, el submit queda bloquejat;
+5. promoció vàlida i AP no poden quedar simultàniament com a origen de la UI;
+6. fallback de promoció invàlida neteja la marca promocional abans de tornar a AP;
+7. la comprovació de curs ja realitzat és una única cadena, sense AJAX duplicat ni handlers acumulats;
+8. `enviarInscripcio.php` rep la comanda per POST; `tipusCurs` no viatja com a dada autoritativa.
+
+**FINAL pendent:** substituir globals + POST llegat per `offer_id`/snapshot SIF immutable i contracte estructurat.
