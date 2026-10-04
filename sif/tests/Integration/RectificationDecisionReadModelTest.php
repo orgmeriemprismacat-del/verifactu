@@ -77,6 +77,91 @@ final class RectificationDecisionReadModelTest
         Assert::same(false, array_key_exists('actor_role', $decision));
     }
 
+    public function testExecutedUc74DecisionIsProjectedReadOnly(): void
+    {
+        $db = TestDatabase::fresh();
+        $issued = IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'UC005|QUERY|EXECUTED',
+        ]));
+
+        $correction = [
+            'amount' => '-40.00',
+            'reason' => 'DEVOLUCIO_PARCIAL',
+            'mode' => 'DIFERENCIES',
+            'concept' => 'Rectificacio executada',
+        ];
+        $fingerprint = (new RectificationDecisionFingerprint())->calculate($correction);
+        $audit = new SifAuditEventRepository(new UuidGenerator());
+
+        $decisionEventUuid = $audit->append($db, [
+            'request_id' => 'uc074-query-executed',
+            'correlation_id' => 'uc074-query-executed',
+            'action' => 'FISCAL_CORRECTION_CLASSIFIED',
+            'result' => 'SUCCEEDED',
+            'resource_type' => 'FACTURA',
+            'resource_id' => $issued['uuid_factura'],
+            'source_environment' => 'TEST',
+            'source_channel' => 'INTERNAL_API',
+            'actor_type' => 'HUMAN',
+            'actor_id' => 'responsable-fiscal',
+            'actor_role' => 'FACTURACIO',
+            'reason_code' => 'AMOUNT_DECREASE',
+            'changeset' => [
+                'classification' => [
+                    'decision' => 'RECTIFICATION',
+                    'source_uc' => 'UC-74',
+                    'reason_code' => 'AMOUNT_DECREASE',
+                    'policy_version' => '2026-10',
+                    'invoice_type' => 'R1',
+                    'rectification_mode' => 'DIFERENCIES',
+                ],
+                'correction_fingerprint' => $fingerprint,
+                'correction' => $correction,
+            ],
+        ]);
+
+        $rectificationUuid = (new UuidGenerator())->generate();
+        $audit->append($db, [
+            'request_id' => 'uc005-query-executed',
+            'correlation_id' => 'uc074-query-executed',
+            'action' => 'RECTIFICATION_CONFIRM',
+            'result' => 'SUCCEEDED',
+            'resource_type' => 'FACTURA',
+            'resource_id' => $rectificationUuid,
+            'source_environment' => 'TEST',
+            'source_channel' => 'INTERNAL_API',
+            'actor_type' => 'INTERNAL_USER',
+            'actor_id' => 'operator-test',
+            'actor_role' => 'FACTURACIO',
+            'reason_code' => 'AMOUNT_DECREASE',
+            'changeset' => [
+                'classification' => [
+                    'decision' => 'RECTIFICATION',
+                    'source_uc' => 'UC-74',
+                    'reason_code' => 'AMOUNT_DECREASE',
+                    'policy_version' => '2026-10',
+                    'invoice_type' => 'R1',
+                    'rectification_mode' => 'DIFERENCIES',
+                    'decision_event_uuid' => strtolower($decisionEventUuid),
+                ],
+                'fingerprint' => str_repeat('b', 64),
+            ],
+        ]);
+
+        $view = (new InvoiceQueryService(
+            $db,
+            new InvoiceReadRepository(),
+            $this->allowAllPolicy()
+        ))->view(['actor_id' => 'operator-test'], $issued['uuid_factura']);
+
+        $decision = $view['fiscal_correction_decision'] ?? null;
+        Assert::same(true, is_array($decision));
+        Assert::same(true, $decision['executed']);
+        Assert::same(false, $decision['ready_for_uc005_ui']);
+        Assert::same('SUCCEEDED', $decision['execution']['result']);
+        Assert::same($rectificationUuid, $decision['execution']['uuid_factura_rectificativa']);
+    }
+
     public function testMinimalProjectionDoesNotExposeFiscalCorrectionDecision(): void
     {
         $db = TestDatabase::fresh();
