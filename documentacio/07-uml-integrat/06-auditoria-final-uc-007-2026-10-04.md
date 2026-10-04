@@ -113,6 +113,8 @@ DNI, correu i llistes de candidats viatjaven a query string.
 ### UC007-FIND-10 · Volum servidor sense límit explícit — CORREGIT
 S'han afegit longituds màximes, màxim 2.000 candidats i límit de mida del payload de DNIs.
 
+La resolució DNI/correu → inscripcions també deixa de truncar silenciosament: consulta fins a 201 files i retorna 422 si hi ha més de 200 coincidències, obligant a acotar la cerca.
+
 ### UC007-FIND-11 · Guard de convivència podia quedar inactiu amb UC-007 actiu — CORREGIT
 El guard només s'activava amb `SIF_BLOCK_LEGACY_INVOICE_MUTATIONS`.
 
