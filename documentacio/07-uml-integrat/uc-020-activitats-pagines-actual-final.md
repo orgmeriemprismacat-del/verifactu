@@ -754,3 +754,17 @@ No s'ha detectat cap pàgina/apartat P01–P06 sense secció ACTUAL/FINAL al doc
 | entorn real | quina còpia està desplegada i flags efectius | PENDENT EVIDÈNCIA |
 
 No es pot marcar P04 com `VERIFICAT_RUNTIME_SIF` fins que hi hagi evidència de deploy/cutover.
+
+
+### 13.4. P05→P04 — promoció a AP pagable
+
+Quan Secretaria denega el dret documental:
+
+1. marcar denegació original;
+2. reavaluar AP v2 excloent matrícula actual i historial posterior;
+3. resoldre tarifa AP exacta;
+4. si AP elegible: `TIPUS_DESC=1`, `VALID_DESC=1`, `A_PAGAR=tarifa AP`;
+5. P03/P04 poden mostrar mètodes de pagament;
+6. si no és AP: conservar estat no pagable/ordinari segons decisió.
+
+**Transferència:** és informativa/offline, però ara només es mostra quan `VALID_DESC=1`, igual que la targeta.
