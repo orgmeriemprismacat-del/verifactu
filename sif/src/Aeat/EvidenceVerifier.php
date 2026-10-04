@@ -76,6 +76,7 @@ final class EvidenceVerifier
         $root = realpath($directory);
         $attempt = $root === false ? false : realpath($root . '/' . $id);
         if ($root === false || $attempt === false || !is_dir($attempt)
+            || is_link($root . '/' . $id)
             || dirname($attempt) !== $root
         ) {
             throw new \RuntimeException('AEAT evidence attempt is unavailable.');
