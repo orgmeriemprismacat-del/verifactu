@@ -120,7 +120,7 @@ actor O as Operador
 participant UI as alumnes-factura-sif.js
 participant PX as Proxy intranet UC-005
 participant AUTH as Sessió + permís + CSRF
-participant CL as UC-74 Classifier
+participant CL as UC-74 Classifier [PENDENT productor]
 participant API as SIF rectify.php
 participant CMD as RectificationCommandService
 participant DOC as Document/AEAT
@@ -131,12 +131,12 @@ AUTH-->>PX: OK
 PX->>CL: classificar amb estat fiscal real
 CL-->>PX: RECTIFICATION / SUBSANATION / ANNULMENT / NONE
 alt RECTIFICATION
-  PX->>API: POST intern signat preview
+  PX->>API: POST intern signat preview + classification_event_uuid
   API->>CMD: preview
   CMD-->>PX: before/after + fingerprint
-  PX-->>UI: mostrar preview
+  PX-->>UI: mostrar preview + fingerprint
   O->>UI: confirmar
-  UI->>PX: confirm + CSRF + fingerprint
+  UI->>PX: confirm mateixa correction + event_uuid + CSRF + fingerprint
   PX->>API: POST intern signat confirm
   API->>CMD: confirm
   CMD-->>PX: CREATED/REUSED
@@ -147,13 +147,15 @@ else altra decisió
 end
 ```
 
-## 6. AEAT rectificativa — frontera pendent
+**Estat del canal:** consumidor UI/proxy implementat; el productor UC-74 que crea l'event i el snapshot `correction` continua pendent.
+
+## 6. AEAT rectificativa — frontera parcial
 
 ```mermaid
 sequenceDiagram
 autonumber
 participant U74 as UC-74 fiscal
-participant MAP as AeatRectificationMapper [PENDENT]
+participant MAP as AeatRectificationMapper [PARCIAL/FAIL-CLOSED]
 participant OR as factura_registres original
 participant RF as RecordFactory
 participant X as XmlCodec
@@ -172,11 +174,11 @@ RF->>X: validar XSD local oficial
 X-->>MAP: snapshot AEAT immutable
 ```
 
-**Estat:** `RecordFactory` ja valida S/I i la presència/absència d'`ImporteRectificacion`; falta el mapper que construeixi els camps des de snapshot original i classificació fiscal fiable.
+**Estat:** `RecordFactory` valida S/I i `AeatRectificationMapper` ja construeix identitat rectificada, S/I, `FacturasRectificadas`, `ImporteRectificacion` per substitució i un `Desglose` derivat del snapshot original quan hi ha un únic perfil fiscal compatible. Falla tancat en perfils no acreditats.
 
 ## 7. Garanties i pendents
 
 - **Implementat:** HMAC/replay, rol server-side, preview/confirm, fingerprint doble, `FOR UPDATE`, idempotència, audit terminal dins del COMMIT.
 - **No confiar en el navegador:** l'endpoint UC-005 no accepta una classificació inline com a autoritat; exigeix `classification_event_uuid` i resol la decisió persistida a `sif_audit_event`.
 - **Implementat al protocol AEAT:** validació local de `TipoRectificativa=S|I`; S exigeix `ImporteRectificacion`, I el rebutja.
-- **Pendent:** classificador UC-74 executable, mapper AEAT rectificatiu complet, proxy sessió/CSRF, document E2E, concurrència real i preproducció.
+- **Pendent:** productor/classificador UC-74 executable, perfils AEAT complexos, document E2E, concurrència real i preproducció. Proxy sessió/CSRF i panell preview/confirm ja implementats.
