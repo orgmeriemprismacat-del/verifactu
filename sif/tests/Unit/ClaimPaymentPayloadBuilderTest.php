@@ -39,6 +39,25 @@ final class ClaimPaymentPayloadBuilderTest
         (new PaymentPayloadValidator())->validate($payload);
     }
 
+    public function testExternalReceiptIdUsesDedicatedIdempotencyFamily(): void
+    {
+        $payload = (new ClaimPaymentPayloadBuilder())->forExistingInvoice(
+            '11111111-1111-4111-8111-111111111111',
+            [
+                'amount' => '40.00',
+                'movement_date' => '2026-10-04 02:20:00',
+                'external_receipt_id' => 'BAN-101',
+                'claim_reference' => 'CLAIM-7',
+                'created_by' => 'gestio-test',
+            ]
+        );
+
+        Assert::same('CLAIM|RECEIPT:BAN-101', $payload['idempotency_key']);
+        Assert::same('BAN-101', $payload['reference']);
+        Assert::same('40.00', $payload['amount']);
+        Assert::same('CLAIM_PAYMENT', $payload['allocations'][0]['allocation_type']);
+    }
+
     public function testBuildsFallbackIdempotencyWithRequiredUserWhenReferenceIsMissing(): void
     {
         $payload = (new ClaimPaymentPayloadBuilder())->forExistingInvoice(
