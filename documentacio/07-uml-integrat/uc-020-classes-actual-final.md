@@ -85,7 +85,7 @@ class PrismaStudentDiscountPolicy {
 
 class LegacyPrismaStudentHistoryRepository {
   <<IMPLEMENTAT>>
-  +findByDocument(db,document) array
+  +findByDocument(db,document,excludeEnrollmentId,evaluationAt) array
 }
 
 class DiscountDecisionService {
@@ -208,3 +208,50 @@ La nova prova `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest` protegeix la 
 ## 9. Reconciliació de model comercial — continuació 03/10/2026
 
 El checkout AP crea `commercial_operation.CLASSIFICATION=BILLABLE` i `STATUS=READY_FOR_PAYMENT`, i després passa a `INTENT_CREATED` en vincular la intenció. `PaymentLinkService` valida també classificació i estat comercial a emissió i resolució. Això implementa el guard de pagabilitat de la infraestructura; la substitució efectiva de les rutes llegades P03/P04 pel `payment_link` continua pendent.
+
+
+## 10. Revalidació FINAL de classes — 04/10/2026
+
+La revisió de PR #158 ha detectat una millora útil però no integrable en bloc. El FINAL canònic manté els guards de #112 i afegeix repositoris/validacions de reintent:
+
+```mermaid
+classDiagram
+direction LR
+class PrismaStudentCourseCheckoutService {
+  <<IMPLEMENTAT>>
+  +stageAndCreateIntent(...)
+  -ensureParticipant(...)
+  -ensureOperationLine(...)
+}
+class LegacyPrismaStudentHistoryRepository {
+  <<IMPLEMENTAT>>
+  +findByDocument(db,document,excludeEnrollmentId,evaluationAt)
+}
+class CommercialOperationRepository {
+  <<IMPLEMENTAT>>
+}
+class CommercialOperationPartyRepository {
+  <<IMPLEMENTAT>>
+  +findByOperationAndRole(...)
+  +insert(...)
+}
+class CommercialOperationLineRepository {
+  <<IMPLEMENTAT 04/10>>
+  +findByOperationAndOrder(...)
+  +insert(...)
+}
+class DiscountValidationRepository {
+  <<IMPLEMENTAT>>
+}
+class RedsysPaymentIntentRepository {
+  <<IMPLEMENTAT>>
+}
+PrismaStudentCourseCheckoutService --> LegacyPrismaStudentHistoryRepository
+PrismaStudentCourseCheckoutService --> CommercialOperationRepository
+PrismaStudentCourseCheckoutService --> CommercialOperationPartyRepository
+PrismaStudentCourseCheckoutService --> CommercialOperationLineRepository
+PrismaStudentCourseCheckoutService --> DiscountValidationRepository
+PrismaStudentCourseCheckoutService --> RedsysPaymentIntentRepository
+```
+
+**Invariant nou:** una operació idempotent UC-020 no es pot reutilitzar si el participant congelat divergeix. També es rebutgen múltiples participants amb rol `PARTICIPANT` o línies duplicades amb el mateix `ORDRE` dins d'aquest flux.
