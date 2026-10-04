@@ -420,6 +420,8 @@ S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferent
 
 ### P1 — traça i integració
 
+- **UC006-GAP-P1-PROV · Proveniència exacta del transfer.** `INTERNAL_TRANSFER` conserva saldo A/B i no crea nou CHARGE, però no referencia encara quin `EXTERNAL_ALLOCATION`/`UUID_PAYMENT` originari finança cada tram quan hi ha fons barrejats. El wiring productiu ha de particionar per origen o ampliar el model abans d'afirmar traça de cobrament completa.
+
 7. `PaymentActionGateway` o equivalent per REQUESTED/terminal.
 8. request/correlation id estable de punta a punta.
 9. sync llegat només post-COMMIT.
