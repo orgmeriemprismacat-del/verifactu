@@ -36,6 +36,42 @@ final class AeatOperationsReadRepositoryTest
         }
     }
 
+
+    public function testDetailExposesOnlyEvidenceReconciliationCapabilityNotDatabaseAnchor(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'AEAT|OPS|EVIDENCE-CAPABILITY',
+        ]));
+
+        $queue = $db->query('SELECT * FROM fiscal_queue LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+        $recordId = (int) $db->query('SELECT ID FROM factura_registres LIMIT 1')->fetchColumn();
+        $db->prepare(
+            "INSERT INTO aeat_submission_attempt
+             (UUID_ATTEMPT, FACTURA_REGISTRE_ID, FISCAL_QUEUE_ID, ATTEMPT_NO,
+              ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID,
+              EVIDENCE_RESPONSE_SHA256, EVIDENCE_HTTP_STATUS, STATUS, STARTED_AT, FINISHED_AT)
+             VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, ?, 200,
+                     'UNCERTAIN', NOW(6), NOW(6))"
+        )->execute([
+            '55555555-eeee-4fff-8000-000000000009',
+            $recordId,
+            (int) $queue['ID'],
+            str_repeat('b', 64),
+            '20261004T010000Z-0123456789abcdef01234567',
+            str_repeat('c', 64),
+        ]);
+
+        $detail = (new AeatOperationsReadRepository())->detail($db, (int) $queue['ID']);
+        Assert::same(1, count($detail['attempts']));
+        Assert::same(1, (int) $detail['attempts'][0]['EVIDENCE_RECONCILABLE']);
+        if (array_key_exists('EVIDENCE_RESPONSE_SHA256', $detail['attempts'][0])
+            || array_key_exists('EVIDENCE_HTTP_STATUS', $detail['attempts'][0])
+        ) {
+            Assert::fail('AEAT panel must not expose the private response anchor details.');
+        }
+    }
+
     public function testRejectsUnknownStatusAndMissingQueueItem(): void
     {
         $db = TestDatabase::fresh();
