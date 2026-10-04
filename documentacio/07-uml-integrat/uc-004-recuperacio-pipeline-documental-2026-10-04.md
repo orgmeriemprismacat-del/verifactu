@@ -107,15 +107,17 @@ Criteris:
 - snapshot basat en `factura_registres.PAYLOAD_JSON` i hash fiscal, no en dades vives llegades;
 - CI completa verda.
 
-### Fase D2 — storage i processor · **PENDENT**
+### Fase D2 — storage i processor · **VERSIONAT EN AQUESTA BRANCA / CI PENDENT**
 
-Recuperar:
+Ja versionat a #166:
 
-- contractes de storage/renderer;
-- `PrivateDocumentWriter`;
+- contractes `DocumentStorageWriterInterface` i `FiscalDocumentRendererInterface`;
+- `PrivateDocumentWriter` immutable i verificat per hash;
 - `FiscalDocumentJobProcessor`;
-- gestió de lease/retry/stale;
-- incidència en error terminal.
+- lease/retry/stale recovery a `DocumentJobRepository`;
+- incidència idempotent en error terminal;
+- `DocumentRepository` ampliat de forma retrocompatible amb `document_id` i estat explícit;
+- proves `PrivateDocumentWriterTest` i `FiscalDocumentJobProcessorTest`.
 
 Criteris:
 
@@ -167,8 +169,8 @@ La via segura és **port selectiu per responsabilitat + proves verdes sobre main
 | job repository PHP | No al main; **sí a #166** | Sí | D1 versionat, CI pendent |
 | snapshot verificat | No al main; **sí a #166** | Sí | D1 versionat, CI pendent |
 | queue UC-004 | No al main; **servei sí a #166, no wired** | Sí | D3 connexió pendent |
-| lease/retry worker service | No | Sí | D2 |
-| storage writer immutable | No | Sí | D2 |
+| lease/retry processor service | No al main; **sí a #166** | Sí | D2 versionat, CI pendent |
+| storage writer immutable | No al main; **sí a #166** | Sí | D2 versionat, CI pendent |
 | renderer concret | No acreditat | interface/model, no renderer final | D4 |
 | worker entrypoint supervisable | No | no acreditat com a runtime final | D4 |
 
