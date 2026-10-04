@@ -77,9 +77,22 @@ No s'ha localitzat una fallada del pipeline documental UC-004 entre aquestes sis
 
 Això **augmenta la confiança per recuperar peces**, però no converteix #134 en un tall globalment verificat.
 
-## 6. Recuperació recomanada
+## 6. Estat de recuperació en aquesta branca
 
-### Fase D1 — repository i snapshot
+A la branca `audit/uc-004-revalidacio-v2-2026-10-04` ja s'han recuperat, de manera **no connectada al runtime UC-004**:
+
+- `DocumentJobRepository`;
+- `InvoiceDocumentSnapshotRepository`;
+- `InvoiceBeforePaymentDocumentQueueInterface`;
+- `InvoiceBeforePaymentDocumentQueueService`;
+- `InvoiceBeforePaymentDocumentQueueServiceTest`;
+- `InvoiceDocumentSnapshotRepositoryTest` (nova prova focalitzada en snapshot vàlid i tamper/hash mismatch).
+
+Aquesta recuperació deixa preparades les primitives de job/snapshot/queue però **no programa cap job després de l'emissió**. La connexió post-COMMIT queda deliberadament bloquejada fins tenir processor/storage/renderer i CI del HEAD.
+
+## 7. Recuperació recomanada
+
+### Fase D1 — repository i snapshot · **VERSIONAT EN AQUESTA BRANCA / CI PENDENT**
 
 Recuperar/reconciliar sobre el main actual:
 
@@ -94,7 +107,7 @@ Criteris:
 - snapshot basat en `factura_registres.PAYLOAD_JSON` i hash fiscal, no en dades vives llegades;
 - CI completa verda.
 
-### Fase D2 — storage i processor
+### Fase D2 — storage i processor · **PENDENT**
 
 Recuperar:
 
@@ -111,7 +124,7 @@ Criteris:
 - hash de bytes verificat;
 - idempotència davant crash entre storage/metadada/complete.
 
-### Fase D3 — productor UC-004 post-COMMIT
+### Fase D3 — productor UC-004 post-COMMIT · **SERVEI DE QUEUE VERSIONAT, CONNEXIÓ PENDENT**
 
 Només després de D1/D2:
 
@@ -124,7 +137,7 @@ La factura ja ha d'estar compromesa abans d'intentar la cua documental. Si falla
 - es retorna estat documental independent;
 - un retry de UC-004 reutilitza el mateix `UUID_FACTURA`.
 
-### Fase D4 — renderer i worker real
+### Fase D4 — renderer i worker real · **PENDENT**
 
 Encara cal un renderer concret i un entrypoint de worker desplegable.
 
@@ -132,7 +145,7 @@ No és suficient tenir `FiscalDocumentRendererInterface`.
 
 El renderer ha de produir una representació fiscal versionada a partir del snapshot immutable i ha de quedar cobert per validació visual/normativa.
 
-## 7. Per què no fusionar #134 sencer
+## 8. Per què no fusionar #134 sencer
 
 No s'ha de fusionar #134 directament perquè:
 
@@ -144,22 +157,22 @@ No s'ha de fusionar #134 directament perquè:
 
 La via segura és **port selectiu per responsabilitat + proves verdes sobre main actual**.
 
-## 8. Estat
+## 9. Estat
 
 | Peça | Main actual | #134 candidat | Acció |
 | --- | --- | --- | --- |
 | schema `document_job` | Sí | usa el mateix model | conservar main |
 | `factura_documents` | Sí | ampliació de retorn/status | reconciliar |
 | download privat | Sí, UC-080 | no és el gap principal | conservar main |
-| job repository PHP | No | Sí | D1 |
-| snapshot verificat | No | Sí | D1 |
-| queue UC-004 | No | Sí | D3 |
+| job repository PHP | No al main; **sí a #166** | Sí | D1 versionat, CI pendent |
+| snapshot verificat | No al main; **sí a #166** | Sí | D1 versionat, CI pendent |
+| queue UC-004 | No al main; **servei sí a #166, no wired** | Sí | D3 connexió pendent |
 | lease/retry worker service | No | Sí | D2 |
 | storage writer immutable | No | Sí | D2 |
 | renderer concret | No acreditat | interface/model, no renderer final | D4 |
 | worker entrypoint supervisable | No | no acreditat com a runtime final | D4 |
 
-## 9. Criteri de tancament documental
+## 10. Criteri de tancament documental
 
 Aquest document no declara implementat el pipeline. Defineix una ruta de recuperació segura i traçable.
 
