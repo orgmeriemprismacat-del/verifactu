@@ -360,6 +360,41 @@ end
 ```
 
 **Nota:** aquests tres recorreguts són ACTUALS a la branca, però encara no estan invocats per la UI llegada ni acreditats per CI/preproducció.
+## 6.5. ACTUAL ampliat — traspàs intern A → B sense nou cobrament
+
+```mermaid
+sequenceDiagram
+autonumber
+participant C as Caller/Coordinator
+participant S as EnrollmentFundTransferService
+participant B as EnrollmentFundTransferPayloadBuilder
+participant F as EnrollmentFundMovementRepository
+participant DB as BD SIF
+C->>S: transfer(K, source_enrollment_id=A, target_enrollment_id=B, amount)
+S->>B: build(input)
+B-->>S: payload normalitzat
+S->>DB: BEGIN
+S->>F: insertOrReuseInternalTransfer(...)
+F->>DB: buscar K FOR UPDATE
+alt K existent
+  F->>F: comparar payload econòmic
+  F-->>S: moviment reutilitzat
+else K nova
+  F->>DB: lock/reconstruir disponible d'A
+  alt A no té prou dret
+    F--xS: 409
+    S->>DB: ROLLBACK
+  else disponible suficient
+    F->>DB: INSERT INTERNAL_TRANSFER A→B
+    S->>DB: COMMIT
+  end
+end
+S-->>C: UUID_MOVEMENT + reused
+Note over S,DB: No crea payment_transaction ni CHARGE. La disponibilitat baixa a A i puja a B pel mateix import.
+```
+
+**Implementat a la branca:** builder, servei transaccional, repositori, preview/process CLI i proves A→B/A→B→C. **Pendent:** que UC-071/UC-006 decideixi i autoritzi quan/quanta quantitat traspassar.
+
 ## 7. FINAL — preview de decisió UC-006
 
 ```mermaid
