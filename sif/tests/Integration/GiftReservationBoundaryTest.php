@@ -40,6 +40,35 @@ final class GiftReservationBoundaryTest
         }
     }
 
+    public function testRecipientFormDoesNotExposePersonalOrPriceDataInQueryString(): void
+    {
+        $endpoint = $this->read('codi-drive/web-actual/ajax/mostrar_formulari_afortunat_regal.php');
+        $js = $this->read('codi-drive/web-actual/js1619773569/mostrarRegal.min.js');
+        $gift = $this->read('codi-drive/web-actual/RegalCurs.php');
+
+        Assert::stringContainsString("!== 'POST'", $endpoint);
+        Assert::stringContainsString("hash_equals(\$sessionCsrf, \$csrf)", $endpoint);
+        Assert::stringContainsString("Cache-Control: private, no-store", $endpoint);
+        Assert::stringContainsString("method: \"POST\"", $js);
+        Assert::stringContainsString("csrf: giftCsrf", $js);
+        Assert::stringContainsString("obtenirPreuHoresNomCursRegal(\$codiCurs)", $gift);
+
+        if (str_contains($endpoint, '$_GET[')) {
+            Assert::fail('Gift recipient form must not use GET/query-string input.');
+        }
+
+        foreach (['desti:', 'origen:', 'dedicatoria:', 'hores:', 'preu:', 'percentatge:'] as $forbidden) {
+            $start = strpos($js, 'url: domini + "ajax/mostrar_formulari_afortunat_regal.php"');
+            $end = strpos($js, 'dataType: "html"', $start ?: 0);
+            $request = ($start !== false && $end !== false)
+                ? substr($js, $start, $end - $start)
+                : '';
+            if (str_contains($request, $forbidden)) {
+                Assert::fail('Gift recipient form request leaks client field: ' . $forbidden);
+            }
+        }
+    }
+
     public function testPreviewEscapesPersonalHtmlAndValidatesConfiguredStyle(): void
     {
         $page = $this->read('codi-drive/web-actual/pagina_regal.php');
