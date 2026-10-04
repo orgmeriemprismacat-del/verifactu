@@ -143,6 +143,22 @@ final class DebtClaimCoordinatorGuardsTest
             $actor,
             $this->notice($invoice['uuid_factura'], 'FINAL_CLAIM', 'CLAIM|FOLLOWUP|3')
         );
+
+        Assert::throws(
+            SifException::class,
+            fn () => $service->recordNotice(
+                $actor,
+                $this->notice($invoice['uuid_factura'], 'FINAL_CLAIM', 'CLAIM|FOLLOWUP|4-EARLY')
+            ),
+            409
+        );
+
+        $db->exec(
+            "UPDATE debt_claim_event
+             SET OCCURRED_AT = DATE_SUB(OCCURRED_AT, INTERVAL 31 DAY)
+             WHERE EVENT_TYPE = 'FINAL_CLAIM'"
+        );
+
         $secondFinal = $service->recordNotice(
             $actor,
             $this->notice($invoice['uuid_factura'], 'FINAL_CLAIM', 'CLAIM|FOLLOWUP|4')
