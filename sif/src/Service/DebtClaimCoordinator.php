@@ -111,6 +111,10 @@ final class DebtClaimCoordinator
                 throw SifException::conflict('Debt claim notice would repeat or regress current stage');
             }
 
+            if ($repeatableFinalClaim) {
+                $this->assertFinalClaimFollowupEligible($db, $claim);
+            }
+
             $at = $this->now();
             $event = $this->claims->appendEvent($db, $claim, [
                 'event_type' => $action,
@@ -585,6 +589,36 @@ final class DebtClaimCoordinator
             throw SifException::validation('Debt claim optional field is too long');
         }
         return $v;
+    }
+
+    private function assertFinalClaimFollowupEligible(\PDO $db, array $claim): void
+    {
+        $lastFinal = $this->claims->findLatestEventByType(
+            $db,
+            (string) $claim['UUID_CLAIM'],
+            'FINAL_CLAIM'
+        );
+        if ($lastFinal === null) {
+            throw SifException::conflict('Final claim follow-up requires an existing final claim');
+        }
+
+        $timezone = new \DateTimeZone('Europe/Madrid');
+        $lastAt = \DateTimeImmutable::createFromFormat(
+            'Y-m-d H:i:s.u',
+            (string) $lastFinal['occurred_at'],
+            $timezone
+        );
+        if ($lastAt === false) {
+            $lastAt = new \DateTimeImmutable((string) $lastFinal['occurred_at'], $timezone);
+        }
+
+        $eligibleAt = $lastAt->modify('+30 days');
+        $now = new \DateTimeImmutable('now', $timezone);
+        if ($now < $eligibleAt) {
+            throw SifException::conflict(
+                'Final claim follow-up is not eligible until 30 days after the previous final claim'
+            );
+        }
     }
 
     private function now(): string
