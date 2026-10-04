@@ -30,6 +30,7 @@
 | T24-23 | projecció legacy, retry ja sincronitzat i delta anòmal | `ClaimPaymentLegacySyncServiceTest` | IMPLEMENTADA, pendent execució HEAD |
 | T24-24 | API signada, rols, anti-replay i contracte server-side | `ClaimPaymentInternalApiContractTest` + `InternalApiAuthenticatorTest` | IMPLEMENTADA, pendent execució HEAD |
 | T24-25 | UI feature-flagged no envia factura/actor/claimCase | `ClaimPaymentIntranetBoundaryTest` | IMPLEMENTADA, pendent execució HEAD |
+| T24-26 | recuperació després de commit SIF + fallada de projecció legacy, sense duplicar cobrament | `ClaimPaymentLegacyRecoveryTest` | IMPLEMENTADA, pendent execució HEAD |
 
 ## Evidència que s'ha de conservar per tancar
 
