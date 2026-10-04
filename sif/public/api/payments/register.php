@@ -8,10 +8,12 @@ use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentActionEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Service\ExistingInvoiceEnrollmentFundAllocationService;
 use Prisma\Sif\Service\ExistingInvoiceLegacyProjectionService;
 use Prisma\Sif\Service\ExistingInvoicePaymentCommandService;
 use Prisma\Sif\Service\ExistingInvoicePaymentPreviewService;
@@ -143,7 +145,10 @@ try {
                 new ManualPaymentPayloadBuilder(),
                 $service
             ),
-            new ExistingInvoiceLegacyProjectionService()
+            new ExistingInvoiceLegacyProjectionService(),
+            new ExistingInvoiceEnrollmentFundAllocationService(
+                new EnrollmentFundMovementRepository(new UuidGenerator())
+            )
         );
 
         $result = (new PaymentActionGateway(
