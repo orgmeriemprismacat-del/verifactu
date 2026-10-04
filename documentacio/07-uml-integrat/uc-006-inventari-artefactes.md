@@ -64,41 +64,30 @@ No cal crear fitxers buits addicionals. El paquet documental objectiu queda cobe
 | Process compensació | `process-credit-compensation.php` | IMPLEMENTAT NO PRODUCTIU |
 | Tests | `CreditBalanceServiceTest.php` | EXISTEIXEN |
 
-## 4. Ledger de fons per inscripció — troballa addicional
-
-La base de traçabilitat quantitativa **sí existeix parcialment**:
+## 4. Ledger de fons per inscripció — estat executable 04/10/2026
 
 | Peça | Estat |
 | --- | --- |
-| `2026_09_30_000030_add_enrollment_fund_movement.sql` | IMPLEMENTADA AL REPOSITORI |
-| `EnrollmentFundMovementRepository.php` | IMPLEMENTAT PARCIAL |
+| `2026_09_30_000030_add_enrollment_fund_movement.sql` | IMPLEMENTADA · atribució base |
+| `2026_10_04_000034_extend_enrollment_fund_exits.sql` | AFEGIDA A LA BRANCA · `UUID_CREDIT`, `REFUND_EXIT`, `CREDIT_CREATE` |
+| `EnrollmentFundMovementRepository.php` | IMPLEMENTAT AMPLIAT |
 | `CourseEnrollmentFundAllocationService.php` | IMPLEMENTAT |
 | `PackEnrollmentFundAllocationService.php` | IMPLEMENTAT |
-| `CourseEnrollmentFundAllocationServiceTest.php` | PROVES EXISTENTS |
+| `CreditBalanceService.php` | CABLEJAT a `CREDIT_CREATE` i `COMPENSATION_ALLOCATION` quan hi ha inscripció explícita |
+| `ManualRefundService.php` | CABLEJAT a `REFUND_EXIT` quan hi ha inscripció explícita |
+| proves de servei | AFEGIDES · EXECUCIÓ CI/PREPROD PENDENT |
 
-La migració accepta:
-- `EXTERNAL_ALLOCATION`;
-- `INTERNAL_TRANSFER`;
-- `REVERSAL`;
-- `COMPENSATION_ALLOCATION`.
+Moviments disponibles al model actual de la branca:
+- `EXTERNAL_ALLOCATION`: cobrament extern → inscripció;
+- `CREDIT_CREATE`: inscripció → `credit_balance`;
+- `REFUND_EXIT`: inscripció → exterior, vinculat a REFUND confirmat;
+- `COMPENSATION_ALLOCATION`: `credit_balance`/COMPENSATION → factura/línia/inscripció;
+- `INTERNAL_TRANSFER`: admès per esquema, encara sense servei UC-006;
+- `REVERSAL`: admès per esquema, encara sense orquestració UC-006.
 
-El repositori implementa explícitament:
-- `insertOrReuseExternalAllocation()`;
-- `insertOrReuseCompensationAllocation()`;
-- idempotència per `IDEMPOTENCY_KEY`;
-- comprovació del payload en reús;
-- lock del `payment_transaction`.
+El repositori també implementa `availableAmountForInscription()` i impedeix que les sortides `CREDIT_CREATE`/`REFUND_EXIT` superin el dret net atribuït. Les sortides i el moviment econòmic corresponent comparteixen transacció quan el caller identifica la inscripció.
 
-### Límit respecte UC-006
-
-No s'ha localitzat wiring genèric des de:
-- `ManualRefundService` cap a una sortida per `ID_INSC`;
-- `CreditBalanceService::createCredit()` cap al ledger;
-- `CreditBalanceService::applyCredit*()` cap a `insertOrReuseCompensationAllocation()`.
-
-Tampoc existeix al contracte actual de la taula una referència directa a `UUID_CREDIT` per modelar de manera completa `INSCRIPCIÓ → CREDIT` i `CREDIT → INSCRIPCIÓ`.
-
-Per tant, el ledger passa de **“inexistent”** a **“base implementada, integració UC-006 parcial”**.
+**Límit actual:** la UI/orquestrador encara no obliga aquests identificadors; la titularitat i l'evidència externa de refund continuen pendents.
 
 ## 5. Auditoria funcional i events
 
@@ -121,55 +110,58 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 | --- | --- | --- |
 | C-01 | `Uc006Controller`/command segur | FALTA |
 | C-02 | `Uc006DecisionService` o equivalent | FALTA |
-| C-03 | Loader autoritatiu de dret econòmic per origen/inscripció | FALTA GENERALITZAR |
-| C-04 | Càlcul de disponibilitat a partir d'`enrollment_fund_movement` | FALTA |
-| C-05 | Sortida de refund vinculada a inscripció | FALTA |
-| C-06 | Idempotència tècnica de `createCredit()` | **IMPLEMENTADA A LA BRANCA** · falta derivar/obligar clau de dret de negoci |
-| C-07 | Traça del `UUID_CREDIT` al ledger per crear/aplicar saldo | FALTA MODELAR |
-| C-08 | Política de titularitat saldo/factura | FALTA |
-| C-09 | Evidència externa de refund i estat pending/confirmed | FALTA GENÈRIC |
+| C-03 | Disponibilitat quantitativa per inscripció | **IMPLEMENTADA** · `availableAmountForInscription()` |
+| C-04 | Refund vinculat a inscripció | **IMPLEMENTAT OPCIONAL** · `REFUND_EXIT` amb rollback |
+| C-05 | Alta saldo consumint dret origen | **IMPLEMENTADA OPCIONAL** · `CREDIT_CREATE` |
+| C-06 | Idempotència tècnica de `createCredit()` | **IMPLEMENTADA** |
+| C-07 | `UUID_CREDIT` al ledger i aplicació a inscripció | **IMPLEMENTAT** · FK + `COMPENSATION_ALLOCATION` |
+| C-08 | Política de titularitat saldo/refund/factura | FALTA · BLOQUEJANT |
+| C-09 | Evidència externa de refund / pending-confirmed | FALTA GENÈRIC |
 | C-10 | Wiring de `PaymentActionGateway` | FALTA UC-006 |
 | C-11 | Wiring amb baixa | FALTA |
-| C-12 | Wiring amb canvi curs | FALTA |
-| C-13 | Separació definitiva de la UI “A TORNAR” | FALTA |
+| C-12 | Wiring amb canvi curs / `INTERNAL_TRANSFER` | FALTA |
+| C-13 | Separació definitiva UI “A TORNAR” | FALTA |
 | C-14 | Sync llegat post-COMMIT | FALTA / CAL VALIDAR |
 | C-15 | E2E a `sif_test*` / `sif_pre` | FALTA EVIDÈNCIA |
+| C-16 | Concurrència real multi-sessió sobre mateix dret | FALTA EVIDÈNCIA |
 
 ## 7. Proves existents vs proves que falten
 
-### Existents
+### Proves existents o afegides a la branca
 
-- refund parcial;
-- refund complet;
-- refund sobre factura inexistent;
-- saldo creat;
-- compensació parcial;
-- compensació completa;
-- mateixa K de compensació amb payload diferent → conflicte (**test afegit; CI pendent**);
-- compensació > saldo;
-- compensació > deute;
-- atribució inicial de curs per inscripció;
-- reintent idempotent d'atribució;
-- fraccions separades.
+- refund parcial/complet i factura inexistent;
+- reintent REFUND idempotent;
+- `REFUND_EXIT` contra inscripció;
+- rollback de refund quan un saldo ja ha consumit prou dret;
+- creació de saldo;
+- mateixa K/payload de saldo → reús del mateix UUID;
+- mateixa K amb payload diferent → conflicte;
+- `correlation_id` diferent en reintent → mateix fet econòmic;
+- `CREDIT_CREATE` i disponibilitat restant;
+- rollback d'una segona alta de saldo per fons insuficients;
+- compensació parcial/completa;
+- compensació > saldo / > deute;
+- mateixa K compensació amb payload diferent → conflicte;
+- `COMPENSATION_ALLOCATION` cap a inscripció destí;
+- rollback si la inscripció destí no pertany a la factura;
+- atribució inicial de curs per inscripció, reintent i fraccions.
 
 ### Falten per tancament UC-006
 
-- mateixa clau/payload de saldo reutilitza UUID i mateixa clau/payload diferent conflicta (**tests afegits; CI pendent**);
-- falta provar doble dret/origen amb claus de negoci derivades pel futur orquestrador;
-- refund superior al fons atribuït encara disponible;
-- refund de només una inscripció d'una factura conjunta;
+- titular incompatible en refund/saldo/compensació;
 - refund Redsys/manual del mateix fet extern;
-- ledger de sortida d'una devolució;
-- ledger de creació d'un saldo;
-- ledger de consum d'un saldo;
-- titular incompatible;
-- concurrència refund vs saldo sobre el mateix dret;
+- dues ordres legítimes de compensació del mateix import;
+- `INTERNAL_TRANSFER` A→B de canvi de curs;
+- concurrència simultània real de dues sessions consumint el mateix dret;
 - audit REQUESTED + terminal;
+- autorització endpoint;
 - E2E baixa → decisió → efecte econòmic;
-- E2E canvi → repartiment → refund/saldo;
+- E2E canvi → reassignació/refund/saldo;
 - fallada de sync després de COMMIT SIF.
 
 ## 8. Criteri de tancament
+
+
 
 ### Documentació
 
