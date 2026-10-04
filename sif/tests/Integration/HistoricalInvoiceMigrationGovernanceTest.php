@@ -37,6 +37,9 @@ final class HistoricalInvoiceMigrationGovernanceTest
         Assert::same('NONE', $operational[0]['ECONOMIC_IMPACT']);
         Assert::same('HISTORICAL_INVOICE_IMPORTED', $operational[0]['REASON_CODE']);
         Assert::same('HISTORICAL_INVOICE_REUSED', $operational[1]['REASON_CODE']);
+        Assert::same('uc011-explicit-actor', (string) $db->query(
+            "SELECT ACTOR_ID FROM sif_audit_event ORDER BY ID LIMIT 1"
+        )->fetchColumn());
     }
 
     public function testRejectsNumberClaimedByDifferentIdempotencyKey(): void
@@ -152,6 +155,7 @@ final class HistoricalInvoiceMigrationGovernanceTest
             'legacy_id' => 9123,
             'factura_relacionada' => 700,
             'created_by' => 'uc011-governance-test',
+            'actor_id' => 'uc011-explicit-actor',
             'actor_type' => 'PROCESS',
             'actor_role' => 'MIGRATION_OPERATOR',
             'request_id' => 'req-uc011-9123',
