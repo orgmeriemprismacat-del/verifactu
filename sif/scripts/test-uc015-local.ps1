@@ -50,7 +50,7 @@ try {
     $lines.Add('RedsysPackWorkerEndToEndTest::testPackWorkerReplayKeepsFiscalEconomicAndOutboxEffectsIdempotent')
     $lines.Add('PackEnrollmentTransportBoundaryTest::testPackEnrollmentMutationUsesPostAndDoesNotReadGetParameters')
     $lines.Add('PackPaymentPrivacyBoundaryTest::testPackRedsysPayloadUsesNameNotDniAndOmitsEmailFromReturnUrls')
-    $lines.Add('PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesTreatEmailAsOptionalEscapedHint')
+    $lines.Add('PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesDoNotExposeEmailInReturnUrlsOrViews')
     $lines.Add('PublicWebMutationAuthorizationTest::testAllowsConfiguredSameOriginAjaxRequest')
     $lines.Add('PublicWebMutationAuthorizationTest::testRejectsCrossOriginRequest')
     $lines.Add('PublicWebMutationAuthorizationTest::testRejectsNonAjaxRequest')
