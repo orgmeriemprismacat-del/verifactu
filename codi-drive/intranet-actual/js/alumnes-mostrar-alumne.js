@@ -1383,7 +1383,7 @@ function mostrarModalConsultaInformacio(id) {
 					requestSif.done(function(res) {
 						if (res && res.ok === true && res.resolution === "VIEW" && res.invoice && res.invoice.uuid_factura) {
 							window.location.replace(
-								'https://intranet.prisma.cat/alumnes/factura/#/uuid/' +
+								window.location.origin + '/alumnes/factura/#/uuid/' +
 								encodeURIComponent(res.invoice.uuid_factura)
 							);
 							return;
@@ -1400,7 +1400,7 @@ function mostrarModalConsultaInformacio(id) {
 							var numFactura = parseInt($('#factura-insc').html(), 10);
 							if (!isNaN(numFactura)) {
 								window.location.replace(
-									'https://intranet.prisma.cat/alumnes/factura/#/factRel/' + numFactura
+									window.location.origin + '/alumnes/factura/#/factRel/' + numFactura
 								);
 								return;
 							}
