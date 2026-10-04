@@ -479,3 +479,10 @@ La via d'evidència exigeix simultàniament:
 9. estat terminal `ACCEPTED|ACCEPTED_WITH_ERRORS|REJECTED`.
 
 Si qualsevol comprovació falla, no es modifica l'intent, la cua continua `REVIEW` i no existeix cap fallback de reenviament.
+
+
+### 8.4. Conservació de l'evidència si falla la persistència post-resposta
+
+Si el transport ja ha retornat una resposta amb `evidence_id` però falla la persistència local de `aeat_submission_attempt`, el processador passa explícitament aquest identificador a `reviewHold()`. L'intent queda `UNCERTAIN` amb `EVIDENCE_ID`, la cua queda `REVIEW` i el worker no torna a enviar.
+
+La prova `testPostResponsePersistenceFailureKeepsEvidenceReferenceAndBlocksResend` força una fallada de serialització local després del resultat remot i verifica aquesta invariant.
