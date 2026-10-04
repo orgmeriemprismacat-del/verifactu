@@ -27,8 +27,8 @@ final class InternalInvoiceScopeResolver
         }
 
         $roles = $this->normalizeRoles($roles);
-        $projection = $this->projectionFor($roles);
-        if ($projection === null) {
+        [$projection, $scopeRole] = $this->projectionFor($roles);
+        if ($projection === null || $scopeRole === null) {
             throw SifException::forbidden('Invoice query role is not authorized');
         }
 
@@ -40,21 +40,26 @@ final class InternalInvoiceScopeResolver
             'projection' => $projection,
         ];
         $resolved['invoice_scope_source'] = 'INTERNAL_ROLE';
+        $resolved['invoice_scope_role'] = $scopeRole;
 
         return $resolved;
     }
 
-    private function projectionFor(array $roles): ?string
+    private function projectionFor(array $roles): array
     {
-        if (array_intersect($roles, $this->fullReadRoles) !== []) {
-            return 'FULL';
+        foreach ($roles as $role) {
+            if (in_array($role, $this->fullReadRoles, true)) {
+                return ['FULL', $role];
+            }
         }
 
-        if (array_intersect($roles, $this->minimalReadRoles) !== []) {
-            return 'MINIMAL';
+        foreach ($roles as $role) {
+            if (in_array($role, $this->minimalReadRoles, true)) {
+                return ['MINIMAL', $role];
+            }
         }
 
-        return null;
+        return [null, null];
     }
 
     private function normalizeRoles(array $roles): array
