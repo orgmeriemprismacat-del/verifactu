@@ -117,6 +117,10 @@ class GroupParticipantAdditionPreviewService {
  <<PHP implementat>>
  +preview(db,uuidFactura,candidate) array
 }
+class GroupParticipantAdditionDecisionService {
+ <<PHP implementat: planificació>>
+ +plan(preview,decision) array
+}
 class OperationalEventRepository {
  <<PHP existent>>
  +append(db,event) string
@@ -142,6 +146,7 @@ class EnrollmentFundMovementRepository {
  +append(db,movement) string
 }
 GroupParticipantAdditionCoordinator --> GroupParticipantAdditionPreviewService : previsualització
+GroupParticipantAdditionCoordinator --> GroupParticipantAdditionDecisionService : pla validat
 GroupParticipantAdditionCoordinator --> OperationalEventRepository : traça prevista
 GroupParticipantAdditionCoordinator --> InvoiceService : si nova factura classificada
 GroupParticipantAdditionCoordinator --> ManualRectificationService : si correcció classificada
@@ -201,3 +206,13 @@ Note over C,G: Orquestració i registre de fons NO implementats, no modificar fa
 La fase de **previsualització segura** ja és executable. `GroupParticipantAdditionPreviewService` comprova factura/grup, duplicats, IDPAG i coherència dels imports del candidat, i retorna la projecció nominal del grup sense editar la factura original.
 
 La fase `confirm` continua fail-closed perquè afegir una persona pot canviar el tram de `descomptes_grup`; no es crea automàticament una factura complementària ni una rectificativa fins que aquesta política estigui aprovada.
+
+
+## 7. Planificador de decisió
+
+`GroupParticipantAdditionDecisionService` separa explícitament:
+1. alta acadèmica;
+2. document fiscal del nou participant o revisió del grup;
+3. cobrament posterior real.
+
+No registra cap pagament en planificar l'alta. Si la política és `KEEP_EXISTING_MEMBER_PRICES` i l'acció és `SUPPLEMENTAL_INVOICE_PARTICIPANT`, genera un pla nominal pel total del candidat; si cal repricing del grup, crea una acció separada que exigeix classificació fiscal.
