@@ -288,6 +288,54 @@ EnrollmentFundMovementRepository --> EnrollmentFundMovementTable
 
 La migració admet `EXTERNAL_ALLOCATION`, `INTERNAL_TRANSFER`, `REVERSAL` i `COMPENSATION_ALLOCATION`. El repositori implementa inserció/reús d'atribució externa i de compensació. No s'ha localitzat, però, la integració d'aquest ledger amb `ManualRefundService` o `CreditBalanceService`.
 
+## 5.2. ACTUAL ampliat 04/10 — sortides i entrada de saldo ja cablejades
+
+```mermaid
+classDiagram
+direction LR
+class ManualRefundService {
+  +registerByUuid(db,uuidFactura,input)
+  +registerByNumVisible(db,numVisible,input)
+}
+class PaymentService {
+  +registerPayment(payload)
+  +registerPaymentInTransaction(db,payload)
+}
+class CreditBalanceService {
+  +createCredit(input)
+  +applyCreditByUuid(uuidCredit,uuidFactura,input)
+  +applyCreditByNumVisible(uuidCredit,numVisible,input)
+  -ensureCreditFundExit(db,payload,uuidCredit)
+  -ensureCompensationFundAllocation(db,payload,uuidPayment,credit,invoice)
+}
+class EnrollmentFundMovementRepository {
+  +availableAmountForInscription(db,idInsc,forUpdate)
+  +insertOrReuseCreditCreate(db,movement)
+  +insertOrReuseRefundExit(db,movement)
+  +insertOrReuseCompensationAllocation(db,movement)
+}
+class CreditBalance {
+  <<SIF DB>>
+  +UUID_CREDIT
+  +IDEMPOTENCY_KEY
+  +IDEMPOTENCY_PAYLOAD_HASH
+}
+class EnrollmentFundMovement {
+  <<SIF DB>>
+  +UUID_PAYMENT
+  +UUID_CREDIT
+  +ID_INSC_ORIGEN
+  +ID_INSC_DESTI
+  +MOVEMENT_TYPE
+}
+ManualRefundService --> PaymentService : REFUND compartint transacció
+ManualRefundService --> EnrollmentFundMovementRepository : REFUND_EXIT
+CreditBalanceService --> CreditBalance : crea/consumeix
+CreditBalanceService --> EnrollmentFundMovementRepository : CREDIT_CREATE / COMPENSATION_ALLOCATION
+EnrollmentFundMovementRepository --> EnrollmentFundMovement : persisteix/locka
+```
+
+**Implementat:** quan el caller aporta `source_enrollment_id` o `target_enrollment_id`, aquestes relacions són codi real de la branca. **Pendent:** controlador UC-006, titularitat, evidence guard genèric, `INTERNAL_TRANSFER` i audit gateway.
 ## 6. Mancances del model ACTUAL
 
 1. **No hi ha orquestrador UC-006**, tot i que ja existeix un ledger parcial per inscripció.
