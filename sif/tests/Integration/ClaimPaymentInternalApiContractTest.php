@@ -28,12 +28,19 @@ final class ClaimPaymentInternalApiContractTest
         Assert::stringContainsString('registerByNumVisibleInTransaction', $api);
         Assert::stringContainsString("$paymentInput['created_by'] = (string) ($actor['actor_id']", $api);
         Assert::stringContainsString('Provide exactly one claim payment invoice selector', $api);
+        Assert::stringContainsString('claim_case_id', $api);
+        Assert::stringContainsString('external_receipt_id', $api);
+        Assert::stringContainsString("unset(\$paymentInput[\$legacyReferenceField])", $api);
+        Assert::stringContainsString("\$paymentInput['external_receipt_id'] = \$externalReceiptId", $api);
+        Assert::stringContainsString("'changeset' => [", $api);
 
         Assert::stringContainsString('SIF_INTERNAL_CLAIM_PAYMENT_URL', $client);
         Assert::stringContainsString('SIF_INTERNAL_CLAIM_PAYMENT_SIGNED_PATH', $client);
         Assert::stringContainsString('/api/claim-payments/register.php', $client);
         Assert::stringContainsString('registerByUuid', $client);
         Assert::stringContainsString('registerByNumVisible', $client);
+        Assert::stringContainsString("'claim_case_id' => trim(\$claimCaseId)", $client);
+        Assert::stringContainsString("'external_receipt_id' => trim(\$externalReceiptId)", $client);
 
         Assert::stringContainsString('X-SIF-Signature', $transport);
         Assert::stringContainsString("hash_hmac('sha256'", $transport);
