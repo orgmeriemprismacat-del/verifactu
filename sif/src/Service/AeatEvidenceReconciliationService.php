@@ -31,10 +31,15 @@ final class AeatEvidenceReconciliationService
         new EvidenceStore($this->evidenceDirectory);
     }
 
-    public function reconcile(int $queueId, string $attemptUuid, string $actorId): array
-    {
+    public function reconcile(
+        int $queueId,
+        string $attemptUuid,
+        string $actorId,
+        ?string $actorRole = null
+    ): array {
         $attemptUuid = strtolower(trim($attemptUuid));
         $actorId = trim($actorId);
+        $actorRole = $actorRole === null ? null : strtoupper(trim($actorRole));
 
         if ($queueId <= 0) {
             throw SifException::validation('Invalid AEAT queue id');
@@ -48,11 +53,15 @@ final class AeatEvidenceReconciliationService
         if ($actorId === '' || mb_strlen($actorId, 'UTF-8') > 120) {
             throw SifException::validation('Invalid reconciliation actor');
         }
+        if ($actorRole !== null && ($actorRole === '' || mb_strlen($actorRole, 'UTF-8') > 80)) {
+            throw SifException::validation('Invalid reconciliation actor role');
+        }
 
         return $this->transactions->run(function (\PDO $db) use (
             $queueId,
             $attemptUuid,
-            $actorId
+            $actorId,
+            $actorRole
         ): array {
             $item = $this->queue->reviewForUpdate($db, $queueId);
 
@@ -220,7 +229,7 @@ final class AeatEvidenceReconciliationService
                 ],
                 'actor_type' => 'USER',
                 'actor_id' => $actorId,
-                'actor_role' => null,
+                'actor_role' => $actorRole,
                 'source_channel' => 'INTRANET',
                 'correlation_id' => 'AEAT-EVIDENCE-RECONCILE:'
                     . $queueId . ':' . $attemptUuid,
