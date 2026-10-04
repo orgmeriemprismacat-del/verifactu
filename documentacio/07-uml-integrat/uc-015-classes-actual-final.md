@@ -262,7 +262,7 @@ RedsysLegacySyncingProcessor --> LegacySyncService
 
 - **Documentat:** sí.
 - **Implementat:** sí, inclosa frontera pública configurable, ordre comercial v1, retirada del callback productiu, fiscal/econòmic, ledger, outbox enqueue i sync legacy.
-- **Verificat:** sí per inspecció i proves; el PR #149 acredita `SIF checks` + `SIF PHP MySQL tests` en verd i **971 passed / 0 failed** després d'alinear els boundaries PACK/Redsys. El gate selectiu UC-015 és la porta de regressió futura.
+- **Verificat:** el baseline anterior a SEC-015-01 està acreditat pel PR #149 (`SIF checks` + `SIF PHP MySQL tests`, **971 passed / 0 failed**). `PackConfirmationToken` i la nova frontera de confirmació estan verificats per inspecció i tests escrits, però **la CI del PR #171 és pendent**.
 - **Pendent d'acceptació operativa:** evidència navegador/Redsys sobre preproducció i transport/cutover real de l'outbox PACK. `NotificationOutboxDeliveryService` ja aporta el gate genèric claim/complete; el worker/transport SMTP productiu no queda acreditat aquí.
 
 
