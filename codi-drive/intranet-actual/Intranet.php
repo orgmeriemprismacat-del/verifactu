@@ -14176,6 +14176,7 @@ class Intranet
 
 		$dnisProvisionals = [];
 		$dniDefinitius = [];
+		$existeixCerca = false;
 
 		/* Busco totes les inscripcions on el dni correspont a $dni */
 		if ( $dni != '' ) {
