@@ -17,6 +17,9 @@ final class ClaimPaymentPayloadBuilder
         $movementDate = $this->requiredString($input, ['movement_date', 'data_pag', 'dataPag'], 'movement_date');
         $method = $this->method($this->optionalString($input, ['method'], 'TRANSFERENCIA'));
         $externalReceiptId = $this->optionalString($input, ['external_receipt_id', 'receipt_id']);
+        $externalReceiptType = $externalReceiptId !== null
+            ? $this->externalReceiptType($this->optionalString($input, ['external_receipt_type']))
+            : null;
         $reference = $externalReceiptId ?? $this->legacyReference($input);
         $bank = $this->optionalString($input, ['bank', 'banc']);
         $createdBy = $this->optionalString($input, ['created_by', 'user', 'usuari']);
@@ -27,6 +30,7 @@ final class ClaimPaymentPayloadBuilder
                 $input,
                 $amount,
                 $movementDate,
+                $externalReceiptType,
                 $externalReceiptId,
                 $reference,
                 $createdBy
@@ -44,7 +48,11 @@ final class ClaimPaymentPayloadBuilder
         ];
 
         foreach ([
-            'reference' => $reference,
+            'reference' => $externalReceiptType === null || $externalReceiptType === 'BANK_REFERENCE'
+                ? $reference
+                : null,
+            'ds_order' => $externalReceiptType === 'DS_ORDER' ? $externalReceiptId : null,
+            'provider_ref' => $externalReceiptType === 'PROVIDER_REF' ? $externalReceiptId : null,
             'bank' => $bank,
             'created_by' => $createdBy,
             'notes' => $this->optionalString($input, ['notes', 'obs', 'observations']),
@@ -74,11 +82,18 @@ final class ClaimPaymentPayloadBuilder
         array $input,
         string $amount,
         string $movementDate,
+        ?string $externalReceiptType,
         ?string $externalReceiptId,
         ?string $reference,
         ?string $createdBy
     ): string {
         if ($externalReceiptId !== null) {
+            if ($externalReceiptType !== null) {
+                return 'CLAIM|RECEIPT:'
+                    . $this->keyPart($externalReceiptType)
+                    . ':' . $this->keyPart($externalReceiptId);
+            }
+
             return 'CLAIM|RECEIPT:' . $this->keyPart($externalReceiptId);
         }
 
@@ -98,6 +113,20 @@ final class ClaimPaymentPayloadBuilder
             . '|DATA:' . $this->keyPart($date)
             . '|IMPORT:' . $amount
             . '|USUARI:' . $this->keyPart($createdBy);
+    }
+
+    private function externalReceiptType(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $type = strtoupper(trim($value));
+        if (!in_array($type, ['BANK_REFERENCE', 'DS_ORDER', 'PROVIDER_REF'], true)) {
+            throw SifException::validation('Invalid external receipt type');
+        }
+
+        return $type;
     }
 
     private function method(?string $value): string
