@@ -45,6 +45,14 @@ final class EvidenceStore
         ], JSON_THROW_ON_ERROR));
     }
 
+
+    private function assertEvidenceId(string $id): void
+    {
+        if (preg_match('/^\d{8}T\d{6}Z-[a-f0-9]{24}$/D', $id) !== 1) {
+            throw new \InvalidArgumentException('Invalid evidence identifier.');
+        }
+    }
+
     private function write(string $id, string $name, string $contents): void
     {
         if (!preg_match('/^\d{8}T\d{6}Z-[a-f0-9]{24}$/D', $id)) {
