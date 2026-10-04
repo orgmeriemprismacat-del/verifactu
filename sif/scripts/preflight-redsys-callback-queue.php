@@ -38,14 +38,14 @@ try {
     $stmt = $db->query("SHOW COLUMNS FROM redsys_notifications WHERE Field IN ('CURRENCY_CODE', 'TERMINAL', 'SIGNATURE_VERSION', 'PAYLOAD_HASH')");
     $checks['normalized_notification_columns'] = $stmt !== false && count($stmt->fetchAll()) === 4;
 } catch (Throwable $exception) {
-    $errors['database'] = $exception->getMessage();
+    $errors['database'] = 'SIF_DATABASE_CONNECTIVITY_FAILED';
 }
 
 try {
     ConnectionFactory::makeLegacy($config);
     $checks['legacy_database_connectivity'] = true;
 } catch (Throwable $exception) {
-    $errors['legacy_database'] = $exception->getMessage();
+    $errors['legacy_database'] = 'LEGACY_DATABASE_CONNECTIVITY_FAILED';
 }
 
 $failed = array_keys(array_filter($checks, static fn (bool $ok): bool => !$ok));
