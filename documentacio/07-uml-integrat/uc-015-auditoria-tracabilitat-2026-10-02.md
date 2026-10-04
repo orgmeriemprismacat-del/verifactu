@@ -604,6 +604,7 @@ En revalidar el `main` posterior al PR #102 s'ha comprovat que `verify-redsys-pa
 
 **Correcció aplicada:**
 - claim dirigit per `DS_ORDER`;
+- recuperació de lock stale dirigida pel mateix `DS_ORDER`, sense modificar altres jobs;
 - worker productiu executable per `runOneForDsOrder()`;
 - CLI de cua amb `--ds-order=`;
 - `verify-redsys-pack-preproduction.php --execute` executa el worker real, exigeix un job reclamat/processat i després llança el verificador persistent;
