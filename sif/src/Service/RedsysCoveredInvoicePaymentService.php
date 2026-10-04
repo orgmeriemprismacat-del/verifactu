@@ -138,17 +138,38 @@ final class RedsysCoveredInvoicePaymentService
         }
         $movementDate = trim((string) $payment['movement_date']);
 
+        $canonicalKey = 'PAYMENT|REDSYS|ORDER:' . $dsOrder;
+        if (trim((string) ($payment['idempotency_key'] ?? '')) !== $canonicalKey) {
+            throw SifException::conflict(
+                'Covered Redsys payment requires the canonical DS_ORDER idempotency key'
+            );
+        }
+        if (trim((string) ($payment['provider_ref'] ?? '')) !== $order) {
+            throw SifException::conflict(
+                'Covered Redsys payment provider_ref must match DS_ORDER'
+            );
+        }
+
+        $idpag = $this->positiveInt(
+            $payment['idpag'] ?? null,
+            'Invalid Redsys covered-invoice IDPAG'
+        );
+        if ($idpag !== $this->snapshotIdpag($snapshot)) {
+            throw SifException::conflict(
+                'Covered Redsys payment IDPAG does not match the frozen intent snapshot'
+            );
+        }
+
         return [
-            'idempotency_key' => (string) ($payment['idempotency_key']
-                ?? ('PAYMENT|REDSYS|ORDER:' . $dsOrder)),
+            'idempotency_key' => $canonicalKey,
             'movement_type' => $movementType,
             'method' => $method,
             'source_channel' => $sourceChannel,
             'amount' => $amount,
             'movement_date' => $movementDate,
-            'provider_ref' => $payment['provider_ref'] ?? $dsOrder,
+            'provider_ref' => $order,
             'ds_order' => $order,
-            'idpag' => $payment['idpag'] ?? null,
+            'idpag' => $idpag,
             'reference' => $payment['reference'] ?? null,
             'notes' => $payment['notes']
                 ?? 'UC-003 Redsys payment applied to UC-004 invoice',
@@ -250,6 +271,26 @@ final class RedsysCoveredInvoicePaymentService
         $raw = is_array($inscription) ? ($inscription['ID'] ?? $inscription['id'] ?? null) : null;
         if (!is_numeric($raw) || (int) $raw <= 0) {
             throw SifException::validation('Invalid inscription ID for covered Redsys payment');
+        }
+
+        return (int) $raw;
+    }
+
+    private function snapshotIdpag(array $snapshot): int
+    {
+        $inscription = $snapshot['inscription'] ?? null;
+        $raw = is_array($inscription)
+            ? ($inscription['IDPAG'] ?? $inscription['idpag'] ?? null)
+            : null;
+
+        return $this->positiveInt($raw, 'Missing frozen Redsys IDPAG');
+    }
+
+    private function positiveInt(mixed $value, string $message): int
+    {
+        $raw = trim((string) $value);
+        if ($raw === '' || !ctype_digit($raw) || (int) $raw <= 0) {
+            throw SifException::validation($message);
         }
 
         return (int) $raw;
