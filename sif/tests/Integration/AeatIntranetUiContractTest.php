@@ -23,11 +23,19 @@ final class AeatIntranetUiContractTest
 
         Assert::stringContainsString("const endpoint = '/ajax/sif/sifAeat.php';", $js);
         Assert::stringContainsString("method: 'POST'", $js);
-        foreach (["action: 'summary'", "action: 'list'", "action: 'detail'", "action: 'preflight'", "action: 'reconcile'"] as $action) {
+        foreach ([
+            "action: 'summary'",
+            "action: 'list'",
+            "action: 'detail'",
+            "action: 'preflight'",
+            "action: 'reconcile'",
+            "action: 'reconcile_evidence'"
+        ] as $action) {
             Assert::stringContainsString($action, $js);
         }
         Assert::stringContainsString('csrf_token: csrf', $js);
-        Assert::stringContainsString('Conciliar sense reenviar', $js);
+        Assert::stringContainsString('Conciliar resultat guardat', $js);
+        Assert::stringContainsString('Validar evidència i conciliar', $js);
         Assert::stringContainsString("get('queue_id')", $js);
         Assert::stringContainsString('loadDetail(Number(deepQueueId))', $js);
 
@@ -36,7 +44,10 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString('comprovarSessio.php', $bridge);
         Assert::stringContainsString('hash_equals', $bridge);
         Assert::stringContainsString('SifInternalAeatClient', $bridge);
-        Assert::stringContainsString("if (\$action === 'reconcile')", $bridge);
+        Assert::stringContainsString(
+            "in_array(\$action, ['reconcile', 'reconcile_evidence'], true)",
+            $bridge
+        );
         Assert::stringContainsString('Cache-Control: private, no-store', $bridge);
 
         Assert::stringContainsString("hash_hmac('sha256'", $client);
@@ -49,6 +60,7 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString("['aeat']['read_roles']", $api);
         Assert::stringContainsString("['aeat']['reconcile_roles']", $api);
         Assert::stringContainsString('AeatReviewReconciliationService', $api);
+        Assert::stringContainsString('AeatEvidenceReconciliationService', $api);
         Assert::stringContainsString('AeatPreflight', $api);
         Assert::stringContainsString("'evidence_directory' => getenv('SIF_AEAT_EVIDENCE_DIR')", $config);
 
