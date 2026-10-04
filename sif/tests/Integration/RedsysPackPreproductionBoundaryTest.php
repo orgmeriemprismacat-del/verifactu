@@ -85,6 +85,18 @@ final class RedsysPackPreproductionBoundaryTest
         Assert::same(false, str_contains($executeBlock, '/scripts/process-redsys-pack.php'));
     }
 
+    public function testTargetedWorkerCliRejectsEmptyDsOrderFilter(): void
+    {
+        $source = $this->read('sif/scripts/process-redsys-callback-queue.php');
+
+        Assert::stringContainsString('$dsOrderFilterRequested = false;', $source);
+        Assert::stringContainsString('$dsOrderFilterRequested = true;', $source);
+        Assert::stringContainsString(
+            "($dsOrderFilterRequested && $dsOrder === '')",
+            $source
+        );
+    }
+
     public function testVerifierRequiresPackEconomicAndNotificationEvidence(): void
     {
         $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
