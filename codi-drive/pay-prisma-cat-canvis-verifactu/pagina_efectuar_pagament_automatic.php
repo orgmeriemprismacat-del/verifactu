@@ -21,6 +21,48 @@ if ($courseCutoverEnabled && !$legacyDrainConfirmed) {
     exit('Tall SIF en preparació. No es creen noves sessions TPV fins confirmar el drenatge legacy.');
 }
 
+// Validate every environment URL before DB access or SIF intent creation.
+$sifMerchantUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
+$legacyMerchantUrl = trim((string) getenv('SIF_REDSYS_LEGACY_CALLBACK_URL'));
+$returnBaseUrl = rtrim(trim((string) getenv('SIF_REDSYS_RETURN_BASE_URL')), '/');
+$expectedPayHost = strtolower(trim((string) getenv('SIF_REDSYS_EXPECTED_PAY_HOST')));
+
+if ($expectedPayHost === '') {
+    throw new RuntimeException('SIF_REDSYS_EXPECTED_PAY_HOST_NOT_CONFIGURED');
+}
+if ($returnBaseUrl === '') {
+    throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_NOT_CONFIGURED');
+}
+if (!str_starts_with($returnBaseUrl, 'https://')) {
+    throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_MUST_USE_HTTPS');
+}
+$returnHost = strtolower((string) parse_url($returnBaseUrl, PHP_URL_HOST));
+if ($returnHost === '' || !hash_equals($expectedPayHost, $returnHost)) {
+    throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_HOST_MISMATCH');
+}
+
+if ($courseCutoverEnabled) {
+    if ($sifMerchantUrl === '') {
+        throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_REQUIRED_FOR_CUTOVER');
+    }
+    if (!str_starts_with($sifMerchantUrl, 'https://')) {
+        throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_MUST_USE_HTTPS');
+    }
+    $merchantUrl = $sifMerchantUrl;
+} else {
+    if ($legacyMerchantUrl === '') {
+        throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_NOT_CONFIGURED');
+    }
+    if (!str_starts_with($legacyMerchantUrl, 'https://')) {
+        throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_MUST_USE_HTTPS');
+    }
+    $legacyHost = strtolower((string) parse_url($legacyMerchantUrl, PHP_URL_HOST));
+    if ($legacyHost === '' || !hash_equals($expectedPayHost, $legacyHost)) {
+        throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_HOST_MISMATCH');
+    }
+    $merchantUrl = $legacyMerchantUrl;
+}
+
 // UC-111: authoritative payment gate BEFORE rendering or building Redsys data.
 // This legacy bridge reads the enrollment and secretary decision, never the
 // course/amount/approval from the POST form as its source of truth.
@@ -180,54 +222,8 @@ try {
       $importPagare = (string) $intent['amount'];
       $id = $order;
 
-      // El callback i els retorns de navegador són configuració d'entorn.
-      // Preproducció no pot heretar silenciosament URLs de producció.
-      $sifMerchantUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
-      $legacyMerchantUrl = trim((string) getenv('SIF_REDSYS_LEGACY_CALLBACK_URL'));
-      $returnBaseUrl = rtrim(trim((string) getenv('SIF_REDSYS_RETURN_BASE_URL')), '/');
-      $expectedPayHost = strtolower(trim((string) getenv('SIF_REDSYS_EXPECTED_PAY_HOST')));
-
-      // UC-014: el tall de MerchantURL és explícit. DRAIN (1/0) ja ha estat
-      // aturat a l'inici del script abans de crear cap intent.
-      if ($courseCutoverEnabled) {
-         if ($sifMerchantUrl === '') {
-            throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_REQUIRED_FOR_CUTOVER');
-         }
-         if (!str_starts_with($sifMerchantUrl, 'https://')) {
-            throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_MUST_USE_HTTPS');
-         }
-         $url = $sifMerchantUrl;
-      } else {
-         if ($legacyMerchantUrl === '') {
-            throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_NOT_CONFIGURED');
-         }
-         if (!str_starts_with($legacyMerchantUrl, 'https://')) {
-            throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_MUST_USE_HTTPS');
-         }
-         $url = $legacyMerchantUrl;
-      }
-
-      if ($returnBaseUrl === '') {
-         throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_NOT_CONFIGURED');
-      }
-      if (!str_starts_with($returnBaseUrl, 'https://')) {
-         throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_MUST_USE_HTTPS');
-      }
-      if ($expectedPayHost === '') {
-         throw new RuntimeException('SIF_REDSYS_EXPECTED_PAY_HOST_NOT_CONFIGURED');
-      }
-
-      $returnHost = strtolower((string) parse_url($returnBaseUrl, PHP_URL_HOST));
-      if ($returnHost === '' || !hash_equals($expectedPayHost, $returnHost)) {
-         throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_HOST_MISMATCH');
-      }
-
-      if (!$courseCutoverEnabled) {
-         $legacyHost = strtolower((string) parse_url($legacyMerchantUrl, PHP_URL_HOST));
-         if ($legacyHost === '' || !hash_equals($expectedPayHost, $legacyHost)) {
-            throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_HOST_MISMATCH');
-         }
-      }
+      // URL resolta i validada abans de qualsevol accés a BD o creació d'intent.
+      $url = $merchantUrl;
 
       $returnQuery = http_build_query([
          'order' => $order,
