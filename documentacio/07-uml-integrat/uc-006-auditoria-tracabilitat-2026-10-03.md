@@ -25,10 +25,10 @@ No existien peces dedicades UC-006 de classes ACTUAL/FINAL, seqüències ACTUAL/
 ### Estat real
 
 - **DOCUMENTAT:** ara queda cobert el conjunt documental principal.
-- **IMPLEMENTAT:** existeixen els serveis base UC-28/29/29a.
+- **IMPLEMENTAT:** existeixen els serveis base UC-28/29/29a i, en aquesta branca, primitives transaccionals de ledger per CREDIT_CREATE, REFUND_EXIT i COMPENSATION_ALLOCATION.
 - **VERIFICAT ESTÀTICAMENT:** contractes, wiring absent i proves existents han estat contrastats al repositori.
 - **PENDENT:** UC-006 com a orquestració de negoci i integració real.
-- **PENDENT BLOQUEJANT:** completar el dret/consum sobre el ledger d'inscripcions ja existent, titularitat, límit retornable, derivació obligatòria de la clau de saldo des del dret de negoci, evidència externa del REFUND, auditoria transversal i E2E.
+- **PENDENT BLOQUEJANT:** titularitat, evidència externa genèrica del REFUND, orquestrador/autorització, derivació obligatòria de la clau de dret a les superfícies productives, auditoria transversal i E2E. El consum quantitatiu del dret per inscripció ja té primitives executables.
 
 ## 3. Inventari documental abans/després
 
@@ -77,9 +77,9 @@ No existien peces dedicades UC-006 de classes ACTUAL/FINAL, seqüències ACTUAL/
 | `ManualRefundPayloadBuilder` | import/data/mètode + idempotency key | IMPLEMENTAT |
 | `PaymentService` | clau + hash, reús i recovery duplicate key | IMPLEMENTAT |
 | `PaymentRepository` | transaction/allocation + recàlcul cobrament | IMPLEMENTAT |
-| `ManualRefundServiceTest` | parcial, total, missing invoice | PROVES EXISTENTS |
+| `ManualRefundServiceTest` | parcial, total, missing invoice + REFUND_EXIT/rollback afegits | PROVES AMPLIADES · CI PENDENT |
 | evidència externa retorn | no forma part del servei | PENDENT |
-| límit retornable | no comprovació específica localitzada | PENDENT BLOQUEJANT |
+| límit retornable per inscripció | `availableAmountForInscription()` + rollback transaccional amb `source_enrollment_id` | IMPLEMENTAT A LA BRANCA |
 
 ### 4.4 SIF saldo i compensació
 
@@ -89,8 +89,8 @@ No existien peces dedicades UC-006 de classes ACTUAL/FINAL, seqüències ACTUAL/
 | `CreditBalanceService::applyCredit*` | locks, límit saldo/deute, consumeix | IMPLEMENTAT |
 | `CreditBalancePayloadBuilder` | payload de saldo i compensació | IMPLEMENTAT |
 | `CreditBalanceRepository` | persistència + outstanding invoice | IMPLEMENTAT |
-| `CreditBalanceServiceTest` | creació, parcial, total, límits | PROVES EXISTENTS |
-| idempotència creació saldo | no acreditada | PENDENT BLOQUEJANT |
+| `CreditBalanceServiceTest` | creació, idempotència, consum de dret, compensació destí i rollback | PROVES AMPLIADES · CI PENDENT |
+| idempotència creació saldo | clau/hash + reús/conflicte; `source_enrollment_id` exigeix clau | IMPLEMENTAT PARCIAL |
 | titularitat saldo vs factura | no acreditada | PENDENT BLOQUEJANT |
 
 ## 4.5. Troballa addicional — ledger executable per inscripció
@@ -113,16 +113,26 @@ L'auditoria ampliada ha localitzat una base que redueix el gap de traçabilitat:
 - reús idempotent amb verificació de payload;
 - allocadors reals per curs i pack.
 
-### Què continua faltant per UC-006
+### Ampliació implementada a la branca UC-006
 
-- càlcul genèric de fons encara disponibles per inscripció;
-- sortida `REFUND` atribuïda a la inscripció origen;
-- creació de `credit_balance` consumint una atribució origen exactament una vegada;
-- referència de `UUID_CREDIT` dins el ledger o una relació equivalent;
-- wiring de `CreditBalanceService::applyCredit*()` amb `insertOrReuseCompensationAllocation()`;
-- orquestrador que eviti refund + saldo sobre el mateix tram.
+- migració `2026_10_04_000034_extend_enrollment_fund_exits.sql`;
+- `UUID_CREDIT` al ledger;
+- `availableAmountForInscription()` amb lock opcional i bloqueig de saldo negatiu;
+- `CREDIT_CREATE`: inscripció origen → `credit_balance`, idempotent i dins la mateixa transacció de l'alta del saldo;
+- `REFUND_EXIT`: inscripció origen → exterior, vinculat al `REFUND CONFIRMED`, amb límit tant pel dret disponible com pel mateix `UUID_PAYMENT`;
+- `COMPENSATION_ALLOCATION`: `UUID_CREDIT` + `COMPENSATION` → factura/línia/inscripció destí;
+- els reintents poden canviar `correlation_id` sense alterar la identitat econòmica, alineat amb `PayloadIdempotencyValidator` de `main`;
+- els scripts preview/process exposen `source_enrollment_id`, `target_enrollment_id`, correlació i `uuid_operation`.
 
-**Conclusió corregida:** el model quantitatiu per inscripció no és “inexistent”; és **parcialment implementat i encara no integrat amb UC-006**.
+### Què continua faltant
+
+- política de titularitat/pagador/receptor;
+- `INTERNAL_TRANSFER` de canvi de curs com a operació orquestrada;
+- obligar els identificadors d'inscripció i la clau de dret des de UI/endpoint UC-006;
+- evidència externa genèrica abans de registrar un REFUND;
+- audit gateway i E2E.
+
+**Conclusió 04/10:** el model quantitatiu per inscripció ja cobreix les primitives principals de sortida/entrada d'UC-006; el buit passa a ser sobretot **orquestració, autorització, titularitat i verificació operativa**.
 
 ## 5. Contrast de la fitxa funcional antiga amb el codi
 
