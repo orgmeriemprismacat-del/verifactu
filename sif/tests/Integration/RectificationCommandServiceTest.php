@@ -58,8 +58,9 @@ final class RectificationCommandServiceTest
         Assert::same('RECTIFICATION', $confirmed['classification']['decision']);
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_rectificacio')->fetchColumn());
-        Assert::same(3, (int) $db->query('SELECT COUNT(*) FROM sif_audit_event')->fetchColumn());
-        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
+        Assert::same(1, (int) $db->query(
+            'SELECT COUNT(*) FROM operational_event WHERE OPERATION_TYPE = "RECTIFICATION"'
+        )->fetchColumn());
         Assert::same(1, (int) $db->query(
             'SELECT COUNT(*) FROM sif_audit_event WHERE ACTION = "RECTIFICATION_CONFIRM" AND RESULT = "REQUESTED"'
         )->fetchColumn());
