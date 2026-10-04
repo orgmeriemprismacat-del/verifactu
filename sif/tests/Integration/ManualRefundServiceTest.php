@@ -75,6 +75,42 @@ final class ManualRefundServiceTest
         Assert::same('RET-001', $refund['REFERENCIA_BANCARIA']);
     }
 
+    public function testUsesExplicitRefundIdempotencyKeyAndReusesIt(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload(['emesa_abans_cobrament' => 1])
+        );
+        $this->chargeService($db)->registerByUuid($db, $invoice['uuid_factura'], [
+            'amount' => '120.00',
+            'movement_date' => '2026-10-04 02:30:00',
+            'reference' => 'UC006-REFUND-EXPLICIT-BASE',
+        ]);
+
+        $service = $this->refundService($db);
+        $input = [
+            'idempotency_key' => 'REFUND|EXTERNAL|UC006|OP:ABC123',
+            'amount' => '40.00',
+            'movement_date' => '2026-10-04 02:31:00',
+            'reference' => 'BANK-REF-ABC123',
+        ];
+
+        $first = $service->registerByUuid($db, $invoice['uuid_factura'], $input);
+        $second = $service->registerByUuid($db, $invoice['uuid_factura'], $input);
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($first['uuid_payment'], $second['uuid_payment']);
+        Assert::same(
+            'REFUND|EXTERNAL|UC006|OP:ABC123',
+            (string) $db->query(
+                "SELECT IDEMPOTENCY_KEY
+                 FROM payment_transaction
+                 WHERE TIPUS_MOVIMENT = 'REFUND'"
+            )->fetchColumn()
+        );
+    }
+
     public function testRegistersRefundExitAgainstEnrollmentFundsIdempotently(): void
     {
         $db = TestDatabase::fresh();
