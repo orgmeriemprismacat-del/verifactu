@@ -2,7 +2,14 @@
 
 final class LegacyDebtClaimContext
 {
-    public static function open(): array
+    private const SURFACE_ROUTES = [
+        'RECORDATORI' => '/facturacio/recordatori-pagament/',
+        'PRIMERA_RECLAMACIO' => '/facturacio/primera-reclamacio/',
+        'RECLAMACIO_FINAL' => '/facturacio/reclamacio-final/',
+        'MOROSOS' => '/facturacio/morosos/',
+    ];
+
+    public static function open(string $surface): array
     {
         $root = __DIR__;
         if (!chdir($root)) {
@@ -26,9 +33,20 @@ final class LegacyDebtClaimContext
             throw new RuntimeException('Sessió no vàlida', 401);
         }
 
-        LegacyInvoiceReadAuthorization::assertCanView($user, '/facturacio/morosos/');
+        $permissionPage = self::routeForSurface($surface);
+        LegacyInvoiceReadAuthorization::assertCanView($user, $permissionPage);
 
-        return [$user, $intranet, $root];
+        return [$user, $intranet, $root, $permissionPage];
+    }
+
+    public static function routeForSurface(string $surface): string
+    {
+        $surface = strtoupper(trim($surface));
+        if ($surface === '' || !isset(self::SURFACE_ROUTES[$surface])) {
+            throw new InvalidArgumentException('Superfície de morositat no vàlida', 422);
+        }
+
+        return self::SURFACE_ROUTES[$surface];
     }
 
     public static function csrfToken(): string
