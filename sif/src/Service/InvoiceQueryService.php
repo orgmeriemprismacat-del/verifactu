@@ -43,7 +43,8 @@ final class InvoiceQueryService
     public function search(array $actor, array $criteria, int $limit = 50): array
     {
         $criteria = $this->criteriaValidator->validate($criteria);
-        $rows = $this->invoices->search($this->db, $criteria, $limit);
+        $limit = max(1, min(100, $limit));
+        $rows = $this->invoices->search($this->db, $criteria, $limit + 1);
         $results = [];
 
         foreach ($rows as $invoice) {
@@ -68,10 +69,16 @@ final class InvoiceQueryService
             $results[] = $projected['invoice'];
         }
 
+        $hasMore = count($results) > $limit;
+        if ($hasMore) {
+            $results = array_slice($results, 0, $limit);
+        }
+
         return [
             'ok' => true,
             'results' => $results,
             'count' => count($results),
+            'has_more' => $hasMore,
         ];
     }
 
