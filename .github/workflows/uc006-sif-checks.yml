@@ -83,6 +83,7 @@ jobs:
           php -l sif/src/Service/ManualRefundActionService.php
           php -l sif/src/Service/CreditBalancePayloadBuilder.php
           php -l sif/src/Service/CreditBalanceService.php
+          php -l sif/src/Service/CreditBalanceActionService.php
           php -l sif/scripts/preview-credit-balance.php
           php -l sif/scripts/process-credit-balance.php
           php -l sif/scripts/preview-manual-refund.php
@@ -100,6 +101,7 @@ jobs:
           php -l sif/tests/Integration/EnrollmentFundTransferReversalPreviewScriptTest.php
           php -l sif/tests/Integration/EnrollmentFundTransferReversalPreproductionScriptTest.php
           php -l sif/tests/Integration/CreditBalanceServiceTest.php
+          php -l sif/tests/Integration/CreditBalanceActionServiceTest.php
           php -l sif/tests/Integration/ManualRefundServiceTest.php
           php -l sif/tests/Integration/ManualRefundActionServiceTest.php
           php -l sif/tests/run-uc006-tests.php
