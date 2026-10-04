@@ -13,6 +13,31 @@ function nouRequestIdValidarDescompte() {
 	return 'valid-desc-' + Date.now() + '-' + Math.random().toString(16).slice(2);
 }
 
+function clauRequestValidarDescompte(idInsc, valid) {
+	return 'prisma-validar-descompte:' + String(idInsc) + ':' + String(valid);
+}
+
+function obtenirRequestIdValidarDescompte(idInsc, valid) {
+	const key = clauRequestValidarDescompte(idInsc, valid);
+	try {
+		const existent = window.sessionStorage.getItem(key);
+		if (existent) return existent;
+		const creat = nouRequestIdValidarDescompte();
+		window.sessionStorage.setItem(key, creat);
+		return creat;
+	}
+	catch (e) {
+		return nouRequestIdValidarDescompte();
+	}
+}
+
+function completarRequestValidarDescompte(idInsc, valid) {
+	try {
+		window.sessionStorage.removeItem(clauRequestValidarDescompte(idInsc, valid));
+	}
+	catch (e) {}
+}
+
 /* Cada vegada que es faci una crida d'un ajax, s'executarà la funció mostrarModalLoading().
 Cada vegada que finalitza la crida d'un ajax, s'executarà la funció amagarLoadingModal(). */
 $(document).bind("ajaxSend", function(){
@@ -82,12 +107,13 @@ requestMain.done(function( message ) {
 				idInsc: idInsc,
 				verificat: valid,
 				csrfToken: obtenirCsrfValidarDescomptes(),
-				requestId: nouRequestIdValidarDescompte()
+				requestId: obtenirRequestIdValidarDescompte(idInsc, valid)
 			},
 			dataType: "html"
 		});
 		request.done(function( msg ) {
 			if ( !msg.toLowerCase().includes("error") ) {
+				completarRequestValidarDescompte(idInsc, valid);
 				afegirHeaderModalSuccess("Missatge enviat!");
 				afegirTextModalSuccess(msg);
 				mostrarModalSuccess();
