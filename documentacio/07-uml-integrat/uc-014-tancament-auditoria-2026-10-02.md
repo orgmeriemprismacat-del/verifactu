@@ -19,3 +19,16 @@ No són gaps de programació del UC-014: executar una compra real Redsys de prep
 ## 4. Resultat
 
 No queda cap fitxa, diagrama, inventari, traçabilitat, boundary o implementació coneguda pròpia del UC-014 pendent de crear al repositori. El cas surt del backlog de desenvolupament i resta únicament al checklist de preproducció/go-live.
+
+
+## 5. Reconciliació neta CI 04/10/2026
+
+El tancament del PR #118 es manté vigent. El PR #119 es conserva com a evidència diagnòstica, però la seva branca va quedar divergent i **no s'ha de fusionar**. El PR #149 ha integrat al `main` la correcció canònica del vector `payload_hash` Redsys i els boundaries PACK que mantenien la suite compartida en vermell.
+
+La continuació neta d'UC-014 parteix de `main@2bd2a751832fc3f767b1e250b955922145a5577a`, afegeix un runner/workflow selectiu UC-014 i elimina el warning d'interpolació de `$fractional` al boundary llegat.
+
+Evidència històrica del gate específic: **125 passed / 0 failed**.
+
+Vegeu [Reconciliació neta CI UC-014 — 04/10](uc-014-reconciliacio-ci-main-2026-10-04.md).
+
+L'estat continua sent **AUDITORIA TANCADA · IMPLEMENTACIÓ TANCADA · ACCEPTACIÓ OPERATIVA PENDENT**.
