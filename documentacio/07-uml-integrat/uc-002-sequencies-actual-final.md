@@ -57,7 +57,7 @@ API-->>Caller: JSON + actor_id + request_id
 ~~~
 
 **Implementat:** sí.  
-**Pendent:** audit event genèric, evidència externa i ledger genèric per inscripció.
+**Pendent:** evidència externa i ledger econòmic genèric per inscripció. El command autoritatiu `register_existing_invoice` ja passa per `PaymentActionGateway`; només el mode low-level compatible `action=''` queda fora d'aquest journal específic.
 
 ## 2. ACTUAL — pantalla llegada, cerca i confirmació
 
@@ -206,6 +206,7 @@ participant Proxy as sifPagamentFactura.php
 participant Access as SifExistingInvoicePaymentAccess
 participant Client as SifInternalApiClient
 participant API as /api/payments/register.php
+participant Audit as PaymentActionGateway
 participant Cmd as ExistingInvoicePaymentCommandService
 participant Manual as ManualPaymentService
 participant PS as PaymentService
@@ -224,7 +225,8 @@ alt banc = tpv
 else banc = Caixa/BBVA
   Proxy->>Client: registerExistingInvoicePayment()
   Client->>API: POST HMAC + actor/roles/request-id intern
-  API->>Cmd: register_existing_invoice
+  API->>Audit: REQUESTED + context estable
+  Audit->>Cmd: register_existing_invoice
   Cmd->>Manual: registerByNumVisible()
   Manual->>PS: registerPayment(idempotency=INTRANET|UC002|REQ:...)
   alt primer intent
@@ -234,7 +236,10 @@ else banc = Caixa/BBVA
   end
   Cmd->>Proj: build(UUID_FACTURA)
   Proj-->>Cmd: imports absoluts per ID_INSC
-  Cmd-->>Proxy: payment_committed=true + projection
+  Cmd-->>Audit: resultat payment + projection
+  Audit->>Audit: terminal SUCCEEDED o REUSED
+  Audit-->>API: commit CHARGE + event terminal
+  API-->>Proxy: payment_committed=true + projection
   alt projecció READY
     Proxy->>Legacy: apply(... FOR UPDATE, transacció)
     alt sync ok
