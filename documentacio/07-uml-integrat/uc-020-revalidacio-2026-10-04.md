@@ -173,3 +173,17 @@ end
 ## 8. Criteri de tancament
 
 L'auditoria documental i de codi queda **AUDIT_CLOSED_REVALIDATED_2026-10-04**. Això no és un `GO_PRODUCTION`: el rollout continua bloquejat fins a CI del HEAD i E2E real/preproducció.
+
+
+## 9. Correcció de classificació del runtime pay
+
+La revalidació posterior ha trobat que `codi-drive/README.md` classifica `pay-prisma-cat-canvis-verifactu` com a **candidata**, no com a còpia desplegada. A més:
+
+- `web-actual/pagina_efectuar_pagament_automatic.php` genera Redsys directament;
+- la candidata pay sí crea la intenció SIF i consumeix el seu `DS_ORDER`/import;
+- el nucli SIF està implementat;
+- no hi ha evidència de repo suficient per saber quina versió està desplegada a `pay.prisma.cat`.
+
+Per això l'estat P03/P04 queda: **ACTUAL/FALLBACK inspeccionat + PONT CANDIDAT IMPLEMENTAT + DEPLOY/CUTOVER/E2E PENDENTS**.
+
+Vegeu [inventari runtime](uc-020-inventari-runtime-pay-prisma-2026-10-04.md).
