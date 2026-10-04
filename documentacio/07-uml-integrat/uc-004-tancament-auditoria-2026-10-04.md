@@ -13,7 +13,7 @@ L'auditoria de repositori del UC-004 queda **tancada documentalment**, però el 
 - **Documentat:** SÍ, complet per l'abast auditat.
 - **Implementat:** PARCIAL AVANÇAT.
 - **Verificat:** PARCIAL.
-- **Pendent:** `aeat_fields` oficials, document fiscal SIF per UUID, cobertura transversal, concurrència/E2E, cobrament posterior real i evidència de preproducció.
+- **Pendent:** mapping fiscal AEAT real/configuració, renderer i wiring documental, cobertura transversal, concurrència/E2E, cobrament posterior real i evidència de preproducció.
 
 ## 2. Artefactes obligatoris localitzats
 
@@ -77,9 +77,9 @@ No es considera encara verificació operativa completa perquè el HEAD del PR #1
 
 ## 6. Bloquejos i pendents
 
-### P0 — `aeat_fields` en PREPROD/PROD
+### P0 AEAT — builder resolt; mapping fiscal/configuració pendent
 
-`InvoiceService::issueInvoice()` exigeix snapshot oficial AEAT en entorns qualificats. El payload UC-004 actual encara no el construeix server-side. El endpoint, a més, rebutja explícitament qualsevol `aeat_fields` o `aeat_header` aportat pel caller. Per tant el flux està dissenyat per **fallar tancat** abans d'emetre mentre no existeixin el perfil fiscal UC-004 versionat i el builder server-side. Vegeu [contracte AEAT pendent](uc-004-contracte-aeat-pendent-2026-10-04.md).
+`InvoiceService::issueInvoice()` exigeix snapshot oficial AEAT en entorns qualificats. El PR #166 ja incorpora `InvoiceBeforePaymentAeatInputPolicy`, que construeix `aeat_header` i `aeat_fields` exclusivament al servidor i valida el resultat contra els XSD locals a les proves. El flux continua **fail-closed** fins que es configurin i validin fiscalment `SIF_UC004_AEAT_TAX_CODE`, `SIF_UC004_AEAT_REGIME_KEY` i `SIF_UC004_AEAT_EXEMPTION_REASON`. Vegeu [contracte AEAT server-side](uc-004-contracte-aeat-pendent-2026-10-04.md).
 
 ### P0/P1 — document fiscal immutable per UUID
 
@@ -106,7 +106,7 @@ UC-004 només podrà passar de **PARCIAL AVANÇAT** a **VERIFICAT** quan:
 
 - CI del HEAD del PR #166 sigui verd;
 - migracions i backfill s'hagin executat en `sif_test`/preproducció;
-- `aeat_fields` oficials es construeixin al servidor;
+- el mapping fiscal AEAT real estigui validat/configurat i el snapshot server-side passi PREPROD;
 - el document PDF/QR/XML quedi custodiat per UUID;
 - la concurrència no dupliqui factura/cobertura;
 - el cobrament posterior s'assigni al mateix UUID;
