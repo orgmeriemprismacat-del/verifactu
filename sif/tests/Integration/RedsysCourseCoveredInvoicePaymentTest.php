@@ -233,6 +233,65 @@ final class RedsysCourseCoveredInvoicePaymentTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
     }
 
+    public function testOriginMutexSerializesUc004AndRedsysAtReadCommitted(): void
+    {
+        $dbA = TestDatabase::fresh();
+        $dbB = TestDatabase::connect();
+        $dbA->exec('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED');
+        $dbB->exec('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED');
+        $dbB->exec('SET SESSION innodb_lock_wait_timeout = 1');
+
+        $relations = [[
+            'source_type' => 'INSCRIPCIO',
+            'source_id' => 410,
+            'relation_type' => 'ORIGIN',
+        ]];
+        $coverageA = new InvoiceBeforePaymentCoverageRepository();
+        $coverageB = new InvoiceBeforePaymentCoverageRepository();
+
+        $dbA->beginTransaction();
+        try {
+            $coverageA->lockOriginInvoiceRelations($dbA, $relations);
+
+            $dbB->beginTransaction();
+            try {
+                Assert::throws(\PDOException::class, function () use (
+                    $coverageB,
+                    $dbB,
+                    $relations
+                ): void {
+                    $coverageB->lockOriginInvoiceRelations($dbB, $relations);
+                });
+            } finally {
+                if ($dbB->inTransaction()) {
+                    $dbB->rollBack();
+                }
+            }
+        } finally {
+            if ($dbA->inTransaction()) {
+                $dbA->rollBack();
+            }
+        }
+
+        // Once the first transaction releases the origin mutex, the second
+        // connection can acquire the same key normally.
+        $dbB->beginTransaction();
+        try {
+            $coverageB->lockOriginInvoiceRelations($dbB, $relations);
+            Assert::same(
+                1,
+                (int) $dbB->query(
+                    "SELECT COUNT(*) FROM invoice_origin_guard
+                     WHERE SOURCE_TYPE = 'INSCRIPCIO' AND SOURCE_ID = 410"
+                )->fetchColumn()
+            );
+        } finally {
+            if ($dbB->inTransaction()) {
+                $dbB->rollBack();
+            }
+        }
+    }
+
     public function testRedsysInvoiceRaceGuardRefusesNewInvoiceWhenUc004CoverageExists(): void
     {
         $db = TestDatabase::fresh();
