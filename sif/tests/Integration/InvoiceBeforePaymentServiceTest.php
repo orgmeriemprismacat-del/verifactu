@@ -39,7 +39,7 @@ final class InvoiceBeforePaymentServiceTest
             $source
         );
         Assert::stringContainsString(
-            '$payload[\'idempotency_key\'],\n                    $beforePaymentOriginLocked',
+            '$this->beforePaymentCoverage->claim(',
             $source
         );
     }
