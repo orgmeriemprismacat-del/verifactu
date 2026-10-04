@@ -48,6 +48,10 @@ if ($courseCutoverEnabled) {
     if (!str_starts_with($sifMerchantUrl, 'https://')) {
         throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_MUST_USE_HTTPS');
     }
+    $sifCallbackHost = strtolower((string) parse_url($sifMerchantUrl, PHP_URL_HOST));
+    if ($sifCallbackHost === '' || !hash_equals($expectedPayHost, $sifCallbackHost)) {
+        throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_HOST_MISMATCH');
+    }
     $merchantUrl = $sifMerchantUrl;
 } else {
     if ($legacyMerchantUrl === '') {
