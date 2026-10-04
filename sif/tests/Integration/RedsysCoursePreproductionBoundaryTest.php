@@ -142,9 +142,11 @@ final class RedsysCoursePreproductionBoundaryTest
             'course_intent_signed_path_matches_bridge',
             'course_status_signed_path_matches_bridge',
             'redsys_callback_url_https_configured',
+            'legacy_callback_url_https_configured_if_not_cutover',
+            'return_base_url_https_configured',
             'redsys_gateway_url_https_configured',
             'cutover_configuration_consistent',
-            'legacy_drain_confirmed_if_cutover',
+            'cutover_phase_valid',
             'payment_allocation_table',
             'enrollment_fund_movement_table',
             'notification_outbox_table',
@@ -156,6 +158,22 @@ final class RedsysCoursePreproductionBoundaryTest
             'verification_script_present',
         ] as $check) {
             Assert::stringContainsString("'" . $check . "'", $source);
+        }
+    }
+
+
+    public function testCoursePreflightAcceptsDrainPhaseAndRejectsDrainWithoutCutover(): void
+    {
+        $source = $this->read('sif/scripts/preflight-redsys-course.php');
+
+        Assert::stringContainsString("=> 'NORMAL'", $source);
+        Assert::stringContainsString("=> 'DRAIN'", $source);
+        Assert::stringContainsString("=> 'CUTOVER_CONFIRMED'", $source);
+        Assert::stringContainsString("=> 'INVALID'", $source);
+        Assert::stringContainsString("'cutover_phase_valid' => $cutoverPhase !== 'INVALID'", $source);
+
+        if (str_contains($source, "'legacy_drain_confirmed_if_cutover'")) {
+            Assert::fail('DRAIN cutover=1/drain=0 is a valid phase and must not be rejected by preflight.');
         }
     }
 
