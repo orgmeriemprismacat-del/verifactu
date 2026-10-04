@@ -93,3 +93,21 @@ Per tant:
 5. la nova cobertura queda pendent del resultat CI de la branca/PR.
 
 No hi ha encara evidència versionada d'un enviament real al servei AEAT de preproducció.
+
+
+## 8. Evidència automàtica posterior — UC-009 dedicat
+
+El workflow dedicat `UC-009 AEAT audit` sobre el head `fd2db79ac6a13df8f3f0524317aa1bcf3af028b2` va finalitzar amb:
+
+- **57 proves passades / 0 fallades**;
+- lint PHP/JS UC-009: PASS;
+- stale worker `PROCESSING → REVIEW`: PASS;
+- flow wait invàlid preservant resultat terminal: PASS;
+- contracte panell/CSRF/HMAC: PASS;
+- reconciliació de resultat terminal guardat: PASS.
+
+La suite global del mateix tall va quedar en **922 passades / 6 fallades**, totes alienes al UC-009 (PACK/Redsys).
+
+### Nova extensió d'evidència 2026-10-04
+
+Després d'aquest PASS s'ha incorporat la conciliació d'intents `UNCERTAIN` des d'evidència privada estructurada. Aquesta extensió té tests nous i **no s'ha de donar per verificada fins que el workflow dedicat del head final torni a PASS**.
