@@ -39,7 +39,7 @@ final class ClaimPaymentLegacySyncService
         string $numVisible,
         string $expectedReceiptAmount
     ): array {
-        $legacy = $this->legacyRow($legacyDb, $idInsc, $idpag);
+        $legacy = $this->legacyRow($legacyDb, $idInsc, $idpag, true);
         $legacyCents = $this->centsOrZero($legacy['PAGAMENT'] ?? null, 'legacy payment');
         $contractCents = $this->cents($legacy['A_PAGAR'] ?? 0, 'legacy contract total');
         $sifCents = $this->invoiceNetCents($sifDb, $uuidFactura);
@@ -107,9 +107,15 @@ final class ClaimPaymentLegacySyncService
             $idpag,
         ]);
 
-        if ($update->rowCount() > 1) {
+        $updatedRows = $update->rowCount();
+        if ($updatedRows > 1) {
             throw SifException::conflict(
                 'Claim payment legacy sync updated more than one inscription'
+            );
+        }
+        if ($delta !== 0 && $updatedRows !== 1) {
+            throw SifException::conflict(
+                'Claim payment legacy sync did not update the expected inscription'
             );
         }
 
@@ -124,18 +130,25 @@ final class ClaimPaymentLegacySyncService
         ];
     }
 
-    private function legacyRow(\PDO $legacyDb, int $idInsc, int $idpag): array
-    {
+    private function legacyRow(
+        \PDO $legacyDb,
+        int $idInsc,
+        int $idpag,
+        bool $forUpdate = false
+    ): array {
         if ($idInsc <= 0 || $idpag <= 0) {
             throw SifException::validation('Invalid claim payment legacy identity');
         }
 
-        $stmt = $legacyDb->prepare(
-            'SELECT A_PAGAR, PAGAMENT, `INSC CURS`
-             FROM inscripcions
-             WHERE ID = ? AND IDPAG = ?
-             LIMIT 1'
-        );
+        $sql = 'SELECT A_PAGAR, PAGAMENT, `INSC CURS`
+                FROM inscripcions
+                WHERE ID = ? AND IDPAG = ?
+                LIMIT 1';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $legacyDb->prepare($sql);
         $stmt->execute([$idInsc, $idpag]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
