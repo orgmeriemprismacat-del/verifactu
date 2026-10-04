@@ -98,6 +98,33 @@ final class JasomNovicePaymentGateTest
         Assert::same(true, $allowed['fractional']);
     }
 
+    public function testPrismaStudentFractionalPaymentFailsClosedInLegacyGate(): void
+    {
+        $row = $this->enrollment();
+        $row['novice_row_present'] = false;
+        $row['novice_decision'] = null;
+        $row['discount_type'] = 1;
+        $row['discount_status'] = 1;
+        $row['fractional'] = 1;
+
+        Assert::throws(RuntimeException::class, static function () use ($row): void {
+            \JasomNovicePaymentGate::authorizeEnrollment($row, self::post());
+        });
+    }
+
+    public function testPrismaStudentMustBeInPayableDiscountState(): void
+    {
+        $row = $this->enrollment();
+        $row['novice_row_present'] = false;
+        $row['novice_decision'] = null;
+        $row['discount_type'] = 1;
+        $row['discount_status'] = 2;
+
+        Assert::throws(RuntimeException::class, static function () use ($row): void {
+            \JasomNovicePaymentGate::authorizeEnrollment($row, self::post());
+        });
+    }
+
     public function testCannotPayMoreThanRemainingOrRepeatFullyPaidCourse(): void
     {
         $row = $this->enrollment();
