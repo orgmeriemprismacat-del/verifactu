@@ -101,6 +101,31 @@ final class DebtClaimCaseRepository
         ];
     }
 
+    public function findLatestEventByType(
+        \PDO $db,
+        string $uuidClaim,
+        string $eventType
+    ): ?array {
+        $stmt = $db->prepare(
+            'SELECT UUID_CLAIM_EVENT, EVENT_TYPE, OCCURRED_AT
+             FROM debt_claim_event
+             WHERE UUID_CLAIM = ? AND EVENT_TYPE = ?
+             ORDER BY OCCURRED_AT DESC, UUID_CLAIM_EVENT DESC
+             LIMIT 1'
+        );
+        $stmt->execute([
+            trim($uuidClaim),
+            strtoupper(trim($eventType)),
+        ]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return is_array($row) ? [
+            'uuid_claim_event' => (string) $row['UUID_CLAIM_EVENT'],
+            'event_type' => (string) $row['EVENT_TYPE'],
+            'occurred_at' => (string) $row['OCCURRED_AT'],
+        ] : null;
+    }
+
     public function appendEvent(\PDO $db, array $claim, array $event): array
     {
         foreach ([
