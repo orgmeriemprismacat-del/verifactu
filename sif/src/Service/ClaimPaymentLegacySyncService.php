@@ -14,7 +14,7 @@ final class ClaimPaymentLegacySyncService
         string $uuidFactura
     ): array {
         $legacy = $this->legacyRow($legacyDb, $idInsc, $idpag);
-        $legacyCents = $this->cents($legacy['PAGAMENT'] ?? 0, 'legacy payment');
+        $legacyCents = $this->centsOrZero($legacy['PAGAMENT'] ?? null, 'legacy payment');
         $sifCents = $this->invoiceNetCents($sifDb, $uuidFactura);
 
         if ($legacyCents !== $sifCents) {
@@ -40,7 +40,7 @@ final class ClaimPaymentLegacySyncService
         string $expectedReceiptAmount
     ): array {
         $legacy = $this->legacyRow($legacyDb, $idInsc, $idpag);
-        $legacyCents = $this->cents($legacy['PAGAMENT'] ?? 0, 'legacy payment');
+        $legacyCents = $this->centsOrZero($legacy['PAGAMENT'] ?? null, 'legacy payment');
         $contractCents = $this->cents($legacy['A_PAGAR'] ?? 0, 'legacy contract total');
         $sifCents = $this->invoiceNetCents($sifDb, $uuidFactura);
         $receiptCents = $this->positiveCents(
@@ -169,6 +169,15 @@ final class ClaimPaymentLegacySyncService
         $stmt->execute([$uuidFactura]);
 
         return max(0, $this->cents($stmt->fetchColumn(), 'SIF invoice payment total'));
+    }
+
+    private function centsOrZero(mixed $value, string $label): int
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return 0;
+        }
+
+        return $this->cents($value, $label);
     }
 
     private function positiveCents(mixed $value, string $label): int
