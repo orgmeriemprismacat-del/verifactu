@@ -31,6 +31,7 @@ $relativeFiles = [
     'Integration/NotificationOutboxDeliveryServiceTest.php',
     'Integration/PackCheckoutBoundaryTest.php',
     'Integration/PackCommercialOrderBoundaryTest.php',
+    'Integration/PackConfirmationTokenBoundaryTest.php',
     'Integration/PackComponentAvailabilityBoundaryTest.php',
     'Integration/PackDeploymentParityBoundaryTest.php',
     'Integration/PackEnrollmentAtomicityBoundaryTest.php',
@@ -48,6 +49,7 @@ $relativeFiles = [
     'Integration/RedsysPackWorkerEndToEndTest.php',
     'Integration/RedsysPaymentIntentTest.php',
     'Unit/LegacyPackSnapshotRepositoryTest.php',
+    'Unit/PackConfirmationTokenTest.php',
     'Unit/PackPaymentGateTest.php',
     'Unit/RedsysSignatureValidatorTest.php',
 ];
