@@ -43,9 +43,9 @@ final class ManualInstallmentIntranetContractTest
             "cal emetre la factura abans de registrar el cobrament al SIF",
             $endpoint
         );
-        Assert::stringContainsString("if ($tipus === '')", $endpoint);
+        Assert::stringContainsString("if (\$tipus === '')", $endpoint);
 
-        if (str_contains($endpoint, "if ($tipus === '' || $numFact === '')")) {
+        if (str_contains($endpoint, "if (\$tipus === '' || \$numFact === '')")) {
             Assert::fail('Legacy fallback must not require an existing invoice before cutover');
         }
 
