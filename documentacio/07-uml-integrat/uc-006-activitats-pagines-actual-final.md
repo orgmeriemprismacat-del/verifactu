@@ -14,7 +14,7 @@
 | P-UC006-04 | CLI SIF | Preview/process manual refund | IMPLEMENTAT TÈCNIC, no UI productiva |
 | P-UC006-05 | CLI SIF | Preview/process credit balance | IMPLEMENTAT TÈCNIC, no UI productiva |
 | P-UC006-06 | CLI SIF | Preview/process credit compensation | IMPLEMENTAT TÈCNIC, no UI productiva |
-| P-UC006-07 | SIF intern | Atribució de cobrament a inscripció (`enrollment_fund_movement`) | IMPLEMENTAT PARCIAL · curs/pack |
+| P-UC006-07 | SIF intern | Ledger per inscripció | IMPLEMENTAT AMPLIAT · entrada, saldo, refund i compensació; transferència interna pendent |
 | P-UC006-F | Pantalla final UC-006 | Decisió econòmica i confirmació | PENDENT |
 
 ## 2. P-UC006-01 ACTUAL — baixa des de Consulta / Modifica alumne
@@ -174,7 +174,7 @@ flowchart TD
   I --> J[REFUND + allocation]
 ```
 
-**Cobertura:** útil per prova/preproducció; no substitueix actor/autorització/evidència externa/UI.
+**Cobertura:** útil per prova/preproducció; amb `--source-enrollment-id` el processador pot registrar `REFUND_EXIT` atòmic amb el REFUND. No substitueix actor/autorització ni l'evidència externa que demostra que el retorn real ja s'ha produït.
 
 ## 9. P-UC006-05 ACTUAL — CLI crear saldo
 
@@ -191,7 +191,7 @@ flowchart TD
   G --> H[INSERT credit_balance ACTIVE]
 ```
 
-**Mancança:** no hi ha guard idempotent d’origen acreditat.
+**Estat ampliat:** amb `--source-enrollment-id` + `--idempotency-key`, la creació del saldo registra `CREDIT_CREATE`, bloqueja/reconstrueix el dret disponible i fa rollback si no hi ha prou fons. Continua pendent que la UI/orquestrador faci aquests camps obligatoris.
 
 ## 10. P-UC006-06 ACTUAL — CLI aplicar saldo
 
@@ -212,7 +212,7 @@ flowchart TD
   K --> L[ACTIVE o USED]
 ```
 
-**Mancança:** no s’acredita titularitat compatible.
+**Estat ampliat:** amb `--target-enrollment-id`, la compensació exigeix una línia real de la factura per aquella inscripció i registra `COMPENSATION_ALLOCATION` abans de consumir el saldo. Continua pendent la titularitat compatible.
 
 ## 10.1. P-UC006-07 ACTUAL — atribució de cobrament a inscripció
 
@@ -231,7 +231,7 @@ flowchart TD
   I --> J[EXTERNAL_ALLOCATION cap a ID_INSC_DESTI]
 ```
 
-**Cobertura real:** atribució inicial de fons per curs i pack. **No cobreix encara** la sortida d'un refund ni la conversió/aplicació completa de saldo d'UC-006.
+**Cobertura real 04/10:** atribució inicial de curs/pack + `availableAmountForInscription()` + `CREDIT_CREATE` + `REFUND_EXIT` + `COMPENSATION_ALLOCATION`. `INTERNAL_TRANSFER`/reversió orquestrada, titularitat i UI continuen pendents.
 
 ## 11. P-UC006-F FINAL — pantalla unificada
 
