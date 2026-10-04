@@ -45,6 +45,33 @@ final class SifPaymentSessionGuard
         ];
     }
 
+    public function assertAnyRole(array $roles, array $requiredRoles): void
+    {
+        $roles = array_values(array_unique(array_filter(array_map(
+            static fn ($role): string => strtoupper(trim((string) $role)),
+            $roles
+        ))));
+        $requiredRoles = array_values(array_unique(array_filter(array_map(
+            static fn ($role): string => strtoupper(trim((string) $role)),
+            $requiredRoles
+        ))));
+
+        if ($requiredRoles === []) {
+            throw new RuntimeException('SIF manual transfer roles are not configured', 503);
+        }
+        if (array_intersect($roles, $requiredRoles) === []) {
+            throw new RuntimeException('Intranet actor cannot register manual transfers', 403);
+        }
+    }
+
+    public function configuredManualTransferRoles(): array
+    {
+        return array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) (getenv('SIF_MANUAL_TRANSFER_ROLES') ?: ''))
+        )));
+    }
+
     public function csrfToken(): string
     {
         $this->actor();
