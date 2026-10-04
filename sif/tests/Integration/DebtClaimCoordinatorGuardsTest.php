@@ -123,4 +123,37 @@ final class DebtClaimCoordinatorGuardsTest
             'correlation_id' => 'CORR-' . substr(hash('sha256', $key), 0, 20),
         ];
     }
+
+    public function testFinalClaimCanBeRepeatedWithNewIdempotencyKeyWhileDebtRemains(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload());
+        $service = $this->service($db);
+        $actor = $this->actor();
+
+        $service->recordNotice(
+            $actor,
+            $this->notice($invoice['uuid_factura'], 'FINAL_REMINDER', 'CLAIM|FOLLOWUP|1')
+        );
+        $service->recordNotice(
+            $actor,
+            $this->notice($invoice['uuid_factura'], 'FIRST_CLAIM', 'CLAIM|FOLLOWUP|2')
+        );
+        $firstFinal = $service->recordNotice(
+            $actor,
+            $this->notice($invoice['uuid_factura'], 'FINAL_CLAIM', 'CLAIM|FOLLOWUP|3')
+        );
+        $secondFinal = $service->recordNotice(
+            $actor,
+            $this->notice($invoice['uuid_factura'], 'FINAL_CLAIM', 'CLAIM|FOLLOWUP|4')
+        );
+
+        Assert::same(false, $firstFinal['idempotency_reused']);
+        Assert::same(false, $secondFinal['idempotency_reused']);
+        Assert::notSame($firstFinal['uuid_claim_event'], $secondFinal['uuid_claim_event']);
+        Assert::same('FINAL_CLAIM', $secondFinal['stage']);
+        Assert::same(4, (int) $db->query('SELECT COUNT(*) FROM debt_claim_event')->fetchColumn());
+        Assert::same(4, (int) $db->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
+    }
+
 }
