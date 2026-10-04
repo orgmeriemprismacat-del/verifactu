@@ -69,7 +69,7 @@ try {
     JsonResponse::send([
         'ok' => true,
         'intent' => $service->create($sifDb, $legacyDb, [
-            'gift_code' => $payload['gift_code'] ?? null,
+            'gift_id' => $payload['gift_id'] ?? null,
             'terminal' => $payload['terminal'] ?? null,
             'created_by' => (string) ($actor['actor_id'] ?? 'pay-prisma-cat'),
         ]),
