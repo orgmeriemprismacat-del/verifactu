@@ -35,12 +35,23 @@ Abans d'aquesta auditoria, UC-005 tenia la fitxa funcional i una fitxa/UML integ
 - `sif/src/Service/FiscalCorrectionDecisionGuard.php`
 - `sif/src/Service/FiscalCorrectionDecisionResolver.php`
 - `sif/src/Repository/FiscalCorrectionDecisionRepository.php`
+- `sif/src/Service/RectificationDecisionFingerprint.php`
+- `sif/src/Service/AeatRectificationMapper.php`
+- `sif/src/Repository/InvoiceReadRepository.php` (read model de decisió UC-74)
+- `sif/src/Service/InvoiceQueryService.php` (projecció FULL de decisió/correction)
 - `sif/src/Service/InternalRectificationScopeResolver.php`
 - `sif/src/Service/RectificationCommandService.php`
 - `sif/src/Repository/SifAuditEventRepository.php`
 - `sif/public/api/factures/rectify.php`
 - `sif/tests/Integration/ManualRectificationAtomicityTest.php`
 - `sif/tests/Integration/ManualRectificationFiscalTest.php`
+- `sif/tests/Integration/ManualRectificationAeatMappingTest.php`
+- `sif/tests/Integration/ManualRectificationConcurrencyTest.php`
+- `sif/tests/Support/ConcurrentRectificationWorker.php`
+- `sif/tests/Integration/FiscalCorrectionDecisionResolverTest.php`
+- `sif/tests/Integration/RectificationDecisionReadModelTest.php`
+- `sif/tests/Integration/RectificationHttpEndpointTest.php`
+- `sif/tests/Integration/RectificationIntranetProxyContractTest.php`
 - `sif/tests/Integration/RectificationCommandServiceTest.php`
 - `sif/tests/Unit/FiscalCorrectionDecisionGuardTest.php`
 - `sif/tests/Unit/InternalRectificationScopeResolverTest.php`
@@ -52,6 +63,9 @@ Abans d'aquesta auditoria, UC-005 tenia la fitxa funcional i una fitxa/UML integ
 - `codi-drive/intranet-actual/alumnes-factura.php`
 - `codi-drive/intranet-actual/js/alumnes-factura.js`
 - `codi-drive/intranet-actual/js/alumnes-factura-sif.js`
+- `codi-drive/intranet-actual/SifRectificationAccess.php`
+- `codi-drive/intranet-actual/SifInternalApiClient.php` (client signat UC-005)
+- `codi-drive/intranet-actual/ajax/alumnes/sifRectificarFactura.php`
 - `codi-drive/intranet-actual/ajax/alumnes/mostraModalConsultaFactura.php`
 - `codi-drive/intranet-actual/ajax/alumnes/mostrarModalAnulaFactura_Factures.php`
 - `codi-drive/intranet-actual/ajax/alumnes/guardarDadesFactura_Factures.php`
