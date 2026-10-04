@@ -109,6 +109,27 @@ class SifInternalApiClient
         ]);
     }
 
+    public function previewExistingInvoicePayment(
+        string $actorId,
+        array $roles,
+        array $selector
+    ): array {
+        if ($this->paymentUrl === '') {
+            throw new RuntimeException('SIF payment API is not configured');
+        }
+
+        return $this->requestTo(
+            $this->paymentUrl,
+            $this->paymentSignedPath,
+            $actorId,
+            $roles,
+            [
+                'action' => 'preview_existing_invoice',
+                'selector' => $selector,
+            ]
+        );
+    }
+
     public function registerExistingInvoicePayment(
         string $actorId,
         array $roles,
