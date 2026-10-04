@@ -19,6 +19,7 @@
 - NOTIFICATION_STATUS:
 - SIF_REDSYS_COURSE_CUTOVER_ENABLED: 0 / 1
 - SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED: 0 / 1
+- cutover_phase reportada pel preflight: NORMAL / DRAIN / CUTOVER_CONFIRMED
 - SIF_REDSYS_CALLBACK_URL configurada amb HTTPS: SÍ / NO (no copiar secrets ni query sensible)
 - SIF_REDSYS_LEGACY_CALLBACK_URL configurada amb HTTPS i del mateix entorn quan `cutover=0`: SÍ / NO / N/A
 - SIF_REDSYS_RETURN_BASE_URL configurada amb HTTPS i del mateix entorn: SÍ / NO
