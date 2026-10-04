@@ -359,6 +359,73 @@ final class CreditBalanceServiceTest
         )->fetchColumn());
     }
 
+    public function testAllowsTwoLegitimateSameAmountCompensationsWithDifferentExplicitKeys(): void
+    {
+        $db = TestDatabase::fresh();
+        $origin = $this->paidEnrollmentWithFunds($db, 'COMP-EXPLICIT-KEY-ORIGIN');
+        $target = $this->pendingInvoiceForEnrollment($db, 20, 'COMP-EXPLICIT-KEY-TARGET');
+
+        $service = $this->service($db);
+        $credit = $service->createCredit([
+            'idempotency_key' => 'CREDIT|UC006|EXPLICIT-COMP|80',
+            'holder_type' => 'STUDENT',
+            'holder_id' => 10,
+            'holder_name' => 'Client Exemple',
+            'amount' => '80.00',
+            'source_type' => 'CANVI_CURS',
+            'source_enrollment_id' => 10,
+            'uuid_factura_origen' => $origin['uuid_factura'],
+        ]);
+
+        $base = [
+            'amount' => '20.00',
+            'movement_date' => '2026-10-04 02:20:00',
+            'target_enrollment_id' => 20,
+        ];
+
+        $first = $base;
+        $first['idempotency_key'] = 'COMP|UC006|ORDER:A';
+        $a = $service->applyCreditByUuid(
+            $credit['uuid_credit'],
+            $target['uuid_factura'],
+            $first
+        );
+
+        $second = $base;
+        $second['idempotency_key'] = 'COMP|UC006|ORDER:B';
+        $second['movement_date'] = '2026-10-04 02:21:00';
+        $b = $service->applyCreditByUuid(
+            $credit['uuid_credit'],
+            $target['uuid_factura'],
+            $second
+        );
+
+        $aRetry = $service->applyCreditByUuid(
+            $credit['uuid_credit'],
+            $target['uuid_factura'],
+            $first
+        );
+
+        Assert::same(false, $a['idempotency_reused']);
+        Assert::same(false, $b['idempotency_reused']);
+        Assert::same(true, $aRetry['idempotency_reused']);
+        Assert::notSame($a['uuid_payment'], $b['uuid_payment']);
+        Assert::same($a['uuid_payment'], $aRetry['uuid_payment']);
+        Assert::same('40.00', (string) $db->query(
+            'SELECT IMPORT_DISPONIBLE FROM credit_balance'
+        )->fetchColumn());
+        Assert::same(2, (int) $db->query(
+            "SELECT COUNT(*) FROM payment_transaction WHERE TIPUS_MOVIMENT = 'COMPENSATION'"
+        )->fetchColumn());
+        Assert::same(2, (int) $db->query(
+            "SELECT COUNT(*) FROM enrollment_fund_movement
+             WHERE MOVEMENT_TYPE = 'COMPENSATION_ALLOCATION'"
+        )->fetchColumn());
+
+        $funds = new EnrollmentFundMovementRepository(new UuidGenerator());
+        Assert::same('40.00', $funds->availableAmountForInscription($db, 20));
+    }
+
     public function testRejectsEnrollmentAllocationForCreditWithoutMoneyBacking(): void
     {
         $db = TestDatabase::fresh();
