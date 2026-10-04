@@ -482,7 +482,7 @@ requestMain.done(function( message ) {
 		var sendPay = $.ajax({
 			url: path + "alumnes/efectuarPagament.php",
 			global: false,
-			method: "GET",
+			method: "POST",
 			data: {
 				id: idTipus,
 				numFact: numFact,
