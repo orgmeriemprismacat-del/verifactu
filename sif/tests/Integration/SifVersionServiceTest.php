@@ -560,8 +560,16 @@ final class SifVersionServiceTest
         file_put_contents($dir . '/declarations/declaracio-v1.pdf', '%PDF-UC010-test');
 
         $files = ['src/runtime.php' => hash_file('sha256', $dir . '/src/runtime.php')];
+        $artifactHash = hash(
+            'sha256',
+            json_encode($files, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
+        );
         $manifestPath = $evidenceDir . '/manifest.json';
-        file_put_contents($manifestPath, json_encode(['schema' => 1, 'files' => $files], JSON_THROW_ON_ERROR));
+        file_put_contents($manifestPath, json_encode([
+            'schema' => 1,
+            'artifact_hash' => $artifactHash,
+            'files' => $files,
+        ], JSON_THROW_ON_ERROR));
 
         $config = require dirname(__DIR__, 2) . '/config/sif.php';
         $config['env'] = 'test';
