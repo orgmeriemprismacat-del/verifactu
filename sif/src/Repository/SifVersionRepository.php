@@ -175,7 +175,7 @@ final class SifVersionRepository
         )->execute([$uuid]);
     }
 
-    private function findByIdempotencyKey(\PDO $db, string $key, bool $forUpdate = false): ?array
+    public function findByIdempotencyKey(\PDO $db, string $key, bool $forUpdate = false): ?array
     {
         $sql = 'SELECT * FROM sif_version WHERE IDEMPOTENCY_KEY = ? LIMIT 1';
         if ($forUpdate) {
