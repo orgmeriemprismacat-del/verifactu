@@ -5,6 +5,7 @@ namespace Prisma\Sif\Service;
 use Prisma\Sif\Contract\PayloadIdempotencyValidatorInterface;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\EnrollmentPaymentFlowLockRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentRedsysGuardRepository;
@@ -22,7 +23,8 @@ final class InvoiceService
         private ?PaymentRepository $payments = null,
         private ?PayloadIdempotencyValidatorInterface $idempotency = null,
         private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null,
-        private ?InvoiceBeforePaymentRedsysGuardRepository $beforePaymentRedsysGuard = null
+        private ?InvoiceBeforePaymentRedsysGuardRepository $beforePaymentRedsysGuard = null,
+        private ?EnrollmentPaymentFlowLockRepository $paymentFlowLocks = null
     ) {
         $this->idempotency ??= new PayloadIdempotencyValidator();
     }
@@ -62,12 +64,17 @@ final class InvoiceService
                 return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
             }
 
-            if ($this->requiresBeforePaymentCoverage($payload) && $this->beforePaymentRedsysGuard !== null) {
-                $this->beforePaymentRedsysGuard->assertNoBlockingCourseIntents(
-                    $db,
-                    $payload['relations'] ?? [],
-                    true
-                );
+            if ($this->requiresBeforePaymentCoverage($payload)) {
+                if ($this->paymentFlowLocks !== null) {
+                    $this->paymentFlowLocks->lockRelations($db, $payload['relations'] ?? []);
+                }
+                if ($this->beforePaymentRedsysGuard !== null) {
+                    $this->beforePaymentRedsysGuard->assertNoBlockingCourseIntents(
+                        $db,
+                        $payload['relations'] ?? [],
+                        true
+                    );
+                }
             }
 
             $year = (int) ($payload['year'] ?? date('Y'));
