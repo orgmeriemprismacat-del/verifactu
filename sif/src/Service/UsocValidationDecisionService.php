@@ -22,15 +22,6 @@ final class UsocValidationDecisionService
     ): array {
         $this->assertIdentity($requestId, $idInsc, $desiredValidDesc, $actorId);
         $legacy = $this->legacyState($legacyDb, $idInsc);
-
-        if ((int) $legacy['TIPUS_DESC'] !== 4) {
-            return [
-                'tracked' => false,
-                'reason' => 'NOT_USOC',
-                'should_apply_legacy' => true,
-            ];
-        }
-
         $current = (int) $legacy['VALID_DESC'];
         if (!in_array($current, [0, 1, 2], true)) {
             throw SifException::conflict('Unexpected legacy USOC validation state');
@@ -38,6 +29,16 @@ final class UsocValidationDecisionService
 
         $sifDb->beginTransaction();
         try {
+            $existing = $this->decisions->findByRequestId($sifDb, $requestId, true);
+            if ($existing === null && (int) $legacy['TIPUS_DESC'] !== 4) {
+                $sifDb->commit();
+                return [
+                    'tracked' => false,
+                    'reason' => 'NOT_USOC',
+                    'should_apply_legacy' => true,
+                ];
+            }
+
             $decision = $this->decisions->begin(
                 $sifDb,
                 $requestId,
@@ -50,19 +51,36 @@ final class UsocValidationDecisionService
             );
 
             $state = (string) $decision['STATE'];
-            if ($state === 'COMMITTED' && $current !== $desiredValidDesc) {
+            $legacyStillUsoc = (int) $legacy['TIPUS_DESC'] === 4;
+            $denialReclassified = $desiredValidDesc === 2 && $current === 2;
+
+            if (
+                $state === 'COMMITTED'
+                && (
+                    $current !== $desiredValidDesc
+                    || (!$legacyStillUsoc && !$denialReclassified)
+                )
+            ) {
                 throw SifException::conflict(
                     'Committed USOC validation decision no longer matches legacy state'
                 );
             }
 
             if ($state === 'REQUESTED') {
-                if ($current === $desiredValidDesc) {
+                if ($current === $desiredValidDesc && ($legacyStillUsoc || $denialReclassified)) {
                     $decision = $this->decisions->markCommitted(
                         $sifDb,
                         $requestId,
                         $current,
                         $this->legacyHash($legacy)
+                    );
+                } elseif (!$legacyStillUsoc) {
+                    $decision = $this->decisions->markReviewRequired(
+                        $sifDb,
+                        $requestId,
+                        $current,
+                        $this->legacyHash($legacy),
+                        'LEGACY_NO_LONGER_USOC'
                     );
                 } elseif ($current !== 0) {
                     $decision = $this->decisions->markReviewRequired(
@@ -109,22 +127,30 @@ final class UsocValidationDecisionService
             }
 
             $legacy = $this->legacyState($legacyDb, (int) $decision['ID_INSC']);
-            if ((int) $legacy['TIPUS_DESC'] !== 4) {
+            $current = (int) $legacy['VALID_DESC'];
+            $desired = (int) $decision['DESIRED_VALID_DESC'];
+            $legacyStillUsoc = (int) $legacy['TIPUS_DESC'] === 4;
+            $denialReclassified = $desired === 2 && $current === 2;
+
+            if (!$legacyStillUsoc && !$denialReclassified) {
                 $decision = $this->decisions->markReviewRequired(
                     $sifDb,
                     $requestId,
-                    (int) $legacy['VALID_DESC'],
+                    $current,
                     $this->legacyHash($legacy),
                     'LEGACY_NO_LONGER_USOC'
                 );
                 $sifDb->commit();
-                return $this->result($decision, (int) $legacy['VALID_DESC']);
+                return $this->result($decision, $current);
             }
 
-            $current = (int) $legacy['VALID_DESC'];
-            $desired = (int) $decision['DESIRED_VALID_DESC'];
-
-            if ((string) $decision['STATE'] === 'COMMITTED' && $current !== $desired) {
+            if (
+                (string) $decision['STATE'] === 'COMMITTED'
+                && (
+                    $current !== $desired
+                    || (!$legacyStillUsoc && !$denialReclassified)
+                )
+            ) {
                 throw SifException::conflict(
                     'Committed USOC validation decision no longer matches legacy state'
                 );
