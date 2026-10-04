@@ -107,6 +107,7 @@ function parseManualRefundArgs(array $args): array
     ];
 
     foreach ([
+        'idempotency_key' => ['--idempotency-key='],
         'reference' => ['--reference=', '--referencia=', '--referencia-bancaria='],
         'bank' => ['--bank=', '--banc='],
         'method' => ['--method=', '--metode='],
@@ -171,7 +172,7 @@ function usage(string $script): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/{$script}-manual-refund.php (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE [--reference=REF] [--bank=BANK] [--method=TRANSFERENCIA|MANUAL] [--notes=TEXT] [--source-enrollment-id=ID] [--correlation-id=ID] [--uuid-operation=UUID]\n"
+        "Usage: php sif/scripts/{$script}-manual-refund.php (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE [--reference=REF] [--bank=BANK] [--idempotency-key=KEY] [--method=TRANSFERENCIA|MANUAL] [--notes=TEXT] [--source-enrollment-id=ID] [--correlation-id=ID] [--uuid-operation=UUID]\n"
     );
     exit(1);
 }
