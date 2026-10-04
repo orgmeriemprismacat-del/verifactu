@@ -209,3 +209,25 @@ Aquests canvis milloren la garantia de regressió del codi versionat, però **no
 4. **Check focalitzat:** `UC-009 AEAT audit` executa lints i la suite pròpia del cas independentment de fallades alienes de PACK/Redsys.
 
 Aquestes quatre correccions són prerequisit abans de considerar una prova real a `intranet-pre`/SIF preproducció.
+
+
+## 14. Desplegament de la conciliació d'evidència — 2026-10-04
+
+Abans d'usar `reconcile_evidence` a preproducció:
+
+1. aplicar la migració `2026_10_04_000033_add_aeat_attempt_evidence_id.sql`;
+2. comprovar que `aeat_submission_attempt.EVIDENCE_ID` existeix i té clau única;
+3. configurar `SIF_AEAT_EVIDENCE_DIR` al SIF, fora de repositori/webroot;
+4. executar preflight i confirmar `evidence_store_private=true`;
+5. generar un cas controlat `UNCERTAIN` amb evidència privada;
+6. comprovar que el detall del panell mostra l'acció de conciliació només a l'últim intent;
+7. executar la conciliació i verificar:
+   - queue `REVIEW → SENT`;
+   - attempt `UNCERTAIN → terminal`;
+   - `factura_registres.ESTAT_AEAT` terminal;
+   - incidència resolta;
+   - `operational_event.REASON_CODE=AEAT_EVIDENCE_RECONCILED`;
+   - cap nou `aeat_submission_attempt`;
+   - cap nova evidència/request de xarxa creada per la conciliació.
+
+No s'ha de copiar `request.xml` o `response.xml` al webroot ni mostrar-ne el contingut al panell.
