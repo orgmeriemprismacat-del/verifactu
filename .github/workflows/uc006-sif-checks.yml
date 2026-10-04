@@ -74,6 +74,8 @@ jobs:
       - name: Sintaxi PHP UC-006
         run: |
           php -l sif/src/Repository/EnrollmentFundMovementRepository.php
+          php -l sif/src/Service/EnrollmentFundTransferPayloadBuilder.php
+          php -l sif/src/Service/EnrollmentFundTransferService.php
           php -l sif/src/Service/PaymentService.php
           php -l sif/src/Service/ManualRefundPayloadBuilder.php
           php -l sif/src/Service/ManualRefundService.php
@@ -85,6 +87,11 @@ jobs:
           php -l sif/scripts/process-manual-refund.php
           php -l sif/scripts/preview-credit-compensation.php
           php -l sif/scripts/process-credit-compensation.php
+          php -l sif/scripts/preview-enrollment-fund-transfer.php
+          php -l sif/scripts/process-enrollment-fund-transfer.php
+          php -l sif/tests/Integration/EnrollmentFundTransferServiceTest.php
+          php -l sif/tests/Integration/EnrollmentFundTransferPreviewScriptTest.php
+          php -l sif/tests/Integration/EnrollmentFundTransferPreproductionScriptTest.php
           php -l sif/tests/Integration/CreditBalanceServiceTest.php
           php -l sif/tests/Integration/ManualRefundServiceTest.php
           php -l sif/tests/run-uc006-tests.php
