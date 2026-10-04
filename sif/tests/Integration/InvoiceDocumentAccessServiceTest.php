@@ -30,6 +30,26 @@ final class InvoiceDocumentAccessServiceTest
         }
     }
 
+    public function testAuditRecordsRoleThatActuallyGrantedFullScope(): void
+    {
+        [$db, $invoice, $id, $root] = $this->fixture();
+        try {
+            $actor = $this->actor($invoice['uuid_factura'], 'FULL', 'uc007-role');
+            $actor['roles'] = ['SUPORT', 'FACTURACIO'];
+            $actor['invoice_scope_role'] = 'FACTURACIO';
+
+            $this->service($db, $root)->download($actor, $id);
+
+            $row = $db->query(
+                'SELECT ACTOR_ROLE FROM fiscal_document_access ORDER BY ID DESC LIMIT 1'
+            )->fetch(\PDO::FETCH_ASSOC);
+
+            Assert::same('FACTURACIO', $row['ACTOR_ROLE']);
+        } finally {
+            $this->cleanup($root);
+        }
+    }
+
     public function testMinimalScopeIsDeniedAndAudited(): void
     {
         [$db, $invoice, $id, $root] = $this->fixture();
