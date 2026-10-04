@@ -30,12 +30,12 @@
    <header></header>
    <?php include('inc/analitics.html'); ?>
    <div id='cnt-pagament' class="prisma-container container separacio-peu" role="main">
-		<div id='codiCurs' style='display:none'><?php echo $_POST['codiCurs']?></div>
-		<div id='codiRegal' style='display:none'><?php echo $_POST['codiRegal']?></div>
-		<div id='titol' style='display:none'><?php echo $_POST['titol']?></div>
-      <div id='nom-titular' style='display:none'><?php echo $_POST['nom-titular']?></div>
-		<div id='dni' style='display:none'><?php echo $_POST['dni']?></div>
-		<div id='import' style='display:none'><?php echo htmlspecialchars($importPag ?? '', ENT_QUOTES, 'UTF-8')?></div>
+		<div id='codiCurs' style='display:none'><?php echo htmlspecialchars((string) ($_POST['codiCurs'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+		<div id='codiRegal' style='display:none'><?php echo htmlspecialchars((string) ($_POST['codiRegal'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+		<div id='titol' style='display:none'><?php echo htmlspecialchars((string) ($_POST['titol'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='nom-titular' style='display:none'><?php echo htmlspecialchars((string) ($_POST['nom-titular'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+		<div id='dni' style='display:none'><?php echo htmlspecialchars((string) ($_POST['dni'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+		<div id='import' style='display:none'><?php echo htmlspecialchars((string) ($importPag ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
 
       <?php
 
@@ -118,7 +118,7 @@
       $merchantData = 'UC017G' . $giftId . 'A' . $amount;
 
       $name = 'Associaci&oacute; per al Desenvolupament Infantil i Familiar PrisMa';
-      $producto = $codiCurs . " | regal";
+      $producto = 'Val regal PrisMa';
 
       $miObj->setParameter("DS_MERCHANT_AMOUNT", $amount);
       $miObj->setParameter("DS_MERCHANT_ORDER", $order);
@@ -155,16 +155,16 @@
       <h1>Pagament amb targeta</h1>
       <div class='d-flex flex-column tota-pagina'><div class='container'><div class='row'>
          <div class='d-flex flex-column cnt_enviar_dades border-0 align-items-center w-100 mb-4'>
-            <p><span class='font-weight-bold'>Titular de la targeta: </span><?php echo $nomTitularPag; ?></p>
-            <p><span class='font-weight-bold'>DNI: </span><?php echo $dniTitularPag; ?></p>
-            <p><span class='font-weight-bold'>Import a pagar: </span><?php echo $importPag; ?> euros</p>
+            <p><span class='font-weight-bold'>Titular de la targeta: </span><?php echo htmlspecialchars($nomTitularPag, ENT_QUOTES, 'UTF-8'); ?></p>
+            <p><span class='font-weight-bold'>DNI: </span><?php echo htmlspecialchars($dniTitularPag, ENT_QUOTES, 'UTF-8'); ?></p>
+            <p><span class='font-weight-bold'>Import a pagar: </span><?php echo htmlspecialchars($importPag, ENT_QUOTES, 'UTF-8'); ?> euros</p>
          </div>
          <form id='frm' name='frm' action='<?php echo htmlspecialchars($gatewayUrl, ENT_QUOTES, 'UTF-8'); ?>' method='post'>
-   		   <input type="hidden" name="producto" value="<?php echo $producto; ?>"/>
-            <input type="hidden" name="rebut" value="<?php echo $id; ?>"/>
-            <input type="hidden" name="Ds_SignatureVersion" value="<?php echo $version; ?>"/>
-            <input type="hidden" name="Ds_MerchantParameters" value="<?php echo $params; ?>"/>
-            <input type="hidden" name="Ds_Signature" value="<?php echo $signature; ?>"/>
+   		   <input type="hidden" name="producto" value="<?php echo htmlspecialchars($producto, ENT_QUOTES, 'UTF-8'); ?>"/>
+            <input type="hidden" name="rebut" value="<?php echo htmlspecialchars($id, ENT_QUOTES, 'UTF-8'); ?>"/>
+            <input type="hidden" name="Ds_SignatureVersion" value="<?php echo htmlspecialchars($version, ENT_QUOTES, 'UTF-8'); ?>"/>
+            <input type="hidden" name="Ds_MerchantParameters" value="<?php echo htmlspecialchars($params, ENT_QUOTES, 'UTF-8'); ?>"/>
+            <input type="hidden" name="Ds_Signature" value="<?php echo htmlspecialchars($signature, ENT_QUOTES, 'UTF-8'); ?>"/>
          </form>
          <div class='d-flex cnt_enviar_dades border-0 justify-content-center w-100'>
             <a id='form_cancelar_dades' role='button' class='boto-blau-disable
