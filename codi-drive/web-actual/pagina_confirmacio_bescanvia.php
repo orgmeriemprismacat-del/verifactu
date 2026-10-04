@@ -1,3 +1,8 @@
+<?php
+header('Cache-Control: no-store, private');
+header('Pragma: no-cache');
+header('Referrer-Policy: no-referrer');
+?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http:/ogp.me/ns# fb: http:/ogp.me/ns/fb# video: http:/ogp.me/ns/video#">
 <head>
@@ -54,6 +59,7 @@
   }
 </script>
    <meta charset="utf-8">
+   <meta name="referrer" content="no-referrer">
    <meta http-equiv="X-UA-Compatible" content="IE=edge">
    <meta name="viewport" content="width=device-width, initial-scale=1">
    <?php include("./inc/buscarMetaTags.php");flush();?>
@@ -81,8 +87,8 @@
 	   }
 	   $('head').append(headerCSS);
    </script>
-   <link rel='stylesheet' href='" + "https://www.prisma.cat/css1619773569/confirmacioBescanvia.min.css?ver=5.0' />
-   <script async src="https://www.prisma.cat/js1619773569/mostrarConfirmacioBescanvia.min.js?ver=6.0"></script>
+   <link rel='stylesheet' href='https://www.prisma.cat/css1619773569/confirmacioBescanvia.min.css?ver=5.0' />
+   <script async src="https://www.prisma.cat/js1619773569/mostrarConfirmacioBescanvia.min.js?ver=7.0"></script>
    <script async src="https://www.prisma.cat/js1619773569/obrirTancar.min.js?ver=5.0"></script>
    <script async src="https://www.prisma.cat/js1619773569/lazysizes.min.js?ver=5.0"></script>
    <script async src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>

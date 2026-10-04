@@ -1,5 +1,11 @@
 <?php
 
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+	http_response_code(405);
+	header('Allow: POST');
+	exit;
+}
+
 include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
@@ -8,62 +14,63 @@ include("../Date.php");
 include("../Text.php");
 include("../MailSMTPComvive.php");
 include("../inc/SifGiftRedemptionClient.php");
+include("../inc/GiftRedemptionConfirmationToken.php");
 
 try {
-	$textNom = new Text($_GET['nom']);
-	$textCog = new Text($_GET['cog']);
-	$textDocumentacio = new Text($_GET['dni']);
-	$numTelf = new Numero($_GET['telf']);
-	$textEmail = new Text($_GET['email']);
-	$textAdreca = new Text($_GET['adreca']);
-	$textCodiPostal = new Text($_GET['codiPostal']);
-	$textPoblacio = new Text($_GET['poblacio']);
-	$textPerfil = new Text($_GET['perfil']);
-	if ( $_GET['perfil'] == "Altres")
-		$textPerfilAltres = new Text($_GET['perfilAltres']);
+	$textNom = new Text($_POST['nom']);
+	$textCog = new Text($_POST['cog']);
+	$textDocumentacio = new Text($_POST['dni']);
+	$numTelf = new Numero($_POST['telf']);
+	$textEmail = new Text($_POST['email']);
+	$textAdreca = new Text($_POST['adreca']);
+	$textCodiPostal = new Text($_POST['codiPostal']);
+	$textPoblacio = new Text($_POST['poblacio']);
+	$textPerfil = new Text($_POST['perfil']);
+	if ( $_POST['perfil'] == "Altres")
+		$textPerfilAltres = new Text($_POST['perfilAltres']);
 	else
 		$textPerfilAltres = null;
-	if ( $_GET['titulacio'] == "Altres") {
-		$textTitulacio = new Text($_GET['titulacio']);
-		$textTitulacioAltres = new Text($_GET['titulacioAltres']);
+	if ( $_POST['titulacio'] == "Altres") {
+		$textTitulacio = new Text($_POST['titulacio']);
+		$textTitulacioAltres = new Text($_POST['titulacioAltres']);
 		$textTitulacioSecundaria = null;
 		$textTitulacioEstudiant = null;
 	}
-	else if ( $_GET['titulacio'] == "Prof. Ed. Secundària") {
+	else if ( $_POST['titulacio'] == "Prof. Ed. Secundària") {
 		$textTitulacio = new Text('Ed. Secundària');
 		$textTitulacioAltres = null;
-		$textTitulacioSecundaria = new Text($_GET['titulacioSecundaria']);
+		$textTitulacioSecundaria = new Text($_POST['titulacioSecundaria']);
 		$textTitulacioEstudiant = null;
 	}
-	else if ( $_GET['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
+	else if ( $_POST['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
 		$textTitulacio = new Text('Estudiant');
 		$textTitulacioAltres = null;
 		$textTitulacioSecundaria = null;
-		$textTitulacioEstudiant = new Text($_GET['titulacioEstudiant']);
+		$textTitulacioEstudiant = new Text($_POST['titulacioEstudiant']);
 	}
 	else {
-		$textTitulacio = new Text($_GET['titulacio']);
+		$textTitulacio = new Text($_POST['titulacio']);
 		$textTitulacioAltres = null;
 		$textTitulacioSecundaria = null;
 		$textTitulacioEstudiant = null;
 	}
-	if ( $_GET['tbTitulacio'] != '')
-		$textTbTitulacio = new Text($_GET['tbTitulacio']);
+	if ( $_POST['tbTitulacio'] != '')
+		$textTbTitulacio = new Text($_POST['tbTitulacio']);
 	else
 		$textTbTitulacio = null;
-	$numAny = new Numero($_GET['any']);
-	$textEdicio = new Text($_GET['edicio']);
-	$textDates = new Text($_GET['dates']);
+	$numAny = new Numero($_POST['any']);
+	$textEdicio = new Text($_POST['edicio']);
+	$textDates = new Text($_POST['dates']);
 	$textConegut = new Text("Me l'han regalat");
-	if ( $_GET['comentaris'] != '')
-		$textComentaris = new Text($_GET['comentaris']);
+	if ( $_POST['comentaris'] != '')
+		$textComentaris = new Text($_POST['comentaris']);
 	else
 		$textComentaris = null;
 	$textObservacions = new Text("CURS REGAL");
-	$textMailing = new Text($_GET['mailing']);
-	$textCodiRegal = new Text($_GET['codiRegal']);
-	$textCodiCurs = new Text($_GET['codiCurs']);
-	$textTitolCurs = new Text($_GET['titolCurs']);
+	$textMailing = new Text($_POST['mailing']);
+	$textCodiRegal = new Text($_POST['codiRegal']);
+	$textCodiCurs = new Text($_POST['codiCurs']);
+	$textTitolCurs = new Text($_POST['titolCurs']);
 
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
@@ -101,34 +108,79 @@ try {
 	$stmt->fetch();
 	$connexio->closeStmt();
 
-	$cipher = "AES-128-CBC";
-	$encryptEnrollmentId = static function($enrollmentId) use ($cipher, $keyEncr) {
-		$ivlen = openssl_cipher_iv_length($cipher);
-		$iv = openssl_random_pseudo_bytes($ivlen);
-		$ciphertext_raw = openssl_encrypt(
-			(string) $enrollmentId,
-			$cipher,
-			$keyEncr,
-			OPENSSL_RAW_DATA,
-			$iv
+	$encryptEnrollmentId = static function($enrollmentId) use ($keyEncr) {
+		return GiftRedemptionConfirmationToken::issue(
+			(int) $enrollmentId,
+			(string) $keyEncr
 		);
-		$hmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, true);
-		return base64_encode($iv.$hmac.$ciphertext_raw);
 	};
 
 	/* ######################################################################### */
 	$datesRealitzacio = $textDates->convertirMin();
 
-	$cnsDatesCurs = "SELECT DATAI, DATAF, HORES, DATA_RESOL FROM curs WHERE CURS=? AND ANY=? AND MES=?";
+	$cnsDatesCurs = "SELECT DATAI, DATAF, HORES, DATA_RESOL, NOM_CURS
+		FROM curs
+		WHERE CURS=? AND ANY=? AND MES=?
+		  AND PUBLIC=1
+		  AND ESTAT NOT IN ('0','T')
+		  AND CURS!='PROVA'
+		  AND CURS NOT LIKE '%0%'
+		  AND CURS NOT LIKE '%JOR%'";
 	$stmt=$connexio->prepare($cnsDatesCurs);
 	$stmt->bind_param("sds", $codiCurs, $any, $mes);
 	$codiCurs = $textCodiCurs->convertirMaj();
 	$any = $numAny->obtenirNumero();
 	$mes = $textEdicio->obtenirText();
 	$stmt->execute();
-	$stmt->bind_result($datai, $dataf, $hores, $data_resol);
+	$stmt->store_result();
+	if ($stmt->num_rows() !== 1) {
+		$connexio->closeStmt();
+		throw new Exception('L\'edició seleccionada no és vàlida per al bescanvi', 409);
+	}
+	$stmt->bind_result($datai, $dataf, $hores, $data_resol, $trustedCourseTitle);
 	$stmt->fetch();
 	$connexio->closeStmt();
+
+	// Reprodueix server-side la finestra que governa les edicions mostrades
+	// al formulari. Un POST manual no pot seleccionar una edició tancada.
+	$cnsOpenConfig = "SELECT VALOR FROM params
+		WHERE TIPUS=? AND DATAI<=CURRENT_TIME
+		  AND (DATAF IS NULL OR CURRENT_TIME<=DATAF)
+		ORDER BY VALOR";
+	$stmt=$connexio->prepare($cnsOpenConfig);
+	$stmt->bind_param("s", $openConfigType);
+	$openConfigType = 'dies-inscriu-cursos';
+	$stmt->execute();
+	$stmt->bind_result($openConfigValue);
+	$allowedDaysAfterStart = null;
+	while ($stmt->fetch()) {
+		$parts = explode('|', (string) $openConfigValue);
+		if (count($parts) !== 2 || !is_numeric($parts[1])) {
+			$connexio->closeStmt();
+			throw new Exception('Configuració d\'inscripció no vàlida', 409);
+		}
+
+		$key = trim((string) $parts[0]);
+		$matchesHours = preg_match('/^\\d+$/D', $key) === 1
+			&& (int) $key === (int) $hores;
+		$matchesCourse = preg_match('/^\\d+$/D', $key) !== 1
+			&& strtoupper($key) === strtoupper((string) $codiCurs);
+
+		if ($matchesHours || $matchesCourse) {
+			$allowedDaysAfterStart = (int) $parts[1];
+		}
+	}
+	$connexio->closeStmt();
+
+	if ($allowedDaysAfterStart === null || $allowedDaysAfterStart < 0) {
+		throw new Exception('L\'edició seleccionada no està oberta al bescanvi', 409);
+	}
+
+	$enrollmentDeadline = (new DateTimeImmutable((string) $datai))
+		->modify('+' . $allowedDaysAfterStart . ' days');
+	if ($enrollmentDeadline <= new DateTimeImmutable('today')) {
+		throw new Exception('L\'edició seleccionada no està oberta al bescanvi', 409);
+	}
 
 	/* ######################################################################### */
 	// El replay no retorna aquí. La secció transaccional posterior reutilitza
@@ -288,7 +340,10 @@ try {
 		$titulacions .= ', També tinc la titulació de: '.$textTbTitulacio->obtenirText();
 	}
 
-	$titolCurs = $textTitolCurs->obtenirText();
+	$titolCurs = trim((string) $trustedCourseTitle);
+	if ($titolCurs === '') {
+		throw new Exception('El curs seleccionat no té un títol vàlid', 409);
+	}
 	$dates = $textDates->obtenirText();
 	$conegut = $textConegut->obtenirText();
 	$edicio = $textEdicio->obtenirText();
@@ -441,7 +496,7 @@ try {
 	$edicioBD = $textEdicio->obtenirText();
 	$codiCursBD = $textCodiCurs->convertirMaj();
 	$codiRegalBD = $textCodiRegal->obtenirText();
-	$titolCursBD = $textTitolCurs->obtenirText();
+	$titolCursBD = $titolCurs;
 
 	$comentarisBD = '';
 	if ($textComentaris!=null) $comentarisBD = $textComentaris->obtenirText();
@@ -466,15 +521,110 @@ try {
 		$connexio->connexio->begin_transaction();
 		$legacyGiftTransaction = true;
 
-		$cnsGiftLock = "SELECT FACT_REL, USAT FROM regal WHERE CODI=? FOR UPDATE";
+		$cnsGiftLock = "SELECT FACT_REL, USAT, CCURS FROM regal WHERE CODI=? FOR UPDATE";
 		$stmt=$connexio->prepare($cnsGiftLock);
 		$stmt->bind_param("s", $codiRegalBD);
 		$stmt->execute();
-		$stmt->bind_result($factRel, $giftUsedEnrollmentId);
+		$stmt->bind_result($factRel, $giftUsedEnrollmentId, $giftTargetCourse);
 		$giftExists = $stmt->fetch();
 		$connexio->closeStmt();
 		if (!$giftExists) {
 			throw new Exception('No s\'ha trobat el regal', 404);
+		}
+		if ((int) $factRel <= 0) {
+			throw new Exception('El regal no està disponible per al bescanvi', 409);
+		}
+
+		// Valida la destinació abans de commitar cap inscripció legacy.
+		// El flux històric permet:
+		// - regal genèric "N hores" -> qualsevol curs de N hores;
+		// - regal de curs concret -> el mateix curs o un altre de les mateixes hores.
+		$cnsSelectedHours = "SELECT HORES, DATAI FROM curs
+			WHERE CURS=? AND ANY=? AND MES=?
+			  AND PUBLIC=1
+			  AND ESTAT NOT IN ('0','T')
+			  AND CURS!='PROVA'
+			  AND CURS NOT LIKE '%0%'
+			  AND CURS NOT LIKE '%JOR%'
+			FOR UPDATE";
+		$stmt=$connexio->prepare($cnsSelectedHours);
+		$stmt->bind_param("sds", $codiCursBD, $any, $edicioBD);
+		$stmt->execute();
+		$stmt->store_result();
+		if ($stmt->num_rows() !== 1) {
+			$connexio->closeStmt();
+			throw new Exception('El curs seleccionat no és compatible amb el regal', 409);
+		}
+		$stmt->bind_result($selectedCourseHours, $selectedCourseStart);
+		$stmt->fetch();
+		$connexio->closeStmt();
+
+		$lockedEnrollmentDeadline = (new DateTimeImmutable((string) $selectedCourseStart))
+			->modify('+' . $allowedDaysAfterStart . ' days');
+		if ($lockedEnrollmentDeadline <= new DateTimeImmutable('today')) {
+			throw new Exception('L\'edició seleccionada no està oberta al bescanvi', 409);
+		}
+
+		$cnsOperationalEdition = "SELECT 1
+			FROM curs AS c
+			INNER JOIN aula AS a ON c.ID_AULA=a.ID_AULA
+			INNER JOIN rel_cuho AS r ON r.ID_CUHO=a.ID_CUHO
+			INNER JOIN honoraris AS h ON r.ID_HONO=h.ID
+			WHERE c.CURS=? AND c.ANY=? AND c.MES=?
+			  AND c.PUBLIC=1
+			  AND c.ESTAT NOT IN ('0','T')
+			  AND r.ACTIU=1
+			  AND (
+				a.ID_CUHO=17
+				OR a.ID_CUHO=13
+				OR (a.ID_CUHO!=17 AND h.DNI_TUTOR='GENERIC')
+				OR (
+					a.ID_CUHO!=17
+					AND h.DNI_TUTOR!='GENERIC'
+					AND a.AULA='A'
+					AND h.PERFIL='tutor'
+					AND h.ORDRE_TUTOR IS NOT NULL
+				)
+			  )
+			LIMIT 1";
+		$stmt=$connexio->prepare($cnsOperationalEdition);
+		$stmt->bind_param("sds", $codiCursBD, $any, $edicioBD);
+		$stmt->execute();
+		$stmt->store_result();
+		$operationalEdition = $stmt->num_rows() === 1;
+		$connexio->closeStmt();
+		if (!$operationalEdition) {
+			throw new Exception('L\'edició seleccionada no està disponible per al bescanvi', 409);
+		}
+
+		$giftTarget = strtoupper(trim((string) $giftTargetCourse));
+		$selectedCourse = strtoupper(trim((string) $codiCursBD));
+		$selectedHours = (int) $selectedCourseHours;
+		if ($giftTarget === '' || $selectedHours <= 0) {
+			throw new Exception('El curs seleccionat no és compatible amb el regal', 409);
+		}
+
+		if (preg_match('/^\\d+$/D', $giftTarget) === 1) {
+			if ((int) $giftTarget <= 0 || (int) $giftTarget !== $selectedHours) {
+				throw new Exception('El curs seleccionat no és compatible amb el regal', 409);
+			}
+		}
+		else if ($giftTarget !== $selectedCourse) {
+			$cnsGiftHours = "SELECT DISTINCT HORES FROM curs WHERE CURS=?";
+			$stmt=$connexio->prepare($cnsGiftHours);
+			$stmt->bind_param("s", $giftTarget);
+			$stmt->execute();
+			$stmt->store_result();
+			if ($stmt->num_rows() !== 1) {
+				$connexio->closeStmt();
+				throw new Exception('El curs seleccionat no és compatible amb el regal', 409);
+			}
+			$stmt->bind_result($giftCourseHours);
+			$stmt->fetch();
+			$connexio->closeStmt();
+			if ((int) $giftCourseHours <= 0 || (int) $giftCourseHours !== $selectedHours) {
+				throw new Exception('El curs seleccionat no és compatible amb el regal', 409);
+			}
 		}
 
 		$idInserit = 0;
@@ -849,15 +999,22 @@ try {
 	);
 
 	if ($giftMailIssues !== []) {
-		throw new RuntimeException(
-			'Un o més correus UC-018 requereixen reconciliació abans de confirmar la resposta',
-			500
+		// La matrícula, l'aplicació econòmica i el consum del regal ja estan
+		// confirmats. Una incidència SMTP és un problema de comunicació, no una
+		// fallada de la inscripció: es conserva a l'outbox i es deixa traça
+		// operativa sense exposar PII ni el codi regal al navegador.
+		error_log(
+			'[UC-018] ID_INSC=' . (int) $idInserit
+			. ' notification_reconciliation_required='
+			. implode(',', $giftMailIssues)
 		);
 	}
 
 	/* ######################################################################### */
 
 	// regal.USAT ja ha estat reconciliat pel SIF amb compare-and-set.
+	// Retornem la confirmació encara que una comunicació requereixi revisió:
+	// no s'ha de presentar com a fallida una inscripció ja consumida.
 
 	echo $hashIdInserit;
 

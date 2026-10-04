@@ -201,6 +201,8 @@ final class GiftEntitlementIssuerService
                 $this->assertExistingEntitlement(
                     $entitlement,
                     (string) $operation['UUID_OPERATION'],
+                    $giftId,
+                    $course,
                     $amount,
                     $entitlementKey
                 );
@@ -253,13 +255,29 @@ final class GiftEntitlementIssuerService
     private function assertExistingEntitlement(
         array $entitlement,
         string $originOperation,
+        int $giftId,
+        string $course,
         string $amount,
         string $idempotencyKey
     ): void {
         $holder = trim((string) ($entitlement['HOLDER_PARTY_KEY'] ?? ''));
+        $ruleSnapshot = json_decode(
+            (string) ($entitlement['RULE_SNAPSHOT_JSON'] ?? ''),
+            true
+        );
+        $snapshotGiftId = is_array($ruleSnapshot)
+            ? (int) ($ruleSnapshot['legacy_gift_id'] ?? 0)
+            : 0;
+        $snapshotCourse = is_array($ruleSnapshot)
+            ? strtoupper(trim((string) ($ruleSnapshot['legacy_course_code'] ?? '')))
+            : '';
+
         if (strtoupper((string) ($entitlement['ENTITLEMENT_TYPE'] ?? '')) !== 'GIFT'
             || (string) ($entitlement['ORIGIN_UUID_OPERATION'] ?? '') !== $originOperation
             || (string) ($entitlement['IDEMPOTENCY_KEY'] ?? '') !== $idempotencyKey
+            || strtoupper((string) ($entitlement['RULE_VERSION'] ?? '')) !== self::RULE_VERSION
+            || $snapshotGiftId !== $giftId
+            || $snapshotCourse !== $course
             || $this->money($entitlement['FACE_VALUE'] ?? null, 'entitlement.FACE_VALUE') !== $amount
             || strtoupper((string) ($entitlement['CURRENCY'] ?? '')) !== 'EUR'
             || $holder === ''

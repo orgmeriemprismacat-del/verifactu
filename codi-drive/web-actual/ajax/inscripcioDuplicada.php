@@ -1,5 +1,8 @@
 <?php
 
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$input = $requestMethod === 'POST' ? $_POST : $_GET;
+
 include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
@@ -7,10 +10,10 @@ include("../Text.php");
 include("../Numero.php");
 
 try {
-	$documentacio = new Text($_GET['dni']);
-	$any = new Numero($_GET['any']);
-	$edicio = new Text($_GET['edicio']);
-	$codiCurs = new Text($_GET['codiCurs']);
+	$documentacio = new Text($input['dni']);
+	$any = new Numero($input['any']);
+	$edicio = new Text($input['edicio']);
+	$codiCurs = new Text($input['codiCurs']);
 
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();

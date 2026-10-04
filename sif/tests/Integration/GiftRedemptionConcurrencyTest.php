@@ -7,6 +7,7 @@ namespace Prisma\Sif\Tests\Integration;
 use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\CommercialEntitlementRepository;
+use Prisma\Sif\Service\GiftEntitlementIssuerService;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\Fixtures;
 use Prisma\Sif\Tests\Support\TestDatabase;
@@ -366,8 +367,14 @@ final class GiftRedemptionConcurrencyTest
             $codeHash,
             CommercialEntitlementRepository::unclaimedGiftHolderKey($codeHash),
             $origin,
-            'GIFT_V1',
-            '{}',
+            GiftEntitlementIssuerService::RULE_VERSION,
+            json_encode([
+                'source' => 'uc017_gift_purchase',
+                'legacy_gift_id' => 77,
+                'legacy_course_code' => 'COURSE-TEST',
+                'claim_mode' => 'CODE_POSSESSION_PLUS_COMMITTED_ENROLLMENT',
+                'holder_state' => 'UNCLAIMED',
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
             '120.00',
             'EUR',
             'ACTIVE',

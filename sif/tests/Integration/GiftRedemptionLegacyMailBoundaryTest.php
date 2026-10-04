@@ -38,6 +38,24 @@ final class GiftRedemptionLegacyMailBoundaryTest
         Assert::same(6, substr_count($source, 'new MailSMTPComvive'));
         Assert::same(true, str_contains($source, '$giftMailIssues'));
         Assert::same(true, str_contains($source, ':AMBIGUOUS_SENDING'));
+        Assert::same(
+            true,
+            str_contains($source, 'notification_reconciliation_required=')
+        );
+        Assert::same(
+            false,
+            str_contains(
+                $source,
+                'requereixen reconciliació abans de confirmar la resposta'
+            )
+        );
+
+        $issues = strpos($source, 'if ($giftMailIssues !== [])');
+        $confirmation = strpos($source, 'echo $hashIdInserit');
+        Assert::same(
+            true,
+            is_int($issues) && is_int($confirmation) && $issues < $confirmation
+        );
     }
 
     public function testNotificationApiIsPostHmacAndHasNoAutomaticRetryAction(): void

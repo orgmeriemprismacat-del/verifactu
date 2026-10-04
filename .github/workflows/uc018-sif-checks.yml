@@ -1,0 +1,105 @@
+name: UC-018 gift redemption checks
+
+on:
+  pull_request:
+    paths:
+      - "sif/**"
+      - "codi-drive/web-actual/.htaccess"
+      - "codi-drive/web-actual/BescanviaRegal.php"
+      - "codi-drive/web-actual/RegalCurs.php"
+      - "codi-drive/web-actual/pagina_bescanvia.php"
+      - "codi-drive/web-actual/pagina_confirmacio_bescanvia.php"
+      - "codi-drive/web-actual/inc/SifGiftRedemptionClient.php"
+      - "codi-drive/web-actual/inc/GiftRedemptionConfirmationToken.php"
+      - "codi-drive/web-actual/ajax/mostrar_pagina_bescanvia.php"
+      - "codi-drive/web-actual/ajax/codiRegalValid.php"
+      - "codi-drive/web-actual/ajax/buscarCursRegalat.php"
+      - "codi-drive/web-actual/ajax/bescanviaUnCurs.php"
+      - "codi-drive/web-actual/ajax/inscripcioDuplicada.php"
+      - "codi-drive/web-actual/ajax/buscarSiHaRealitzatElCurs.php"
+      - "codi-drive/web-actual/ajax/enviamentPubli.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php"
+      - "codi-drive/web-actual/ajax/mostrar_confirmacio_bescanvia.php"
+      - "codi-drive/web-actual/pagina_confirmacio_bescanvia.php"
+      - "codi-drive/web-actual/js1619773569/mostrarBescanvia.min.js"
+      - "codi-drive/web-actual/js1619773569/mostrarConfirmacioBescanvia.min.js"
+      - "documentacio/06-fitxes-funcionals/uc-018.md"
+      - "documentacio/07-uml-integrat/*uc-018*"
+      - ".github/workflows/uc018-sif-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  uc018:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test_uc018
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: "mysql:host=127.0.0.1;port=3306;dbname=sif_test_uc018;charset=utf8mb4"
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+      SIF_LEGACY_DB_DSN: "mysql:host=127.0.0.1;port=3306;dbname=sif_legacy_test_uc018;charset=utf8mb4"
+      SIF_LEGACY_DB_USER: root
+      SIF_LEGACY_DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 amb extensions UC-018
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, openssl, mbstring
+          coverage: none
+
+      - name: Preparar BD legacy UC-018
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot \
+            -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test_uc018 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+      - name: Lint PHP i JavaScript UC-018
+        run: |
+          php -l codi-drive/web-actual/BescanviaRegal.php
+          php -l codi-drive/web-actual/RegalCurs.php
+          php -l codi-drive/web-actual/pagina_bescanvia.php
+          php -l codi-drive/web-actual/pagina_confirmacio_bescanvia.php
+          php -l codi-drive/web-actual/inc/SifGiftRedemptionClient.php
+          php -l codi-drive/web-actual/inc/GiftRedemptionConfirmationToken.php
+          php -l codi-drive/web-actual/ajax/mostrar_pagina_bescanvia.php
+          php -l codi-drive/web-actual/ajax/codiRegalValid.php
+          php -l codi-drive/web-actual/ajax/buscarCursRegalat.php
+          php -l codi-drive/web-actual/ajax/bescanviaUnCurs.php
+          php -l codi-drive/web-actual/ajax/inscripcioDuplicada.php
+          php -l codi-drive/web-actual/ajax/buscarSiHaRealitzatElCurs.php
+          php -l codi-drive/web-actual/ajax/enviamentPubli.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php
+          php -l codi-drive/web-actual/ajax/mostrar_confirmacio_bescanvia.php
+          php -l codi-drive/web-actual/pagina_confirmacio_bescanvia.php
+          php -l sif/src/Service/GiftEntitlementIssuerService.php
+          php -l sif/src/Service/GiftRedemptionTrustedContextResolver.php
+          php -l sif/src/Service/GiftEnrollmentStager.php
+          php -l sif/src/Service/GiftRedemptionService.php
+          php -l sif/src/Service/GiftRedemptionOrchestrator.php
+          php -l sif/src/Service/LegacyGiftUsageReconciler.php
+          node --check codi-drive/web-actual/js1619773569/mostrarBescanvia.min.js
+          node --check codi-drive/web-actual/js1619773569/mostrarConfirmacioBescanvia.min.js
+
+      - name: Executar proves selectives UC-018
+        run: php sif/tests/run-uc018-tests.php
