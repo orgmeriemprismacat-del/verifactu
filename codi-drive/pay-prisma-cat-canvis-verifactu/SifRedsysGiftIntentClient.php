@@ -2,11 +2,10 @@
 
 final class SifRedsysGiftIntentClient
 {
-    public function create(string $giftCode, string $terminal): array
+    public function create(int $giftId, string $terminal): array
     {
-        $giftCode = trim($giftCode);
         $terminal = trim($terminal);
-        if ($giftCode === '' || strlen($giftCode) > 200 || !preg_match('/^[0-9]{1,3}$/D', $terminal)) {
+        if ($giftId <= 0 || !preg_match('/^[0-9]{1,3}$/D', $terminal)) {
             throw new RuntimeException('Invalid Redsys gift intent input');
         }
 
@@ -23,7 +22,7 @@ final class SifRedsysGiftIntentClient
         }
 
         $body = json_encode([
-            'gift_code' => $giftCode,
+            'gift_id' => $giftId,
             'terminal' => $terminal,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($body === false) {
