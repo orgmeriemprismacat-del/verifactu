@@ -3,8 +3,8 @@
 ## 1. Tall auditat
 
 - Repositori: `orgmeriemprismacat-del/verifactu`
-- Base: `main@2bd2a751832fc3f767b1e250b955922145a5577a`
-- Branca: `audit/uc-002-reconciliada-2026-10-04`
+- Base: `main@6c8137ff1652ac89a1a81ad18cf79fc4689b1757`
+- Branca: `audit/uc-002-reconciliada-main-2026-10-04`
 - Abast: registrar cobrament sobre factura existent, pantalla intranet, nucli SIF, idempotència, persistència, auditoria, atribució per inscripció i proves.
 
 ## 2. Documentació
