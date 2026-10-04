@@ -55,7 +55,7 @@ try {
     }
 
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
-    if ($action === 'reconcile') {
+    if (in_array($action, ['reconcile', 'reconcile_evidence'], true)) {
         $csrf = (string) ($payload['csrf_token'] ?? '');
         $stored = (string) ($_SESSION['sif_aeat_csrf'] ?? '');
         if ($stored === '' || $csrf === '' || !hash_equals($stored, $csrf)) {
