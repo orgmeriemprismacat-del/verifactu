@@ -13,6 +13,7 @@ use Prisma\Sif\Repository\LegacyGiftSnapshotRepository;
 use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Service\GiftAeatInvoicePayloadEnricher;
 use Prisma\Sif\Service\GiftPaymentNotificationService;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
@@ -54,7 +55,12 @@ try {
     $service = new RedsysGiftInvoiceService(
         $notifications,
         new LegacyGiftSnapshotRepository(),
-        new LegacyGiftInvoicePayloadBuilder(),
+        new LegacyGiftInvoicePayloadBuilder(
+                new GiftAeatInvoicePayloadEnricher(
+                    (array) ($config['issuer'] ?? []),
+                    (array) ($config['aeat'] ?? [])
+                )
+            ),
         new RedsysInvoicePayloadBuilder($notifications),
         $invoiceService,
         null,
