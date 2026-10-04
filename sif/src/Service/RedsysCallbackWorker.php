@@ -32,7 +32,7 @@ final class RedsysCallbackWorker
         string $workerId,
         \DateTimeImmutable $now
     ): ?array {
-        $this->queue->recoverStaleLocks($db, $now);
+        $this->queue->recoverStaleLockByDsOrder($db, $dsOrder, $now);
         $job = $this->queue->claimByDsOrder($db, $dsOrder, $workerId, $now);
 
         return $this->processClaimedJob($db, $job, $now);
