@@ -123,3 +123,32 @@ El checkout PACK és fail-closed i no reutilitza imports, titular, correu ni end
 - Default UC-015: `https://www.prisma.cat;https://prisma.cat`.
 - `enviarInscripcioPack.php` exigeix POST, `X-Requested-With: XMLHttpRequest`, allowlist d'origen/referer i conserva també la comprovació `Sec-Fetch-Site` com a defensa addicional.
 - Aquest control redueix CSRF cross-site i peticions directes no-AJAX; no substitueix rate limiting o controls anti-bot.
+
+
+## Pagament fraccionat intranet — UC-023
+
+### SIF / pay.prisma.cat
+
+- `SIF_INTERNAL_INSTALLMENT_SIGNED_PATH`: default `/api/payments/installment.php`.
+- `SIF_INSTALLMENT_PAYMENT_WRITE_ROLES`: rols autoritzats; buit = fail-closed.
+- `SIF_INTERNAL_PAYMENT_REGISTER_SIGNED_PATH`: default `/api/payments/register.php`.
+- `SIF_PAYMENT_REGISTER_WRITE_ROLES`: rols del registre genèric; buit = fail-closed.
+- `SIF_INTERNAL_API_KEY_ID`, `SIF_INTERNAL_API_SECRET`, `SIF_INTERNAL_API_MAX_SKEW`: autenticació HMAC compartida.
+
+### Intranet
+
+- `SIF_INTERNAL_INSTALLMENT_URL`: URL HTTPS server-to-server del nou endpoint.
+- `SIF_INTERNAL_INSTALLMENT_SIGNED_PATH`: mateix path canònic del SIF.
+- `SIF_INSTALLMENT_PAYMENT_ENFORCED=1`: activa la derivació real del cobrament a UC-023. Sense el flag, es conserva temporalment el fallback llegat, però la mutació ja exigeix POST, CSRF, same-origin i permís.
+
+### Evidència i desplegament
+
+1. Configurar HMAC i rols als dos servidors.
+2. Validar connectivitat i `internal_api_request` a `sif_test*`/preproducció.
+3. Executar `preview-manual-installment.php` amb `--operation-id`, `--reference` o `--ds-order` quan pertoqui.
+4. Executar el cobrament controlat amb `process-manual-installment.php` o el pont intranet.
+5. Conservar sortida read-only de `verify-manual-installment-evidence.php`.
+6. Activar `SIF_INSTALLMENT_PAYMENT_ENFORCED=1` només després de validar fracció parcial, reintent, complet, inscripció aliena, sobrepagament i reconciliació cross-channel.
+7. Retirar el fallback llegat quan l'E2E sigui estable.
+
+En producció el verificador d'evidència queda bloquejat excepte amb `SIF_UC023_EVIDENCE_ALLOW_PRODUCTION=1` explícit.
