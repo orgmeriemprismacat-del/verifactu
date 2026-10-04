@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "sif/src/Service/ManualRectification*.php"
+      - "sif/src/Service/AeatRectificationMapper.php"
       - "sif/src/Service/InvoiceService.php"
       - "sif/src/Service/InternalRectificationScopeResolver.php"
       - "sif/src/Service/FiscalCorrectionDecisionGuard.php"
@@ -18,6 +19,7 @@ on:
       - "sif/public/api/factures/rectify.php"
       - "sif/config/sif.php"
       - "sif/tests/Integration/ManualRectification*Test.php"
+      - "sif/tests/Integration/ManualRectificationAeatMappingTest.php"
       - "sif/tests/Integration/RectificationCommandServiceTest.php"
       - "sif/tests/Integration/RectificationHttpEndpointTest.php"
       - "sif/tests/Integration/FiscalCorrectionDecisionResolverTest.php"
@@ -74,6 +76,7 @@ jobs:
           php -l sif/src/Service/InvoiceService.php
           php -l sif/src/Service/ManualRectificationPayloadBuilder.php
           php -l sif/src/Service/ManualRectificationService.php
+          php -l sif/src/Service/AeatRectificationMapper.php
           php -l sif/src/Service/InternalRectificationScopeResolver.php
           php -l sif/src/Service/FiscalCorrectionDecisionGuard.php
           php -l sif/src/Service/FiscalCorrectionDecisionResolver.php
@@ -84,6 +87,7 @@ jobs:
           php -l sif/public/api/factures/rectify.php
           php -l sif/tests/Unit/AeatRectificationProtocolTest.php
           php -l sif/tests/Integration/RectificationHttpEndpointTest.php
+          php -l sif/tests/Integration/ManualRectificationAeatMappingTest.php
           php -l sif/tests/Integration/FiscalCorrectionDecisionResolverTest.php
           php -l sif/tests/run-uc005-tests.php
 
