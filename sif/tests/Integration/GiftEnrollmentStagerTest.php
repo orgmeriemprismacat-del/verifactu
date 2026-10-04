@@ -9,6 +9,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\CommercialEntitlementRepository;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Service\GiftEnrollmentStager;
+use Prisma\Sif\Service\GiftEntitlementIssuerService;
 use Prisma\Sif\Service\GiftRedemptionOrchestrator;
 use Prisma\Sif\Service\GiftRedemptionTrustedContextResolver;
 use Prisma\Sif\Service\LegacyGiftUsageReconciler;
@@ -74,6 +75,115 @@ final class GiftEnrollmentStagerTest
         Assert::same('COURSE-TEST', $party['PRODUCT_CODE']);
         Assert::same('2026/09', $party['PRODUCT_EDITION']);
         Assert::same(false, str_contains((string) $party['SNAPSHOT_JSON'], $code));
+    }
+
+    public function testGenericHoursGiftStagesChosenCourseWhenEditionHoursMatch(): void
+    {
+        [$db, $code, $holder] = $this->fixture();
+        $this->createLegacyCourseEdition($db, 30);
+        $this->setPurchasedGiftTarget($db, '30');
+
+        $result = $this->stager()->stage(
+            $db,
+            $db,
+            501,
+            $code,
+            $holder,
+            $this->price()
+        );
+
+        Assert::same('RESERVED', $result['status']);
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_operation
+             WHERE SOURCE_TYPE='INSCRIPCIO' AND SOURCE_ID='501'"
+        )->fetchColumn());
+    }
+
+    public function testGenericHoursGiftRejectsChosenCourseWithDifferentEditionHours(): void
+    {
+        [$db, $code, $holder] = $this->fixture();
+        $this->createLegacyCourseEdition($db, 30);
+        $this->setPurchasedGiftTarget($db, '40');
+
+        Assert::throws(SifException::class, function () use ($db, $code, $holder): void {
+            $this->stager()->stage(
+                $db,
+                $db,
+                501,
+                $code,
+                $holder,
+                $this->price()
+            );
+        }, 409);
+
+        Assert::same(0, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_operation WHERE SOURCE_TYPE='INSCRIPCIO'"
+        )->fetchColumn());
+    }
+
+    public function testConcreteGiftCanStageAlternateCourseWithSameStableHours(): void
+    {
+        [$db, $code, $holder] = $this->fixture();
+        $this->createLegacyCourseMatrix($db, [
+            ['ORIGINAL-COURSE', 2025, '09', 30],
+            ['ORIGINAL-COURSE', 2026, '08', 30],
+            ['COURSE-TEST', 2026, '09', 30],
+        ]);
+        $this->setPurchasedGiftTarget($db, 'ORIGINAL-COURSE');
+
+        $result = $this->stager()->stage(
+            $db,
+            $db,
+            501,
+            $code,
+            $holder,
+            $this->price()
+        );
+
+        Assert::same('RESERVED', $result['status']);
+    }
+
+    public function testConcreteGiftRejectsAlternateCourseWithDifferentHours(): void
+    {
+        [$db, $code, $holder] = $this->fixture();
+        $this->createLegacyCourseMatrix($db, [
+            ['ORIGINAL-COURSE', 2025, '09', 30],
+            ['ORIGINAL-COURSE', 2026, '08', 30],
+            ['COURSE-TEST', 2026, '09', 40],
+        ]);
+        $this->setPurchasedGiftTarget($db, 'ORIGINAL-COURSE');
+
+        Assert::throws(SifException::class, function () use ($db, $code, $holder): void {
+            $this->stager()->stage(
+                $db,
+                $db,
+                501,
+                $code,
+                $holder,
+                $this->price()
+            );
+        }, 409);
+    }
+
+    public function testRejectsLegacyGiftTargetMutatedAfterImmutablePurchaseSnapshot(): void
+    {
+        [$db, $code, $holder] = $this->fixture();
+        $db->exec("UPDATE regal SET CCURS='OTHER-COURSE'");
+
+        Assert::throws(SifException::class, function () use ($db, $code, $holder): void {
+            $this->stager()->stage(
+                $db,
+                $db,
+                501,
+                $code,
+                $holder,
+                $this->price()
+            );
+        }, 409);
+
+        Assert::same(0, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_operation WHERE SOURCE_TYPE='INSCRIPCIO'"
+        )->fetchColumn());
     }
 
     public function testSecondEnrollmentCannotStageSameReservedGift(): void
@@ -379,6 +489,54 @@ final class GiftEnrollmentStagerTest
         )->fetchColumn());
     }
 
+    private function createLegacyCourseEdition(\PDO $db, int $hours): void
+    {
+        $this->createLegacyCourseMatrix(
+            $db,
+            [['COURSE-TEST', 2026, '09', $hours]]
+        );
+    }
+
+    private function createLegacyCourseMatrix(\PDO $db, array $rows): void
+    {
+        $db->exec(
+            'CREATE TEMPORARY TABLE curs (
+                CURS VARCHAR(80) NOT NULL,
+                ANY INT NOT NULL,
+                MES VARCHAR(12) NOT NULL,
+                HORES INT NOT NULL
+            )'
+        );
+        $statement = $db->prepare(
+            'INSERT INTO curs (CURS, ANY, MES, HORES) VALUES (?, ?, ?, ?)'
+        );
+        foreach ($rows as $row) {
+            $statement->execute($row);
+        }
+    }
+
+    private function setPurchasedGiftTarget(\PDO $db, string $target): void
+    {
+        $target = strtoupper(trim($target));
+        $db->prepare('UPDATE regal SET CCURS = ?')->execute([$target]);
+
+        $snapshot = json_encode([
+            'source' => 'uc017_gift_purchase',
+            'legacy_gift_id' => 77,
+            'legacy_course_code' => $target,
+            'claim_mode' => 'CODE_POSSESSION_PLUS_COMMITTED_ENROLLMENT',
+            'holder_state' => 'CLAIMED',
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+
+        $db->prepare(
+            'UPDATE commercial_entitlement
+             SET RULE_VERSION = ?, RULE_SNAPSHOT_JSON = ?'
+        )->execute([
+            GiftEntitlementIssuerService::RULE_VERSION,
+            $snapshot,
+        ]);
+    }
+
     private function stager(): GiftEnrollmentStager
     {
         return new GiftEnrollmentStager(
@@ -567,8 +725,14 @@ final class GiftEnrollmentStagerTest
             hash('sha256', $code),
             $holder,
             $origin,
-            'GIFT_V1',
-            '{}',
+            GiftEntitlementIssuerService::RULE_VERSION,
+            json_encode([
+                'source' => 'uc017_gift_purchase',
+                'legacy_gift_id' => 77,
+                'legacy_course_code' => 'COURSE-TEST',
+                'claim_mode' => 'CODE_POSSESSION_PLUS_COMMITTED_ENROLLMENT',
+                'holder_state' => 'CLAIMED',
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
             '120.00',
             'EUR',
             'ACTIVE',

@@ -656,7 +656,14 @@ class RegalCurs{
 
       //si $codiRegal=='', es genera el $codiRegal
       if ($codiRegal=='') {
-         $codi = base_convert(uniqid(), 16, 36);
+         // El codi regal és un secret bearer: ha de ser impredictible.
+         // Es mantenen 10 caràcters per compatibilitat amb el flux UC-018.
+         $alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+         $codi = '';
+         $alphabetLength = strlen($alphabet);
+         for ($i = 0; $i < 10; $i++) {
+            $codi .= $alphabet[random_int(0, $alphabetLength - 1)];
+         }
          $textCodiRegal = new Text($codi);
          $codiRegal = $textCodiRegal->convertirMaj();
       }

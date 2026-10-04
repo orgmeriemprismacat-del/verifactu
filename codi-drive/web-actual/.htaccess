@@ -158,10 +158,10 @@ RewriteRule ^regal/efectuarPagamentProva/ /pagina_efectuar_pagament_regal_automa
 RewriteRule ^regal/efectuarPagament/ /pagina_efectuar_pagament_regal_automatic.php
 RewriteRule ^regal/(.+) /pagina_regal.php
 RewriteRule ^regal /pagina_regal.php
-RewriteRule ^bescanvia/confirmacioProva/(.+) /pagina_confirmacio_bescanvia_prova.php
-RewriteRule ^bescanvia/confirmacio/(.+) /pagina_confirmacio_bescanvia.php
-RewriteRule ^bescanvia-regal-prova /pagina_bescanvia.php
-RewriteRule ^bescanvia-regal /pagina_bescanvia_prova.php
+RewriteRule ^bescanvia/confirmacioProva/(.+) /pagina_confirmacio_bescanvia.php [L]
+RewriteRule ^bescanvia/confirmacio/(.+) /pagina_confirmacio_bescanvia.php [L]
+RewriteRule ^bescanvia-regal-prova/?$ /pagina_bescanvia.php [L]
+RewriteRule ^bescanvia-regal/?$ /pagina_bescanvia.php [L]
 
 RewriteRule ^descomptes-usoc /pagina_descomptes_usoc.php
 RewriteRule ^descomptes /pagina_descomptes.php

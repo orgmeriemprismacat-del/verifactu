@@ -7,6 +7,7 @@ namespace Prisma\Sif\Tests\Integration;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\CommercialEntitlementRepository;
+use Prisma\Sif\Service\GiftEntitlementIssuerService;
 use Prisma\Sif\Service\GiftRedemptionTrustedContextResolver;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\TestDatabase;
@@ -40,6 +41,100 @@ final class GiftRedemptionTrustedContextResolverTest
         );
     }
 
+    public function testGenericHoursGiftAllowsChosenCourseWithMatchingEditionHours(): void
+    {
+        [$db, $code] = $this->fixture();
+        $db->exec(
+            'CREATE TEMPORARY TABLE curs (
+                CURS VARCHAR(80) NOT NULL,
+                ANY INT NOT NULL,
+                MES VARCHAR(12) NOT NULL,
+                HORES INT NOT NULL
+            )'
+        );
+        $db->exec(
+            "INSERT INTO curs (CURS, ANY, MES, HORES)
+             VALUES ('COURSE-TEST', 2026, '09', 30)"
+        );
+        $this->setPurchasedGiftTarget($db, '30');
+
+        $context = (new GiftRedemptionTrustedContextResolver(
+            new CommercialEntitlementRepository(new UuidGenerator())
+        ))->resolve($db, $db, 501, $code);
+
+        Assert::same('COURSE-TEST', $context['trusted_price_snapshot']['product_code']);
+    }
+
+    public function testGenericHoursGiftRejectsChosenCourseWithDifferentEditionHours(): void
+    {
+        [$db, $code] = $this->fixture();
+        $db->exec(
+            'CREATE TEMPORARY TABLE curs (
+                CURS VARCHAR(80) NOT NULL,
+                ANY INT NOT NULL,
+                MES VARCHAR(12) NOT NULL,
+                HORES INT NOT NULL
+            )'
+        );
+        $db->exec(
+            "INSERT INTO curs (CURS, ANY, MES, HORES)
+             VALUES ('COURSE-TEST', 2026, '09', 30)"
+        );
+        $this->setPurchasedGiftTarget($db, '40');
+
+        Assert::throws(SifException::class, function () use ($db, $code): void {
+            (new GiftRedemptionTrustedContextResolver(
+                new CommercialEntitlementRepository(new UuidGenerator())
+            ))->resolve($db, $db, 501, $code);
+        }, 409);
+    }
+
+    public function testConcreteGiftAllowsAlternateCourseWithSameStableHours(): void
+    {
+        [$db, $code] = $this->fixture();
+        $this->createLegacyCourseMatrix($db, [
+            ['ORIGINAL-COURSE', 2025, '09', 30],
+            ['ORIGINAL-COURSE', 2026, '08', 30],
+            ['COURSE-TEST', 2026, '09', 30],
+        ]);
+        $this->setPurchasedGiftTarget($db, 'ORIGINAL-COURSE');
+
+        $context = (new GiftRedemptionTrustedContextResolver(
+            new CommercialEntitlementRepository(new UuidGenerator())
+        ))->resolve($db, $db, 501, $code);
+
+        Assert::same('COURSE-TEST', $context['trusted_price_snapshot']['product_code']);
+    }
+
+    public function testConcreteGiftRejectsAlternateCourseWithDifferentHours(): void
+    {
+        [$db, $code] = $this->fixture();
+        $this->createLegacyCourseMatrix($db, [
+            ['ORIGINAL-COURSE', 2025, '09', 30],
+            ['ORIGINAL-COURSE', 2026, '08', 30],
+            ['COURSE-TEST', 2026, '09', 40],
+        ]);
+        $this->setPurchasedGiftTarget($db, 'ORIGINAL-COURSE');
+
+        Assert::throws(SifException::class, function () use ($db, $code): void {
+            (new GiftRedemptionTrustedContextResolver(
+                new CommercialEntitlementRepository(new UuidGenerator())
+            ))->resolve($db, $db, 501, $code);
+        }, 409);
+    }
+
+    public function testRejectsLegacyGiftTargetMutatedAfterImmutablePurchaseSnapshot(): void
+    {
+        [$db, $code] = $this->fixture();
+        $db->exec("UPDATE regal SET CCURS='OTHER-COURSE'");
+
+        Assert::throws(SifException::class, function () use ($db, $code): void {
+            (new GiftRedemptionTrustedContextResolver(
+                new CommercialEntitlementRepository(new UuidGenerator())
+            ))->resolve($db, $db, 501, $code);
+        }, 409);
+    }
+
     public function testRejectsGiftAlreadyClaimedByAnotherCanonicalParticipant(): void
     {
         [$db, $code] = $this->fixture();
@@ -53,6 +148,46 @@ final class GiftRedemptionTrustedContextResolverTest
                 new CommercialEntitlementRepository(new UuidGenerator())
             ))->resolve($db, $db, 501, $code);
         }, 409);
+    }
+
+    private function createLegacyCourseMatrix(\PDO $db, array $rows): void
+    {
+        $db->exec(
+            'CREATE TEMPORARY TABLE curs (
+                CURS VARCHAR(80) NOT NULL,
+                ANY INT NOT NULL,
+                MES VARCHAR(12) NOT NULL,
+                HORES INT NOT NULL
+            )'
+        );
+        $statement = $db->prepare(
+            'INSERT INTO curs (CURS, ANY, MES, HORES) VALUES (?, ?, ?, ?)'
+        );
+        foreach ($rows as $row) {
+            $statement->execute($row);
+        }
+    }
+
+    private function setPurchasedGiftTarget(\PDO $db, string $target): void
+    {
+        $target = strtoupper(trim($target));
+        $db->prepare('UPDATE regal SET CCURS = ?')->execute([$target]);
+
+        $snapshot = json_encode([
+            'source' => 'uc017_gift_purchase',
+            'legacy_gift_id' => 77,
+            'legacy_course_code' => $target,
+            'claim_mode' => 'CODE_POSSESSION_PLUS_COMMITTED_ENROLLMENT',
+            'holder_state' => 'UNCLAIMED',
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+
+        $db->prepare(
+            'UPDATE commercial_entitlement
+             SET RULE_VERSION = ?, RULE_SNAPSHOT_JSON = ?'
+        )->execute([
+            GiftEntitlementIssuerService::RULE_VERSION,
+            $snapshot,
+        ]);
     }
 
     private function fixture(): array
@@ -120,8 +255,14 @@ final class GiftRedemptionTrustedContextResolverTest
             'GIFT',
             $hash,
             CommercialEntitlementRepository::unclaimedGiftHolderKey($hash),
-            'GIFT_V1',
-            '{}',
+            GiftEntitlementIssuerService::RULE_VERSION,
+            json_encode([
+                'source' => 'uc017_gift_purchase',
+                'legacy_gift_id' => 77,
+                'legacy_course_code' => 'COURSE-TEST',
+                'claim_mode' => 'CODE_POSSESSION_PLUS_COMMITTED_ENROLLMENT',
+                'holder_state' => 'UNCLAIMED',
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
             '120.00',
             'EUR',
             'ACTIVE',
