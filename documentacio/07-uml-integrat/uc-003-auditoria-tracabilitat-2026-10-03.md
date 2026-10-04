@@ -148,6 +148,31 @@ Si falla, el cas es tracta com conflicte funcional i deriva a `INCIDENT`.
    - A intenta `markProcessed`, `markRetry` i `markIncident`;
    - expectativa: 409 en els tres casos i `LOCKED_BY=worker-b`.
 
+3. `RedsysCourseCoveredInvoicePaymentTest` — bloc UC-004→Redsys:
+   - reutilització de factura emesa abans de cablejar el resolver;
+   - cobrament complet idempotent sobre una sola factura;
+   - parcial 50+70 amb `PARTIAL → PAID`;
+   - sobrepagament rebutjat sense segon CHARGE;
+   - guard contra nova emissió quan UC-004 ja cobreix l'origen.
+
+4. Contracte Redsys cobert:
+   - rebutja moviment diferent de `CHARGE/REDSYS/REDSYS`;
+   - exigeix `movement_date` determinista;
+   - rebutja import diferent del snapshot;
+   - rebutja idempotency key no canònica;
+   - rebutja `provider_ref != DS_ORDER`;
+   - rebutja IDPAG diferent del snapshot.
+
+5. Concurrència UC-003↔UC-004:
+   - `testOriginMutexSerializesUc004AndRedsysAtReadCommitted`;
+   - dues connexions MySQL, `READ COMMITTED`, `innodb_lock_wait_timeout=1`;
+   - la segona connexió no pot adquirir el mateix `invoice_origin_guard` mentre la primera manté la transacció;
+   - després del rollback/alliberament, la segona connexió adquireix el mutex normalment.
+
+6. Contracte operatiu:
+   - `RedsysCoveredInvoiceWorkerContractTest` comprova wiring del resolver i taules requerides pel preflight;
+   - els preflights UC-004 SIF i legacy exigeixen també `invoice_origin_guard`.
+
 **Estat de verificació 03/10:** les dues proves noves i tota la classe `RedsysCallbackWorkerTest` han passat al workflow **SIF checks #1204**. El job global acaba vermell amb **919 passed / 6 failed**, però les sis fallades són de baseline i es reprodueixen idènticament al PR #136, que parteix del mateix SHA base i no incorpora aquests canvis UC-003:
 - 5 proves PACK de boundary/privacitat/transports;
 - `RedsysSignatureValidatorTest::testValidNotificationDecodesAndNormalizesSignedPayload`, per un hash esperat desactualitzat/diferent.
