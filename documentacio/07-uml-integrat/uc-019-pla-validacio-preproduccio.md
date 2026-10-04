@@ -6,6 +6,24 @@ Data: 2026-10-04.
 
 Convertir l'estat actual **VERIFICAT EN CI** en **VERIFICAT EN PREPRODUCCIÓ**, amb evidència reproduïble del flux real entre intranet, BD llegada i SIF.
 
+## 0. Preflight abans d'aplicar la migració 000033
+
+Abans de desplegar `2026_10_04_000033_serialize_usoc_validation_by_inscription.sql`, executar sobre la BD SIF:
+
+```sql
+SELECT ID_INSC, COUNT(*) AS PENDING
+FROM usoc_validation_decision
+WHERE STATE = 'REQUESTED'
+GROUP BY ID_INSC
+HAVING COUNT(*) > 1;
+```
+
+Esperat: **0 files**.
+
+Si retorna resultats, no s'han d'eliminar ni fusionar automàticament. Cal revisar cada decisió amb el seu `REQUEST_ID`, actor, valor legacy i reconciliar-la abans d'aplicar la migració.
+
+La migració incorpora un índex `UNIQUE` i ha de fallar si el repositori ja conté una violació d'aquest invariant.
+
 ## 1. Preflight obligatori
 
 Executar:
