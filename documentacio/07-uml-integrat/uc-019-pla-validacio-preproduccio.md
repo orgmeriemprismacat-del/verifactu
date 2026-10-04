@@ -96,7 +96,21 @@ Esperat:
 - cap canvi addicional al llegat;
 - cap segona decisió.
 
-## 6. Conflicte llegat / REVIEW_REQUIRED
+## 6. Concurrència sobre la mateixa inscripció
+
+Amb `VALID_DESC=0`:
+
+1. iniciar una decisió i deixar-la en `REQUESTED`;
+2. abans de completar-la, iniciar una segona decisió amb un altre `requestId` sobre el mateix `ID_INSC`.
+
+Esperat:
+
+- la segona petició retorna 409;
+- només existeix una fila `REQUESTED` per `ID_INSC`;
+- l'índex `uq_usoc_validation_active_inscription` existeix;
+- quan la primera passa a `COMMITTED` o `REVIEW_REQUIRED`, deixa de consumir l'unicitat activa.
+
+## 7. Conflicte llegat / REVIEW_REQUIRED
 
 Escenari controlat:
 
@@ -110,7 +124,7 @@ Esperat:
 - `REVIEW_REASON=LEGACY_DECISION_CONFLICT`;
 - cap intent de forçar el valor a 1.
 
-## 7. Interrupció entre begin i complete
+## 8. Interrupció entre begin i complete
 
 Simular una interrupció després d'haver aplicat el valor al llegat però abans del `complete`.
 
@@ -128,7 +142,7 @@ Esperat:
 - retorna `REVIEW_REQUIRED` si no coincideix;
 - `errors=0` per al cas nominal.
 
-## 8. Seguretat del canal
+## 9. Seguretat del canal
 
 Comprovar:
 
@@ -148,7 +162,7 @@ Comprovar:
 - actor sense rol USOC → 403;
 - cap secret visible al HTML/JS.
 
-## 9. Evidència mínima a conservar
+## 10. Evidència mínima a conservar
 
 Per cada cas:
 
@@ -166,7 +180,7 @@ Per cada cas:
 
 No guardar documentació personal real d'afiliació en aquesta evidència tècnica.
 
-## 10. Criteri de tancament
+## 11. Criteri de tancament
 
 Marcar UC-019 com **CLOSED / VERIFIED_PREPRODUCTION** només quan:
 
@@ -178,6 +192,6 @@ Marcar UC-019 com **CLOSED / VERIFIED_PREPRODUCTION** només quan:
 - HMAC, rols i CSRF estan actius;
 - queda documentat el procediment de negoci amb què Gestió comprova l'afiliació.
 
-## 11. CI actual
+## 12. CI actual
 
 A la PR #143, els tests específics UC-019 passen. La suite global queda vermella per 6 errors no relacionats amb UC-019 (5 PACK + 1 RedsysSignatureValidator). Això no invalida el resultat d'aquest cas, però sí impedeix afirmar que la suite global del repositori és verda.
