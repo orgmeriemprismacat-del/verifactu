@@ -106,7 +106,7 @@ final class FiscalCorrectionDecisionResolverTest
         }, 409);
     }
 
-    private function appendDecision(\PDO $db, string $invoiceUuid): string
+    private function appendDecision(\PDO $db, string $invoiceUuid, array $input): string
     {
         return (new SifAuditEventRepository(new UuidGenerator()))->append($db, [
             'request_id' => 'req-uc074-approved',
