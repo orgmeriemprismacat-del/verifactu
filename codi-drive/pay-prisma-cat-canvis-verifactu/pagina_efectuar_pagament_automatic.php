@@ -197,10 +197,6 @@ try {
 
       $miObj = new RedsysAPI;
 
-      // UC-014: l'import i el DS_ORDER deixen de ser autoritat del navegador.
-      // El SIF rellegeix la inscripció a la BD llegada i crea/reutilitza la intenció.
-      require_once __DIR__ . '/SifRedsysCourseIntentClient.php';
-
       $fuc = trim((string) getenv('REDSYS_MERCHANT_CODE'));
       if ($fuc === '') {
          throw new RuntimeException('REDSYS_MERCHANT_CODE_NOT_CONFIGURED');
@@ -212,18 +208,25 @@ try {
       $moneda="978";
       $trans="0";
 
-      try {
-         $intent = (new SifRedsysCourseIntentClient())->create(
-            (int) $idPag,
-            $importPagare,
-            $terminal
-         );
-      } catch (Throwable $exception) {
-         http_response_code(503);
-         exit('No podem preparar el pagament en aquest moment. Torna-ho a provar més tard o contacta amb secretaria.');
+      // NORMAL = legacy pur. No creem una intenció SIF que quedaria PENDING
+      // sense callback SIF. CUTOVER CONFIRMAT = intenció + callback SIF.
+      if ($courseCutoverEnabled) {
+         require_once __DIR__ . '/SifRedsysCourseIntentClient.php';
+         try {
+            $intent = (new SifRedsysCourseIntentClient())->create(
+               (int) $idPag,
+               $importPagare,
+               $terminal
+            );
+         } catch (Throwable $exception) {
+            http_response_code(503);
+            exit('No podem preparar el pagament en aquest moment. Torna-ho a provar més tard o contacta amb secretaria.');
+         }
+         $order = (string) $intent['ds_order'];
+         $importPagare = (string) $intent['amount'];
+      } else {
+         $order = (string) random_int(100000000000, 999999999999);
       }
-      $order = (string) $intent['ds_order'];
-      $importPagare = (string) $intent['amount'];
       $id = $order;
 
       // URL resolta i validada abans de qualsevol accés a BD o creació d'intent.
@@ -237,7 +240,7 @@ try {
       $urlKO=$returnBaseUrl."/respostaKoPagamentAutomatic.php?".$returnQuery;
 
       if (!preg_match('/^\d{1,10}\.\d{2}$/D', $importPagare)) {
-         throw new RuntimeException('INVALID_SIF_PAYMENT_AMOUNT');
+         throw new RuntimeException('INVALID_AUTHORISED_PAYMENT_AMOUNT');
       }
       [$amountEuros, $amountDecimals] = explode('.', $importPagare, 2);
       $amount = ((int) $amountEuros * 100) + (int) $amountDecimals;
