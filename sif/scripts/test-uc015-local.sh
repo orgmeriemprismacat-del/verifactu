@@ -68,6 +68,8 @@ fi
   echo "  RedsysPaymentIntentTest::testRejectsPackIntentWhenSnapshotTotalDiffersFromExpectedAmount"
   echo "  RedsysPaymentIntentTest::testRejectsPackIntentWithoutCommercialOrdinal"
   echo "  LegacyPackInvoicePayloadBuilderTest::testUsesCommercialOrdinalWhenSnapshotItemsArriveOutOfOrder"
+  echo "  NotificationOutboxDeliveryServiceTest::testClaimIsAtMostOnceAndSentCompletionIsIdempotent"
+  echo "  NotificationOutboxDeliveryServiceTest::testKnownFailureRequiresReviewAndIsNotAutomaticallyReclaimed"
   echo "  RedsysPackInvoiceServiceTest::testRejectsPackWhenValidatedRedsysAmountDiffersFromInvoiceLines"
   echo "  RedsysPackInvoiceServiceTest::testIntentSnapshotCreatesOneDurableNotificationAcrossRetry"
   echo "  RedsysPackInvoiceServiceTest::testRejectsLegacyPackWithoutCompleteCommercialSnapshot"
