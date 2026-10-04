@@ -158,6 +158,8 @@ final class PackConfirmationTokenBoundaryTest
         Assert::stringContainsString('Referrer-Policy: no-referrer', $page);
         Assert::stringContainsString('Cache-Control: private, no-store', $page);
         Assert::stringContainsString('X-Robots-Tag: noindex', $page);
+        Assert::stringContainsString("Content-Security-Policy: frame-ancestors 'none'", $page);
+        Assert::stringContainsString('X-Frame-Options: DENY', $page);
         Assert::stringContainsString("'send_page_view': false", $page);
     }
 }
