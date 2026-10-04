@@ -132,7 +132,7 @@ EfectuarPagamentEndpoint --> Intranet
 
 Aquesta rutina llegeix factura/inscripcions, actualitza resum de cobrament llegat, distribueix imports i envia correus. A la branca d'auditoria s'han corregit la preservació de `factures.IMPORT`, l'acumulació de fraccions i els echoes de depuració.
 
-## 4. ACTUAL — infraestructura d'auditoria existent però no wired
+## 4. ACTUAL — journal funcional connectat al command UC-002
 
 ~~~mermaid
 classDiagram
@@ -147,14 +147,29 @@ class PaymentActionEventWriter {
 class PaymentActionEventRepository {
   +append(db,event) string
 }
+class TransactionRunner {
+  +run(callback) mixed
+  -ownsTransaction bool
+}
+class ExistingInvoicePaymentCommandService
 class PaymentService
 
 PaymentActionGateway --> PaymentActionEventWriter
 PaymentActionEventWriter <|.. PaymentActionEventRepository
-PaymentActionGateway ..> PaymentService : dissenyat per envoltar operacions
+PaymentActionGateway --> TransactionRunner
+PaymentActionGateway --> ExistingInvoicePaymentCommandService
+ExistingInvoicePaymentCommandService --> PaymentService
+PaymentService --> TransactionRunner
 ~~~
 
-**Mancança:** `api/payments/register.php` crida actualment `PaymentService` directament. No s'ha connectat `PaymentActionGateway` perquè el gateway i `PaymentService` obren transaccions pròpies amb el mateix `TransactionRunner`; fer-ho sense redisseny provocaria transaccions imbricades no suportades pel runner actual.
+`TransactionRunner` detecta si la PDO ja està dins una transacció. El gateway és propietari del `BEGIN/COMMIT/ROLLBACK` del command UC-002; el `PaymentService` hi participa sense obrir una transacció imbricada. Per tant:
+
+- `REQUESTED` es registra abans de la mutació;
+- el `CHARGE` i `SUCCEEDED/REUSED` comparteixen commit;
+- un error de l'operació provoca rollback i `FAILED`;
+- `CORRELATION_ID` i `PAYMENT_IDEMPOTENCY_KEY` conserven la clau estable de la intenció.
+
+**Abast:** aquest wiring s'aplica a `action=register_existing_invoice`. El mode low-level `action=''` es manté per compatibilitat de callers interns i no defineix el flux autoritatiu UC-002.
 
 ## 5. ACTUAL — ledger per inscripció parcial
 
