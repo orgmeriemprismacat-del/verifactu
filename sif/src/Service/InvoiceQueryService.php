@@ -89,7 +89,65 @@ final class InvoiceQueryService
             'rectifications' => $this->invoices->findRectifications($this->db, $uuid),
             'payments' => $this->invoices->findPayments($this->db, $uuid),
             'fiscal_record' => $fiscalRecord,
+            'fiscal_correction_decision' => $this->correctionDecisionProjection(
+                $this->invoices->latestFiscalCorrectionDecision($this->db, $uuid)
+            ),
             'documents' => $this->invoices->findDocumentMetadata($this->db, $uuid),
+        ];
+    }
+
+    private function correctionDecisionProjection(?array $event): ?array
+    {
+        if ($event === null) {
+            return null;
+        }
+
+        $changeset = [];
+        $rawChangeset = $event['CHANGESET_JSON'] ?? null;
+        if (is_string($rawChangeset) && trim($rawChangeset) !== '') {
+            try {
+                $decoded = json_decode($rawChangeset, true, 64, JSON_THROW_ON_ERROR);
+                if (is_array($decoded)) {
+                    $changeset = $decoded;
+                }
+            } catch (\JsonException) {
+                return null;
+            }
+        } elseif (is_array($rawChangeset)) {
+            $changeset = $rawChangeset;
+        }
+
+        $classification = $changeset['classification'] ?? null;
+        $fingerprint = strtolower(trim((string) ($changeset['correction_fingerprint'] ?? '')));
+        if (!is_array($classification)
+            || preg_match('/^[a-f0-9]{64}$/D', $fingerprint) !== 1
+        ) {
+            return null;
+        }
+
+        $decision = strtoupper(trim((string) ($classification['decision'] ?? '')));
+        $sourceUc = strtoupper(trim((string) ($classification['source_uc'] ?? '')));
+        $invoiceType = strtoupper(trim((string) ($classification['invoice_type'] ?? '')));
+        $mode = strtoupper(trim((string) ($classification['rectification_mode'] ?? '')));
+
+        return [
+            'event_uuid' => strtolower((string) $event['UUID_EVENT']),
+            'eligible_for_uc005' => $decision === 'RECTIFICATION'
+                && $sourceUc === 'UC-74'
+                && in_array($invoiceType, ['R1', 'R2', 'R3', 'R4', 'R5'], true)
+                && in_array($mode, ['DIFERENCIES', 'SUBSTITUCIO'], true),
+            'reason_code' => strtoupper(trim((string) ($event['REASON_CODE'] ?? ''))),
+            'correction_fingerprint' => $fingerprint,
+            'classification' => [
+                'decision' => $decision,
+                'source_uc' => $sourceUc,
+                'reason_code' => strtoupper(trim((string) ($classification['reason_code'] ?? ''))),
+                'policy_version' => trim((string) ($classification['policy_version'] ?? '')),
+                'invoice_type' => $invoiceType,
+                'rectification_mode' => $mode,
+            ],
+            'occurred_at' => $event['OCCURRED_AT'] ?? null,
+            'recorded_at' => $event['RECORDED_AT'] ?? null,
         ];
     }
 
