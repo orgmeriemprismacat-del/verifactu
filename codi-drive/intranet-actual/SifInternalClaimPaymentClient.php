@@ -22,12 +22,14 @@ final class SifInternalClaimPaymentClient
         array $roles,
         int $sourceInscriptionId,
         string $claimCaseId,
+        string $externalReceiptType,
         string $externalReceiptId,
         array $payment
     ): array {
         return $this->client->request($actorId, $roles, [
             'source_inscription_id' => $sourceInscriptionId,
             'claim_case_id' => trim($claimCaseId),
+            'external_receipt_type' => strtoupper(trim($externalReceiptType)),
             'external_receipt_id' => trim($externalReceiptId),
             'payment' => $payment,
         ]);
@@ -38,6 +40,7 @@ final class SifInternalClaimPaymentClient
         array $roles,
         int $sourceInscriptionId,
         string $claimCaseId,
+        string $externalReceiptType,
         string $externalReceiptId,
         string $uuidFactura,
         array $payment
@@ -45,6 +48,7 @@ final class SifInternalClaimPaymentClient
         return $this->client->request($actorId, $roles, [
             'source_inscription_id' => $sourceInscriptionId,
             'claim_case_id' => trim($claimCaseId),
+            'external_receipt_type' => strtoupper(trim($externalReceiptType)),
             'external_receipt_id' => trim($externalReceiptId),
             'uuid_factura' => trim($uuidFactura),
             'payment' => $payment,
@@ -56,6 +60,7 @@ final class SifInternalClaimPaymentClient
         array $roles,
         int $sourceInscriptionId,
         string $claimCaseId,
+        string $externalReceiptType,
         string $externalReceiptId,
         string $numVisible,
         array $payment
@@ -63,6 +68,7 @@ final class SifInternalClaimPaymentClient
         return $this->client->request($actorId, $roles, [
             'source_inscription_id' => $sourceInscriptionId,
             'claim_case_id' => trim($claimCaseId),
+            'external_receipt_type' => strtoupper(trim($externalReceiptType)),
             'external_receipt_id' => trim($externalReceiptId),
             'num_visible' => trim($numVisible),
             'payment' => $payment,
