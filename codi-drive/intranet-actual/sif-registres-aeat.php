@@ -8,6 +8,33 @@ if (!$configOk) {
     return;
 }
 
+$aeatReadRoles = array_values(array_filter(array_map(
+    static fn ($role) => strtoupper(trim((string) $role)),
+    explode(',', getenv('SIF_AEAT_READ_ROLES') ?: '')
+)));
+$sessionUser = null;
+$sessionRoles = [];
+if (isset($_SESSION['usuari']) && is_string($_SESSION['usuari'])) {
+    $sessionUser = @unserialize($_SESSION['usuari'], ['allowed_classes' => true]);
+    if (is_object($sessionUser) && method_exists($sessionUser, 'getRols')) {
+        $sessionRoles = array_values(array_filter(array_map(
+            static fn ($role) => strtoupper(trim((string) $role)),
+            (array) $sessionUser->getRols()
+        )));
+    }
+}
+if ($aeatReadRoles === [] || array_intersect($sessionRoles, $aeatReadRoles) === []) {
+    http_response_code(403);
+    ?>
+    <!doctype html>
+    <html lang="ca">
+    <head><meta charset="utf-8"><title>Accés denegat</title></head>
+    <body><p>Accés AEAT no autoritzat.</p></body>
+    </html>
+    <?php
+    return;
+}
+
 if (!isset($_SESSION['sif_aeat_csrf']) || !is_string($_SESSION['sif_aeat_csrf'])) {
     $_SESSION['sif_aeat_csrf'] = bin2hex(random_bytes(32));
 }
