@@ -60,6 +60,7 @@ php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER> --execute
 ```
 
 Aquest comandament:
+- exigeix que **tots** els checks de preflight i preview siguin verds abans de qualsevol mutació;
 - executa el worker real de `redsys_callback_queue`;
 - el limita a `--ds-order=<DS_ORDER>`, de manera que no consumeix callbacks aliens;
 - exigeix exactament un job reclamat i processat;
