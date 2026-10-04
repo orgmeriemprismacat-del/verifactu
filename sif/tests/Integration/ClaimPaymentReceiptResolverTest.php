@@ -173,6 +173,62 @@ final class ClaimPaymentReceiptResolverTest
         }, 409);
     }
 
+    public function testRejectsUnconfirmedOrNonPositiveExistingReceipt(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|RECEIPT|STATE',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        $payment = RegisterPaymentTest::paymentServiceFor($db)->registerPayment([
+            'idempotency_key' => 'TRANSFERENCIA|REF:BANK-STATE',
+            'movement_type' => 'CHARGE',
+            'method' => 'TRANSFERENCIA',
+            'source_channel' => 'INTRANET',
+            'amount' => '25.00',
+            'movement_date' => '2026-10-04 03:15:00',
+            'reference' => 'BANK-STATE',
+            'idpag' => 123,
+            'allocations' => [[
+                'uuid_factura' => $invoice['uuid_factura'],
+                'amount' => '25.00',
+                'allocation_type' => 'INVOICE_PAYMENT',
+            ]],
+        ]);
+
+        $db->prepare('UPDATE payment_transaction SET ESTAT = ? WHERE UUID_PAYMENT = ?')
+            ->execute(['FAILED', $payment['uuid_payment']]);
+
+        Assert::throws(SifException::class, function () use ($db, $invoice): void {
+            $this->resolver()->resolveExisting(
+                $db,
+                'BANK_REFERENCE',
+                'BANK-STATE',
+                $invoice['uuid_factura'],
+                '25.00',
+                123
+            );
+        }, 409);
+
+        $db->prepare(
+            'UPDATE payment_transaction SET ESTAT = ?, TIPUS_MOVIMENT = ? WHERE UUID_PAYMENT = ?'
+        )->execute(['CONFIRMED', 'REFUND', $payment['uuid_payment']]);
+
+        Assert::throws(SifException::class, function () use ($db, $invoice): void {
+            $this->resolver()->resolveExisting(
+                $db,
+                'BANK_REFERENCE',
+                'BANK-STATE',
+                $invoice['uuid_factura'],
+                '25.00',
+                123
+            );
+        }, 409);
+    }
+
     public function testSplitReceiptUsesAllocationAmountForTargetInvoice(): void
     {
         $db = TestDatabase::fresh();
