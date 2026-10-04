@@ -23,6 +23,9 @@ final class ManualInstallmentPaymentPreflightScriptTest
         Assert::stringContainsString('installment_write_roles_configured', $source);
         Assert::stringContainsString('payment_external_receipt_claim', $source);
         Assert::stringContainsString('internal_api_request', $source);
+        Assert::stringContainsString('payment_action_event', $source);
+        Assert::stringContainsString('operational_event', $source);
+        Assert::stringContainsString('sif_audit_event', $source);
         Assert::stringContainsString('uq_payment_external_receipt_type_value', $source);
         Assert::stringContainsString('fk_payment_external_receipt_payment', $source);
         Assert::stringContainsString("=== 'CASCADE'", $source);
