@@ -56,6 +56,44 @@ final class LegacyPrismaStudentEnrollmentAuthorityBoundaryTest
         Assert::same(true, $serverAssignment !== false && $freeOverride !== false && $serverAssignment < $freeOverride);
     }
 
+    public function testPrismaStudentTariffIsResolvedFromFinalCourseEditionBeforeInsert(): void
+    {
+        $source = $this->read('codi-drive/web-actual/ajax/enviarInscripcio.php');
+
+        Assert::stringContainsString(
+            'SELECT DATAI, DATAF, HORES, DATA_RESOL, ID_PREU FROM curs WHERE CURS=? AND ANY=? AND MES=?',
+            $source
+        );
+        Assert::stringContainsString(
+            '$stmt->bind_param("sds", $codiCurs, $any, $mes);',
+            $source
+        );
+        Assert::stringContainsString(
+            'WHERE ID_PREU=? AND TIPUS=1',
+            $source
+        );
+        Assert::stringContainsString(
+            "(CURS='TOTS' OR CURS=? OR CURS=?)",
+            $source
+        );
+        Assert::stringContainsString(
+            "(MES='TOTS' OR MES=?)",
+            $source
+        );
+
+        $editionLookup = strpos(
+            $source,
+            'SELECT DATAI, DATAF, HORES, DATA_RESOL, ID_PREU FROM curs WHERE CURS=? AND ANY=? AND MES=?'
+        );
+        $serverApPrice = strpos($source, '$preuDescompte = (float) $preuApServidor;');
+        $insert = strpos($source, 'INSERT INTO inscripcions');
+
+        Assert::same(true, $editionLookup !== false);
+        Assert::same(true, $serverApPrice !== false);
+        Assert::same(true, $insert !== false);
+        Assert::same(true, $editionLookup < $serverApPrice && $serverApPrice < $insert);
+    }
+
     public function testPreviewEligibilityMatchesPolicyV2AndDoesNotUseUnpaidInvoiceShortcut(): void
     {
         $source = $this->read('codi-drive/web-actual/inc/buscarAlumnePrisMa.php');
