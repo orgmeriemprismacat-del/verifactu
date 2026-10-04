@@ -16,4 +16,5 @@ CREATE TABLE IF NOT EXISTS payment_external_receipt_claim (
     KEY idx_payment_external_receipt_payment (UUID_PAYMENT),
     CONSTRAINT fk_payment_external_receipt_payment
         FOREIGN KEY (UUID_PAYMENT) REFERENCES payment_transaction(UUID_PAYMENT)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
