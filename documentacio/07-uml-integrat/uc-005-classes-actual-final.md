@@ -31,7 +31,7 @@ AnularFacturaEndpoint --> Intranet
 Intranet --> LegacyDB
 ```
 
-La pantalla encara no disposa d'un adaptador UC-005; la consulta SIF és read-only.
+La factura SIF continua immutable/read-only, però la branca ja disposa del consumidor UC-005: `SifRectificationAccess`, proxy intranet, read model de decisió UC-74 i panell JS preview/confirm. No hi ha edició directa.
 
 ## 2. ACTUAL — backend UC-005 implementat a la branca
 
@@ -87,14 +87,14 @@ OperationalEventRepository --> OperationalEvent
 ```mermaid
 classDiagram
 direction LR
-class IntranetRectificationProxy { <<PENDENT>> +preview() +confirm() +assertSession() +assertCsrf() }
-class AlumnesFacturaSifJS { <<AMPLIAR>> +openRectification() +renderPreview() +confirm() }
+class IntranetRectificationProxy { <<IMPLEMENTAT>> +preview() +confirm() +assertSession() +assertCsrf() }
+class AlumnesFacturaSifJS { <<IMPLEMENTAT>> +renderDecision() +previewRectification() +confirmRectification() }
 class RectifyEndpoint { <<IMPLEMENTAT>> }
 class FiscalCorrectionClassifier { <<PENDENT/UC-74>> +classify() }
 class FiscalCorrectionDecisionGuard { <<IMPLEMENTAT>> }
 class RectificationCommandService { <<IMPLEMENTAT>> }
 class ManualRectificationService { <<IMPLEMENTAT>> }
-class AeatRectificationMapper { <<PENDENT>> +buildRectificationFields() }
+class AeatRectificationMapper { <<PARCIAL/FAIL-CLOSED>> +map() }
 class DocumentService { <<TRANSVERSAL/PENDENT E2E>> +ensureFiscalDocument() }
 
 AlumnesFacturaSifJS --> IntranetRectificationProxy
@@ -115,5 +115,5 @@ ManualRectificationService --> DocumentService
 - **SUBSTITUCIO:** receptor corregit congelat a la nova R; original immutable.
 - **Decisió fiscal:** guard UC-74 implementat; classificador UC-74 genèric pendent.
 - **Auditoria:** `sif_audit_event` + `operational_event` integrats al command.
-- **Canal web:** endpoint intern signat implementat; proxy/UI intranet pendent.
-- **AEAT/document:** mapping rectificativa i evidència XSD/protocol encara pendents.
+- **Canal web:** endpoint intern signat, proxy intranet sessió+permís+same-origin+CSRF i panell JS preview/confirm implementats. El panell només s'habilita amb snapshot de correcció UC-74 executable.
+- **AEAT/document:** mapper rectificatiu implementat per un únic desglossament compatible; perfils fiscals complexos, document E2E i evidència preproducció continuen pendents.
