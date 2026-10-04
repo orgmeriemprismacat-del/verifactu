@@ -1,3 +1,15 @@
+<?php
+session_set_cookie_params([
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
+session_start();
+if (!isset($_SESSION['uc017_gift_csrf']) || !is_string($_SESSION['uc017_gift_csrf'])) {
+    $_SESSION['uc017_gift_csrf'] = bin2hex(random_bytes(32));
+}
+$uc017GiftCsrf = htmlspecialchars($_SESSION['uc017_gift_csrf'], ENT_QUOTES, 'UTF-8');
+?>
 <!DOCTYPE HTML PUBLIC "-/W3C/DTD HTML 4.01/EN" "http:/www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http:/ogp.me/ns# fb: http:/ogp.me/ns/fb# video: http:/ogp.me/ns/video#">
 <head>
@@ -56,6 +68,7 @@
    <meta charset="utf-8">
    <meta http-equiv="X-UA-Compatible" content="IE=edge">
    <meta name="viewport" content="width=device-width, initial-scale=1">
+   <meta name="uc017-gift-csrf" content="<?php echo $uc017GiftCsrf; ?>">
 	 <meta name="theme-color" content="#496BAA"/>
  	<?php include("./inc/buscarMetaTagsStmt.php");flush();?>
  	<link rel="manifest" href="https://www.prisma.cat/manifest.json">
