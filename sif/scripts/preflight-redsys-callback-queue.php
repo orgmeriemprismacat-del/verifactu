@@ -27,6 +27,7 @@ $checks = [
     'payment_transaction' => false,
     'payment_allocation' => false,
     'invoice_before_payment_coverage' => false,
+    'invoice_origin_guard' => false,
     'enrollment_fund_movement' => false,
     'normalized_notification_columns' => false,
 ];
@@ -44,6 +45,7 @@ try {
         'payment_transaction',
         'payment_allocation',
         'invoice_before_payment_coverage',
+        'invoice_origin_guard',
         'enrollment_fund_movement',
     ] as $table) {
         $stmt = $db->query('SHOW TABLES LIKE ' . $db->quote($table));
