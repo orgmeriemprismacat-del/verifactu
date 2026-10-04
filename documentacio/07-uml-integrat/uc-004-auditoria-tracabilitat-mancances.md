@@ -334,3 +334,10 @@ El fitxer existent `uc-004-emetre-factura-abans-cobrar.md` continua sent una bon
 - `sif/tests/Integration/InvoiceBeforePaymentPreproductionScriptTest.php`
 
 **Criteri final d'auditoria:** la pantalla ja usa la ruta SIF segura i, en aquesta branca, l'endpoint vell queda 410. UC-004 queda **documentalment auditat però no operativament verificat**: falta CI del HEAD 04/10, `aeat_fields` oficials per PREPROD/PROD, document SIF per UUID, E2E/concurrència i cobertura transversal/sync que correspongui.
+
+
+## Annex de decisions 04/10
+
+- [Recuperació selectiva del pipeline documental](uc-004-recuperacio-pipeline-documental-2026-10-04.md).
+- [Contracte AEAT pendent i frontera de responsabilitats](uc-004-contracte-aeat-pendent-2026-10-04.md).
+- El endpoint UC-004 rebutja explícitament `aeat_fields` i `aeat_header` rebuts del caller; la futura construcció oficial ha de ser server-side.
