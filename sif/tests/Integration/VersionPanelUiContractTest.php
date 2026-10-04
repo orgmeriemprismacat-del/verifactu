@@ -85,6 +85,8 @@ final class VersionPanelUiContractTest
         Assert::stringContainsString("['incidents', 'versions']", $launcher);
         Assert::stringContainsString("SIF_PANEL_VERSIONS_URL", $launcher);
         Assert::stringContainsString("SIF_PANEL_VERSIONS_PATH", $launcher);
+        Assert::stringContainsString('SIF versions panel URL is not configured', $launcher);
+        Assert::stringContainsString("pay(?:-(?:dev|test|pre))?", $this->read('../codi-drive/intranet-actual/SifPanelLaunchToken.php'));
     }
 
     private function read(string $relativePath): string
