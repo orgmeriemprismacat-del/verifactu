@@ -11,6 +11,9 @@ Les instruccions d'execució són vives. En canvi, els recomptes i execucions da
 
 Per validar un PR o desplegament cal executar la suite/checks sobre el commit objectiu i conservar la nova evidència. No s'ha de traslladar automàticament un “passed” antic a codi posterior.
 
+Els entorns desplegats del SIF són `development`, `test`, `preproduction` i `production`. La suite destructiva continua exigint estrictament `SIF_ENV=test`; afegir `development` al runner de migracions **no** habilita neteges destructives fora de `sif_test`.
+
+
 ## Execució en aquest ordinador
 
 Des de l'arrel del repositori, amb PowerShell:
