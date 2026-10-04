@@ -31,6 +31,12 @@ final class ClaimPaymentInternalApiContractTest
         Assert::stringContainsString('resolveUniqueOriginForInscription', $api);
         Assert::stringContainsString('source_inscription_id', $api);
         Assert::stringContainsString('ClaimPaymentInvoiceLinkRepository', $api);
+        Assert::stringContainsString('ClaimPaymentLegacySyncService', $api);
+        Assert::stringContainsString('assertBaselineSynchronized', $api);
+        Assert::stringContainsString('syncAfterSifSuccess', $api);
+        Assert::stringContainsString("'action' => 'SYNC_LEGACY'", $api);
+        Assert::stringContainsString('payment_persisted', $api);
+        Assert::stringContainsString('requires_reconciliation', $api);
         Assert::stringContainsString('assertUuidMatches', $api);
         Assert::stringContainsString('assertNumVisibleMatches', $api);
         Assert::stringContainsString('claim_case_id', $api);
