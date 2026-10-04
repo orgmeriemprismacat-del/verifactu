@@ -56,6 +56,49 @@ final class LegacyPrismaStudentEnrollmentAuthorityBoundaryTest
         Assert::same(true, $serverAssignment !== false && $freeOverride !== false && $serverAssignment < $freeOverride);
     }
 
+    public function testPrismaStudentPriceChangeBetweenPreviewAndConfirmReturnsConflict(): void
+    {
+        $source = $this->read('codi-drive/web-actual/ajax/enviarInscripcio.php');
+
+        Assert::stringContainsString('$clientBaseCents', $source);
+        Assert::stringContainsString('$clientApCents', $source);
+        Assert::stringContainsString('$serverBaseCents', $source);
+        Assert::stringContainsString('$serverApCents', $source);
+        Assert::stringContainsString(
+            '$clientBaseCents !== $serverBaseCents || $clientApCents !== $serverApCents',
+            $source
+        );
+        Assert::stringContainsString(
+            'el preu del curs ha canviat. Torna a calcular el preu',
+            $source
+        );
+
+        $conflict = strpos($source, '$clientBaseCents !== $serverBaseCents');
+        $serverOverride = strpos($source, '$preuDescompte = (float) $preuApServidor;');
+        $insert = strpos($source, 'INSERT INTO inscripcions');
+
+        Assert::same(true, $conflict !== false && $serverOverride !== false && $insert !== false);
+        Assert::same(true, $conflict < $serverOverride && $serverOverride < $insert);
+    }
+
+    public function testPrismaStudentFractionalEnrollmentFailsClosedBeforePersistence(): void
+    {
+        $source = $this->read('codi-drive/web-actual/ajax/enviarInscripcio.php');
+
+        $apBranch = strpos($source, 'if ($tipusDescompte == 1) {');
+        $fractionalGuard = strpos($source, "if ((string) $pagFrac === '1')", $apBranch === false ? 0 : $apBranch);
+        $insert = strpos($source, 'INSERT INTO inscripcions');
+
+        Assert::same(true, $apBranch !== false);
+        Assert::same(true, $fractionalGuard !== false);
+        Assert::same(true, $insert !== false);
+        Assert::same(true, $apBranch < $fractionalGuard && $fractionalGuard < $insert);
+        Assert::stringContainsString(
+            'pagament fraccionat amb Alumne PrisMa encara no està disponible',
+            $source
+        );
+    }
+
     public function testPrismaStudentTariffIsResolvedFromFinalCourseEditionBeforeInsert(): void
     {
         $source = $this->read('codi-drive/web-actual/ajax/enviarInscripcio.php');
