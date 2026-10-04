@@ -151,6 +151,24 @@ No s'ha renumerat cap factura ni s'ha avançat `fiscal_sequence`.
 
 La verificació MySQL completa del head actual depèn dels workflows del PR.
 
+## 7.1. Continuació 04/10 · inventari, custòdia i cut-over
+
+### A-011-11 · Inventari/reconciliació de lot — implementat
+
+S'ha creat `HistoricalInvoiceInventoryService` i el CLI read-only `inventory-historical-invoices.php`. Contrasta `web.factures` amb `fact_rels/factura`, detecta omissions, divergències i ambigüitats, agrega per any/sèrie i pot verificar documents físics sense exposar NIF/CIF ni paths interns.
+
+### A-011-12 · Custòdia d'originals — implementada en no-production
+
+`HistoricalInvoiceDocumentCustodyService` copia PDF/XML a `SIF_DOCUMENT_ROOT`, calcula/verifica SHA-256, usa `STORAGE_REF`, preserva el path llegat i audita l'operació. La descàrrega real prioritza la còpia privada.
+
+### A-011-13 · Cut-over llegat — cobert per proves
+
+S'han afegit proves del `SifLegacyInvoiceMutationGuard`: 409 quan existeix factura SIF, 503 si UC-007/protecció no pot verificar l'estat, i comprovació que el guard s'executa abans de guardar, anul·lar o regenerar.
+
+### A-011-14 · Preflight de migració controlada — implementat
+
+`preflight-historical-invoices.php` comprova la font, imports existents, storage i flags de cut-over sense fer cap mutació.
+
 ## 8. Estat documentat / implementat / verificat / pendent
 
 | Bloc | Documentat | Implementat | Verificat | Pendent |
@@ -164,8 +182,9 @@ La verificació MySQL completa del head actual depèn dels workflows del PR.
 | sif_audit_event | sí | sí | lint + test escrit | CI |
 | JS executor | sí: no existeix | no necessari per CLI | contrastat | — |
 | Cut-over llegat | sí | guard existent | codi contrastat | sif_pre |
-| Custòdia original | sí | no | absència contrastada | implementar |
-| Inventari lot | sí | no | — | implementar |
+| Custòdia original | sí | sí no-production | proves/codi | executar sif_pre + evidència |
+| Inventari lot | sí | sí read-only | proves/codi | executar lot real |
+| Cut-over llegat | sí | sí + tests | cobertura codi | prova entorn sif_pre |
 | Multiemissor | sí | no | risc contrastat | decisió model |
 | Canal productiu | sí | no | production bloquejada | implementar |
 
@@ -181,10 +200,9 @@ La verificació MySQL completa del head actual depèn dels workflows del PR.
 
 - migració massiva productiva;
 - multiemissor;
-- custòdia original;
-- reconciliació de lot;
-- cut-over `sif_pre`;
-- canal productiu autoritzat.
+- execució/evidència real d'inventari, custòdia i cut-over a `sif_pre`;
+- canal productiu autoritzat;
+- decisió final sobre sèrie↔tipus i toleràncies de dades històriques.
 
 ## 10. Navegació
 
