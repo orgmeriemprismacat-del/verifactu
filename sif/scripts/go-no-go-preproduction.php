@@ -40,6 +40,9 @@ $checks = [
     'gift_redemption_verifier_present' => is_file(
         $baseDir . '/scripts/verify-gift-redemption-preproduction.php'
     ),
+    'novice_promotion_preflight_present' => is_file(
+        $baseDir . '/scripts/preflight-novice-promotion.php'
+    ),
     'gift_redemption_circuit_present' => allFilesPresent($baseDir, [
         'src/Service/GiftRedemptionTrustedContextResolver.php',
         'src/Service/GiftEnrollmentStager.php',

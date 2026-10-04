@@ -69,6 +69,8 @@ final class GoNoGoPreproductionScriptTest
         Assert::stringContainsString('redsys_merchant_key_configured', $source);
         Assert::stringContainsString('incident_panel_preflight_present', $source);
         Assert::stringContainsString('historical_gift_entitlement_preflight_present', $source);
+        Assert::stringContainsString('novice_promotion_preflight_present', $source);
+        Assert::stringContainsString('preflight-novice-promotion.php', $source);
         Assert::stringContainsString('historical_gift_entitlement_circuit_present', $source);
         Assert::stringContainsString('historical_unused_gifts_covered', $source);
         Assert::stringContainsString('preflight-historical-gift-entitlements.php', $source);
