@@ -9,9 +9,12 @@ final class VersionPanelSession
     private const ACTOR_KEY = 'sif_version_panel_actor';
     private const CSRF_KEY = 'sif_version_panel_csrf';
 
-    public function __construct(private string $sessionName = 'SIFPANELSESSID')
-    {
+    public function __construct(
+        private string $sessionName = 'SIFPANELSESSID',
+        private int $maxAgeSeconds = 1800
+    ) {
         $this->sessionName = trim($this->sessionName) !== '' ? trim($this->sessionName) : 'SIFPANELSESSID';
+        $this->maxAgeSeconds = max(300, min(28800, $this->maxAgeSeconds));
     }
 
     public function start(): void
@@ -60,6 +63,12 @@ final class VersionPanelSession
             || $actor['roles'] === []
         ) {
             throw SifException::unauthorized('SIF version panel session is not authenticated');
+        }
+
+        $authenticatedAt = (int) ($actor['authenticated_at'] ?? 0);
+        if ($authenticatedAt <= 0 || time() - $authenticatedAt > $this->maxAgeSeconds) {
+            $this->destroy();
+            throw SifException::unauthorized('SIF version panel session has expired');
         }
 
         return $actor;
