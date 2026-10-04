@@ -9,6 +9,7 @@ on:
       - "sif/src/Service/InternalRectificationScopeResolver.php"
       - "sif/src/Service/FiscalCorrectionDecisionGuard.php"
       - "sif/src/Service/FiscalCorrectionDecisionResolver.php"
+      - "sif/src/Service/RectificationDecisionFingerprint.php"
       - "sif/src/Service/RectificationCommandService.php"
       - "sif/src/Aeat/RecordFactory.php"
       - "sif/src/Repository/RectificationRepository.php"
@@ -80,6 +81,7 @@ jobs:
           php -l sif/src/Service/InternalRectificationScopeResolver.php
           php -l sif/src/Service/FiscalCorrectionDecisionGuard.php
           php -l sif/src/Service/FiscalCorrectionDecisionResolver.php
+          php -l sif/src/Service/RectificationDecisionFingerprint.php
           php -l sif/src/Service/RectificationCommandService.php
           php -l sif/src/Aeat/RecordFactory.php
           php -l sif/src/Repository/SifAuditEventRepository.php
