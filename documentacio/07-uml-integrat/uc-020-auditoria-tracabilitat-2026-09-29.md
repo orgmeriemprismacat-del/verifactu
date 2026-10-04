@@ -483,3 +483,11 @@ El moviment bancari posterior no es modela aquí: registrar/conciliar transferè
 | UC020-138 | El lock d'IDPAG no evita una doble matrícula semàntica. | **PENDENT TRANSVERSAL UC-107**: AP-28 continua obert. |
 
 Aquesta separació és obligatòria: **unicitat del número** i **idempotència de la matrícula** són problemes diferents.
+
+
+## 25. Promocions i canvi d'edició
+
+| ID | Troballa/reclassificació | Estat |
+| --- | --- | --- |
+| UC020-140 | AP-26/AP-37 seguien com pendents malgrat existir exclusivitat d'origen UI i guard servidor AP+promo. | **IMPLEMENTAT BOUNDARY · PENDENT CI HEAD** |
+| UC020-141 | Faltava prova nominal que la tarifa AP es resol de l'edició final abans de persistir. | **TEST CREAT · PENDENT CI HEAD**; lookup curs+any+mes → ID_PREU → tarifa AP. |
