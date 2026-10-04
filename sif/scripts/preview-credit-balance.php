@@ -59,6 +59,9 @@ function parseCreditBalanceArgs(array $args): array
         'holder_name' => ['--holder-name=', '--holder-nom=', '--nom-titular='],
         'source_type' => ['--source-type=', '--origen='],
         'source_id' => ['--source-id=', '--id-origen='],
+        'source_enrollment_id' => ['--source-enrollment-id=', '--id-insc-origin=', '--id-insc-origen='],
+        'correlation_id' => ['--correlation-id='],
+        'uuid_operation' => ['--uuid-operation='],
         'uuid_factura_origen' => ['--uuid-factura-origen=', '--invoice-origin-uuid='],
         'uuid_factura_rectificativa' => ['--uuid-factura-rectificativa=', '--rectification-invoice-uuid='],
         'review_after' => ['--review-after=', '--revisar-despres='],
@@ -113,7 +116,7 @@ function usage(string $script): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/{$script}-credit-balance.php AMOUNT --holder-type=STUDENT|ENTITY --holder-name=NAME --source-type=BAIXA|CANVI_CURS|RECTIFICATIVA [--holder-id=ID] [--holder-nif-cif=NIF] [--source-id=ID] [--uuid-factura-origen=UUID] [--uuid-factura-rectificativa=UUID] [--review-after=YYYY-MM-DD] [--idempotency-key=KEY]\n"
+        "Usage: php sif/scripts/{$script}-credit-balance.php AMOUNT --holder-type=STUDENT|ENTITY --holder-name=NAME --source-type=BAIXA|CANVI_CURS|RECTIFICATIVA [--holder-id=ID] [--holder-nif-cif=NIF] [--source-id=ID] [--uuid-factura-origen=UUID] [--uuid-factura-rectificativa=UUID] [--review-after=YYYY-MM-DD] [--idempotency-key=KEY] [--source-enrollment-id=ID] [--correlation-id=ID] [--uuid-operation=UUID]\n"
     );
     exit(1);
 }
