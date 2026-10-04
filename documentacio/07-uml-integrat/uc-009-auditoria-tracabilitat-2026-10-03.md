@@ -139,7 +139,7 @@ Això implica:
 | GAP09-12 | cap evidència de xarxa/certificat/AEAT real | operativa | pendent preproducció |
 | GAP09-13 | alta `apartats` no acreditada | operativa | executar preflight + alta controlada |
 | GAP09-14 | el tall històric 02/10 tenia 6 fallades globals alienes | release/evidència | no usar 917/6 com estat vigent; exigir CI actual de `main`/PR en el moment del merge/release |
-| GAP09-15 | UI/AJAX/assets hardcodejats a `intranet.prisma.cat` | preproducció | canviats a rutes relatives same-origin + test de contracte |
+| GAP09-15 | UI/AJAX/assets i JS compartit hardcodejats a `intranet.prisma.cat` | preproducció | **TANCAT EN CODI**: panell i `general_v5.js` same-origin + contract test + `node --check` |
 | GAP09-16 | `recoverStaleLocks()` feia `PROCESSING → RETRY` i podia provocar segon SOAP després d'una caiguda | fiscal/crític | canviat a `REVIEW` + incidència idempotent + cap retry automàtic |
 | GAP09-17 | resultat remot terminal podia acabar en `RETRY` si fallava/era invàlid el flow wait | fiscal/crític | `FlowControlledTransport` preserva resultat terminal, fallback 60 s + `requires_review` |
 | GAP09-18 | `UNCERTAIN` només conservava l'evidence id dins text/error i no tenia reconciliació verificable | operatiu/fiscal | `EVIDENCE_ID` únic + `AeatEvidenceReconciliationService` + request/response íntegres + `ResponseParser` |
@@ -148,6 +148,9 @@ Això implica:
 | GAP09-21 | transport/excepció podia intentar substituir l'`EVIDENCE_ID` preassignat | integritat/fiscal | relació intent↔evidència immutable; divergència → `AEAT_EVIDENCE_REFERENCE_MISMATCH` + `REVIEW` |
 | GAP09-22 | rol de reconciliació podia autoritzar mutació sense rol de lectura si la configuració divergia | autorització | **TANCAT EN CODI**: mutacions exigeixen `hasReadRole && hasReconcileRole`; UI rep només `capabilities.reconcile` |
 | GAP09-23 | certificat/evidence root podien ser symlink directe o tenir permisos per a `others` | secrets/custòdia | **TANCAT EN CODI**: `ClientCertificate` i `EvidenceStore` rebutgen symlink i permisos OS per a altres usuaris; tests específics |
+| GAP09-24 | `operational_event` de reconciliació no guardava el rol que autoritzava la mutació | auditoria | **TANCAT EN CODI**: API propaga `effectiveReconcileRole`; terminal i evidence reconcile persisteixen `ACTOR_ROLE`; tests BD |
+| GAP09-25 | panell fiscal carregava jQuery sense SRI i un kit Font Awesome dinàmic | supply-chain browser | **TANCAT EN CODI**: jQuery 3.7.1 amb SRI/crossorigin/referrerpolicy; kit eliminat; icones locals Material Icons; contract test |
+| GAP09-26 | hash de `response.xml` només residia al mateix bundle de filesystem | integritat/evidència | **TANCAT EN CODI**: `EVIDENCE_RESPONSE_SHA256` + `EVIDENCE_HTTP_STATUS` ancorats a MySQL abans de consolidar; `reconcile_evidence` exigeix coincidència DB↔bundle i HTTP 200 |
 
 ## 7. Traçabilitat requisit → implementació → prova
 
@@ -164,8 +167,11 @@ Això implica:
 | gate local de lectura | `sif-registres-aeat.php` + `SIF_AEAT_READ_ROLES` | `AeatIntranetUiContractTest` |
 | doble rol per mutació | `hasReadRole && hasReconcileRole` a `operations.php` | `AeatIntranetUiContractTest` |
 | reconcile sense resend | `AeatReviewReconciliationService` | `AeatReviewReconciliationServiceTest` |
-| reconcile `UNCERTAIN` des d'evidència | `AeatEvidenceReconciliationService` + `EvidenceVerifier::readVerifiedPair()` | `AeatEvidenceReconciliationServiceTest` |
+| reconcile `UNCERTAIN` des d'evidència | `AeatEvidenceReconciliationService` + `EvidenceVerifier::readVerifiedPair()` + àncora MySQL de resposta | `AeatEvidenceReconciliationServiceTest` (success, no-anchor, hash mismatch, HTTP, metadata, request mismatch) |
 | evidència no reutilitzable | `aeat_submission_attempt.EVIDENCE_ID UNIQUE` | migració `2026_10_04_000033` |
+| àncora independent de resposta | `EVIDENCE_RESPONSE_SHA256` + `EVIDENCE_HTTP_STATUS` a BD | migració `2026_10_04_000034` + tests evidence |
+| actor/rol de mutació | `operational_event.ACTOR_ID` + `ACTOR_ROLE` | tests de les dues reconciliacions |
+| browser dependency integrity | jQuery SRI + sense FontAwesome kit | `AeatIntranetUiContractTest` |
 | boundary browser segur | bridge + client server-side | `AeatIntranetUiContractTest` (branca) |
 | certificat/evidència | `ClientCertificate`, `EvidenceStore`: fora repo, no symlink, sense permisos `others`, P12 usable, evidence append-only | `AeatSecurityTest`; entorn real pendent |
 
@@ -249,3 +255,26 @@ Un cop creat l'intent:
 - el resultat fiscal no es consolida i no es torna a enviar automàticament.
 
 Aquesta invariant evita que un adaptador defectuós, una prova sintètica o una resposta mal correlacionada desvinculin la custòdia privada de l'intent que la va reservar.
+
+
+## 10. Extensió d'auditoria 2026-10-04 — àncora independent de resposta
+
+Els hashes del bundle privat permeten detectar inconsistències accidentals, però no són una àncora independent si hash i XML resideixen al mateix filesystem. Per això la conciliació automàtica d'evidència exigeix també una empremta persistent a MySQL.
+
+Flux implementat al PR #133:
+
+1. `EVIDENCE_ID` es reserva i persisteix abans de xarxa.
+2. `SoapTransport` calcula `response_sha256` i conserva l'HTTP status.
+3. `FiscalQueueProcessor` intenta persistir-los mitjançant `anchorEvidenceResponse()` abans de completar l'intent o de deixar-lo `UNCERTAIN`.
+4. L'àncora és immutable/idempotent: repetir els mateixos valors és vàlid; qualsevol divergència bloqueja.
+5. `reconcile_evidence` exigeix:
+   - intent últim i `UNCERTAIN`;
+   - `EVIDENCE_ID` preassignat;
+   - bundle privat íntegre i complet;
+   - metadata del mateix `UUID_ATTEMPT + UUID_FACTURA + FISCAL_ORDER`;
+   - HTTP 200 tant al bundle com a l'àncora DB;
+   - hash de `response.xml` igual a `EVIDENCE_RESPONSE_SHA256`;
+   - request byte a byte igual al snapshot fiscal immutable;
+   - resposta validada per `ResponseParser`.
+6. Sense àncora DB, el panell no mostra l'acció de conciliació d'evidència i el backend retorna conflicte si s'intenta igualment.
+7. Una caiguda que impedeixi ancorar la resposta es manté `REVIEW`: no hi ha reenviament automàtic ni promoció fiscal basada només en fitxers locals.
