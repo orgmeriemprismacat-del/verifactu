@@ -338,7 +338,44 @@ Prova encadenada opcional A→B→C:
 
 Aquesta fase valida la primitiva de ledger; **no autoritza** per si sola que el canvi de curs productiu executi el traspàs. El coordinator ha de decidir import, actor, event i política de titularitat.
 
-## 13. Evidència que s'ha de conservar
+## 13. Fase K — reversió d'un `INTERNAL_TRANSFER`
+
+Després d'un A→B vàlid, conservar el `UUID_MOVEMENT` del transfer.
+
+Preview:
+
+```bash
+php sif/scripts/preview-enrollment-fund-transfer-reversal.php <UUID_TRANSFER> \
+  --correlation-id='UC006-PRE-REVERSAL-A'
+```
+
+Process:
+
+```bash
+php sif/scripts/process-enrollment-fund-transfer-reversal.php <UUID_TRANSFER> \
+  --correlation-id='UC006-PRE-REVERSAL-A'
+```
+
+Esperat si B encara conserva tot l'import transferit:
+
+- una sola fila `REVERSAL`;
+- `REVERSES_UUID_MOVEMENT=<UUID_TRANSFER>`;
+- reintent amb correlació nova reutilitza la mateixa reversió;
+- A recupera el disponible anterior;
+- B perd exactament l'import retornat;
+- cap `CHARGE`, `REFUND` o `COMPENSATION` nou.
+
+Escenari negatiu:
+
+1. A→B = 60;
+2. B→C = 30;
+3. intentar revertir A→B.
+
+Esperat: **409**, cap `REVERSAL`, perquè B només conserva 30 del tram rebut. No es pot restaurar fictíciament a A un valor que B ja ha consumit.
+
+També ha de retornar 409 si s'intenta usar aquest servei per revertir una `EXTERNAL_ALLOCATION`, `CREDIT_CREATE`, `REFUND_EXIT` o `COMPENSATION_ALLOCATION`.
+
+## 14. Evidència que s'ha de conservar
 
 Per cada escenari:
 
@@ -354,7 +391,7 @@ Per cada escenari:
 - hora Europe/Madrid;
 - resultat `PASS/FAIL` i incidència si n'hi ha.
 
-## 14. Criteri de sortida
+## 15. Criteri de sortida
 
 El bloc tècnic de ledger UC-006 es pot marcar **VERIFICAT EN ENTORN** quan:
 
