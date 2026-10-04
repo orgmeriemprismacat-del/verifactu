@@ -9,7 +9,7 @@
 - PR #118 va fusionar el tancament funcional/documental del UC-014 a `main`.
 - PR #119 va diagnosticar el CI posterior al merge i va demostrar que l'únic vermell UC-014 era un vector de test desactualitzat, a més d'un warning d'interpolació de `$fractional`.
 - PR #149, test-only i amb els tres checks verds, va fusionar a `main` la correcció canònica del `payload_hash` Redsys i els cinc boundaries PACK que mantenien la suite global en vermell.
-- Aquesta reconciliació recrea només el perímetre propi d'UC-014 sobre el `main` actual, sense reutilitzar la branca divergent del PR #119.
+- El PR #153 recrea només el perímetre propi d'UC-014 sobre el `main` actual, sense reutilitzar la branca divergent del PR #119.
 
 ## 2. Evidència UC-014 del PR #119
 
@@ -40,7 +40,7 @@ Aquests fitxers separen la salut específica del UC-014 de fallades alienes en s
 
 **DOCUMENTAT:** complet per UC-014 ordinari.  
 **IMPLEMENTAT:** tancat a repositori via PR #118.  
-**VERIFICAT:** evidència històrica PR #79/#95/#119 i gate selectiu inicial 125/0. La branca neta 04/10 amplia el gate amb snapshot/builder CURS, sync llegada, checkout Alumne PrisMa, flux asíncron, dispatcher/cua i builder Redsys; aquesta versió ampliada ha de quedar verda contra el `main` actual abans del merge.  
+**VERIFICAT:** evidència històrica PR #79/#95/#119 i gate selectiu inicial 125/0. El PR #153 amplia el gate amb snapshot/builder CURS, sync llegada, checkout Alumne PrisMa, flux asíncron, dispatcher/cua i builder Redsys; la versió ampliada del PR #153 ha de quedar verda contra el `main` actual abans del merge.  
 **ACCEPTACIÓ OPERATIVA PENDENT:** Redsys real de preproducció, secrets/rotació, drain/cutover i transport UC-058.
 
 El cas només es reobre per una regressió reproduïble del perímetre UC-014 o per una fallada del gate selectiu.
