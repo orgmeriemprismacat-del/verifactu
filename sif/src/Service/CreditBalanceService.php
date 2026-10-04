@@ -4,8 +4,10 @@ namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Contract\PayloadIdempotencyValidatorInterface;
 use Prisma\Sif\Database\TransactionRunner;
+use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\CreditBalanceRepository;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 
@@ -18,15 +20,24 @@ final class CreditBalanceService
         private CreditBalancePayloadBuilder $builder,
         private PaymentPayloadValidator $paymentValidator,
         private PaymentRepository $payments,
-        private ?PayloadIdempotencyValidatorInterface $idempotency = null
+        private ?PayloadIdempotencyValidatorInterface $idempotency = null,
+        private ?EnrollmentFundMovementRepository $funds = null
     ) {
         $this->idempotency ??= new PayloadIdempotencyValidator();
+        $this->funds ??= new EnrollmentFundMovementRepository(new UuidGenerator());
     }
 
     public function createCredit(array $input): array
     {
         $payload = $this->builder->forCreditBalance($input);
         $key = trim((string) ($payload['idempotency_key'] ?? ''));
+        $sourceEnrollmentId = (int) ($payload['source_enrollment_id'] ?? 0);
+
+        if ($sourceEnrollmentId > 0 && $key === '') {
+            throw SifException::validation(
+                'Credit balance from enrollment funds requires idempotency_key'
+            );
+        }
 
         if ($key === '') {
             return $this->createCreditWithoutIdempotency($payload);
@@ -49,6 +60,11 @@ final class CreditBalanceService
     {
         return $this->transactions->run(function (\PDO $db) use ($payload): array {
             $created = $this->credits->createCredit($db, $payload);
+            $this->ensureCreditFundExit(
+                $db,
+                $payload,
+                (string) $created['uuid_credit']
+            );
 
             return [
                 'ok' => true,
@@ -70,6 +86,11 @@ final class CreditBalanceService
             );
             if ($existing !== null) {
                 $this->assertSameCreditPayload($payload, $existing);
+                $this->ensureCreditFundExit(
+                    $db,
+                    $payload,
+                    (string) $existing['UUID_CREDIT']
+                );
 
                 return $this->existingCreditResult($existing, true);
             }
@@ -104,6 +125,11 @@ final class CreditBalanceService
             }
 
             $this->assertSameCreditPayload($payload, $existing);
+            $this->ensureCreditFundExit(
+                $db,
+                $payload,
+                (string) $existing['UUID_CREDIT']
+            );
 
             return $this->existingCreditResult($existing, true);
         });
@@ -122,6 +148,48 @@ final class CreditBalanceService
         unset($payload['idempotency_payload_hash']);
 
         return $payload;
+    }
+
+    private function ensureCreditFundExit(
+        \PDO $db,
+        array $payload,
+        string $uuidCredit
+    ): void {
+        $idInsc = (int) ($payload['source_enrollment_id'] ?? 0);
+        if ($idInsc <= 0) {
+            return;
+        }
+
+        $key = trim((string) ($payload['idempotency_key'] ?? ''));
+        if ($key === '') {
+            throw SifException::validation(
+                'Credit enrollment fund exit requires idempotency_key'
+            );
+        }
+
+        $correlationId = trim((string) ($payload['correlation_id'] ?? ''));
+        if ($correlationId === '') {
+            $correlationId = 'UC006|CREDIT|'
+                . substr(hash('sha256', $key), 0, 32);
+        }
+
+        $this->funds->insertOrReuseCreditCreate(
+            $db,
+            [
+                'idempotency_key' => 'FUND|CREDIT_CREATE|'
+                    . hash('sha256', $key)
+                    . '|INSC:' . $idInsc,
+                'order' => 1,
+                'id_insc_origin' => $idInsc,
+                'uuid_credit' => $uuidCredit,
+                'uuid_factura' => $payload['uuid_factura_origen'] ?? null,
+                'amount' => $payload['amount'],
+                'currency' => 'EUR',
+                'uuid_operation' => $payload['uuid_operation'] ?? null,
+                'correlation_id' => $correlationId,
+                'notes' => 'UC-006 enrollment funds converted to credit balance',
+            ]
+        );
     }
 
     private function existingCreditResult(array $existing, bool $reused): array
