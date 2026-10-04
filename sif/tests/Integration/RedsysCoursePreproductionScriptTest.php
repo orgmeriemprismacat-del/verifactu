@@ -27,10 +27,13 @@ final class RedsysCoursePreproductionScriptTest
         Assert::stringContainsString('$beforePaymentCoverage', $source);
         Assert::stringContainsString('$paymentService', $source);
         Assert::stringContainsString('new LegacySyncService(new LegacySyncRepository())', $source);
-        Assert::stringContainsString('new LegacyCourseSnapshotRepository()', $source);
+        Assert::stringContainsString('new RedsysPaymentIntentRepository()', $source);
+        Assert::stringContainsString('findByDsOrder($sifDb, $dsOrder)', $source);
+        Assert::stringContainsString("$intent['SNAPSHOT_JSON']", $source);
         Assert::stringContainsString('new LegacyCourseInvoicePayloadBuilder()', $source);
         Assert::stringContainsString('new RedsysInvoicePayloadBuilder($notifications)', $source);
-        Assert::stringContainsString('$service->issueFromValidatedNotification($sifDb, $legacyDb, $dsOrder, $discountSnapshot)', $source);
+        Assert::stringContainsString('$service->issueFromIntentSnapshot($sifDb, $dsOrder, $snapshot)', $source);
+        Assert::stringContainsString('$legacyDb = $syncLegacy ? ConnectionFactory::makeLegacy($config) : null;', $source);
         Assert::stringContainsString('--sync-legacy', $source);
         Assert::stringContainsString('--discount-file=discount.json', $source);
         Assert::stringContainsString('new DiscountSnapshotFileReader()', $source);

@@ -144,6 +144,14 @@ Si falla, el cas es tracta com conflicte funcional i deriva a `INCIDENT`.
 
 **Correcció:** el processador directe comparteix ara `InvoiceBeforePaymentCoverageRepository`, crea `PaymentService`, injecta el repositori a `InvoiceService` i injecta `RedsysCoveredInvoicePaymentService` al handler CURS. `preflight-redsys-course.php` exigeix `invoice_before_payment_coverage` i `invoice_origin_guard`. Els tests de script/preflight/boundary comproven explícitament aquest wiring.
 
+### UC03-FIX-06 — preview/processador CURS rellegien la BD llegada després del TPV
+
+**Problema observat:** tot i que el worker real usa `redsys_payment_intent.SNAPSHOT_JSON`, `preview-redsys-course.php` i `process-redsys-course.php` reconstruïen l'operació amb `LegacyCourseSnapshotRepository::loadByIdpag()` sobre la BD llegada viva. PACK ja seguia el patró correcte de snapshot congelat.
+
+**Risc:** una dada llegada modificada després de crear la intenció podia fer que la prova de preproducció facturés/previsualitzés un estat diferent del que el worker productiu processaria. A més, el processador directe exigia connexió legacy fins i tot sense `--sync-legacy`.
+
+**Correcció:** preview i processador CURS carreguen ara `RedsysPaymentIntentRepository::findByDsOrder()`, exigeixen `SOURCE_TYPE=CURS`, decodifiquen `SNAPSHOT_JSON` i el processador crida `issueFromIntentSnapshot()`. La connexió legacy només s'obre quan es demana `--sync-legacy`; l'outbox de notificació parteix també del snapshot congelat. Els contract tests impedeixen tornar a `issueFromValidatedNotification()`/lectura legacy per a l'emissió de preproducció.
+
 ## 6. Proves
 
 ### Ja existents i revisades
@@ -229,7 +237,7 @@ Mentre `doit.php`/`realitzaPagamentAutomatic.php` estiguin actius, el llegat pot
 
 **GAP-003-P1-03 · variants i atribució.** CURS/PACK tenen allocation quantitativa. GRUP/REGAL/USOC tenen models específics; verificar per cada variant que la reconstrucció participant/beneficiari/pagador és suficient i no assumir equivalència.
 
-**GAP-003-P1-04 · preproducció.** El processador directe ja comparteix el resolver UC-004 amb el worker; continua pendent executar callback real amb Redsys, duplicat, retry, lock stale, parcial/complet i error posterior al commit.
+**GAP-003-P1-04 · preproducció.** Preview i processador directe ja comparteixen snapshot congelat + resolver UC-004 amb el worker; continua pendent executar callback real amb Redsys, duplicat, retry, lock stale, parcial/complet i error posterior al commit.
 
 **GAP-003-P1-05 · semàntica IDPAG transversal.** `IDPAG` no és unicitat global. CURS ara exigeix exactament una inscripció elegible per IDPAG; mantenir aquesta regla separada dels casos compartits de PACK/GRUP i usar `DS_ORDER` + ledger per-inscripció per a la traça econòmica.
 

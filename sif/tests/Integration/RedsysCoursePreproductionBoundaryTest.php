@@ -62,6 +62,32 @@ final class RedsysCoursePreproductionBoundaryTest
         }
     }
 
+    public function testCoursePreviewAndProcessorUseFrozenIntentSnapshot(): void
+    {
+        $preview = $this->read('sif/scripts/preview-redsys-course.php');
+        $process = $this->read('sif/scripts/process-redsys-course.php');
+
+        foreach ([$preview, $process] as $source) {
+            Assert::stringContainsString('RedsysPaymentIntentRepository', $source);
+            Assert::stringContainsString('findByDsOrder($sifDb, $dsOrder)', $source);
+            Assert::stringContainsString("['SNAPSHOT_JSON']", $source);
+        }
+
+        if (str_contains($preview, 'ConnectionFactory::makeLegacy($config)')
+            || str_contains($preview, 'LegacyCourseSnapshotRepository')
+        ) {
+            Assert::fail('Preview must not re-read mutable legacy data after TPV intent creation.');
+        }
+
+        Assert::stringContainsString(
+            '$service->issueFromIntentSnapshot($sifDb, $dsOrder, $snapshot)',
+            $process
+        );
+        if (str_contains($process, 'issueFromValidatedNotification(')) {
+            Assert::fail('Preproduction processor must execute the same frozen-snapshot handler as the worker.');
+        }
+    }
+
     public function testSyncLegacyRequiresEconomicProjectionEvidence(): void
     {
         $source = $this->read('sif/scripts/verify-redsys-course-preproduction.php');
