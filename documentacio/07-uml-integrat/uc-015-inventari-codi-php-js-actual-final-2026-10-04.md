@@ -204,3 +204,37 @@ El PR #149 va alinear cinc proves desfasades amb el codi actual. El seu HEAD `88
 2. Executar PK-01..PK-11 de navegador amb configuració real d'entorn.
 3. Acreditar el drenatge/transport real de l'outbox PACK i el seu cutover operatiu.
 4. Mantenir el gate selectiu UC-015 verd en qualsevol canvi que afecti el circuit.
+
+
+## 15. Paritat de desplegament web / pay
+
+La passada del 04/10 compara explícitament les còpies desplegables:
+
+### Idèntics byte-a-byte
+- `codi-drive/web-actual/inc/PackPaymentGate.php` = `codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php`;
+- `codi-drive/web-actual/inc/SifPaymentIntentClient.php` = `codi-drive/pay-prisma-cat-canvis-verifactu/inc/SifPaymentIntentClient.php`;
+- `codi-drive/web-actual/inc/apiRedsys.php` = `codi-drive/pay-prisma-cat-canvis-verifactu/inc/apiRedsys.php`.
+
+S'ha afegit `PackDeploymentParityBoundaryTest` perquè els dos primers adaptadors crítics no puguin divergir silenciosament.
+
+### Checkout
+Les dues còpies de `pagina_efectuar_pagament_grup_automatic.php` **no són byte-a-byte idèntiques** perquè carreguen assets/estils diferents de `www.prisma.cat` i `pay.prisma.cat`. La lògica PACK crítica sí és equivalent i queda blindada per:
+- `PackCheckoutBoundaryTest`;
+- `PackPaymentPrivacyBoundaryTest`;
+- `PackDeploymentParityBoundaryTest`.
+
+Totes dues mantenen `PackPaymentGate`, `SifPaymentIntentClient`, callback SIF, allowlist de `SIF_REDSYS_PAYMENT_URL`, producte PACK sense DNI i retorns OK/KO sobre el domini públic.
+
+### Connexió BD
+`ConnexioBBDD_PreparedStatment.php` és intencionadament asimètrica:
+- la còpia web incorpora transaccions, named locks i reserva/alliberament d'`IDPAG` perquè executa PK-A04;
+- la còpia pay no crea altes PACK i no necessita aquests mètodes.
+
+Aquesta diferència **no és drift de negoci** mentre el checkout pay continuï limitat a lectura/validació.
+
+### Respostes OK/KO
+Les còpies `pay-prisma-cat` utilitzen `CoursePaymentReturnStatus.php` per al retorn autoritatiu d'UC-014. El checkout PACK, tant des de web com des de pay, fixa:
+- `https://www.prisma.cat/respostaOkPagamentAutomatic.php`;
+- `https://www.prisma.cat/respostaKoPagamentAutomatic.php`.
+
+Per tant, la diferència de les pàgines OK/KO de pay no constitueix una segona ruta activa del PACK. El boundary nou ho blinda.
