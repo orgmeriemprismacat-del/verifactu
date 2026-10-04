@@ -585,7 +585,7 @@ requestMain.done(function( message ) {
 				'X-CSRF-Token': uc002CsrfToken
 			},
 			data: JSON.stringify({
-				num_visible: String(numFact || '').trim(),
+				legacy_invoice_number: String(numFact || '').trim(),
 				amount: String(pagInsc || '').trim().replace(',', '.'),
 				movement_date: String(dataPagInsc || '').trim(),
 				bank: String(bancInsc || '').trim(),
