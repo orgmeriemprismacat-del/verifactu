@@ -182,6 +182,23 @@ final class RedsysCoursePreproductionBoundaryTest
         }
     }
 
+
+    public function testPreflightsDoNotExposeRawDatabaseExceptionMessages(): void
+    {
+        foreach ([
+            'sif/scripts/preflight-redsys-course.php',
+            'sif/scripts/preflight-redsys-callback-queue.php',
+        ] as $relativePath) {
+            $source = $this->read($relativePath);
+            Assert::stringContainsString('SIF_DATABASE_CONNECTIVITY_FAILED', $source);
+            Assert::stringContainsString('LEGACY_DATABASE_CONNECTIVITY_FAILED', $source);
+
+            if (str_contains($source, '$exception->getMessage()')) {
+                Assert::fail('Preflight evidence must not expose raw database exception messages.');
+            }
+        }
+    }
+
     public function testSifCallbackRequiresExpectedMerchantCode(): void
     {
         $config = $this->read('sif/config/sif.php');
