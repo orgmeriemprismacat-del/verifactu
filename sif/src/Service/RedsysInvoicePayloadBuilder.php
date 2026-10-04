@@ -64,7 +64,12 @@ final class RedsysInvoicePayloadBuilder
         $amount = number_format((float) $notification['IMPORT'], 2, '.', '');
         $sourceType = $this->invoiceSourceType($payload);
 
-        $payload['idempotency_key'] = $this->invoiceIdempotencyKey($sourceType, $idpag, $dsOrder);
+        $payload['idempotency_key'] = $this->invoiceIdempotencyKey(
+            $sourceType,
+            $idpag,
+            $dsOrder,
+            $payload
+        );
         $payload['source_channel'] = 'REDSYS';
         $payload['relations'] = $this->withRedsysRelations($payload['relations'] ?? [], $idpag, $dsOrder);
         $payload['payment'] = $this->withRedsysPaymentBlock($payload['payment'] ?? [], $notification, $amount);
@@ -108,9 +113,26 @@ final class RedsysInvoicePayloadBuilder
         ]);
     }
 
-    private function invoiceIdempotencyKey(string $sourceType, ?int $idpag, string $dsOrder): string
-    {
-        return 'REDSYS|' . $sourceType . '|IDPAG:' . ($idpag === null ? 'NULL' : (string) $idpag) . '|ORDER:' . $dsOrder;
+    private function invoiceIdempotencyKey(
+        string $sourceType,
+        ?int $idpag,
+        string $dsOrder,
+        array $payload
+    ): string {
+        if ($sourceType === 'REGAL') {
+            $giftKey = trim((string) ($payload['idempotency_key'] ?? ''));
+            if (preg_match('/^LEGACY\\|REGAL\\|ID:[1-9][0-9]*$/D', $giftKey) !== 1) {
+                throw SifException::validation(
+                    'Redsys gift invoice requires a stable gift-scoped idempotency key'
+                );
+            }
+
+            return $giftKey;
+        }
+
+        return 'REDSYS|' . $sourceType . '|IDPAG:'
+            . ($idpag === null ? 'NULL' : (string) $idpag)
+            . '|ORDER:' . $dsOrder;
     }
 
     private function invoiceSourceType(array $payload): string
