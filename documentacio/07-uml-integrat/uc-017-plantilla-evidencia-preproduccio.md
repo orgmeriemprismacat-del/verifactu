@@ -227,4 +227,39 @@ Només marcar **VERIFICAT** quan:
 **Decisió:** GO / NO-GO  
 **Responsable tècnic:**  
 **Validació funcional/fiscal:**  
-**Observacions:**  
+**Observacions:**
+
+## 13. Addenda obligatòria de revalidació — 2026-10-04
+
+### 13.1 Checkout i secret dedicat
+
+| Control | Esperat | Evidència |
+| --- | --- | --- |
+| `UC017_GIFT_CHECKOUT_HMAC_SECRET` | present, >= 32 bytes, valor no exposat | |
+| formulari web | envia `giftToken`, no `giftId/codiRegal/email/import` econòmics | |
+| token manipulat | rebutjat abans de crear intent SIF | |
+| token caducat | rebutjat | |
+
+### 13.2 Mapping de superfície
+
+Conservar evidència de:
+- DocumentRoot de `pay-test.prisma.cat` i `pay-pre.prisma.cat`;
+- URL exacta a la qual envia el formulari de regal;
+- fitxer/versió desplegada de `pagina_efectuar_pagament_regal_automatic.php`;
+- MerchantURL real del sandbox;
+- resposta 410 del callback llegat només després de confirmar drain.
+
+### 13.3 Doble intent / doble ordre
+
+Executar:
+1. obrir dues pestanyes o repetir el checkout abans del callback;
+2. comprovar que totes dues resolen el mateix intent/DS_ORDER pendent;
+3. després d'un callback validat, demanar un nou intent i comprovar HTTP/conflicte;
+4. en test controlat, simular una segona notificació amb un altre DS_ORDER del mateix
+   regal i comprovar que continuen existint **1 factura, 1 CHARGE i 1 entitlement**.
+
+### 13.4 Entrada llegada xifrada
+
+Registrar si la URL AES-CBC llegada continua habilitada. Si continua activa, UC-017 no
+es considera superfície web sanejada definitivament fins que l'IV quedi autenticat
+o el mecanisme sigui retirat.
