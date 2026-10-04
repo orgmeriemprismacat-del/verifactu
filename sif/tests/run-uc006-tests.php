@@ -30,6 +30,7 @@ $relativeFiles = [
     'Integration/RegisterPaymentTest.php',
     'Integration/CourseEnrollmentFundAllocationServiceTest.php',
     'Integration/EnrollmentFundTransferServiceTest.php',
+    'Integration/EnrollmentFundTransferActionServiceTest.php',
     'Integration/EnrollmentFundTransferPreviewScriptTest.php',
     'Integration/EnrollmentFundTransferPreproductionScriptTest.php',
     'Integration/EnrollmentFundTransferReversalPreviewScriptTest.php',
@@ -56,6 +57,7 @@ foreach ($relativeFiles as $relativeFile) {
 $classes = [
     Prisma\Sif\Tests\Integration\CourseEnrollmentFundAllocationServiceTest::class,
     Prisma\Sif\Tests\Integration\EnrollmentFundTransferServiceTest::class,
+    Prisma\Sif\Tests\Integration\EnrollmentFundTransferActionServiceTest::class,
     Prisma\Sif\Tests\Integration\EnrollmentFundTransferPreviewScriptTest::class,
     Prisma\Sif\Tests\Integration\EnrollmentFundTransferPreproductionScriptTest::class,
     Prisma\Sif\Tests\Integration\EnrollmentFundTransferReversalPreviewScriptTest::class,
