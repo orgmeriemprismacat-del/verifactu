@@ -20,7 +20,8 @@ final class ManualPaymentPayloadBuilder
         $bank = $this->optionalString($input, ['bank', 'banc']);
 
         $payload = [
-            'idempotency_key' => $this->idempotencyKey($method, $uuidFactura, $input, $amount, $movementDate, $reference, $bank),
+            'idempotency_key' => $this->explicitIdempotencyKey($input)
+                ?? $this->idempotencyKey($method, $uuidFactura, $input, $amount, $movementDate, $reference, $bank),
             'movement_type' => 'CHARGE',
             'method' => $method,
             'source_channel' => 'INTRANET',
@@ -40,6 +41,20 @@ final class ManualPaymentPayloadBuilder
         }
 
         return $payload;
+    }
+
+    private function explicitIdempotencyKey(array $input): ?string
+    {
+        $value = $this->optionalString($input, ['idempotency_key', 'idempotencyKey']);
+        if ($value === null) {
+            return null;
+        }
+
+        if (strlen($value) > 100 || preg_match('/^[A-Za-z0-9._:\\/|-]+$/D', $value) !== 1) {
+            throw SifException::validation('Invalid manual payment idempotency key');
+        }
+
+        return $value;
     }
 
     private function idempotencyKey(

@@ -26,7 +26,7 @@ final class ManualPaymentService
             throw SifException::validation('SIF invoice not found for manual payment');
         }
 
-        return $this->registerForInvoice($invoice, $input);
+        return $this->registerForInvoice($sifDb, $invoice, $input);
     }
 
     public function registerByNumVisible(\PDO $sifDb, string $numVisible, array $input): array
@@ -41,14 +41,34 @@ final class ManualPaymentService
             throw SifException::validation('SIF invoice not found for manual payment');
         }
 
-        return $this->registerForInvoice($invoice, $input);
+        return $this->registerForInvoice($sifDb, $invoice, $input);
     }
 
-    private function registerForInvoice(array $invoice, array $input): array
+    public function registerByLegacyFacturaRelacionada(
+        \PDO $sifDb,
+        int $facturaRelacionada,
+        array $input
+    ): array {
+        $invoice = $this->invoices->findByLegacyFacturaRelacionada(
+            $sifDb,
+            $facturaRelacionada
+        );
+        if ($invoice === null) {
+            throw SifException::validation(
+                'SIF invoice not found for legacy related invoice'
+            );
+        }
+
+        return $this->registerForInvoice($sifDb, $invoice, $input);
+    }
+
+    private function registerForInvoice(\PDO $sifDb, array $invoice, array $input): array
     {
         $input['num_visible'] = $input['num_visible'] ?? ($invoice['NUM_VISIBLE'] ?? null);
         $payload = $this->manualPayments->forExistingInvoice((string) $invoice['UUID_FACTURA'], $input);
-        $result = $this->payments->registerPayment($payload);
+        $result = $sifDb->inTransaction()
+            ? $this->payments->registerPaymentInTransaction($sifDb, $payload)
+            : $this->payments->registerPayment($payload);
         $result['uuid_factura'] = $invoice['UUID_FACTURA'];
         $result['num_visible'] = $invoice['NUM_VISIBLE'];
 

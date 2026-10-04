@@ -1,0 +1,151 @@
+name: UC-002 SIF payment checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "sif/src/Database/TransactionRunner.php"
+      - "sif/src/Domain/PaymentStatusCalculator.php"
+      - "sif/src/Repository/ManualPaymentInvoiceRepository.php"
+      - "sif/src/Repository/PaymentActionEventRepository.php"
+      - "sif/src/Repository/PaymentRepository.php"
+      - "sif/src/Service/ExistingInvoiceLegacyProjectionService.php"
+      - "sif/src/Service/ExistingInvoicePaymentCommandService.php"
+      - "sif/src/Service/ExistingInvoicePaymentNotificationService.php"
+      - "sif/src/Service/ExistingInvoiceEnrollmentFundAllocationService.php"
+      - "sif/src/Service/InternalApiAuthenticator.php"
+      - "sif/src/Service/ManualPaymentPayloadBuilder.php"
+      - "sif/src/Service/ManualPaymentService.php"
+      - "sif/src/Service/PaymentActionGateway.php"
+      - "sif/src/Service/PaymentPayloadValidator.php"
+      - "sif/src/Service/PaymentService.php"
+      - "sif/public/api/payments/register.php"
+      - "sif/config/sif.php"
+      - "sif/tests/**/*Uc002*"
+      - "sif/tests/**/ExistingInvoicePayment*"
+      - "sif/tests/**/ExistingInvoiceLegacyProjectionServiceTest.php"
+      - "sif/tests/**/ManualPayment*"
+      - "sif/tests/**/PaymentAction*"
+      - "sif/tests/**/PaymentPayloadValidatorTest.php"
+      - "sif/tests/**/PaymentStatusCalculatorTest.php"
+      - "sif/tests/**/PayloadIdempotencyFlowTest.php"
+      - "sif/tests/**/RegisterPaymentTest.php"
+      - "sif/tests/**/TransactionRunnerTest.php"
+      - "sif/tests/run-uc002-tests.php"
+      - "codi-drive/intranet-actual/Intranet.php"
+      - "codi-drive/intranet-nova-canvis-verifactu/Intranet.php"
+      - "codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php"
+      - "codi-drive/intranet-actual/SifInternalApiClient.php"
+      - "codi-drive/intranet-actual/Uc002LegacyPaymentProjectionApplier.php"
+      - "codi-drive/intranet-actual/Uc002LegacyInvoiceSelectorResolver.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php"
+      - "codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/efectuarPagament.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifPagamentFactura.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifPagamentFacturaToken.php"
+      - "codi-drive/intranet-actual/js/alumnes-pagaments.js"
+      - "documentacio/06-fitxes-funcionals/uc-002.md"
+      - "documentacio/07-uml-integrat/uc-002-*"
+      - ".github/workflows/uc002-sif-checks.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "sif/src/Database/TransactionRunner.php"
+      - "sif/src/Repository/PaymentActionEventRepository.php"
+      - "sif/src/Repository/PaymentRepository.php"
+      - "sif/src/Service/ExistingInvoiceLegacyProjectionService.php"
+      - "sif/src/Service/ExistingInvoicePaymentCommandService.php"
+      - "sif/src/Service/ExistingInvoicePaymentNotificationService.php"
+      - "sif/src/Service/ExistingInvoiceEnrollmentFundAllocationService.php"
+      - "sif/src/Service/ManualPaymentPayloadBuilder.php"
+      - "sif/src/Service/ManualPaymentService.php"
+      - "sif/src/Service/PaymentActionGateway.php"
+      - "sif/src/Service/PaymentPayloadValidator.php"
+      - "sif/src/Service/PaymentService.php"
+      - "sif/public/api/payments/register.php"
+      - "sif/config/sif.php"
+      - "sif/tests/run-uc002-tests.php"
+      - "sif/tests/**/*Uc002*"
+      - "sif/tests/**/ExistingInvoicePayment*"
+      - "sif/tests/**/ExistingInvoiceLegacyProjectionServiceTest.php"
+      - "codi-drive/intranet-actual/Intranet.php"
+      - "codi-drive/intranet-nova-canvis-verifactu/Intranet.php"
+      - "codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php"
+      - "codi-drive/intranet-actual/SifInternalApiClient.php"
+      - "codi-drive/intranet-actual/Uc002LegacyPaymentProjectionApplier.php"
+      - "codi-drive/intranet-actual/Uc002LegacyInvoiceSelectorResolver.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php"
+      - "codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/efectuarPagament.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifPagamentFactura.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifPagamentFacturaToken.php"
+      - "codi-drive/intranet-actual/js/alumnes-pagaments.js"
+      - "documentacio/06-fitxes-funcionals/uc-002.md"
+      - "documentacio/07-uml-integrat/uc-002-*"
+      - ".github/workflows/uc002-sif-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  uc002-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_test;charset=utf8mb4
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+      SIF_LEGACY_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_legacy_test;charset=utf8mb4
+      SIF_LEGACY_DB_USER: root
+      SIF_LEGACY_DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 amb extensions SIF
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, openssl, mbstring
+          coverage: none
+
+      - name: Preparar BD legacy de proves
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot \
+            -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+      - name: Sintaxi UC-002
+        run: |
+          php -l sif/tests/run-uc002-tests.php
+          php -l sif/public/api/payments/register.php
+          php -l sif/src/Service/ExistingInvoiceEnrollmentFundAllocationService.php
+          php -l sif/src/Service/ExistingInvoicePaymentNotificationService.php
+          php -l codi-drive/intranet-actual/SifInternalApiClient.php
+          php -l codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php
+          php -l codi-drive/intranet-actual/Uc002LegacyPaymentProjectionApplier.php
+          php -l codi-drive/intranet-actual/Uc002LegacyInvoiceSelectorResolver.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/sifPagamentFacturaToken.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/sifPagamentFactura.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/efectuarPagament.php
+          node --check codi-drive/intranet-actual/js/alumnes-pagaments.js
+
+      - name: Executar suite selectiva UC-002
+        run: php sif/tests/run-uc002-tests.php

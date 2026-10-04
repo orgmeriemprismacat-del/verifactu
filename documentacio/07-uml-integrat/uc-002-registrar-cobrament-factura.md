@@ -1,6 +1,6 @@
 # UC-02 · Registrar un pagament sobre factura existent — fitxa i UML integrats
 
-**Estat:** `PaymentService` i `PaymentRepository` estan contrastats a la branca documental `docs/uml-fitxes-integrades-2026-09-20`; la vinculació final de cadascuna de les pantalles i les regles d'autorització no es consideren acreditades. **Casos relacionats:** UC-01 (emissió inicial), UC-04 (factura emesa abans de cobrar), UC-22 (transferència), UC-23 (fracció), UC-24 (cobrament de reclamació), UC-28 (devolució) i UC-29a (compensació).
+**Estat reconciliat 2026-10-04:** nucli SIF implementat; idempotència v2 acreditada; invariants monetaris, frontera HTTP SIF i mutació llegada reforçats a `audit/uc-002-reconciliada-main-2026-10-04`. La pantalla real encara no delega autoritativament al SIF, l'auditoria funcional genèrica i el sync post-commit continuen pendents; per tant UC-002 **no està tancat**. Vegeu [auditoria/traçabilitat](uc-002-auditoria-tracabilitat-2026-10-04.md), [classes](uc-002-classes-actual-final.md), [seqüències](uc-002-sequencies-actual-final.md) i [activitats](uc-002-activitats-pagines-actual-final.md). **Casos relacionats:** UC-01, UC-04, UC-22, UC-23, UC-24, UC-28 i UC-29a.
 
 ## 1. Fitxa de cas d'ús
 
@@ -34,7 +34,7 @@
 | A5. Pagament superior al total | L'estat calculat és `OVERPAID`; la decisió operativa sobre l'excés correspon a UC-104, no queda resolta automàticament aquí. |
 | E1. Assignació a factura inexistent | El repositori falla en intentar consultar la factura; la transacció no s'ha de confirmar parcialment. |
 | E2. Falta un camp o un mètode no és admès | El validador rebutja la petició. |
-| Límits coneguts | El validador genèric verifica la forma i la numericitat dels imports però **no acredita per si sol** saldo disponible, autorització, suma d'assignacions igual a l'import, evidència del cobrament ni coherència semàntica entre mètode i tipus. Cal cobrir-ho per canal i cas específic. |
+| Límits coneguts | A la branca reconciliada el validador exigeix imports positius, precisió de dos decimals i suma exacta de les assignacions. Encara **no acredita per si sol** saldo disponible, evidència externa del cobrament ni coherència de negoci específica de cada canal. |
 
 La implementació també calcula estats `PENDING`, `PARTIALLY_REFUNDED` i `REFUNDED` segons càrrecs i devolucions; **aquestes devolucions no equivalen a tornar a emetre una factura ni substitueixen el procés fiscal que pugui correspondre**.
 
@@ -46,7 +46,7 @@ La implementació també calcula estats `PENDING`, `PARTIALLY_REFUNDED` i `REFUN
 
 El registre existent `payment_transaction` → `payment_allocation` actualitza l'estat de la **factura**, però l'assignació no conté `ID_INSC`. UC-02 ha d'identificar i validar també l'import corresponent a **cada inscripció** abans de donar per completat un cobrament, una fracció, una devolució o una compensació. Si una transferència de 200 € cobreix dues inscripcions, hi ha **un moviment extern** de 200 € i **dues atribucions internes** (p. ex. 100 € i 100 € quan les dades reals ho justifiquin), vinculades al mateix cobrament; no dues entrades de caixa. La suma atribuïda s'ha de reconciliar amb la suma assignada a les factures i amb el moviment extern. Una reassignació posterior entre inscripcions no pot cridar `registerPayment(CHARGE)` com si arribessin diners nous.
 
-**Risc addicional comprovat al codi:** `PaymentPayloadValidator` només exigeix imports numèrics i no acredita que `SUM(allocations.amount)=payment.amount`, que cada import sigui estrictament positiu ni que una clau reutilitzada porti el mateix payload; són validacions pendents. [Model i invariants de fons per inscripció](00-revisio-moviments-inscripcions.md).
+**Reconciliació 2026-10-04:** `PaymentPayloadValidator` s'ha reforçat a la branca per exigir imports estrictament positius, màxim dos decimals i `SUM(allocations.amount)=payment.amount`. La reutilització de clau ja compara payload mitjançant hash versionat v1/v2. Continua pendent l'atribució genèrica per inscripció i la reconciliació de l'evidència externa. [Model i invariants de fons per inscripció](00-revisio-moviments-inscripcions.md).
 
 ### 1.4. Identificar factura prèvia a «Passar pagaments» i a Redsys
 
@@ -54,7 +54,7 @@ El registre existent `payment_transaction` → `payment_allocation` actualitza l
 
 **Redsys i una factura ja emesa amb una altra clau.** La validació de `DS_ORDER` acredita quin intent TPV ha notificat Redsys; **no acredita que calgui emetre factura nova**. La factura prèvia pot haver estat emesa per un procés de grup/empresa o manual amb un `idempotency_key` diferent del callback. El despatxador ha de localitzar la cobertura per `fact_rels/ID_INSC/UUID_FACTURA` i, si és inequívoca, registrar el `CHARGE` contra el document existent. Si hi ha diversos candidats o la inscripció ha canviat/ha estat donada de baixa, conservar prova del cobrament real i derivar a conciliació; no forçar un nou `issueInvoice()`.
 
-**Límits monetaris del servei actual.** `PaymentPayloadValidator` comprova camps, que les assignacions siguin un array no buit i la numericitat dels imports, però no acredita que la **suma de trams** coincideixi amb l'entrada externa ni que tot tram estigui disponible. `PaymentService::existingResult()` retorna un `UUID_PAYMENT` per la mateixa clau sense comparar el nou payload amb el `PAYLOAD_HASH` antic: l'operació objectiu ha de detectar conflictes de mateixa clau/import/destí diferents. `PaymentRepository::createPayment()` crea un moviment **nou** amb totes les assignacions, no permet afegir trams a un UUID ja confirmat; la cerca i l'assignació d'un cobrament existent corresponen a UC-56/105 encara pendents d'un writer segur.
+**Límits monetaris i d'idempotència després de la reconciliació.** `PaymentPayloadValidator` exigeix imports positius, màxim dos decimals i suma exacta d'assignacions. `PaymentService` compara el payload d'una clau reutilitzada amb `PAYLOAD_HASH` versionat i retorna conflicte si és incompatible. `PaymentRepository::createPayment()` continua creant un moviment nou amb totes les assignacions i no permet afegir trams a un UUID ja confirmat; la cerca/reassignació de saldo existent correspon als fluxos de conciliació/reassignació i no s'ha de simular amb un segon `CHARGE`.
 
 **Diverses factures i participants.** Una transferència real pot cobrir més d'una factura; cada `payment_allocation` ha de referenciar quantitat i UUID de destí, mentre que en grups/packs el futur registre de fons **per `ID_INSC`** ha de reflectir l'atribució individual exacta. `FACTURA_RELACIONADA` i `IDPAG` poden agrupar diversos participants i intents i no són claus de deduplicació de diner. La factura fiscal emesa abans del cobrament manté `EMESA_ABANS_COBRAMENT=1` encara després de quedar pagada; el fet econòmic posterior no ha de canviar aquesta dada històrica ni marcar `E_FACT` automàticament.
 

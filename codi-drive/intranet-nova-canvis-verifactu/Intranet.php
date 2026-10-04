@@ -969,7 +969,7 @@ class Intranet
 											VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			"insertNumTramit"			=> "INSERT INTO tramitsDep (DATA_RESOL, TRAMIT, ESTAT) VALUES (?, ?, ?)",
 			"XXXXX"						=> "",
-			"updFactGenerada"			=> "UPDATE factures SET data_pagament = ?, IMPORT = ?,
+			"updFactGenerada"			=> "UPDATE factures SET data_pagament = ?,
 											FORMA_PAGAMENT = ? WHERE NUM = ?",
 			"updInscCanviCurs"		=> "UPDATE inscripcions SET PAGAMENT = 0, `INSC CURS`
 											= 'C', PERENNE = 'X', DATA_BAIXA=?, QUI_BAIXA=?,
@@ -12428,8 +12428,6 @@ class Intranet
 
 	private function efectuarPagamentFacturaGenerada($numFact, $tipusFact, $obs,
 	$dataPagament, $importPag, $formaPagament) {
-		echo $numFact."<br>".$tipusFact."<br>".$obs."<br>".$dataPagament."<br>".$importPag."<br>".$formaPagament."<br />";
-		echo "---------------------------------------------------------------------------------------------<br />";
 		$conWeb = new ConnexioWeb();
 		$conWeb->connectarBD();
 
@@ -12611,7 +12609,7 @@ class Intranet
 		// echo "---------------------------------------------------------------------------------------------<br />";
 
 		if ( $stmtInsert=$conWeb->prepare( $this->consultesBD_Web["updFactGenerada"] ) ) {
-			$stmtInsert->bind_param("sdss", $dataPagament, $importPag, $formaPagament, $numFact);
+			$stmtInsert->bind_param("sss", $dataPagament, $formaPagament, $numFact);
 			$stmtInsert->execute();
 			$conWeb->closeStmt();
 
@@ -12645,8 +12643,8 @@ class Intranet
 			$stmt->bind_result($id, $aPagarMembre, $pagamentMembre, $factMembre); $i=0;
 			while ( $stmt->fetch() && $auxPagat > 0 ) {
 				if ( $auxPagat < ($aPagarMembre - $pagamentMembre) ) {
-					$pagat = floatval($auxPagat);
-					$auxPagat -= floatval($auxPagat);
+					$pagat = floatval($pagamentMembre) + floatval($auxPagat);
+					$auxPagat = 0.0;
 				}
 				else {
 					$pagat = floatval($aPagarMembre);
@@ -12660,8 +12658,6 @@ class Intranet
 				else {
 					throw new Exception('',4292);
 				}
-				echo $this->consultesBD_Web["updPayInscr"]."<br />";
-				echo $pagat."<br>".$factura."<br>".$id."<br>";
 
 				$pagat2 =  number_format($pagat,2);
 				$aPagarMembre2 =  number_format($aPagarMembre,2);
@@ -12686,7 +12682,6 @@ class Intranet
 			throw new Exception ('', 4294);
 		}
 		$conWeb2->desconectarBD();
-		echo "---------------------------------------------------------------------------------------------<br />";
 
 		if ( $fracc == 1 ) {
 			if ( $fraccio!=null && $fraccio!='' )
@@ -12732,7 +12727,6 @@ class Intranet
 		else {
 			throw new Exception('',4296);
 		}
-		echo "---------------------------------------------------------------------------------------------<br />";
 
 		// $cipher = "AES-128-CBC";
 		//

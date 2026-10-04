@@ -59,6 +59,42 @@ final class ManualPaymentPayloadBuilderTest
         (new PaymentPayloadValidator())->validate($payload);
     }
 
+
+    public function testUsesExplicitIdempotencyKeyWhenProvided(): void
+    {
+        $payload = (new ManualPaymentPayloadBuilder())->forExistingInvoice(
+            '11111111-1111-4111-8111-111111111111',
+            [
+                'idempotency_key' => 'INTRANET|UC002|REQ:11111111-1111-4111-8111-111111111111',
+                'amount' => '80.00',
+                'movement_date' => '2026-10-04 03:30:00',
+                'bank' => 'CAIXA',
+            ]
+        );
+
+        Assert::same(
+            'INTRANET|UC002|REQ:11111111-1111-4111-8111-111111111111',
+            $payload['idempotency_key']
+        );
+        (new PaymentPayloadValidator())->validate($payload);
+    }
+
+    public function testRejectsInvalidExplicitIdempotencyKey(): void
+    {
+        Assert::throws(
+            SifException::class,
+            static fn (): array => (new ManualPaymentPayloadBuilder())->forExistingInvoice(
+                '11111111-1111-4111-8111-111111111111',
+                [
+                    'idempotency_key' => 'bad key with spaces',
+                    'amount' => '80.00',
+                    'movement_date' => '2026-10-04 03:30:00',
+                ]
+            ),
+            422
+        );
+    }
+
     public function testRejectsMissingTransferAmount(): void
     {
         Assert::throws(

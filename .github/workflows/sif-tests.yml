@@ -20,6 +20,16 @@ on:
       - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/intranet-actual/Intranet.php"
+      - "codi-drive/intranet-nova-canvis-verifactu/Intranet.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php"
+      - "codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/efectuarPagament.php"
+      - "codi-drive/intranet-actual/js/alumnes-pagaments.js"
+      - "codi-drive/intranet-actual/SifInternalApiClient.php"
+      - "codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php"
+      - "codi-drive/intranet-actual/Uc002LegacyPaymentProjectionApplier.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifPagamentFacturaToken.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifPagamentFactura.php"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
       - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
@@ -52,6 +62,16 @@ on:
       - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/intranet-actual/Intranet.php"
+      - "codi-drive/intranet-nova-canvis-verifactu/Intranet.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php"
+      - "codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/efectuarPagament.php"
+      - "codi-drive/intranet-actual/js/alumnes-pagaments.js"
+      - "codi-drive/intranet-actual/SifInternalApiClient.php"
+      - "codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php"
+      - "codi-drive/intranet-actual/Uc002LegacyPaymentProjectionApplier.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifPagamentFacturaToken.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifPagamentFactura.php"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
       - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
@@ -130,6 +150,19 @@ jobs:
           php -l codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php
+
+      - name: Lint UC-002 intranet payment boundary
+        run: |
+          php -l codi-drive/intranet-actual/Intranet.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/Intranet.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/efectuarPagament.php
+          php -l codi-drive/intranet-actual/SifInternalApiClient.php
+          php -l codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php
+          php -l codi-drive/intranet-actual/Uc002LegacyPaymentProjectionApplier.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/sifPagamentFacturaToken.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/sifPagamentFactura.php
+          node --check codi-drive/intranet-actual/js/alumnes-pagaments.js
 
       - name: Lint UC-013 intranet USOC
         run: |

@@ -32,23 +32,65 @@ final class PaymentService
         }
     }
 
-    private function createOrReusePayment(array $payload): array
+    public function registerPaymentInTransaction(\PDO $db, array $payload): array
     {
-        return $this->transactions->run(function (\PDO $db) use ($payload): array {
-            $existing = $this->payments->findByIdempotencyKey($db, $payload['idempotency_key'], true);
-            if ($existing !== null) {
-                $this->assertSamePayload($payload, $existing);
-                return $this->existingResult($existing);
+        if (!$db->inTransaction()) {
+            throw new \LogicException('Payment transaction context is required');
+        }
+
+        $payload = $this->validator->validate($payload);
+
+        try {
+            return $this->createOrReusePaymentOn($db, $payload);
+        } catch (\PDOException $exception) {
+            if (!$this->isDuplicateKeyException($exception)) {
+                throw $exception;
             }
 
-            $created = $this->payments->createPayment($db, $payload);
+            $existing = $this->payments->findByIdempotencyKey(
+                $db,
+                $payload['idempotency_key'],
+                true
+            );
 
-            return [
-                'ok' => true,
-                'idempotency_reused' => false,
-                'uuid_payment' => $created['uuid_payment'],
-            ];
-        });
+            if ($existing === null) {
+                throw new \RuntimeException(
+                    'Duplicate key detected, but existing payment could not be loaded.'
+                );
+            }
+
+            $this->assertSamePayload($payload, $existing);
+
+            return $this->existingResult($existing);
+        }
+    }
+
+    private function createOrReusePayment(array $payload): array
+    {
+        return $this->transactions->run(
+            fn (\PDO $db): array => $this->createOrReusePaymentOn($db, $payload)
+        );
+    }
+
+    private function createOrReusePaymentOn(\PDO $db, array $payload): array
+    {
+        $existing = $this->payments->findByIdempotencyKey(
+            $db,
+            $payload['idempotency_key'],
+            true
+        );
+        if ($existing !== null) {
+            $this->assertSamePayload($payload, $existing);
+            return $this->existingResult($existing);
+        }
+
+        $created = $this->payments->createPayment($db, $payload);
+
+        return [
+            'ok' => true,
+            'idempotency_reused' => false,
+            'uuid_payment' => $created['uuid_payment'],
+        ];
     }
 
     private function reusePaymentAfterDuplicateKey(array $payload): array

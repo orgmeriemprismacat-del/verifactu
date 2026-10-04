@@ -1,5 +1,7 @@
 let urlPagina = window.location.pathname.split('?')[0];
 let path = "https://intranet.prisma.cat/ajax/";
+let uc002CsrfToken = '';
+let uc002Authoritative = false;
 
 /* Cada vegada que es faci una crida d'un ajax, s'executarà la funció mostrarModalLoading().
 Cada vegada que finalitza la crida d'un ajax, s'executarà la funció amagarLoadingModal(). */
@@ -19,6 +21,7 @@ var requestMain = $.ajax({
 
 requestMain.done(function( message ) {
 	$('.mainpanel').html(message);
+	initializeSecureUc002Payment();
 
 	$('#pagaments').on('click', '.tipusInsc', function() {
 		$('.tipusInsc').removeClass('marcat');
@@ -203,7 +206,7 @@ requestMain.done(function( message ) {
 
 						var esValidData = dataEsValida( dataPagInsc );
 
-						var bancInsc = $('#banc-'+idTipus+" .element-selected").html().trim();
+						var bancInsc = uc002SelectedBank(idTipus);
 
 						var esValidBanc = "";
 						if ( bancInsc == "" || bancInsc == "Triar" ) {
@@ -479,10 +482,15 @@ requestMain.done(function( message ) {
 
 	//S'envia el pagament
 	function aplicarPagament(idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, numFact, efact) {
+		if (String(efact) === '1' && uc002Authoritative) {
+			aplicarPagamentSif(pagInsc, dataPagInsc, bancInsc, obsInsc, numFact);
+			return;
+		}
+
 		var sendPay = $.ajax({
 			url: path + "alumnes/efectuarPagament.php",
 			global: false,
-			method: "GET",
+			method: "POST",
 			data: {
 				id: idTipus,
 				numFact: numFact,
@@ -501,10 +509,9 @@ requestMain.done(function( message ) {
 				afegirHeaderModalSuccess("Pagament efectuat!");
 				afegirTextModalSuccess(msg);
 				mostrarModalSuccess();
-				// reloadUrl();
 				$("#modalSuccess").on('hidden.bs.modal', function (e) {
 					reloadUrl();
-				})
+				});
 			}
 			else {
 				afegirHeaderModalError("Alerta");
@@ -517,6 +524,155 @@ requestMain.done(function( message ) {
 			errorFunction( jqXHR, textStatus, errorThrown,
 				"Hi ha hagut algun error a l'hora d'efectuar el pagament: " );
 		});
+	}
+
+	function uc002SelectedBank(idTipus) {
+		var bankContainer = $('#banc-' + idTipus);
+
+		if (bankContainer.is('select')) {
+			return String(bankContainer.val() || '').trim();
+		}
+
+		var nativeSelect = bankContainer.find('select');
+		if (nativeSelect.length > 0) {
+			return String(nativeSelect.val() || '').trim();
+		}
+
+		var selected = bankContainer.find('.element-selected').html();
+		return selected ? String(selected).trim() : '';
+	}
+
+	function initializeSecureUc002Payment() {
+		$.ajax({
+			url: path + "alumnes/sifPagamentFacturaToken.php",
+			method: "GET",
+			dataType: "json",
+			cache: false,
+			global: false
+		}).done(function(response) {
+			if (!response || response.ok !== true) {
+				return;
+			}
+			uc002CsrfToken = String(response.csrf_token || '');
+			uc002Authoritative = response.authoritative === true
+				&& /^[a-f0-9]{64}$/.test(uc002CsrfToken);
+		});
+	}
+
+	function aplicarPagamentSif(pagInsc, dataPagInsc, bancInsc, obsInsc, numFact) {
+		if (!/^[a-f0-9]{64}$/.test(uc002CsrfToken)) {
+			afegirHeaderModalError("Alerta");
+			afegirTextModalError("No s'ha pogut inicialitzar el circuit segur de pagaments SIF.");
+			mostrarModalError();
+			return;
+		}
+
+		var storageKey = uc002PaymentStorageKey(
+			numFact,
+			pagInsc,
+			dataPagInsc,
+			bancInsc
+		);
+		var requestId = uc002PaymentRequestId(storageKey);
+
+		$.ajax({
+			url: path + "alumnes/sifPagamentFactura.php",
+			global: false,
+			method: "POST",
+			contentType: "application/json; charset=utf-8",
+			dataType: "json",
+			headers: {
+				'X-CSRF-Token': uc002CsrfToken
+			},
+			data: JSON.stringify({
+				legacy_invoice_number: String(numFact || '').trim(),
+				amount: String(pagInsc || '').trim().replace(',', '.'),
+				movement_date: String(dataPagInsc || '').trim(),
+				bank: String(bancInsc || '').trim(),
+				notes: String(obsInsc || '').trim(),
+				request_id: requestId
+			})
+		}).done(function(response) {
+			if (!response || response.payment_committed !== true) {
+				afegirHeaderModalError("Alerta");
+				afegirTextModalError(
+					response && response.error
+						? response.error
+						: "No s'ha pogut registrar el pagament al SIF."
+				);
+				mostrarModalError();
+				return;
+			}
+
+			if (response.legacy_sync_status === 'SYNCED') {
+				try {
+					sessionStorage.removeItem(storageKey);
+				} catch (e) {
+				}
+				afegirHeaderModalSuccess("Pagament efectuat!");
+				afegirTextModalSuccess(
+					"Pagament registrat al SIF i sincronitzat amb la intranet."
+				);
+				mostrarModalSuccess();
+				$("#modalSuccess").on('hidden.bs.modal', function () {
+					reloadUrl();
+				});
+				return;
+			}
+
+			afegirHeaderModalSuccess("Pagament registrat al SIF");
+			afegirTextModalSuccess(
+				"El cobrament ja està confirmat al SIF. La sincronització amb la intranet està pendent; "
+				+ "si cal repetir l'operació, es reutilitzarà el mateix cobrament."
+			);
+			mostrarModalSuccess();
+		}).fail(function(jqXHR, textStatus, errorThrown) {
+			var message = jqXHR.responseJSON && jqXHR.responseJSON.error
+				? jqXHR.responseJSON.error
+				: "No s'ha pogut registrar el pagament al SIF.";
+			afegirHeaderModalError("Alerta");
+			afegirTextModalError(message);
+			mostrarModalError();
+		});
+	}
+
+	function uc002PaymentStorageKey(numFact, amount, movementDate, bank) {
+		return 'uc002-payment:'
+			+ encodeURIComponent(String(numFact || '').trim()) + '|'
+			+ encodeURIComponent(String(amount || '').trim()) + '|'
+			+ encodeURIComponent(String(movementDate || '').trim()) + '|'
+			+ encodeURIComponent(String(bank || '').trim());
+	}
+
+	function uc002PaymentRequestId(storageKey) {
+		var existing = '';
+		try {
+			existing = String(sessionStorage.getItem(storageKey) || '').toLowerCase();
+		} catch (e) {
+		}
+
+		if (/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(existing)) {
+			return existing;
+		}
+
+		var requestId;
+		if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+			requestId = window.crypto.randomUUID().toLowerCase();
+		}
+		else {
+			requestId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(char) {
+				var random = Math.floor(Math.random() * 16);
+				var value = char === 'x' ? random : (random & 0x3) | 0x8;
+				return value.toString(16);
+			});
+		}
+
+		try {
+			sessionStorage.setItem(storageKey, requestId);
+		} catch (e) {
+		}
+
+		return requestId;
 	}
 });
 

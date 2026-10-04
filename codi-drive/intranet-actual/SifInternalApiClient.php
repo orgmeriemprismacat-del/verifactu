@@ -8,6 +8,8 @@ class SifInternalApiClient
     private string $secret;
     private string $courseChangeUrl;
     private string $courseChangeSignedPath;
+    private string $paymentUrl;
+    private string $paymentSignedPath;
     private int $timeout;
 
     public function __construct(
@@ -17,7 +19,9 @@ class SifInternalApiClient
         ?string $secret = null,
         int $timeout = 10,
         ?string $courseChangeUrl = null,
-        ?string $courseChangeSignedPath = null
+        ?string $courseChangeSignedPath = null,
+        ?string $paymentUrl = null,
+        ?string $paymentSignedPath = null
     ) {
         $this->url = trim((string) ($url ?? getenv('SIF_INTERNAL_API_URL') ?: ''));
         $this->signedPath = trim((string) ($signedPath ?? getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php'));
@@ -28,15 +32,31 @@ class SifInternalApiClient
         $this->secret = (string) $configuredSecret;
         $this->courseChangeUrl = trim((string) ($courseChangeUrl ?? getenv('SIF_COURSE_CHANGE_API_URL') ?: ''));
         $this->courseChangeSignedPath = trim((string) ($courseChangeSignedPath ?? getenv('SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH') ?: '/api/course-changes/preview.php'));
+        $this->paymentUrl = trim((string) (
+            $paymentUrl
+            ?? getenv('SIF_INTERNAL_PAYMENT_URL')
+            ?: getenv('SIF_INTERNAL_API_URL')
+            ?: ''
+        ));
+        $this->paymentSignedPath = trim((string) ($paymentSignedPath ?? getenv('SIF_INTERNAL_PAYMENT_SIGNED_PATH') ?: '/api/payments/register.php'));
         $this->timeout = max(1, min(30, $timeout));
 
-        if ($this->url === '' || $this->keyId === '' || $this->secret === '') {
+        if (
+            ($this->url === '' && $this->courseChangeUrl === '' && $this->paymentUrl === '')
+            || $this->keyId === ''
+            || $this->secret === ''
+        ) {
             throw new RuntimeException('SIF internal API is not configured');
         }
 
-        $this->assertSecureUrl($this->url);
+        if ($this->url !== '') {
+            $this->assertSecureUrl($this->url);
+        }
         if ($this->courseChangeUrl !== '') {
             $this->assertSecureUrl($this->courseChangeUrl);
+        }
+        if ($this->paymentUrl !== '') {
+            $this->assertSecureUrl($this->paymentUrl);
         }
     }
 
@@ -89,6 +109,50 @@ class SifInternalApiClient
         ]);
     }
 
+    public function previewExistingInvoicePayment(
+        string $actorId,
+        array $roles,
+        array $selector
+    ): array {
+        if ($this->paymentUrl === '') {
+            throw new RuntimeException('SIF payment API is not configured');
+        }
+
+        return $this->requestTo(
+            $this->paymentUrl,
+            $this->paymentSignedPath,
+            $actorId,
+            $roles,
+            [
+                'action' => 'preview_existing_invoice',
+                'selector' => $selector,
+            ]
+        );
+    }
+
+    public function registerExistingInvoicePayment(
+        string $actorId,
+        array $roles,
+        array $selector,
+        array $payment
+    ): array {
+        if ($this->paymentUrl === '') {
+            throw new RuntimeException('SIF payment API is not configured');
+        }
+
+        return $this->requestTo(
+            $this->paymentUrl,
+            $this->paymentSignedPath,
+            $actorId,
+            $roles,
+            [
+                'action' => 'register_existing_invoice',
+                'selector' => $selector,
+                'payment' => $payment,
+            ]
+        );
+    }
+
     public function previewCourseChange(string $actorId, array $roles, array $payload): array
     {
         if ($this->courseChangeUrl === '') {
@@ -106,6 +170,10 @@ class SifInternalApiClient
 
     private function request(string $actorId, array $roles, array $payload): array
     {
+        if ($this->url === '') {
+            throw new RuntimeException('SIF invoice query API is not configured');
+        }
+
         return $this->requestTo($this->url, $this->signedPath, $actorId, $roles, $payload);
     }
 
