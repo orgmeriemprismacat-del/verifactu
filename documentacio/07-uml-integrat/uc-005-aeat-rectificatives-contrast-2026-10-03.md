@@ -90,7 +90,7 @@ Per tant, el sistema ha de fallar tancat si no disposa d'un snapshot fiscal prou
 
 ## 6. Decisió tècnica
 
-**No activar l'emissió AEAT rectificativa de UC-005 només perquè el payload local SIF sigui correcte.**
+**No activar l'emissió AEAT rectificativa de UC-005 només perquè el payload local SIF sigui correcte.** El mapper simple està implementat, però l'activació productiva continua condicionada als perfils fiscals suportats, CI/preproducció i configuració/certificat AEAT.
 
 El backend local pot preparar i validar una rectificació, però l'alta VERI*FACTU no s'ha de considerar preparada fins que el mapper AEAT tingui:
 
