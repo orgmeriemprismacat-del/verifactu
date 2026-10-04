@@ -11,6 +11,39 @@ use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class InvoiceBeforePaymentServiceTest
 {
+    public function testUc004AcquiresOriginMutexBeforeFiscalSequenceAndChain(): void
+    {
+        $source = file_get_contents(
+            dirname(__DIR__, 2) . '/src/Service/InvoiceService.php'
+        );
+        if ($source === false) {
+            Assert::fail('Could not read InvoiceService source');
+        }
+
+        $lock = strpos($source, '$beforePaymentOriginLocked = $this->lockBeforePaymentOriginIfNeeded');
+        $sequence = strpos($source, '$seq = $this->sequences->next');
+        $chain = strpos($source, '$chainState = $this->invoices->lockChainState');
+
+        if ($lock === false || $sequence === false || $chain === false) {
+            Assert::fail('InvoiceService lock-order anchors are missing');
+        }
+
+        if (!($lock < $sequence && $sequence < $chain)) {
+            Assert::fail(
+                'UC-004 must lock the business origin before fiscal sequence and chain'
+            );
+        }
+
+        Assert::stringContainsString(
+            '$beforePaymentOriginLocked',
+            $source
+        );
+        Assert::stringContainsString(
+            '$payload[\'idempotency_key\'],\n                    $beforePaymentOriginLocked',
+            $source
+        );
+    }
+
     public function testIssuesInvoiceBeforePaymentWithoutCreatingPayment(): void
     {
         $db = TestDatabase::fresh();
