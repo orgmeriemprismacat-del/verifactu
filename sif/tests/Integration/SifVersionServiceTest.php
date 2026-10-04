@@ -92,6 +92,8 @@ final class SifVersionServiceTest
             Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $preflight['preflight']['version']));
             Assert::same(false, array_key_exists('ACTIVE_UNIQUE_GUARD', $preflight['preflight']['version']));
             Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $preflight['preflight']['declaration']));
+            Assert::same(true, $preflight['preflight']['checks']['version_state_singleton_present']);
+            Assert::same(true, $preflight['preflight']['checks']['active_version_state_coherent']);
             foreach ([
                 'uc010_single_active_unique_index',
                 'uc010_version_status_check',
@@ -297,6 +299,62 @@ final class SifVersionServiceTest
                 (string) $db->query(
                     "SELECT UUID_DECLARATION FROM sif_version_activation WHERE UUID_ACTIVATION = " . $db->quote($activationUuid)
                 )->fetchColumn()
+            );
+        } finally {
+            $this->removeTree($dir);
+            $this->removeTree($dir . '-evidence');
+        }
+    }
+
+    public function testPreflightFailsClosedWhenActivePointerIsInconsistent(): void
+    {
+        $db = TestDatabase::fresh();
+        [$service, $dir] = $this->service($db);
+
+        try {
+            $actor = ['actor_id' => 'meriem', 'roles' => ['SIF_ADMIN'], 'source_channel' => 'TEST'];
+
+            $first = $service->registerCurrentRuntime(
+                $actor,
+                $this->operation('REGISTER-STATE-1', 'RELEASE_CANDIDATE') + [
+                    'version_code' => '2026.10.04-state-1',
+                ]
+            );
+            $service->attachDeclaration(
+                $actor,
+                $first['version']['UUID_VERSION'],
+                $this->operation('DECL-STATE-1', 'DECLARATION_APPROVAL') + [
+                    'declaration_version' => 'v1',
+                    'storage_key' => 'declaracio-v1.pdf',
+                ]
+            );
+            $service->activate(
+                $actor,
+                $first['version']['UUID_VERSION'],
+                $this->operation('ACT-STATE-1', 'APPROVED_RELEASE')
+            );
+
+            $second = $service->registerCurrentRuntime(
+                $actor,
+                $this->operation('REGISTER-STATE-2', 'RELEASE_CANDIDATE') + [
+                    'version_code' => '2026.10.04-state-2',
+                ]
+            );
+            $secondUuid = $second['version']['UUID_VERSION'];
+
+            $db->prepare(
+                'UPDATE sif_version_state SET ACTIVE_UUID_VERSION = ? WHERE ID = 1'
+            )->execute([$secondUuid]);
+
+            $preflight = $service->preflight($actor, $secondUuid);
+            Assert::same(false, $preflight['preflight']['ok']);
+            Assert::same(
+                false,
+                $preflight['preflight']['checks']['active_version_state_coherent']
+            );
+            Assert::same(
+                true,
+                in_array('active_version_state_coherent', $preflight['preflight']['failed'], true)
             );
         } finally {
             $this->removeTree($dir);
