@@ -66,6 +66,9 @@ final class RedsysGiftPreproductionVerificationTest
         Assert::stringContainsString('aeat_gift_tax_code_valid', $preflight);
         Assert::stringContainsString('aeat_gift_regime_key_valid', $preflight);
         Assert::stringContainsString('aeat_gift_exemption_code_valid', $preflight);
+        Assert::stringContainsString('aeat_issuer_nif_matches_registration_config', $preflight);
+        Assert::stringContainsString('fiscal_chain_official_compatible', $preflight);
+        Assert::stringContainsString('officialChainCompatible($sifDb)', $preflight);
 
         Assert::stringContainsString('SIF_INTERNAL_REDSYS_GIFT_INTENT_SIGNED_PATH', $config);
         Assert::stringContainsString('SIF_INTERNAL_REDSYS_GIFT_STATUS_SIGNED_PATH', $config);
