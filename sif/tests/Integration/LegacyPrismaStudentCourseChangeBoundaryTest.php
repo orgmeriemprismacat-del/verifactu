@@ -54,7 +54,7 @@ final class LegacyPrismaStudentCourseChangeBoundaryTest
             '$apagarC = resolveLegacyPrismaStudentCourseChangePrice(',
             $guard ?: 0
         );
-        $serverPaid = strpos($source, "$pagatC = $source['paid'];", $guard ?: 0);
+        $serverPaid = strpos($source, '$pagatC = $source[\'paid\'];', $guard ?: 0);
         $preview = strpos($source, "if (getenv('SIF_COURSE_CHANGE_PREVIEW_ENFORCED') === '1')", $guard ?: 0);
         $mutation = strpos(
             $source,
