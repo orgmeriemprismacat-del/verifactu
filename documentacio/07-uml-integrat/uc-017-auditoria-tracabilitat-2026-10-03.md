@@ -296,3 +296,22 @@ Aquesta secció és l'estat vigent de les troballes F-017-01..12 després del ha
 - **Producció:** NO TANCADA.
 
 L'únic bloqueig de tancament funcional que queda és d'**entorn i desplegament controlat**, no una absència coneguda de la implementació candidata: executar CI, desplegar a test/preproducció, executar `preflight-redsys-gift.php`, fer una compra controlada, executar `verify-redsys-gift-preproduction.php DS_ORDER`, provar callback duplicat/retry i conservar l'evidència.
+
+## 11. Revalidació reconciliada — 2026-10-04
+
+La conclusió de l'apartat 10 queda **supeditada** a la revalidació
+`uc-017-revalidacio-exhaustiva-2026-10-04.md`.
+
+S'han detectat i tractat noves troballes:
+- **F-017-19:** handoff checkout trencat/context mutable -> corregit amb `GiftCheckoutToken`;
+- **F-017-20:** idempotència limitada al mateix `DS_ORDER` -> corregida amb lock/reuse/fence
+  per regal i clau de factura REGAL estable;
+- **F-017-21:** superfície ACTUAL `web-actual` i candidata `pay-prisma...` sense mapping
+  de desplegament acreditat -> **pendent i bloquejant per cutover**;
+- **F-017-22:** enllaç CBC llegat no autentica l'IV -> pendent de retirada/hardening;
+- **F-017-23:** proves desalineades amb signatures/noms reals -> corregides.
+
+Per tant, ja no és vàlida de forma aïllada la frase “l'únic bloqueig és d'entorn”:
+el mapping de superfície i la retirada/hardening de l'entrada llegada formen part del
+criteri tècnic de tancament. Estat vigent:
+**CANDIDATE_IMPLEMENTED / VERIFICATION_PENDING / PRODUCTION_NO_GO**.
