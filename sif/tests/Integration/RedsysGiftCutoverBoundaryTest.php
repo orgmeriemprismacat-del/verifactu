@@ -45,6 +45,10 @@ final class RedsysGiftCutoverBoundaryTest
         ) {
             Assert::fail('Gift checkout must not derive Redsys amount from posted amount.');
         }
+
+        if (preg_match('/<\?php\s+echo\s+\$_POST\[/i', $source) === 1) {
+            Assert::fail('Gift checkout must not echo a raw POST value into HTML.');
+        }
     }
 
     public function testGiftMerchantUrlCarriesNoUnsignedPiiOrAmount(): void
