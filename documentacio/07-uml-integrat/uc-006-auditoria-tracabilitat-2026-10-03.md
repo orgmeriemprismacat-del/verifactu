@@ -108,7 +108,7 @@ L'auditoria ampliada ha localitzat una base que redueix el gap de traçabilitat:
 - moviment immutable identificat per UUID i `IDEMPOTENCY_KEY` UNIQUE;
 - `EXTERNAL_ALLOCATION` d'un `CHARGE` confirmat cap a `ID_INSC_DESTI`;
 - variant `COMPENSATION_ALLOCATION` al repositori;
-- `INTERNAL_TRANSFER` implementat com a primitiva idempotent; `REVERSAL` continua només previst pel CHECK;
+- `INTERNAL_TRANSFER` implementat com a primitiva idempotent i `REVERSAL` implementat de forma restringida per desfer transfers quan el destí conserva prou saldo;
 - correlació amb factura/línia/pagament/operació;
 - reús idempotent amb verificació de payload;
 - allocadors reals per curs i pack.
@@ -386,6 +386,7 @@ S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferent
 | Saldo base | Sí | Sí + K/hash + `CREDIT_CREATE` | contrast estàtic + tests afegits | titular/orquestrador/E2E |
 | Compensació base | Sí | Sí + ledger destí | contrast estàtic + tests afegits | titular/identitat d'ordre/E2E |
 | Dret disponible per inscripció | Sí | `availableAmountForInscription()` | contrast estàtic + tests afegits | concurrència real/preprod |
+| Reversió transfer A→B | Sí | `reverseTransfer()` + `REVERSAL` | tests afegits; CI pendent | wiring event/actor/chain |
 | Baixa actual | Sí | Sí | contrast PHP/JS | derivació econòmica |
 | Canvi actual | Sí | Sí parcial + primitiva `INTERNAL_TRANSFER` | contrast PHP/JS + tests afegits | executar `EXCESS_TO_RESOLVE` des del coordinator |
 | Anul·lació factura actual | Sí | Sí | contrast PHP/JS | separar retorn real |
