@@ -22,6 +22,27 @@ final class RedsysCallbackWorker
     {
         $this->queue->recoverStaleLocks($db, $now);
         $job = $this->queue->claimNext($db, $workerId, $now);
+
+        return $this->processClaimedJob($db, $job, $now);
+    }
+
+    public function runOneForDsOrder(
+        \PDO $db,
+        string $dsOrder,
+        string $workerId,
+        \DateTimeImmutable $now
+    ): ?array {
+        $this->queue->recoverStaleLocks($db, $now);
+        $job = $this->queue->claimByDsOrder($db, $dsOrder, $workerId, $now);
+
+        return $this->processClaimedJob($db, $job, $now);
+    }
+
+    private function processClaimedJob(
+        \PDO $db,
+        ?array $job,
+        \DateTimeImmutable $now
+    ): ?array {
         if ($job === null) {
             return null;
         }
