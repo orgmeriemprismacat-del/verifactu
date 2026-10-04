@@ -63,7 +63,7 @@ No existeix una UI/JS que executi UC-011. La migració és CLI.
 
 ### A-011-09 · Risc de futura col·lisió amb fiscal_sequence
 
-**Ara:** si existeix seqüència activa i el número històric és superior a `LAST_NUM`, el preflight bloqueja amb 409. No modifica la seqüència.
+**Ara:** si existeix seqüència activa i el número històric és superior a `LAST_NUM`, el preflight bloqueja amb 409. Si no existeix checkpoint de `fiscal_sequence` per a l'any fiscal actual o futur, també bloqueja fail-closed amb 409. No crea ni modifica la seqüència.
 
 ### A-011-10 · Sense traça funcional
 
