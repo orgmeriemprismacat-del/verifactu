@@ -30,6 +30,26 @@ final class LegacySyncRepository
         ]);
     }
 
+    public function syncGroupFullPayment(
+        \PDO $legacyDb,
+        int $idInsc,
+        string $movementDate
+    ): void {
+        $legacyDb->prepare(
+            "UPDATE inscripcions
+             SET PAGAMENT = A_PAGAR,
+                 `DATA PAG` = CASE
+                     WHEN `DATA PAG` IS NULL OR `DATA PAG` = '' THEN ?
+                     ELSE `DATA PAG`
+                 END,
+                 `INSC CURS` = CASE
+                     WHEN `INSC CURS` = 'M' THEN '1'
+                     ELSE `INSC CURS`
+                 END
+             WHERE ID = ? AND TIPUS_INSC = 'G'"
+        )->execute([$movementDate, $idInsc]);
+    }
+
     public function syncPackFullPayment(
         \PDO $legacyDb,
         int $idInsc,

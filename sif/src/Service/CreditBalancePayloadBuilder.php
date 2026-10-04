@@ -15,6 +15,11 @@ final class CreditBalancePayloadBuilder
             'source_type' => strtoupper($this->requiredString($input, ['source_type', 'origen'], 'source_type')),
         ];
 
+        $idempotencyKey = $this->optionalString($input, ['idempotency_key']);
+        if ($idempotencyKey !== null) {
+            $payload['idempotency_key'] = $idempotencyKey;
+        }
+
         foreach ([
             'holder_id' => ['holder_id', 'id_titular'],
             'source_id' => ['source_id', 'id_origen'],

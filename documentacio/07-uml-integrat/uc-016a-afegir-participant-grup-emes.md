@@ -110,9 +110,17 @@ flowchart LR
 classDiagram
 direction LR
 class GroupParticipantAdditionCoordinator {
- <<DISSENY: no implementada>>
- +preview(command) result
- +confirm(command) result
+ <<PHP implementat>>
+ +preview(db,uuidFactura,candidate) array
+ +confirm(sifDb,legacyDb,...) array
+}
+class GroupParticipantAdditionPreviewService {
+ <<PHP implementat>>
+ +preview(db,uuidFactura,candidate) array
+}
+class GroupParticipantAdditionDecisionService {
+ <<PHP implementat: planificació>>
+ +plan(preview,decision) array
 }
 class OperationalEventRepository {
  <<PHP existent>>
@@ -138,6 +146,8 @@ class EnrollmentFundMovementRepository {
  <<PROPOSTA: no implementada>>
  +append(db,movement) string
 }
+GroupParticipantAdditionCoordinator --> GroupParticipantAdditionPreviewService : previsualització
+GroupParticipantAdditionCoordinator --> GroupParticipantAdditionDecisionService : pla validat
 GroupParticipantAdditionCoordinator --> OperationalEventRepository : traça prevista
 GroupParticipantAdditionCoordinator --> InvoiceService : si nova factura classificada
 GroupParticipantAdditionCoordinator --> ManualRectificationService : si correcció classificada
@@ -190,3 +200,32 @@ Note over C,G: Orquestració i registre de fons NO implementats, no modificar fa
 [Fitxa UC-16a original](../06-fitxes-funcionals/uc-016a.md) · [UC-16 grup](uc-016-facturar-grup.md) · [UC-05 rectificació](uc-005-rectificar-factura.md) · [UC-02 cobrament](uc-002-registrar-cobrament-factura.md) · [UC-71 canvi](uc-071-registrar-canvi-curs-complet.md) · [Revisió fons per inscripció](00-revisio-moviments-inscripcions.md) · [LegacyGroupInvoicePayloadBuilder](../../sif/src/Service/LegacyGroupInvoicePayloadBuilder.php) · [ManualRectificationService](../../sif/src/Service/ManualRectificationService.php) · [OperationalEventRepository](../../sif/src/Repository/OperationalEventRepository.php).
 
 **Sense proves executades.** Bloquejants de tancament: política d'ampliació, classificació fiscal, autorització empresa/responsable, ledger individual, transacció amb llegat i prova d'idempotència.
+
+
+## 6. Estat executiu després de la continuació
+
+La fase de **previsualització segura** ja és executable. `GroupParticipantAdditionPreviewService` comprova factura/grup, duplicats, IDPAG i coherència dels imports del candidat, i retorna la projecció nominal del grup sense editar la factura original.
+
+La fase `confirm` continua fail-closed perquè afegir una persona pot canviar el tram de `descomptes_grup`; no es crea automàticament una factura complementària ni una rectificativa fins que aquesta política estigui aprovada.
+
+
+## 7. Planificador de decisió
+
+`GroupParticipantAdditionDecisionService` separa explícitament:
+1. alta acadèmica;
+2. document fiscal del nou participant o revisió del grup;
+3. cobrament posterior real.
+
+No registra cap pagament en planificar l'alta. Si la política és `KEEP_EXISTING_MEMBER_PRICES` i l'acció és `SUPPLEMENTAL_INVOICE_PARTICIPANT`, genera un pla nominal pel total del candidat; si cal repricing del grup, crea una acció separada que exigeix classificació fiscal.
+
+
+## 8. Saga implementada
+
+`GroupParticipantAdditionCoordinator` persisteix execució i passos, valida fingerprint i reprèn retries sense repetir l'alta. El pas acadèmic és executable via gateway; el pas fiscal queda `WAITING_EXTERNAL` fins disposar d'un executor fiscal específic aprovat.
+
+
+## 8. Execució implementada del subcas segur
+
+`GroupParticipantAdditionCoordinator` ja persisteix una saga idempotent. Quan la decisió aprovada és mantenir el preu dels membres existents i emetre una factura independent per la persona nova, `GroupParticipantSupplementalInvoiceService` crea una A/F1 nova amb el mateix receptor fiscal i perfil exempt homogeni de la factura original.
+
+Si el grup té perfil fiscal heterogeni/no exempt o la decisió implica rectificar/reprecificar la resta, el servei falla tancat o queda `WAITING_EXTERNAL`. No es modifica la factura original.

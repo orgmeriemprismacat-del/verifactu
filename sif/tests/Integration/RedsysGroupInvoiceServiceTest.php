@@ -3,8 +3,11 @@
 namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\LegacyGroupSnapshotRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Service\GroupEnrollmentFundAllocationService;
 use Prisma\Sif\Service\LegacyGroupInvoicePayloadBuilder;
 use Prisma\Sif\Service\RedsysGroupInvoiceService;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
@@ -56,6 +59,10 @@ final class RedsysGroupInvoiceServiceTest
         Assert::same(2, (int) $sifDb->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
         Assert::same(3, (int) $sifDb->query('SELECT COUNT(*) FROM fact_rels WHERE VISIBLE_ALUMNE = 0')->fetchColumn());
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(2, (int) $sifDb->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+        Assert::same(2, $first['fund_allocations']['count']);
+        Assert::same('200.00', $first['fund_allocations']['amount']);
+        Assert::same(2, $second['fund_allocations']['count']);
         Assert::same(8, count($legacyDb->preparedSql));
 
         $invoice = $sifDb->query('SELECT IDEMPOTENCY_KEY, TOTAL, ESTAT_COBRAMENT FROM factura')
@@ -119,7 +126,10 @@ final class RedsysGroupInvoiceServiceTest
             new LegacyGroupSnapshotRepository(),
             new LegacyGroupInvoicePayloadBuilder(),
             new RedsysInvoicePayloadBuilder($notifications),
-            IssueInvoiceTest::serviceFor($sifDb)
+            IssueInvoiceTest::serviceFor($sifDb),
+            new GroupEnrollmentFundAllocationService(
+                new EnrollmentFundMovementRepository(new UuidGenerator())
+            )
         );
     }
 

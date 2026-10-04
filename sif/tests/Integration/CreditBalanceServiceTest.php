@@ -58,6 +58,36 @@ final class CreditBalanceServiceTest
         Assert::same('ACTIVE', $credit['ESTAT']);
     }
 
+    public function testCreateCreditReusesExplicitIdempotencyKeyAndRejectsPayloadDrift(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $input = [
+            'idempotency_key' => 'UC016B|CREDIT|EXEC:ABC',
+            'holder_type' => 'RESPONSABLE',
+            'holder_name' => 'Responsable Grup',
+            'holder_nif_cif' => '44444444G',
+            'amount' => '40.00',
+            'source_type' => 'INSCRIPCIO_GRUP',
+            'source_id' => 751,
+        ];
+
+        $first = $service->createCredit($input);
+        $second = $service->createCredit($input);
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($first['uuid_credit'], $second['uuid_credit']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM credit_balance')->fetchColumn());
+
+        Assert::throws(SifException::class, function () use ($service, $input): void {
+            $input['amount'] = '41.00';
+            $service->createCredit($input);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM credit_balance')->fetchColumn());
+    }
+
     public function testAppliesCreditAsCompensationAndConsumesAvailableBalanceOnce(): void
     {
         $db = TestDatabase::fresh();

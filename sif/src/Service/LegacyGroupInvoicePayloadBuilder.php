@@ -158,6 +158,10 @@ final class LegacyGroupInvoicePayloadBuilder
             throw SifException::validation('Invalid group discount amount');
         }
 
+        if ($this->cents($base) - $this->cents($discount) !== $this->cents($total)) {
+            throw SifException::validation('Inconsistent group line amounts');
+        }
+
         return [
             'import_base' => $base,
             'discount_amount' => $discount,
@@ -265,6 +269,14 @@ final class LegacyGroupInvoicePayloadBuilder
         }
 
         return number_format((float) $value, 2, '.', '');
+    }
+
+    private function cents(mixed $value): int
+    {
+        $normalized = $this->money($value);
+        [$euros, $decimals] = explode('.', $normalized, 2);
+
+        return ((int) $euros * 100) + (int) $decimals;
     }
 
     private function requiredArray(array $data, string $key): array

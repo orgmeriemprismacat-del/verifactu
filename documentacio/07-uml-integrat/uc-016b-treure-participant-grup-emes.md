@@ -117,9 +117,9 @@ flowchart LR
 classDiagram
 direction LR
 class GroupParticipantRemovalCoordinator {
- <<DISSENY: no implementada>>
- +preview(command) result
- +confirm(command) result
+ <<PHP implementat>>
+ +preview(db,uuidFactura,idInsc) array
+ +confirm(sifDb,legacyDb,...) array
 }
 class OperationalEventRepository {
  <<PHP existent>>
@@ -138,15 +138,26 @@ class CreditBalanceService {
  +createCredit(input) array
 }
 class EnrollmentFundMovementRepository {
- <<PROPOSTA: no implementada>>
- +balanceForEnrollment(db,idInsc) decimal
- +append(db,movement) string
+ <<PHP existent>>
+ +attributedBalanceForEnrollment(db,idInsc,uuidFactura) string
+ +movementsForEnrollment(db,idInsc,uuidFactura) array
+}
+class GroupParticipantRemovalPreviewService {
+ <<PHP implementat>>
+ +preview(db,uuidFactura,idInsc) array
+}
+class GroupParticipantRemovalDecisionService {
+ <<PHP implementat: planificació>>
+ +plan(preview,decision) array
 }
 GroupParticipantRemovalCoordinator --> OperationalEventRepository : event previst
 GroupParticipantRemovalCoordinator --> ManualRectificationService : correcció fiscal classificada
 GroupParticipantRemovalCoordinator --> ManualRefundService : retorn real
 GroupParticipantRemovalCoordinator --> CreditBalanceService : saldo aprovat
 GroupParticipantRemovalCoordinator --> EnrollmentFundMovementRepository : trams per inscripció
+GroupParticipantRemovalCoordinator --> GroupParticipantRemovalPreviewService : previsualització segura
+GroupParticipantRemovalPreviewService --> EnrollmentFundMovementRepository : saldo i moviments
+GroupParticipantRemovalCoordinator --> GroupParticipantRemovalDecisionService : pla validat
 ```
 
 ## 4. Seqüència objectiu — baixa individual d'un grup facturat
@@ -158,7 +169,8 @@ actor O as Operador
 participant UI as Intranet [pendent]
 participant C as GroupParticipantRemovalCoordinator [DISSENY]
 participant Legacy as Grup i inscripcions llegades
-participant L as Ledger per inscripció [PROPOSTA]
+participant L as Ledger per inscripció [PHP]
+participant PV as GroupParticipantRemovalPreviewService [PHP]
 participant Ev as OperationalEventRepository [PHP]
 participant F as Classificació fiscal [pendent]
 participant Rect as ManualRectificationService [PHP]
@@ -225,3 +237,43 @@ Note over G,M: L'orquestrador de retirada, la política de reprecificació i el 
 [UC-16b original](../06-fitxes-funcionals/uc-016b.md) · [UC-16 grup](uc-016-facturar-grup.md) · [UC-27 baixa](uc-027-donar-de-baixa.md) · [UC-72 expedient](uc-072-registrar-baixa-decisio-economica.md) · [UC-05 correcció](uc-005-rectificar-factura.md) · [UC-28 retorn](uc-028-registrar-devolucio.md) · [UC-29 saldo](uc-029-crear-saldo.md) · [Revisió fons individual](00-revisio-moviments-inscripcions.md) · [ManualRectificationService](../../sif/src/Service/ManualRectificationService.php) · [OperationalEventRepository](../../sif/src/Repository/OperationalEventRepository.php).
 
 **No s'han executat proves PHP ni s'ha acreditat la classificació fiscal d'aquest cas a un entorn real.**
+
+
+## 6. Estat executiu després de la continuació
+
+La part de **localització i quantificació individual** ja està implementada. `GroupParticipantRemovalPreviewService` pot reconstruir per `UUID_FACTURA + ID_INSC`:
+`LINIA_TOTAL`, fons atribuïts nets, pendent, màxim retornable abans de política, receptor i moviments de ledger.
+
+El coordinador de confirmació continua intencionadament no implementat perquè una baixa pot canviar el tram comercial dels restants i aquesta política no està aprovada. Cap servei nou modifica la factura original ni crea un REFUND fictici.
+
+
+## 7. Planificador de decisió
+
+`GroupParticipantRemovalDecisionService` transforma la previsualització i una decisió explícita en accions tipificades:
+`ACADEMIC_REMOVAL`, `RECTIFICATION`, `REFUND`, `CREDIT` i, si escau, `REPRICE_REMAINING_GROUP`.
+
+No executa cap moviment. Rebutja plans on la disposició econòmica supera els fons atribuïts o on falta informació obligatòria del refund/saldo. Això permet construir el futur coordinador sense acoblar la decisió fiscal a l'efecte bancari.
+
+
+## 8. Saga implementada
+
+`GroupParticipantRemovalCoordinator` executa i reprèn passos idempotents. Un pla de baixa pot completar:
+`ACADEMIC_REMOVAL → RECTIFICATION → REFUND → FUND_REFUND → CREDIT → FUND_CREDIT`.
+
+`EnrollmentFundDispositionService` aplica reversals parcials idempotents. S'ha corregit el càlcul del saldo perquè un reversal parcial resti el seu propi import i no l'import complet del moviment origen.
+
+La saga queda en `WAITING_EXTERNAL` quan el pla demana repricing dels membres restants o disposició comptable no-retornable encara no classificada.
+
+
+## 8. Execució implementada de la saga de baixa
+
+`GroupParticipantRemovalCoordinator` utilitza `group_participant_change_execution` i `group_participant_change_step` per reprendre sense repetir efectes irreversibles.
+
+Subprocessos implementats:
+- baixa acadèmica mitjançant gateway;
+- rectificativa via `ManualRectificationService`;
+- refund real via `ManualRefundService`;
+- saldo via `CreditBalanceService`;
+- baixa quantitativa dels fons via `EnrollmentFundDispositionService`.
+
+Una execució no queda `COMPLETED` si resta import atribuït sense disposició explícita. Els reversals parcials redueixen només el seu import real.
