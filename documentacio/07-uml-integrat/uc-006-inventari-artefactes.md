@@ -98,7 +98,7 @@ El repositori també implementa `availableAmountForInscription()` i impedeix que
 | --- | --- |
 | `payment_action_event` schema | EXISTEIX |
 | `PaymentActionEventRepository` | EXISTEIX |
-| `PaymentActionGateway` | EXISTEIX |
+| `PaymentActionGateway` | EXISTEIX · cablejat a transfer/reversal |
 | `operational_event` schema | EXISTEIX |
 | `OperationalEventRepository` | EXISTEIX |
 | `course_change_event` | EXISTEIX A MIGRACIÓ |
@@ -122,7 +122,7 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 | C-07 | `UUID_CREDIT` al ledger i aplicació a inscripció | **IMPLEMENTAT** · FK + `COMPENSATION_ALLOCATION` |
 | C-08 | Política de titularitat saldo/refund/factura | FALTA · BLOQUEJANT |
 | C-09 | Evidència externa de refund / pending-confirmed | FALTA GENÈRIC |
-| C-10 | Wiring de `PaymentActionGateway` | FALTA UC-006 |
+| C-10 | Wiring de `PaymentActionGateway` | **PARCIAL** · `REALLOCATE`/`UNALLOCATE` implementats; resta refund/saldo/compensació/controller |
 | C-11 | Wiring amb baixa | FALTA |
 | C-12 | Primitiva `INTERNAL_TRANSFER` | **IMPLEMENTADA** · builder + servei + repo + CLI + proves |
 | C-12c | `REVERSAL` de transfer | **IMPLEMENTAT RESTRINGIT** · només `INTERNAL_TRANSFER`, amb guard de disponible |
@@ -166,7 +166,7 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 - generació/autorització de K explícita per ordres de compensació des de la UI (el servei ja suporta dues K diferents);
 - wiring del `CourseChangeCoordinator` a `EnrollmentFundTransferService`;
 - concurrència simultània real de dues sessions consumint el mateix dret;
-- audit REQUESTED + terminal;
+- audit REQUESTED + terminal per refund/saldo/compensació/controller (transfer/reversal ja coberts);
 - autorització endpoint;
 - E2E baixa → decisió → efecte econòmic;
 - E2E canvi → reassignació/refund/saldo;
