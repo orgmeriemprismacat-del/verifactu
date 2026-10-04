@@ -58,6 +58,96 @@ final class RedsysInvoicePayloadBuilderTest
         Assert::same('PAID', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
     }
 
+
+    public function testResolvesCommercialOperationFromPersistedRedsysIntent(): void
+    {
+        $db = TestDatabase::fresh();
+        $notifications = new RedsysNotificationRepository();
+        $builder = new RedsysInvoicePayloadBuilder($notifications);
+        $uuidIntent = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+        $uuidOperation = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+
+        $db->prepare(
+            'INSERT INTO redsys_payment_intent (
+                UUID_INTENT, DS_ORDER, IDPAG, SOURCE_TYPE, SOURCE_ID,
+                EXPECTED_AMOUNT, CURRENCY, TERMINAL, SNAPSHOT_JSON, STATUS, CREATED_BY
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([
+            $uuidIntent,
+            'ORDER302',
+            302,
+            'CURS',
+            '302',
+            '120.00',
+            'EUR',
+            '1',
+            '{}',
+            'PENDING',
+            'test-runner',
+        ]);
+
+        $db->prepare(
+            'INSERT INTO commercial_operation (
+                UUID_OPERATION, IDEMPOTENCY_KEY, OPERATION_TYPE, SOURCE_CHANNEL,
+                SOURCE_TYPE, SOURCE_ID, PRODUCT_TYPE, PRODUCT_CODE, PRODUCT_EDITION,
+                CLASSIFICATION, CLASSIFICATION_REASON, STATUS, CURRENCY,
+                GROSS_AMOUNT, DISCOUNT_AMOUNT, NET_AMOUNT,
+                PRICE_SNAPSHOT_JSON, CAPACITY_SNAPSHOT_JSON, TAX_SNAPSHOT_JSON,
+                UUID_INTENT, CREATED_BY
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)'
+        )->execute([
+            $uuidOperation,
+            'COMMERCIAL|UC001|REDSYS-OP',
+            'COURSE_ENROLLMENT',
+            'WEB',
+            'INSCRIPCIO',
+            '302',
+            'CURS',
+            'TEST',
+            '2026-10',
+            'SALE',
+            'COURSE_ENROLLMENT',
+            'INTENT_CREATED',
+            'EUR',
+            '120.00',
+            '0.00',
+            '120.00',
+            '{}',
+            '{}',
+            $uuidIntent,
+            'test-runner',
+        ]);
+
+        $notifications->recordReceived(
+            $db,
+            'ORDER302',
+            302,
+            '120.00',
+            '0000',
+            true,
+            ['source' => 'test'],
+            'VALIDATED'
+        );
+
+        $payload = $builder->buildFromValidatedNotification(
+            $db,
+            'ORDER302',
+            Fixtures::invoicePayload()
+        );
+
+        Assert::same($uuidOperation, $payload['uuid_operation']);
+
+        $result = IssueInvoiceTest::serviceFor($db)->issueInvoice($payload);
+
+        Assert::same(
+            $result['uuid_factura'],
+            (string) $db->query(
+                'SELECT UUID_FACTURA FROM commercial_operation WHERE UUID_OPERATION = '
+                . $db->quote($uuidOperation)
+            )->fetchColumn()
+        );
+    }
+
     public function testRejectsNotificationThatIsNotValidated(): void
     {
         $db = TestDatabase::fresh();

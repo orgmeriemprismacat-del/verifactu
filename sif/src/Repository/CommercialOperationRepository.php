@@ -26,6 +26,27 @@ final class CommercialOperationRepository
         );
     }
 
+
+    public function findByIntentUuid(\PDO $db, string $uuidIntent, bool $forUpdate = false): ?array
+    {
+        $sql = 'SELECT * FROM commercial_operation WHERE UUID_INTENT = ? LIMIT 2';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$uuidIntent]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        if (!is_array($rows) || $rows === []) {
+            return null;
+        }
+        if (count($rows) > 1) {
+            throw SifException::conflict('Redsys intent is linked to multiple commercial operations');
+        }
+
+        return $rows[0];
+    }
+
     public function insert(\PDO $db, array $operation): array
     {
         $db->prepare(
@@ -102,6 +123,45 @@ final class CommercialOperationRepository
 
         if ($stmt->rowCount() !== 1) {
             throw SifException::conflict('Commercial operation intent link could not be updated');
+        }
+    }
+
+
+    public function linkInvoice(
+        \PDO $db,
+        string $uuidOperation,
+        string $uuidFactura
+    ): void {
+        $operation = $this->findByUuid($db, $uuidOperation, true);
+        if ($operation === null) {
+            throw SifException::notFound('Commercial operation not found');
+        }
+
+        $current = $this->nullableString($operation['UUID_FACTURA'] ?? null);
+        if ($current === $uuidFactura) {
+            return;
+        }
+        if ($current !== null) {
+            throw SifException::conflict('Commercial operation is already linked to another invoice');
+        }
+
+        $stmt = $db->prepare(
+            'UPDATE commercial_operation
+             SET UUID_FACTURA = ?
+             WHERE UUID_OPERATION = ?
+               AND UUID_FACTURA IS NULL'
+        );
+        $stmt->execute([$uuidFactura, $uuidOperation]);
+
+        if ($stmt->rowCount() !== 1) {
+            $latest = $this->findByUuid($db, $uuidOperation, true);
+            if ($latest !== null
+                && $this->nullableString($latest['UUID_FACTURA'] ?? null) === $uuidFactura
+            ) {
+                return;
+            }
+
+            throw SifException::conflict('Commercial operation invoice link could not be updated');
         }
     }
 

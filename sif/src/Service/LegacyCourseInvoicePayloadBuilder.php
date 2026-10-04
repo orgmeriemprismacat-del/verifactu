@@ -27,7 +27,7 @@ final class LegacyCourseInvoicePayloadBuilder
         $amount = $this->amount($snapshot, $inscription);
         $amounts = $this->lineAmounts($snapshot, $inscription, $amount);
 
-        return [
+        $payload = [
             'idempotency_key' => 'LEGACY|CURS|INSCRIPCIO:' . $inscriptionId,
             'series' => 'A',
             'year' => $year,
@@ -52,6 +52,21 @@ final class LegacyCourseInvoicePayloadBuilder
                 $this->relation($inscription, $inscriptionId),
             ],
         ];
+
+        $operation = $snapshot['operation'] ?? null;
+        if (is_array($operation)) {
+            $uuidOperation = trim((string) ($operation['uuid'] ?? ''));
+            if ($uuidOperation !== '') {
+                $payload['uuid_operation'] = $uuidOperation;
+            }
+
+            $uuidOperationLine = trim((string) ($operation['line_uuid'] ?? ''));
+            if ($uuidOperationLine !== '') {
+                $payload['lines'][0]['uuid_operation_line'] = $uuidOperationLine;
+            }
+        }
+
+        return $payload;
     }
 
     private function billing(array $inscription): array

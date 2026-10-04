@@ -38,7 +38,7 @@ Quan una peça no aplica, s'ha de justificar explícitament en lloc de crear un 
 
 | ID | Cas d'ús | Fitxa integrada | Estat original |
 | --- | --- | --- | --- |
-| UC-01 | Emetre o reutilitzar factura | [Fitxa i UML](uc-001-emetre-o-reutilitzar-factura.md) | `[BASE]` |
+| UC-01 | Emetre o reutilitzar factura | [Fitxa i UML](uc-001-emetre-o-reutilitzar-factura.md) · [auditoria i traçabilitat](uc-001-auditoria-tracabilitat-2026-10-02.md) · [classes A/F](uc-001-classes-actual-final.md) · [seqüències A/F](uc-001-sequencies-actual-final.md) · [activitats A/F](uc-001-activitats-superficies-actual-final.md) · [inventari PHP/JS](uc-001-inventari-codi-php-js-actual-final-2026-10-02.md) · [revalidació 03/10](uc-001-revalidacio-2026-10-03.md) | `[RECONCILIAT #145 · CORE ENDURIT · TRAÇA REDSYS/ALUMNE PRISMA E2E IMPLEMENTADA · CI #145/PREPROD/F107/F109 PENDENTS]` |
 | UC-02 | Registrar pagament sobre factura | [Fitxa i UML](uc-002-registrar-cobrament-factura.md) | `[BASE]` |
 | UC-03 | Processar cobrament Redsys asíncron | [Fitxa i UML](uc-003-processar-cobrament-redsys-asincron.md) | `[ASYNC]` |
 | UC-04 | Emetre factura abans de cobrar | [Fitxa i UML](uc-004-emetre-factura-abans-cobrar.md) | `[PARCIAL]` |
@@ -51,7 +51,7 @@ Quan una peça no aplica, s'ha de justificar explícitament en lloc de crear un 
 | UC-11 | Importar factura històrica | [Fitxa i UML](uc-011-importar-factura-historica.md) | `[BASE]` |
 | UC-12 | Gestionar el cicle de morositat i reclamació | [Fitxa i UML](uc-012-morositat-reclamacio.md) | `[PARCIAL]` |
 | UC-13 | Orquestrar la doble facturació USOC | [Fitxa i UML](uc-013-orquestrar-doble-facturacio-usoc.md) | `[PARCIAL]` |
-| UC-14 | Comprar curs normal per Redsys | [Fitxa i UML](uc-014-comprar-curs-redsys.md) · [classes A/F](uc-014-classes-actual-final.md) · [seqüències A/F](uc-014-sequencies-actual-final.md) · [activitats RM-037](uc-014-activitats-pagines-redsys-actual-final.md) · [auditoria 02/10](uc-014-auditoria-tracabilitat-2026-10-02.md) · [tancament](uc-014-tancament-auditoria-2026-10-02.md) | `[AUDITORIA + IMPLEMENTACIÓ TANCADES · ACCEPTACIÓ REDSYS PREPROD/CUTOVER PENDENT]` |
+| UC-14 | Comprar curs normal per Redsys | [Fitxa i UML](uc-014-comprar-curs-redsys.md) · [classes A/F](uc-014-classes-actual-final.md) · [seqüències A/F](uc-014-sequencies-actual-final.md) · [activitats RM-037](uc-014-activitats-pagines-redsys-actual-final.md) · [auditoria 02/10](uc-014-auditoria-tracabilitat-2026-10-02.md) · [tancament](uc-014-tancament-auditoria-2026-10-02.md) · [CI net 04/10](uc-014-reconciliacio-ci-main-2026-10-04.md) | `[AUDITORIA + IMPLEMENTACIÓ TANCADES · GATE UC-014 SELECTIU · ACCEPTACIÓ REDSYS PREPROD/CUTOVER PENDENT]` |
 | UC-14a | Comprar taller | [Fitxa i UML](uc-014a-comprar-taller.md) | `[PARCIAL]` |
 | UC-14b | Comprar jornada | [Fitxa i UML](uc-014b-comprar-jornada.md) | `[PARCIAL]` |
 | UC-15 | Comprar pack | [Fitxa i UML](uc-015-comprar-pack.md) | `[BASE/ASYNC/PARCIAL]` |

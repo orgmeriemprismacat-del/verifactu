@@ -43,6 +43,7 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same('INTENT_CREATED', $result['status']);
         Assert::same('90.00', $result['amount']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation_line')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
@@ -55,6 +56,13 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same('30.00', (string) $operation['DISCOUNT_AMOUNT']);
         Assert::same('90.00', (string) $operation['NET_AMOUNT']);
         Assert::same($result['uuid_intent'], $operation['UUID_INTENT']);
+
+        $operationLine = $db->query('SELECT * FROM commercial_operation_line')->fetch(\PDO::FETCH_ASSOC);
+        Assert::same($result['uuid_operation_line'], $operationLine['UUID_LINE']);
+        Assert::same($result['uuid_operation'], $operationLine['UUID_OPERATION']);
+        Assert::same('CURS', $operationLine['PRODUCT_TYPE']);
+        Assert::same('90.00', (string) $operationLine['NET_AMOUNT']);
+        Assert::same('PRICE-2026-10', $operationLine['PRICE_RULE_VERSION']);
 
         $validation = $db->query('SELECT * FROM discount_validation')->fetch(\PDO::FETCH_ASSOC);
         Assert::same('ALUMNE_PRISMA', $validation['DISCOUNT_TYPE']);
@@ -71,6 +79,8 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same('ALUMNE_PRISMA', $snapshot['discount']['origin']);
         Assert::same(false, trim((string) $snapshot['discount']['validation_uuid']) === '');
         Assert::same(200, (int) $snapshot['inscription']['ID']);
+        Assert::same($result['uuid_operation'], $snapshot['operation']['uuid']);
+        Assert::same($result['uuid_operation_line'], $snapshot['operation']['line_uuid']);
     }
 
     public function testEquivalentRetryReusesOperationValidationAndIntent(): void
@@ -91,6 +101,7 @@ final class PrismaStudentCourseCheckoutServiceTest
         );
 
         Assert::same($first['uuid_operation'], $second['uuid_operation']);
+        Assert::same($first['uuid_operation_line'], $second['uuid_operation_line']);
         Assert::same($first['uuid_validation'], $second['uuid_validation']);
         Assert::same($first['uuid_intent'], $second['uuid_intent']);
         Assert::same(true, $second['idempotency_reused']);

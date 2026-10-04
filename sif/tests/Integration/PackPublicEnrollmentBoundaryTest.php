@@ -51,13 +51,22 @@ final class PackPublicEnrollmentBoundaryTest
             Assert::fail('Could not load PACK public enrollment endpoint');
         }
 
+        $authorizationPath = dirname($path) . '/../inc/PublicWebMutationAuthorization.php';
+        $authorization = file_get_contents($authorizationPath);
+        if (!is_string($authorization)) {
+            Assert::fail('Could not load public mutation authorization helper');
+        }
+
         Assert::stringContainsString('HTTP_SEC_FETCH_SITE', $source);
-        Assert::stringContainsString('HTTP_ORIGIN', $source);
-        Assert::stringContainsString('HTTP_REFERER', $source);
-        Assert::stringContainsString("'www.prisma.cat', 'prisma.cat'", $source);
+        Assert::stringContainsString('PublicWebMutationAuthorization::assertSameOriginAjax()', $source);
+        Assert::stringContainsString('HTTP_ORIGIN', $authorization);
+        Assert::stringContainsString('HTTP_REFERER', $authorization);
+        Assert::stringContainsString('WEB_ALLOWED_ORIGINS', $authorization);
+        Assert::stringContainsString('https://www.prisma.cat;https://prisma.cat', $authorization);
         Assert::stringContainsString("Cache-Control: no-store", $source);
 
         $methodGuard = strpos($source, 'REQUEST_METHOD');
+        $authorizationGuard = strpos($source, 'PublicWebMutationAuthorization::assertSameOriginAjax()');
         $siteGuard = strpos($source, 'HTTP_SEC_FETCH_SITE');
         $request = strpos($source, '$request = $_POST;');
         $firstInput = strpos($source, "new Text(\$request['nom'])");
@@ -67,6 +76,8 @@ final class PackPublicEnrollmentBoundaryTest
         Assert::same(true, $request !== false);
         Assert::same(true, $firstInput !== false);
         Assert::same(true, $methodGuard < $request);
+        Assert::same(true, $authorizationGuard !== false);
+        Assert::same(true, $authorizationGuard < $request);
         Assert::same(true, $siteGuard < $request);
         Assert::same(true, $request < $firstInput);
     }
