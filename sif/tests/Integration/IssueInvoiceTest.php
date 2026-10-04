@@ -6,6 +6,7 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\EnrollmentPaymentFlowLockRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentRedsysGuardRepository;
@@ -131,7 +132,8 @@ final class IssueInvoiceTest
             new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator()),
             null,
             new InvoiceBeforePaymentCoverageRepository(),
-            new InvoiceBeforePaymentRedsysGuardRepository()
+            new InvoiceBeforePaymentRedsysGuardRepository(),
+            new EnrollmentPaymentFlowLockRepository()
         );
     }
 
