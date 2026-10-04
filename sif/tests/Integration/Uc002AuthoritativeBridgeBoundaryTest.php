@@ -29,6 +29,8 @@ final class Uc002AuthoritativeBridgeBoundaryTest
         Assert::stringContainsString('registerExistingInvoicePayment', $proxy);
         Assert::stringContainsString("'PENDING_RETRY'", $proxy);
         Assert::stringContainsString("'SYNCED'", $proxy);
+        Assert::stringContainsString('flux Redsys autoritatiu', $proxy);
+        Assert::stringContainsString("['caixa', 'bbva']", $proxy);
 
         Assert::stringContainsString("getenv('SIF_UC002_AUTHORITATIVE')", $access);
         Assert::stringContainsString('SIF_INTERNAL_PAYMENT_URL', $client);
