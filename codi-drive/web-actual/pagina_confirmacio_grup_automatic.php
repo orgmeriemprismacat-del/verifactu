@@ -1,6 +1,14 @@
+<?php
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('Referrer-Policy: no-referrer');
+header('X-Content-Type-Options: nosniff');
+header('X-Robots-Tag: noindex, nofollow, noarchive');
+?>
 <!DOCTYPE HTML PUBLIC "-/W3C/DTD HTML 4.01/EN" "http:/www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http:/ogp.me/ns# fb: http:/ogp.me/ns/fb# video: http:/ogp.me/ns/video#">
 <head>
+	<meta name="robots" content="noindex,nofollow,noarchive">
 	<script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -26,7 +34,8 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-DD77YFRVS0"></script>
 <script>
   gtag('js', new Date());
-  gtag('config', 'G-DD77YFRVS0');gtag('config', 'AW-10936157157');
+  gtag('config', 'G-DD77YFRVS0', {'send_page_view': false});
+  gtag('config', 'AW-10936157157', {'send_page_view': false});
 
   function consentGrantedAdStorage() {
     console.log('consentGrantedAdStorage');
