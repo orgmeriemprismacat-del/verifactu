@@ -1,8 +1,9 @@
 # UC-024 — Classes ACTUAL / FINAL
 
 **Revisió:** 03/10/2026  
-**ACTUAL:** lectura del codi de `main`.  
-**FINAL:** arquitectura objectiu; no implica implementació.
+**ACTUAL:** lectura del codi de `main` abans dels canvis de l’auditoria.  
+**BRANCA 04/10/2026:** implementació creada a `audit/uc-024-2026-10-03`; encara sense evidència E2E/preproducció.  
+**FINAL:** arquitectura objectiu restant.
 
 ## 1. ACTUAL — nucli SIF executable
 
@@ -44,6 +45,50 @@ PaymentRepository --> PaymentStatusCalculator
 - `created_by` no té persistència específica al moviment.
 - No hi ha classe executable `ClaimCaseRepository`, `ClaimExternalReceiptResolver` ni `ClaimCaseReconciler` localitzada per UC-024.
 - El saldo no es valida al servei abans de crear el `CHARGE`.
+
+## 1B. BRANCA 04/10/2026 — frontera segura implementada
+
+```mermaid
+classDiagram
+direction LR
+class ClaimPaymentBrowserUI
+class ClaimPaymentIntranetBridge
+class SifAuthenticatedActor
+class SifInternalClaimPaymentClient
+class InternalApiAuthenticator
+class ClaimPaymentInvoiceLinkRepository
+class ClaimPaymentReceiptResolver
+class ClaimPaymentExternalReceiptRepository
+class ClaimPaymentBalanceGuard
+class ClaimPaymentLegacySyncService
+class ClaimPaymentService
+class PaymentService
+class PaymentActionGateway
+class PaymentActionEventRepository
+
+ClaimPaymentBrowserUI --> ClaimPaymentIntranetBridge
+ClaimPaymentIntranetBridge --> SifAuthenticatedActor
+ClaimPaymentIntranetBridge --> SifInternalClaimPaymentClient
+SifInternalClaimPaymentClient --> InternalApiAuthenticator
+InternalApiAuthenticator --> PaymentActionGateway
+PaymentActionGateway --> ClaimPaymentInvoiceLinkRepository
+PaymentActionGateway --> ClaimPaymentReceiptResolver
+ClaimPaymentReceiptResolver --> ClaimPaymentExternalReceiptRepository
+PaymentActionGateway --> ClaimPaymentBalanceGuard
+PaymentActionGateway --> ClaimPaymentService
+ClaimPaymentService --> PaymentService
+PaymentActionGateway --> PaymentActionEventRepository
+PaymentActionGateway --> ClaimPaymentLegacySyncService
+```
+
+### Propietats de la branca
+
+- UI carregada només amb `SIF_CLAIM_PAYMENT_UI_ENABLED=1`.
+- El navegador envia `idInsc`, tipus/id del rebut, import, data, mètode i observacions; **no** envia factura, actor ni `claim_case_id`.
+- El bridge deriva `claim_case_id = LEGACY-INSC:<id>:<fase>`, valida CSRF/origen/permís i obté actor/rol de sessió.
+- L’API resol la factura d’origen des de `fact_rels`, exigeix `IDPAG`, reconcilia el rebut intercanal i bloqueja sobrepagaments nous.
+- `PaymentActionGateway` audita el registre econòmic; `SYNC_LEGACY` audita la projecció posterior.
+- `ClaimPaymentLegacySyncService` només projecta si la línia base és coherent o si el retry explica exactament la diferència.
 
 ## 2. ACTUAL — frontera intranet llegada
 
