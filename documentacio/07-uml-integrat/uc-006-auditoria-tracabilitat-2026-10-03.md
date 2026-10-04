@@ -168,7 +168,7 @@ La fitxa antiga agrupava `sif_audit_event`, `operational_event`, `payment_action
 
 ### 6.1 REFUND — UC-28
 
-**Implementat**
+**Implementat base**
 - identificació de factura;
 - import positiu;
 - data;
@@ -177,45 +177,66 @@ La fitxa antiga agrupava `sif_audit_event`, `operational_event`, `payment_action
 - idempotència de pagament amb payload hash;
 - estat de cobrament recalculat.
 
+**Implementat en aquesta branca quan hi ha `source_enrollment_id`**
+- `ManualRefundService` comparteix transacció amb `PaymentService::registerPaymentInTransaction()`;
+- el REFUND confirmat queda vinculat a un `REFUND_EXIT` del ledger;
+- `availableAmountForInscription()` bloqueja i reconstrueix el dret net;
+- una sortida superior al dret disponible provoca 409 i rollback del REFUND, `payment_allocation` i estat de factura;
+- la suma de `REFUND_EXIT` sobre un mateix `UUID_PAYMENT` no pot superar l'import del REFUND;
+- reintent equivalent reutilitza el mateix moviment i la mateixa sortida.
+
 **No implementat/acreditat**
-- dret retornable per inscripció/origen;
-- retorn no superior al valor net disponible;
-- titular;
-- sortida bancària/Redsys confirmada;
+- titular/receptor legítim del retorn;
+- evidència bancària/Redsys genèrica abans de registrar el REFUND;
 - deduplicació cross-channel del mateix retorn extern;
-- adaptador productiu UC-006.
+- partició automàtica de factures conjuntes si el caller no identifica la inscripció origen;
+- `PaymentActionGateway` i adaptador productiu UC-006.
 
 ### 6.2 CREDIT_BALANCE — UC-29
 
-**Implementat**
+**Implementat base**
 - titular declarat;
 - import;
 - origen declarat;
-- persistència ACTIVE.
+- persistència `ACTIVE`.
+
+**Implementat en aquesta branca**
+- `IDEMPOTENCY_KEY` opcional + hash canònic;
+- mateixa clau/payload reutilitza el mateix `UUID_CREDIT`; payload contradictori dona 409;
+- si s'aporta `source_enrollment_id`, la clau idempotent passa a ser obligatòria;
+- `CREDIT_CREATE` consumeix el dret de l'inscripció en la mateixa transacció que l'alta del saldo;
+- disponibilitat insuficient fa rollback de `credit_balance` i del ledger;
+- reintent amb `correlation_id` diferent continua essent el mateix fet econòmic, alineat amb el validador d'idempotència de `main`.
 
 **No implementat/acreditat**
-- unicitat/idempotència del dret origen;
-- prova que titular/origen provenen de dades autoritatives;
-- reserva/consum del dret origen en la mateixa transacció;
+- derivació obligatòria de la clau de dret des de l'orquestrador/producte;
+- titular/origen obtinguts i validats contra una font autoritativa de negoci;
+- autorització/auditoria UC-006;
 - wiring UI.
 
 ### 6.3 COMPENSATION — UC-29a
 
-**Implementat**
+**Implementat base**
 - lock saldo;
 - lock/càrrega factura;
-- saldo ACTIVE;
+- saldo `ACTIVE`;
 - import <= saldo disponible;
 - import <= deute factura;
-- moviment COMPENSATION;
+- moviment `COMPENSATION`;
 - consum atòmic;
-- reús idempotent.
+- reús idempotent amb comparació de payload.
+
+**Implementat en aquesta branca quan hi ha `target_enrollment_id`**
+- la inscripció destí ha de tenir exactament una `factura_linia` de la factura;
+- `COMPENSATION_ALLOCATION` conserva `UUID_CREDIT`, `UUID_PAYMENT`, factura, línia i `ID_INSC_DESTI`;
+- assentament del ledger i consum del saldo comparteixen transacció;
+- destí no present a la factura provoca 409 i rollback del `COMPENSATION` i del consum;
+- mateixa K amb payload diferent es rebutja explícitament.
 
 **No implementat/acreditat**
-- titular compatible;
-- request ID independent de la key derivada;
-- dues compensacions legítimes idèntiques diferenciables;
-- gateway d’auditoria;
+- titular compatible entre saldo, pagador/receptor i factura destí;
+- identificador d'operació que permeti dues compensacions legítimes del mateix import;
+- gateway d'auditoria;
 - wiring UI.
 
 ## 7. Revisió de seguretat de superfícies ACTUALS
@@ -292,21 +313,23 @@ Aquest codi és específic de promoció docent i **no s'ha de reutilitzar direct
 
 Per UC-006 convé extreure un contracte genèric equivalent (`RefundEvidenceSourceInterface` / estat pendent de retorn) en lloc de tornar a barrejar `A TORNAR` amb `REFUND` confirmat.
 
-## 7.2. Implementació afegida — idempotència tècnica de `credit_balance`
+## 7.2. Implementació afegida — idempotència i consum de dret de `credit_balance`
 
-En aquesta branca s'ha eliminat el buit tècnic de reintent de `CreditBalanceService::createCredit()` **sense imposar una regla de negoci inventada**:
+En aquesta branca s'ha resolt tant el reintent tècnic com el consum quantitatiu opcional del dret:
 
-- nova migració `2026_10_03_000033_add_credit_balance_idempotency.sql`;
-- `IDEMPOTENCY_KEY` nullable/UNIQUE i `IDEMPOTENCY_PAYLOAD_HASH` nullable a `credit_balance`;
-- el builder accepta `idempotency_key` opcional;
-- mateixa clau + mateix payload normalitzat → mateix `UUID_CREDIT`, `idempotency_reused=true`;
+- migració `2026_10_03_000033_add_credit_balance_idempotency.sql`;
+- `IDEMPOTENCY_KEY` nullable/UNIQUE i `IDEMPOTENCY_PAYLOAD_HASH`;
+- mateixa clau + mateix payload → mateix `UUID_CREDIT`;
 - mateixa clau + payload diferent → 409/CONFLICT;
-- col·lisió concurrent UNIQUE → reload + comprovació de payload;
-- sense clau es conserva el comportament anterior per compatibilitat;
-- preview/process CLI accepten `--idempotency-key`;
-- `CreditBalanceServiceTest` incorpora reús i conflicte.
+- duplicate-key concurrent → reload + comprovació de payload;
+- sense `source_enrollment_id` es conserva compatibilitat amb el flux antic;
+- amb `source_enrollment_id`, `idempotency_key` és obligatòria;
+- `CREDIT_CREATE` es registra dins la mateixa transacció que el saldo;
+- `availableAmountForInscription()` bloqueja el ledger i impedeix consumir més valor del disponible;
+- si el dret no és suficient, no queda ni saldo nou ni assentament parcial;
+- `correlation_id` és metadada de traça, no identitat del fet econòmic.
 
-**Límit deliberat:** el servei **no deriva** la clau de `SOURCE_TYPE/SOURCE_ID`, perquè això podria fusionar dos drets legítims diferents. El caller/orquestrador UC-006 ha d'aportar una identitat estable del dret/tram econòmic, i encara falta consumir/bloquejar aquest mateix dret al ledger `enrollment_fund_movement`.
+**Límit deliberat:** el servei no inventa la identitat del dret a partir de `SOURCE_TYPE/SOURCE_ID`; el futur orquestrador ha d'aportar una K estable i una inscripció origen autoritzada.
 
 ## 7.3. Enduriment afegit — compensació no reutilitza payload contradictori
 
@@ -326,16 +349,20 @@ S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferent
 
 ### Correcte/localitzat
 
-- `PaymentService`: cerca `FOR UPDATE`, hash de payload i recuperació de duplicate key.
-- `CreditBalanceService::applyCredit*`: transacció, locks i recovery duplicate key.
-- consum de saldo i alta de compensació queden dins una operació transaccional.
+- `PaymentService`: cerca `FOR UPDATE`, hash V1/V2 i recuperació de duplicate key;
+- `PaymentService::registerPaymentInTransaction()` permet que REFUND i `REFUND_EXIT` comparteixin commit/rollback;
+- `CreditBalanceService::createCredit()`: clau/hash, reús, conflicte i recovery; si consumeix fons d'inscripció exigeix K;
+- `CREDIT_CREATE` i `REFUND_EXIT`: idempotents i limitats per `availableAmountForInscription()`;
+- refund i saldo competeixen sobre el mateix dret disponible, evitant doble consum quan s'identifica la mateixa inscripció;
+- `CreditBalanceService::applyCredit*`: locks, hash del payload, consum transaccional i `COMPENSATION_ALLOCATION` opcional;
+- `correlation_id` queda fora de la identitat econòmica, coherent amb `PayloadIdempotencyValidator` actual de `main`.
 
-### Buit
+### Buit residual
 
-- `createCredit()` no té contracte d’idempotency key.
-- key de compensació = saldo + factura + import: pot col·lidir amb una segona intenció legítima exactament igual.
-- key de refund sense referència = factura + data + import + banc: dos retorns reals idèntics el mateix dia poden necessitar un identificador extern més fort.
-- amb `reference`, el builder usa `REFUND|REF:<reference>`; cal garantir semàntica global i canal.
+- la K de compensació continua derivant de saldo + factura + import; dues ordres legítimes del mateix import necessiten un identificador d'operació propi;
+- refund sense referència externa forta deriva la K de factura/data/import/banc;
+- falta prova de concurrència real amb dues sessions SQL intentant consumir simultàniament el mateix dret;
+- falta deduplicació cross-channel Redsys/manual basada en una identitat externa comuna.
 
 ## 9. Traçabilitat amb altres casos
 
@@ -354,79 +381,85 @@ S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferent
 
 | Element | Documentat | Implementat | Verificat | Pendent |
 | --- | :---: | :---: | :---: | --- |
-| Decisió mare UC-006 | Sí | No | No | orquestrador |
-| Devolució base | Sí | Sí | tests existents + contrast estàtic | guards negoci/E2E |
-| Saldo base | Sí | Sí | tests existents + contrast estàtic | idempotència origen/E2E |
-| Compensació base | Sí | Sí | tests existents + contrast estàtic | titular/E2E |
+| Decisió mare UC-006 | Sí | No | No | orquestrador/autorització |
+| Devolució base | Sí | Sí + `REFUND_EXIT` opcional | contrast estàtic + tests afegits | evidència externa/titular/E2E |
+| Saldo base | Sí | Sí + K/hash + `CREDIT_CREATE` | contrast estàtic + tests afegits | titular/orquestrador/E2E |
+| Compensació base | Sí | Sí + ledger destí | contrast estàtic + tests afegits | titular/identitat d'ordre/E2E |
+| Dret disponible per inscripció | Sí | `availableAmountForInscription()` | contrast estàtic + tests afegits | concurrència real/preprod |
 | Baixa actual | Sí | Sí | contrast PHP/JS | derivació econòmica |
-| Canvi actual | Sí | Sí parcial | contrast PHP/JS | execució economic_decision |
+| Canvi actual | Sí | Sí parcial | contrast PHP/JS | executar `EXCESS_TO_RESOLVE`; `INTERNAL_TRANSFER` |
 | Anul·lació factura actual | Sí | Sí | contrast PHP/JS | separar retorn real |
-| Classes A/F | Sí | N/A | revisat | — |
-| Seqüències A/F | Sí | N/A | revisat | — |
-| Activitats per pàgina A/F | Sí | N/A | revisat | — |
+| Classes A/F | Sí | N/A | revisat | actualització final de l'estat |
+| Seqüències A/F | Sí | N/A | revisat | actualització final de l'estat |
+| Activitats per pàgina A/F | Sí | N/A | revisat | actualització final de l'estat |
 | Audit gateway UC-006 | Sí objectiu | No acreditat | No | integrar |
-| Preproducció | Sí criteris | No acreditat | No | executar i conservar evidència |
+| Preproducció | Sí criteris/CLI | scripts preparats | No executat | executar i conservar evidència |
 
 ## 11. Mancances prioritzades
 
-### P0 — bloquejants abans d’operar diners
+### P0 — bloquejants abans d’operar UC-006 des de la UI
 
-1. **UC006-GAP-P0-01 · Completar el dret econòmic sobre `enrollment_fund_movement`.**  
-   La base de ledger ja existeix; falta calcular/lockar disponibilitat i evitar que el mateix tram es transformi en refund i saldo, o dos saldos.
+1. **UC006-GAP-P0-01 · Orquestrador/endpoint autoritzat.**  
+   Les primitives de diners ja existeixen, però cap superfície llegada ha de decidir-les directament des de camps DOM o valors llegats.
 
-2. **UC006-GAP-P0-02 · Límit de devolució.**  
-   `REFUND` no pot superar el que s’ha cobrat i continua disponible per retornar.
+2. **UC006-GAP-P0-02 · Titularitat.**  
+   Validar pagador/receptor del refund, titular del saldo i compatibilitat amb la factura/inscripció destí.
 
-3. **UC006-GAP-P0-03 · Evidència externa.**  
-   Diferenciar `RETURN_PENDING` de `REFUND CONFIRMED`.
+3. **UC006-GAP-P0-03 · Evidència externa del retorn.**  
+   Separar `RETURN_PENDING` de `REFUND CONFIRMED`; reutilitzar conceptualment el patró UC-111.
 
-4. **UC006-GAP-P0-04 · Titularitat.**  
-   Retorn i saldo han d’anar al titular econòmic correcte; compensació ha de validar compatibilitat.
+4. **UC006-GAP-P0-04 · Identitat externa/cross-channel.**  
+   El mateix retorn real no pot quedar duplicat entre Redsys, banc i registre manual.
 
-5. **UC006-GAP-P0-05 · Clau de negoci obligatòria per crear saldo.**  
-   La idempotència tècnica ja existeix en aquesta branca; falta que l'orquestrador derivi/aporti una clau estable per dret/tram i el consumeixi una sola vegada.
+5. **UC006-GAP-P0-05 · `INTERNAL_TRANSFER` de canvi de curs.**  
+   El ledger admet el tipus, però falta servei/orquestració A→B amb conservació i proves.
 
-6. **UC006-GAP-P0-06 · Orquestrador/endpoint autoritzat.**  
-   Cap superfície llegada ha de decidir diners només amb camps DOM/llegats.
+6. **UC006-GAP-P0-06 · Contracte obligatori del dret.**  
+   UI/endpoint han d'aportar sempre la inscripció origen/destí i una identitat estable del dret quan el moviment prové de fons atribuïts.
 
 ### P1 — traça i integració
 
 7. `PaymentActionGateway` o equivalent per REQUESTED/terminal.
-8. correlació/request id estable.
-9. cross-channel dedup Redsys/manual.
-10. sync llegat només post-COMMIT.
-11. incidència automàtica en divergència.
+8. request/correlation id estable de punta a punta.
+9. sync llegat només post-COMMIT.
+10. incidència automàtica en divergència.
+11. concurrència real amb dues sessions i evidència de test.
 
 ### P2 — UX i operació
 
 12. pantalla UC-006 final amb context complet;
 13. indicadors RETURN_PENDING/CONFIRMED;
-14. consulta del saldo i historial de consums;
+14. consulta del saldo i historial del ledger;
 15. explicació separada de l’efecte fiscal.
 
 ## 12. Proves d’acceptació requerides
 
-| ID | Prova | Esperat |
+| ID | Prova | Estat/esperat |
 | --- | --- | --- |
-| UC006-T01 | baixa sense dret econòmic | NO_CHANGE |
-| UC006-T02 | baixa amb 40 € retornables, encara no retornats | RETURN_PENDING, cap REFUND |
-| UC006-T03 | retorn bancari confirmat 40 € | un REFUND |
-| UC006-T04 | reintent mateix external operation id | mateix UUID_PAYMENT |
-| UC006-T05 | mateix retorn registrat via Redsys i manual | un sol fet econòmic |
-| UC006-T06 | demanar 120 € amb només 100 € retornables | bloqueig |
-| UC006-T07 | factura grup, només una inscripció afectada | límit/traça per inscripció |
-| UC006-T08 | mateixa clau de saldo + mateix payload | mateix UUID_CREDIT (prova afegida; CI pendent) |
-| UC006-T08b | mateixa clau de saldo + payload diferent | 409/CONFLICT (prova afegida; CI pendent) |
-| UC006-T09 | aplicar saldo a factura d’altre titular | bloqueig/revisió |
-| UC006-T10 | compensació > saldo | bloqueig |
-| UC006-T11 | compensació > deute | bloqueig |
-| UC006-T12 | dues compensacions legítimes del mateix import | diferenciades per request/operació |
-| UC006-T13 | fiscal rectificativa però cap retorn | cap REFUND automàtic |
-| UC006-T14 | REFUND real però sync llegat falla | SIF es manté; només reintentar sync |
-| UC006-T15 | concurrent refund/saldo sobre mateix dret | només un consumeix el dret |
-| UC006-T16 | permís denegat | zero efecte |
-| UC006-T17 | payload mateixa K però diferent | 409/CONFLICT |
-| UC006-T18 | E2E des de baixa/canvi | resultat traçable de punta a punta |
+| UC006-T01 | baixa sense dret econòmic | PENDENT orquestrador → NO_CHANGE |
+| UC006-T02 | baixa amb dret però retorn encara no executat | PENDENT evidence layer → RETURN_PENDING |
+| UC006-T03 | refund confirmat vinculat a inscripció | test de `REFUND_EXIT` afegit; CI pendent |
+| UC006-T04 | reintent mateix refund | mateix UUID_PAYMENT + una sola sortida; test afegit |
+| UC006-T05 | mateix retorn via Redsys i manual | PENDENT identitat cross-channel |
+| UC006-T06 | sortida superior al dret disponible | bloqueig + rollback implementat; test afegit |
+| UC006-T07 | compensació a inscripció no present a factura | 409 + rollback implementat; test afegit |
+| UC006-T08 | mateixa K saldo + mateix payload | mateix UUID_CREDIT; test afegit |
+| UC006-T08b | mateixa K saldo + payload diferent | 409; test afegit |
+| UC006-T08c | mateixa K/payload amb `correlation_id` nou | reús sense duplicar ledger; test afegit |
+| UC006-T09 | titular saldo incompatible | PENDENT política titularitat |
+| UC006-T10 | compensació > saldo | bloqueig existent |
+| UC006-T11 | compensació > deute | bloqueig existent |
+| UC006-T12 | mateixa K compensació amb payload diferent | 409; test afegit |
+| UC006-T12b | dues ordres legítimes de mateix import | PENDENT identitat d'operació |
+| UC006-T13 | rectificativa sense retorn | cap REFUND automàtic |
+| UC006-T14 | SIF confirma però sync llegat falla | PENDENT adaptador/sync |
+| UC006-T15 | saldo consumeix 80 de 120 i després refund demana 50 | refund rollback; test creuat afegit |
+| UC006-T15b | concurrència simultània refund vs saldo | PENDENT prova multi-sessió |
+| UC006-T16 | permís denegat | PENDENT endpoint autoritzat |
+| UC006-T17 | target enrollment vàlid en compensació | ledger credit→inscripció + reús; test afegit |
+| UC006-T18 | E2E baixa/canvi → decisió → moviment | PENDENT UI/preproducció |
+
+> Els tests marcats “afegit” són evidència de codi present a la branca, **no evidència d'execució** fins que GitHub Actions o `sif_test*`/`sif_pre` els executin.
 
 ## 13. Fitxers creats/modificats en aquesta auditoria
 
@@ -441,17 +474,26 @@ S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferent
 
 ## 14. Decisió sobre canvis de codi
 
-Aquesta auditoria **no modifica la lògica PHP econòmica** perquè els gaps bloquejants requereixen una decisió explícita del model de dret econòmic i de la font de veritat del titular/origen. Afegir un `if` local a `ManualRefundService` o `CreditBalanceService` sense aquest contracte podria:
-- bloquejar retorns legítims;
-- permetre retorns incorrectes en factures agrupades;
-- consumir saldo del titular equivocat;
-- crear una falsa sensació de seguretat.
+Després de la primera auditoria s'han implementat només primitives que es poden demostrar sense inventar titularitat ni política comercial:
 
-La feina de codi queda especificada amb contractes i proves perquè es pugui implementar sense inventar regles.
+- idempotència tècnica de `credit_balance`;
+- `PaymentService::registerPaymentInTransaction()`;
+- migració additiva del ledger amb `UUID_CREDIT`, `CREDIT_CREATE` i `REFUND_EXIT`;
+- càlcul/lock de disponibilitat per inscripció;
+- refund i saldo competint pel mateix dret disponible;
+- `COMPENSATION_ALLOCATION` cap a factura/línia/inscripció explícita;
+- rollback atòmic si el dret o el destí són invàlids;
+- proves de reús, conflicte, conservació i rollback;
+- flags CLI per validar els recorreguts en test/preproducció;
+- merge real de `main` dins la branca abans de continuar, preservant els canvis recents d'UC-001.
+
+No s'ha implementat per inferència la **titularitat**, l'autorització UC-006, la prova bancària genèrica, `INTERNAL_TRANSFER` ni la decisió final de UI. Aquestes continuen requerint contracte funcional explícit.
 
 ## 15. Criteri de tancament de l’auditoria
 
-**Documentació:** tancable amb aquesta branca un cop l’índex i la fitxa integrada quedin actualitzats.  
-**Implementació UC-006:** **NO tancada**.  
-**Acceptació operativa:** **NO tancada**.  
-**Motiu:** falten els P0 d’apartat 11 i evidència E2E/preproducció.
+**Documentació:** paquet principal complet i en procés de reconciliació final amb el codi implementat.  
+**Primitives econòmiques UC-006:** **PARCIALMENT IMPLEMENTADES**: refund→exit, enrollment→credit i credit→enrollment ja tenen camins transaccionals opcionals.  
+**Orquestració UC-006:** **NO tancada**.  
+**Acceptació operativa:** **NO tancada**.
+
+**Motiu:** falten titularitat, evidència externa genèrica, identitat cross-channel, `INTERNAL_TRANSFER`, endpoint/UI autoritzat, auditoria transversal i evidència executada de CI/preproducció.
