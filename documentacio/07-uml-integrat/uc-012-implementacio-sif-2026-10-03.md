@@ -152,3 +152,7 @@ A més dels tests del coordinador s'han afegit:
 `CORE_IMPLEMENTED_ON_BRANCH / SAFE_BRIDGE_IMPLEMENTED_DISABLED / CI_QUEUED / LEGACY_CUTOVER_PENDING / UC096_BLOCKS_AUTOMATION / PREPRODUCTION_PENDING`.
 
 No s'ha activat cap canvi productiu ni s'ha redirigit cap POST legacy.
+
+### Reconciliació d'avisos després de pagament
+
+Un cobrament confirmat, encara que sigui **parcial**, invalida l'import incorporat als avisos `PENDING`. Per això `reconcileAfterPayment()` cancel·la els avisos pendents de la factura en qualsevol reconciliació de pagament. Els missatges ja `SENT` no es modifiquen. Si encara queda saldo, l'expedient continua obert amb el saldo recalculat i qualsevol avís posterior es generarà amb un snapshot nou.
