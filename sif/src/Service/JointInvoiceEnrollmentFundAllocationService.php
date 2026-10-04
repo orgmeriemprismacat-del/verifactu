@@ -14,6 +14,33 @@ final class JointInvoiceEnrollmentFundAllocationService
     }
 
     /**
+     * Validate only request-shape invariants that are knowable before the
+     * payment mutation. Authoritative DB invariants are checked again by
+     * allocate() after the payment exists.
+     *
+     * @param array<int|string, mixed> $participantAllocations ID_INSC => amount
+     * @return array<int, string>
+     */
+    public function validateRequest(array $participantAllocations, mixed $expectedPaymentAmount): array
+    {
+        $normalized = $this->normalizeAllocations($participantAllocations);
+        $expectedCents = $this->cents($expectedPaymentAmount);
+
+        if ($expectedCents <= 0 || array_sum($normalized) !== $expectedCents) {
+            throw SifException::conflict(
+                'Participant allocations must equal the requested payment amount'
+            );
+        }
+
+        $result = [];
+        foreach ($normalized as $idInsc => $amountCents) {
+            $result[(int) $idInsc] = $this->amount($amountCents);
+        }
+
+        return $result;
+    }
+
+    /**
      * @param array<int|string, mixed> $participantAllocations ID_INSC => amount
      */
     public function allocate(
