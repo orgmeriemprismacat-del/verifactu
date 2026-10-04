@@ -25,6 +25,9 @@ final class CreditCompensationPreviewScriptTest
         Assert::stringContainsString('--uuid-factura=', $source);
         Assert::stringContainsString('--num-visible=', $source);
         Assert::stringContainsString('forCompensation($credit[\'UUID_CREDIT\'], $invoice[\'UUID_FACTURA\'], $input, $invoice)', $source);
+        Assert::stringContainsString('--target-enrollment-id=', $source);
+        Assert::stringContainsString('--correlation-id=', $source);
+        Assert::stringContainsString('--uuid-operation=', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
 
         if (str_contains($source, 'new PaymentRepository(') || str_contains($source, 'createPayment(')) {
