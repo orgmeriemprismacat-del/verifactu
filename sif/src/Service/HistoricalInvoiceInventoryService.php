@@ -89,6 +89,7 @@ final class HistoricalInvoiceInventoryService
                 && $summary['not_imported'] === 0
                 && $summary['documents_unverified'] === 0,
             'summary' => $summary,
+            'groups' => $this->aggregateByYearSeries($items),
             'items' => $items,
         ];
     }
@@ -104,12 +105,16 @@ final class HistoricalInvoiceInventoryService
         $billingNif = strtoupper(trim((string) ($legacy['cif'] ?? '')));
         $total = $this->moneyOrNull($legacy['import'] ?? null);
         $relation = $this->nullablePositiveInt($legacy['factura_relacionada'] ?? null);
+        $number = $this->numberIdentity($numVisible, $legacy['any'] ?? null, $legacy['ordre'] ?? null);
 
         $base = [
             'legacy_id' => $legacyId,
             'num_visible' => $numVisible,
+            'year' => $number['year'],
+            'series' => $number['series'],
+            'num_seq' => $number['num_seq'],
             'issue_date' => $issueDate,
-            'billing_nif' => $billingNif,
+            'billing_nif_fingerprint' => $billingNif === '' ? null : hash('sha256', $billingNif),
             'total' => $total,
             'factura_relacionada' => $relation,
             'legacy_e_fact' => $legacy['E_FACT'] ?? null,
@@ -159,7 +164,7 @@ final class HistoricalInvoiceInventoryService
             substr($issueDate, 0, 10),
             substr((string) ($invoice['DATA_EMISSIO'] ?? ''), 0, 10)
         );
-        $this->compare(
+        $this->compareSensitive(
             $differences,
             'billing_nif',
             $billingNif,
@@ -271,6 +276,105 @@ final class HistoricalInvoiceInventoryService
         return $documents;
     }
 
+    private function aggregateByYearSeries(array $items): array
+    {
+        $groups = [];
+
+        foreach ($items as $item) {
+            $series = trim((string) ($item['series'] ?? ''));
+            $year = (int) ($item['year'] ?? 0);
+            $key = ($series === '' ? '?' : $series) . '|' . $year;
+
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'series' => $series === '' ? null : $series,
+                    'year' => $year > 0 ? $year : null,
+                    'total' => 0,
+                    'legacy_total_cents' => 0,
+                    'first_seq' => null,
+                    'last_seq' => null,
+                    'first_num_visible' => null,
+                    'last_num_visible' => null,
+                    'imported_match' => 0,
+                    'not_imported' => 0,
+                    'mismatch' => 0,
+                    'ambiguous' => 0,
+                    'invalid_legacy' => 0,
+                ];
+            }
+
+            $group =& $groups[$key];
+            $group['total']++;
+            $group['legacy_total_cents'] += $this->moneyToCents($item['total'] ?? null);
+
+            $seq = is_numeric($item['num_seq'] ?? null) ? (int) $item['num_seq'] : null;
+            if ($seq !== null && $seq > 0) {
+                if ($group['first_seq'] === null || $seq < $group['first_seq']) {
+                    $group['first_seq'] = $seq;
+                    $group['first_num_visible'] = $item['num_visible'] ?? null;
+                }
+                if ($group['last_seq'] === null || $seq > $group['last_seq']) {
+                    $group['last_seq'] = $seq;
+                    $group['last_num_visible'] = $item['num_visible'] ?? null;
+                }
+            }
+
+            $status = (string) ($item['status'] ?? '');
+            if ($status === 'IMPORTED_MATCH') {
+                $group['imported_match']++;
+            } elseif ($status === 'NOT_IMPORTED') {
+                $group['not_imported']++;
+            } elseif ($status === 'IMPORTED_MISMATCH') {
+                $group['mismatch']++;
+            } elseif ($status === 'AMBIGUOUS_SIF_MATCH') {
+                $group['ambiguous']++;
+            } elseif ($status === 'INVALID_LEGACY_INVOICE') {
+                $group['invalid_legacy']++;
+            }
+            unset($group);
+        }
+
+        $result = [];
+        foreach ($groups as $group) {
+            $group['legacy_total'] = number_format(
+                ((int) $group['legacy_total_cents']) / 100,
+                2,
+                '.',
+                ''
+            );
+            unset($group['legacy_total_cents']);
+            $group['reconciled'] = $group['not_imported'] === 0
+                && $group['mismatch'] === 0
+                && $group['ambiguous'] === 0
+                && $group['invalid_legacy'] === 0;
+            $result[] = $group;
+        }
+
+        usort($result, static function (array $left, array $right): int {
+            return [$left['year'] ?? 0, $left['series'] ?? '']
+                <=> [$right['year'] ?? 0, $right['series'] ?? ''];
+        });
+
+        return $result;
+    }
+
+    private function numberIdentity(string $numVisible, mixed $legacyYear, mixed $legacyOrder): array
+    {
+        if (preg_match('/^([A-Z])(\d{4})\/0*(\d+)$/D', strtoupper($numVisible), $match) === 1) {
+            return [
+                'series' => $match[1],
+                'year' => (int) $match[2],
+                'num_seq' => (int) $match[3],
+            ];
+        }
+
+        return [
+            'series' => null,
+            'year' => is_numeric($legacyYear) ? (int) $legacyYear : null,
+            'num_seq' => is_numeric($legacyOrder) ? (int) $legacyOrder : null,
+        ];
+    }
+
     private function compare(array &$differences, string $field, mixed $legacy, mixed $sif): void
     {
         if ($legacy === $sif) {
@@ -281,6 +385,23 @@ final class HistoricalInvoiceInventoryService
             'field' => $field,
             'legacy' => $legacy,
             'sif' => $sif,
+        ];
+    }
+
+    private function compareSensitive(
+        array &$differences,
+        string $field,
+        string $legacy,
+        string $sif
+    ): void {
+        if ($legacy === $sif) {
+            return;
+        }
+
+        $differences[] = [
+            'field' => $field,
+            'legacy_fingerprint' => hash('sha256', $legacy),
+            'sif_fingerprint' => hash('sha256', $sif),
         ];
     }
 
@@ -305,5 +426,14 @@ final class HistoricalInvoiceInventoryService
         }
 
         return number_format((float) $value, 2, '.', '');
+    }
+
+    private function moneyToCents(mixed $value): int
+    {
+        if (!is_numeric($value)) {
+            return 0;
+        }
+
+        return (int) round((float) $value * 100, 0, PHP_ROUND_HALF_UP);
     }
 }
