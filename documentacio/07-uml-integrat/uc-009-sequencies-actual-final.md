@@ -144,7 +144,9 @@ P->>T: send(payload + context preassignat)
 T->>T: EvidenceStore::beginWithId(evidence_id)
 T->>X: SOAP/mTLS
 X-->>T: resposta
-T-->>P: status + response + request_xml
+T-->>P: status + response + request_xml + response_sha256 + HTTP
+P->>A: anchorEvidenceResponse()
+A->>DB: persistir hash/HTTP independent del bundle
 P->>A: complete()
 A->>DB: intent terminal
 P->>Q: complete()
@@ -354,7 +356,9 @@ S->>S: exigir STATUS=UNCERTAIN + EVIDENCE_ID
 S->>EV: readVerifiedPair(privateDir,evidenceId)
 EV->>FS: verificar hashes + no symlinks + mida
 FS-->>EV: request.xml + response.xml
-EV-->>S: parella íntegra
+EV-->>S: parella íntegra + response hash/HTTP
+S->>DB: llegir EVIDENCE_RESPONSE_SHA256 + EVIDENCE_HTTP_STATUS
+S->>S: exigir HTTP 200 i hash bundle == hash BD
 S->>S: regenerar request XML des snapshot immutable
 S->>S: request evidència == request immutable + REQUEST_HASH
 S->>RP: parse(response.xml, snapshot)
@@ -371,7 +375,7 @@ Note over S,Q: cap AeatTransport / SoapTransport és invocat
 
 ### Bloqueig explícit
 
-Si l'intent no és `UNCERTAIN`, no té `EVIDENCE_ID`, l'evidència és incompleta/alterada, l'HTTP no és 200, la metadata no correspon al mateix attempt/factura/ordre, el request no coincideix o la resposta no valida per aquella factura, la seqüència acaba en conflicte i el job continua `REVIEW`. En el worker normal, un stale `STARTED` es converteix primer a `UNCERTAIN` mantenint l'ID preassignat.
+Si l'intent no és `UNCERTAIN`, no té `EVIDENCE_ID`, no té una àncora DB de resposta, l'evidència és incompleta/alterada, l'HTTP no és 200, el hash del bundle no coincideix amb l'àncora, la metadata no correspon al mateix attempt/factura/ordre, el request no coincideix o la resposta no valida per aquella factura, la seqüència acaba en conflicte i el job continua `REVIEW`. En el worker normal, un stale `STARTED` es converteix primer a `UNCERTAIN` mantenint l'ID preassignat.
 
 ## 9. Matriu de verificació
 
