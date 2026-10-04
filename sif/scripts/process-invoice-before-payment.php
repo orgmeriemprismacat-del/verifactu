@@ -43,6 +43,9 @@ try {
         null,
         null,
         new InvoiceBeforePaymentCoverageRepository(),
+        null,
+        null,
+        null,
         new InvoiceBeforePaymentRedsysGuardRepository(),
         new EnrollmentPaymentFlowLockRepository()
     );
