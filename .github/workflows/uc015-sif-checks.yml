@@ -13,6 +13,10 @@ on:
       - "codi-drive/web-actual/inc/PublicWebMutationAuthorization.php"
       - "codi-drive/web-actual/inc/PackPaymentGate.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/inc/PackConfirmationToken.php"
+      - "codi-drive/web-actual/ajax/mostrar_pagina_confirmacio_pagament_grup_automatic.php"
+      - "codi-drive/web-actual/pagina_confirmacio_grup_automatic.php"
+      - "codi-drive/web-actual/js1619773569/mostrarConfirmacioPagamentGrupAutomatic.min.js"
       - "codi-drive/web-actual/pagina_inscripcio_pack.php"
       - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
       - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
@@ -37,6 +41,10 @@ on:
       - "codi-drive/web-actual/inc/PublicWebMutationAuthorization.php"
       - "codi-drive/web-actual/inc/PackPaymentGate.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/inc/PackConfirmationToken.php"
+      - "codi-drive/web-actual/ajax/mostrar_pagina_confirmacio_pagament_grup_automatic.php"
+      - "codi-drive/web-actual/pagina_confirmacio_grup_automatic.php"
+      - "codi-drive/web-actual/js1619773569/mostrarConfirmacioPagamentGrupAutomatic.min.js"
       - "codi-drive/web-actual/pagina_inscripcio_pack.php"
       - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
       - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
@@ -107,6 +115,9 @@ jobs:
           php -l codi-drive/web-actual/inc/PublicWebMutationAuthorization.php
           php -l codi-drive/web-actual/inc/PackPaymentGate.php
           php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
+          php -l codi-drive/web-actual/inc/PackConfirmationToken.php
+          php -l codi-drive/web-actual/ajax/mostrar_pagina_confirmacio_pagament_grup_automatic.php
+          php -l codi-drive/web-actual/pagina_confirmacio_grup_automatic.php
           php -l codi-drive/web-actual/pagina_inscripcio_pack.php
           php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
           php -l codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php
@@ -116,6 +127,7 @@ jobs:
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php
           node --check codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js
+          node --check codi-drive/web-actual/js1619773569/mostrarConfirmacioPagamentGrupAutomatic.min.js
 
       - name: Executar suite selectiva UC-015
         run: php sif/tests/run-uc015-tests.php
