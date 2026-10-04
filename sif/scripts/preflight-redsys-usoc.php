@@ -23,6 +23,7 @@ $checks = [
     'factura_linia_table' => false,
     'fact_rels_table' => false,
     'usoc_financing_case_table' => false,
+    'usoc_financing_terms_table' => false,
     'payment_transaction_table' => false,
     'payment_allocation_table' => false,
     'redsys_notifications_table' => false,
@@ -46,6 +47,7 @@ try {
     $checks['factura_linia_table'] = tableExists($sifDb, 'factura_linia');
     $checks['fact_rels_table'] = tableExists($sifDb, 'fact_rels');
     $checks['usoc_financing_case_table'] = tableExists($sifDb, 'usoc_financing_case');
+    $checks['usoc_financing_terms_table'] = tableExists($sifDb, 'usoc_financing_terms');
     $checks['payment_transaction_table'] = tableExists($sifDb, 'payment_transaction');
     $checks['payment_allocation_table'] = tableExists($sifDb, 'payment_allocation');
     $checks['redsys_notifications_table'] = tableExists($sifDb, 'redsys_notifications');
