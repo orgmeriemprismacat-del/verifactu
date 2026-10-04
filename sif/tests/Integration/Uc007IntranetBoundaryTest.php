@@ -45,6 +45,16 @@ final class Uc007IntranetBoundaryTest
         }
     }
 
+    public function testLegacyInvoiceDownloadDoesNotMarkInvoiceAsGenerated(): void
+    {
+        $download = $this->readIntranet('ajax/alumnes/descarregaFactura.php');
+        $intranet = $this->readIntranet('Intranet.php');
+
+        Assert::stringContainsString('generaFactura((int) $id, true, false)', $download);
+        Assert::stringContainsString('public function generaFactura($factura, $descarrega, $marcaGenerada = true)', $intranet);
+        Assert::stringContainsString('if ( $marcaGenerada && ( $generada == null || $generada == \'\' ) )', $intranet);
+    }
+
     public function testLegacyInvoiceDownloadUsesReadBoundaryNotClientSideEditPermission(): void
     {
         $js = $this->readIntranet('js/alumnes-factura.js');
