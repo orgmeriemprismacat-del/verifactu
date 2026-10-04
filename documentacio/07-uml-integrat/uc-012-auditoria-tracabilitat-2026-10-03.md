@@ -1,0 +1,174 @@
+# UC-012 — Auditoria exhaustiva i matriu de traçabilitat
+
+**Data:** 03/10/2026  
+**Base inicial:** `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`  
+**Branca:** `audit/uc-012-2026-10-03`
+
+## 1. Resultat executiu
+
+L’auditoria va començar amb un UC-012 parcial: pantalles i correus legacy reals, però només el cobrament posterior (`ClaimPaymentService`) estava cobert al SIF. Durant la mateixa auditoria s’ha implementat el nucli SIF de morositat i una frontera segura d’intranet.
+
+**Estat actual:** `AUDIT_COMPLETE / CORE_IMPLEMENTED_ON_BRANCH / CI_QUEUED / CUTOVER_PENDING / PREPRODUCTION_PENDING`.
+
+| Bloc | Documentat | Implementat | Verificat | Pendent |
+| --- | --- | --- | --- | --- |
+| Fitxa + inventari + UML | Sí | n/a | contrast amb codi real | merge final |
+| P-MOR-01 saldo/receptor | Sí | Sí | tests escrits | CI; UC-096 per dates/pròrroga |
+| P-MOR-02 recordatori final | Sí | Sí | tests escrits | CI/delivery/cutover |
+| P-MOR-03 primera reclamació | Sí | Sí | tests escrits | CI/delivery/cutover |
+| P-MOR-04 reclamació final | Sí | Sí | tests escrits | CI/delivery/cutover |
+| P-MOR-05 regularització | Sí | Sí | ClaimPayment existent + tests nous | CI/preproducció |
+| Expedient durable | Sí | Sí | tests escrits | CI/preproducció |
+| Outbox idempotent | Sí | Sí | tests escrits | delivery UC-58 |
+| API HMAC | Sí | Sí | contract test | CI/config entorn |
+| Bridge intranet CSRF/rol | Sí | Sí, desactivat | boundary test | cutover |
+| Legacy POST antics | Sí | Sí | inspecció | substitució progressiva |
+
+## 2. Mapa P-MOR reconciliat
+
+| ID | ACTUAL legacy | FINAL a la branca | Estat |
+| --- | --- | --- | --- |
+| P-MOR-01 | SQL sobre `inscripcions`, `A_PAGAR-PAGAMENT` | `DebtSnapshotRepository`: factura + allocations + refunds + receptor fiscal | IMPLEMENTAT; dates/pròrroga UC-096 pendents |
+| P-MOR-02 | UPDATE + SMTP | `DebtClaimCoordinator` + event + outbox | IMPLEMENTAT A BRANCA |
+| P-MOR-03 | UPDATE + URL `IDPAG` + SMTP | event versionat + outbox idempotent | IMPLEMENTAT A BRANCA |
+| P-MOR-04 | reclamació/baixa acoblades | `FINAL_CLAIM`; baixa continua separada | IMPLEMENTAT A BRANCA |
+| P-MOR-05 | camps legacy + cobrament separat | `ClaimPaymentService` + `reconcileAfterPayment()` | IMPLEMENTAT A BRANCA |
+
+## 3. Codi legacy contrastat
+
+- `facturacio-recordatori-pagament-final.php` + JS + `updDadesRecordatoriPagament.php`.
+- `facturacio-primera-reclamacio-pagament.php` + JS + `updDadesPrimeraReclamacio.php`.
+- `facturacio-reclamacio-final.php` + JS + `updLastClaimPay.php`.
+- `facturacio-control-morosos.php` + JS + handlers d’entitat/alumne certificat/no certificat.
+- `Intranet.php`: `cnsCursosRecordarPag`, `cnsAlumnesRecordarPag`, `cnsCursosClaimBaixes`, `cnsAlumnClaimPag`, `cnsAlumnClaimEntMoros`, `cnsAlumnClaimAlumnNoCertMoros`, `cnsAlumnClaimAlumnCertMoros`, `cnsEntMoros`, i mutacions relacionades.
+
+Troballa: els POST legacy executen mutació + SMTP al mateix flux i treballen principalment amb `ID_INSC`/`A_PAGAR-PAGAMENT`. Continuen existint fins al cutover i no es consideren reescrits pel bridge nou.
+
+## 4. Codi FINAL implementat durant l’auditoria
+
+### Persistència i domini
+- migració `2026_10_03_000033_add_debt_claim_case.sql`;
+- `DebtSnapshotRepository`;
+- `DebtClaimCaseRepository`;
+- `DebtClaimCoordinator`;
+- extensió de `NotificationOutboxRepository` i `NotificationOutboxDeliveryService`.
+
+### Frontera SIF/intranet
+- `sif/public/api/debt-claims/manage.php` amb `InternalApiAuthenticator`;
+- `SifInternalDebtClaimClient.php`;
+- `LegacyDebtClaimContext.php`;
+- `ajax/facturacio/sifDebtClaim.php`;
+- `js/sif-debt-claim-bridge.js`;
+- les quatre pàgines legacy creen CSRF i carreguen el bridge, sense commutar encara les mutacions antigues.
+
+### Operació no productiva
+- `preflight-debt-claim.php`;
+- `preview-debt-claim.php`;
+- `process-debt-claim.php`.
+
+## 5. Matriu de traçabilitat
+
+| Requisit | Codi | Prova/evidència | Estat |
+| --- | --- | --- | --- |
+| Saldo des del ledger SIF | `DebtSnapshotRepository` | `DebtClaimCoordinatorSmokeTest`/reconciliació | IMPLEMENTAT; CI EN CUA |
+| Receptor fiscal, no alumne implícit | `BILLING_EMAIL` de `factura` | smoke + boundary | IMPLEMENTAT; CI EN CUA |
+| Expedient únic per factura | `debt_claim_case` | smoke | IMPLEMENTAT; CI EN CUA |
+| Events append-only | `debt_claim_event` | smoke/guards | IMPLEMENTAT; CI EN CUA |
+| Retry equivalent | payload hash + idempotency key lligats a `UUID_FACTURA` resolta | smoke + enrollment resolver | IMPLEMENTAT; CI EN CUA |
+| Payload contradictori | `PayloadIdempotencyValidator` | guards | IMPLEMENTAT; CI EN CUA |
+| Regles d’etapa | FIRST_CLAIM/FINAL_REMINDER únics per tipus; FINAL_CLAIM terminal + follow-up 30 dies | guards + coordinator | IMPLEMENTAT; CI EN CUA |
+| Outbox post-commit | `NotificationOutboxRepository` | smoke | IMPLEMENTAT; CI EN CUA |
+| Cancel·lació d’avisos obsolets després de qualsevol cobrament confirmat | `cancelPendingForInvoice()` | reconciliation + delivery test | IMPLEMENTAT; CI EN CUA |
+| Cobrament sense nova factura | `ClaimPaymentService` | tests existents | VERIFICAT AL REPOSITORI PREVI; revalidació CI actual pendent |
+| CSRF/mateix origen | bridge intranet | `DebtClaimIntranetBoundaryTest` | IMPLEMENTAT; CI EN CUA |
+| Rol/permís servidor | context + `assertCanEdit` + API roles | boundary/guards | IMPLEMENTAT; CI EN CUA |
+| HMAC/replay intern | client + `InternalApiAuthenticator` | contract test | IMPLEMENTAT; CI EN CUA |
+| Venciment/pròrroga | UC-096 | no hi ha model SIF complet | PENDENT / BLOQUEJA SCHEDULER |
+| Delivery real | UC-58 | no acreditat | PENDENT |
+
+## 6. Proves afegides
+
+- `DebtClaimCoordinatorSmokeTest`.
+- `DebtClaimCoordinatorReconciliationTest`.
+- `DebtClaimCoordinatorGuardsTest`.
+- `DebtClaimInternalApiContractTest`.
+- `DebtClaimIntranetBoundaryTest`.
+- `DebtClaimScriptsContractTest`.
+- `NotificationOutboxDeliveryServiceTest` ampliat per `CANCELLED`.
+
+GitHub Actions continua `queued` en la darrera comprovació; per tant, aquestes proves són **existents però no encara acreditades com a verdes**.
+
+## 7. Decisions de seguretat
+
+1. El bridge és `SIF_DEBT_CLAIM_UI_ENABLED=0` per defecte.
+2. `ID_INSC` es resol només server-side contra relacions SIF; si no hi ha una factura aplicable inequívoca, el flux falla tancat (inclòs `409` per múltiples pendents).
+3. Mutacions requereixen selector resoluble a una factura SIF inequívoca, CSRF, same-origin, rol i HMAC; la idempotència es calcula sobre la `UUID_FACTURA` resolta.
+4. Una reclamació té `fiscal_impact=NONE` i `economic_impact=NONE`.
+5. La baixa acadèmica continua en UC-72/95/96.
+6. No s’activa cap scheduler de morositat fins que UC-096 tingui venciment/pròrroga autoritatius.
+
+## 8. Pendent per acceptació operativa
+
+- CI MySQL/SIF verda;
+- preflight i proves sobre `sif_test*`/preproducció;
+- configurar URL, key/secret i rols de l’API interna;
+- plantilles/delivery UC-58;
+- pilot de cutover d’una pantalla i després les restants;
+- evidència de pagament parcial/complet, retry, rol denegat i CSRF invàlid;
+- UC-096 abans de qualsevol automatització temporal.
+
+## 9. Estat de tancament
+
+**Auditoria tècnica/documental: TANCADA.**  
+**Implementació del nucli: COMPLETA A LA BRANCA, no encara verificada per CI.**  
+**Legacy cutover: PENDENT.**  
+**Acceptació de preproducció/producció: PENDENT.**
+
+Vegeu també `uc-012-implementacio-sif-2026-10-03.md` i `uc-012-tancament-auditoria-2026-10-03.md`.
+
+
+### Troballes addicionals de cutover (04/10)
+
+- Les quatre pantalles carreguen el bridge, però els JS funcionals encara invoquen els POST legacy; no hi ha cutover efectiu.
+- `updLastClaimPay.php` continua acoblat a baixa de Moodle/BD en funció del resultat acadèmic. La reclamació `FINAL_CLAIM` del SIF i la baixa acadèmica s'han de separar abans del pilot.
+- Corregit el bug legacy de `$reclamatM` no inicialitzat al recordatori final, contrastat amb `IntranetProva.php`.
+- Afegida prova boundary perquè aquesta correcció no regressi i perquè el cutover no elimini accidentalment la separació reclamació/baixa.
+
+
+### Reclamació final recurrent i període de 30 dies
+
+El control legacy de morosos permet una nova reclamació quan han passat **30 dies** des de la darrera. El model SIF preserva aquesta regla sense relaxar la idempotència:
+
+- `FINAL_REMINDER` i `FIRST_CLAIM` continuen sense poder repetir-se amb una clau nova ni retrocedir d'etapa;
+- `FINAL_CLAIM` es pot repetir només si l'expedient continua obert, el saldo continua pendent i han transcorregut almenys 30 dies des de l'últim event `FINAL_CLAIM`;
+- un retry amb la mateixa clau idempotent continua reutilitzant el resultat;
+- un intent de seguiment final abans de 30 dies retorna conflicte `409`;
+- aquesta regla no activa cap scheduler: l'automatització temporal general continua bloquejada fins que UC-096 tingui venciment/pròrroga autoritatius.
+
+
+## Reconciliació final del cutover legacy
+
+- Les quatre pantalles carreguen el bridge SIF, però els seus JavaScript continuen cridant els POST legacy; per tant, el cutover **no està fet**.
+- `P-MOR-04` continua acoblat en el llegat a baixa acadèmica/Moodle; no es pot substituir directament per `FINAL_CLAIM` sense separar primer la baixa.
+- S'ha corregit a `Intranet.php` la projecció `reclamat` del recordatori final: `$reclamatM` ara s'inicialitza a partir del valor existent abans de `updClaimRecPag`.
+- Qualsevol pagament confirmat, també parcial, cancel·la avisos `PENDING` per evitar lliuraments amb saldo obsolet.
+
+
+### Correspondència P-MOR vs pantalles legacy
+
+Els subfluxos P-MOR defineixen l'estat canònic FINAL, però **no són una màquina d'estats derivada directament de les pantalles antigues**. La primera reclamació legacy filtra `reclamat IS NULL OR reclamat=''` i es regeix per `DATAI/DATA_INSC`; el recordatori de fi de curs usa `DATAF` i exclou qui ja té la marca «Reclamat fi de curs» a `pag_observacions`. Per tant, el pilot no ha de projectar artificialment P-MOR-02 → P-MOR-03 sobre una mateixa fila sense migrar primer les regles temporals/selecció.
+
+### Idempotència per factura canònica
+
+S'ha reforçat `DebtClaimCoordinator` perquè el selector d'entrada es resolgui dins la transacció i el hash idempotent utilitzi sempre `UUID_FACTURA`. Això bloqueja el cas en què `ID_INSC=10` apuntava inicialment a una factura A i, després de liquidar-la, passava a una factura B: reutilitzar la mateixa clau retorna conflicte `409` i no pot reaprofitar l'event de la factura A.
+
+
+### Regles d'etapa reconciliades amb el codi legacy
+
+La revisió de les consultes reals confirma que `cnsReclamacions` i `cnsAlumnesRecordarPag` no formen una seqüència lineal comuna: la primera depèn de `DATAI/DATA_INSC` i exigeix `reclamat` buit, mentre el recordatori de fi de curs depèn de `DATAF`. Per això el coordinador ja no usa un `rank()` entre `FIRST_CLAIM` i `FINAL_REMINDER`.
+
+Regla FINAL:
+- cada `FIRST_CLAIM` i `FINAL_REMINDER` només es pot registrar una vegada per expedient (els retries equivalents continuen reutilitzant la mateixa clau);
+- poden aparèixer en qualsevol ordre abans de l'escalat final;
+- `FINAL_CLAIM` bloqueja nous avisos inicials;
+- un nou `FINAL_CLAIM` només és possible com a seguiment després de la guarda mínima de 30 dies.

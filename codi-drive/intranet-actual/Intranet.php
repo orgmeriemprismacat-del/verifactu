@@ -34389,6 +34389,9 @@ echo "usuarisBD: ".$usuarisBD[4]."<BR>";*/
 			$pagObsM = $pagObs;
 			if ( $pagObs != '' ) $pagObsM .= ". ";
 			$pagObsM .= "Reclamat fi de curs";
+			$reclamatM = $reclamat;
+			if ( $reclamatM != '' ) $reclamatM .= ". ";
+			$reclamatM .= "Reclamat fi de curs";
 			$stmt->execute();
 			$conWeb->closeStmt();
 			$mostrar = 'OK';

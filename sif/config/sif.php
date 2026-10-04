@@ -68,6 +68,7 @@ return [
         'redsys_course_status_signed_path' => getenv('SIF_INTERNAL_REDSYS_COURSE_STATUS_SIGNED_PATH') ?: '/api/redsys/course-status.php',
         'usoc_signed_path' => getenv('SIF_INTERNAL_USOC_SIGNED_PATH') ?: '/api/usoc/manage.php',
         'novice_promotion_signed_path' => getenv('SIF_INTERNAL_NOVICE_PROMOTION_SIGNED_PATH') ?: '/api/novice-promotion/manage.php',
+        'debt_claim_signed_path' => getenv('SIF_INTERNAL_DEBT_CLAIM_SIGNED_PATH') ?: '/api/debt-claims/manage.php',
         'gift_redemption_signed_path' => getenv('SIF_INTERNAL_GIFT_REDEMPTION_SIGNED_PATH') ?: '/api/gifts/redemption/redeem.php',
         'gift_redemption_notification_signed_path' => getenv('SIF_INTERNAL_GIFT_REDEMPTION_NOTIFICATION_SIGNED_PATH') ?: '/api/gifts/redemption/notifications.php',
     ],
@@ -90,6 +91,16 @@ return [
         'manage_roles' => array_values(array_filter(array_map(
             'trim',
             explode(',', getenv('SIF_USOC_MANAGE_ROLES') ?: '')
+        ))),
+    ],
+    'debt_claims' => [
+        'read_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_DEBT_CLAIM_READ_ROLES') ?: '')
+        ))),
+        'manage_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_DEBT_CLAIM_MANAGE_ROLES') ?: '')
         ))),
     ],
     'incidents' => [
