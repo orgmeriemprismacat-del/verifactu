@@ -8,12 +8,14 @@ use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
+use Prisma\Sif\Repository\ClaimPaymentExternalReceiptRepository;
 use Prisma\Sif\Repository\ClaimPaymentInvoiceLinkRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentActionEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Service\ClaimPaymentPayloadBuilder;
+use Prisma\Sif\Service\ClaimPaymentReceiptResolver;
 use Prisma\Sif\Service\ClaimPaymentService;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\PaymentActionGateway;
@@ -76,6 +78,9 @@ try {
         $payload['claim_case_id'] ?? null,
         'claim case id'
     );
+    $externalReceiptType = claimPaymentExternalReceiptType(
+        $payload['external_receipt_type'] ?? null
+    );
     $externalReceiptId = claimPaymentIdentifier(
         $payload['external_receipt_id'] ?? null,
         'external receipt id'
@@ -99,6 +104,7 @@ try {
     ] as $legacyReferenceField) {
         unset($paymentInput[$legacyReferenceField]);
     }
+    $paymentInput['external_receipt_type'] = $externalReceiptType;
     $paymentInput['external_receipt_id'] = $externalReceiptId;
 
     // Internal identity is authoritative. Never accept actor attribution from
@@ -135,6 +141,7 @@ try {
         'changeset' => [
             'claim_case_id' => $claimCaseId,
             'source_inscription_id' => $sourceInscriptionId,
+            'external_receipt_type' => $externalReceiptType,
             'external_receipt_id' => $externalReceiptId,
             'invoice_selector' => $uuidFactura !== ''
                 ? ['type' => 'uuid', 'value' => $uuidFactura]
@@ -147,53 +154,59 @@ try {
     ];
 
     $invoiceLinks = new ClaimPaymentInvoiceLinkRepository();
+    $receiptResolver = new ClaimPaymentReceiptResolver(
+        new ClaimPaymentExternalReceiptRepository()
+    );
 
     $result = $gateway->run(
         $auditContext,
         function (PDO $transactionDb) use (
             $claimService,
             $invoiceLinks,
+            $receiptResolver,
             $sourceInscriptionId,
             $uuidFactura,
             $numVisible,
+            $externalReceiptType,
+            $externalReceiptId,
             $paymentInput
         ): array {
             if ($uuidFactura !== '') {
-                $invoiceLinks->assertUuidMatches(
+                $resolved = $invoiceLinks->assertUuidMatches(
                     $transactionDb,
                     $uuidFactura,
                     $sourceInscriptionId
                 );
-
-                return $claimService->registerByUuidInTransaction(
-                    $transactionDb,
-                    $uuidFactura,
-                    $paymentInput
-                );
-            }
-
-            if ($numVisible !== '') {
-                $invoiceLinks->assertNumVisibleMatches(
+            } elseif ($numVisible !== '') {
+                $resolved = $invoiceLinks->assertNumVisibleMatches(
                     $transactionDb,
                     $numVisible,
                     $sourceInscriptionId
                 );
-
-                return $claimService->registerByNumVisibleInTransaction(
+            } else {
+                $resolved = $invoiceLinks->resolveUniqueOriginForInscription(
                     $transactionDb,
-                    $numVisible,
-                    $paymentInput
+                    $sourceInscriptionId
                 );
             }
 
-            $resolved = $invoiceLinks->resolveUniqueOriginForInscription(
+            $targetUuid = (string) $resolved['UUID_FACTURA'];
+            $existing = $receiptResolver->resolveExisting(
                 $transactionDb,
-                $sourceInscriptionId
+                $externalReceiptType,
+                $externalReceiptId,
+                $targetUuid
             );
+            if ($existing !== null) {
+                $existing['num_visible'] = (string) $resolved['NUM_VISIBLE'];
+                return $existing;
+            }
+
+            $receiptResolver->assertMayCreateNew($externalReceiptType);
 
             return $claimService->registerByUuidInTransaction(
                 $transactionDb,
-                (string) $resolved['UUID_FACTURA'],
+                $targetUuid,
                 $paymentInput
             );
         }
@@ -201,6 +214,7 @@ try {
 
     $result['claim_case_id'] = $claimCaseId;
     $result['source_inscription_id'] = $sourceInscriptionId;
+    $result['external_receipt_type'] = $externalReceiptType;
     $result['external_receipt_id'] = $externalReceiptId;
 
     JsonResponse::send([
@@ -269,4 +283,15 @@ function claimPaymentPositiveInt(mixed $value, string $message): int
     }
 
     return (int) $value;
+}
+
+
+function claimPaymentExternalReceiptType(mixed $value): string
+{
+    $type = strtoupper(trim((string) $value));
+    if (!in_array($type, ['BANK_REFERENCE', 'DS_ORDER', 'PROVIDER_REF'], true)) {
+        throw SifException::validation('Invalid external receipt type');
+    }
+
+    return $type;
 }
