@@ -46,7 +46,41 @@ Obligatòries:
 
 La clau i el secret només existeixen al servidor. No s'envien mai al navegador.
 
+Referències de configuració:
+- `uc-022-intranet-pre.env.example` per `intranet-pre.prisma.cat`;
+- `uc-022-pay-test-config.md` per `pay-test.prisma.cat` / `sif_test`.
+
 ## 3. Preflight obligatori
+
+### 3.1. Host intranet-pre
+
+Al host `intranet-pre.prisma.cat`:
+
+```bash
+php scripts/preflight-uc022-intranet.php
+```
+
+Ha de validar com a mínim:
+
+- `SIF_INTERNAL_API_BASE_URL=https://pay-test.prisma.cat`;
+- HTTPS obligatori;
+- key id i secret presents al servidor;
+- secret d'una longitud mínima de 32 caràcters;
+- signed path exactament `/api/payments/manual-transfer.php`;
+- rols UC-022 configurats;
+- presència de guard, client, gateway, endpoints AJAX i JS del canal.
+
+Per conservar evidència:
+
+```bash
+mkdir -p evidence/uc-022
+php scripts/preflight-uc022-intranet.php \
+  > evidence/uc-022/intranet-preflight-$(date +%Y%m%d-%H%M%S).json
+```
+
+El JSON només conserva hashes de key id/secret, no el secret en clar.
+
+### 3.2. Host SIF
 
 Al host SIF:
 
