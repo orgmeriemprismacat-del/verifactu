@@ -71,6 +71,8 @@ Quan aquest tall sigui operatiu, `realitzaPagamentRegalAutomatic.php` no ha de c
 | `RedsysGiftInvoiceService.php` | factura + payment + entitlement | IMPLEMENTAT |
 | `GiftAeatInvoicePayloadEnricher.php` | snapshot AEAT explícit en pre/prod | IMPLEMENTAT; VALORS REALS PENDENTS |
 | `GiftPaymentNotificationService.php` | outbox idempotent sense codi cru | IMPLEMENTAT |
+| `GiftReservationNotificationService.php` + `/api/gifts/reservation/notifications.php` | outbox idempotent de reserva i gate `claim/complete` | IMPLEMENTAT |
+| `web-actual/inc/SifGiftReservationNotificationClient.php` | bridge HMAC web→SIF per reserva | IMPLEMENTAT |
 | `LegacySyncService.php` | projecció llegada després d'èxit SIF | IMPLEMENTAT |
 | `gift-status.php` + client/return status | estat autoritatiu navegador | IMPLEMENTAT |
 | `preflight-redsys-gift.php` | readiness específica UC-017 | IMPLEMENTAT |
