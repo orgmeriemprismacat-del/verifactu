@@ -37,6 +37,9 @@ final class ClaimPaymentInternalApiContractTest
         Assert::stringContainsString("'action' => 'SYNC_LEGACY'", $api);
         Assert::stringContainsString('payment_persisted', $api);
         Assert::stringContainsString('requires_reconciliation', $api);
+        Assert::stringContainsString('sifPaymentPersisted', $api);
+        Assert::stringContainsString('persistedPaymentResult', $api);
+        Assert::stringContainsString('reconciliation_error_code', $api);
         Assert::stringContainsString('assertUuidMatches', $api);
         Assert::stringContainsString('assertNumVisibleMatches', $api);
         Assert::stringContainsString('claim_case_id', $api);
