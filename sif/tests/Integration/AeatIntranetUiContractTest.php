@@ -22,6 +22,13 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString('sif_aeat_csrf', $page);
         Assert::stringContainsString('random_bytes(32)', $page);
         Assert::stringContainsString('sif-registres-aeat.js', $page);
+        Assert::stringContainsString(
+            'sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==',
+            $page
+        );
+        if (str_contains($page, 'kit.fontawesome.com')) {
+            Assert::fail('UC-009 fiscal panel must not load the dynamic Font Awesome kit.');
+        }
         Assert::stringContainsString('Control de remissió AEAT', $page);
 
         Assert::stringContainsString("const endpoint = '/ajax/sif/sifAeat.php';", $js);
