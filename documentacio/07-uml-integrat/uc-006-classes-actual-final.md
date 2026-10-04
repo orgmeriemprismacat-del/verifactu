@@ -258,6 +258,7 @@ class EnrollmentFundMovementRepository {
   +findInvoiceLineForInscription(db,uuidFactura,idInsc)
   +insertOrReuseExternalAllocation(db,movement)
   +availableAmountForInscription(db,idInsc,forUpdate)
+  +insertOrReuseInternalTransfer(db,movement)
   +insertOrReuseCreditCreate(db,movement)
   +insertOrReuseRefundExit(db,movement)
   +insertOrReuseCompensationAllocation(db,movement)
@@ -291,7 +292,7 @@ PackEnrollmentFundAllocationService --> EnrollmentFundMovementRepository
 EnrollmentFundMovementRepository --> EnrollmentFundMovementTable
 ```
 
-La base admet `EXTERNAL_ALLOCATION`, `INTERNAL_TRANSFER`, `REVERSAL`, `COMPENSATION_ALLOCATION`, `REFUND_EXIT` i `CREDIT_CREATE`. A la branca UC-006, `ManualRefundService` i `CreditBalanceService` ja utilitzen aquest repositori quan el caller aporta una inscripció origen/destí explícita. `INTERNAL_TRANSFER` continua sense orquestració de negoci.
+La base admet `EXTERNAL_ALLOCATION`, `INTERNAL_TRANSFER`, `REVERSAL`, `COMPENSATION_ALLOCATION`, `REFUND_EXIT` i `CREDIT_CREATE`. A la branca UC-006, `ManualRefundService`, `CreditBalanceService` i `EnrollmentFundTransferService` ja utilitzen aquest repositori. `INTERNAL_TRANSFER` és executable; continua pendent la decisió/orquestració de negoci.
 
 ## 5.2. ACTUAL ampliat 04/10 — sortides i entrada de saldo ja cablejades
 
@@ -313,6 +314,12 @@ class CreditBalanceService {
   -ensureCreditFundExit(db,payload,uuidCredit)
   -ensureCompensationFundAllocation(db,payload,uuidPayment,credit,invoice)
 }
+class EnrollmentFundTransferService {
+  +transfer(input) array
+}
+class EnrollmentFundTransferPayloadBuilder {
+  +build(input) array
+}
 class EnrollmentFundMovementRepository {
   +availableAmountForInscription(db,idInsc,forUpdate)
   +insertOrReuseCreditCreate(db,movement)
@@ -333,6 +340,8 @@ class EnrollmentFundMovement {
   +ID_INSC_DESTI
   +MOVEMENT_TYPE
 }
+EnrollmentFundTransferService --> EnrollmentFundTransferPayloadBuilder
+EnrollmentFundTransferService --> EnrollmentFundMovementRepository : INTERNAL_TRANSFER
 ManualRefundService --> PaymentService : REFUND compartint transacció
 ManualRefundService --> EnrollmentFundMovementRepository : REFUND_EXIT
 CreditBalanceService --> CreditBalance : crea/consumeix
@@ -340,7 +349,7 @@ CreditBalanceService --> EnrollmentFundMovementRepository : CREDIT_CREATE / COMP
 EnrollmentFundMovementRepository --> EnrollmentFundMovement : persisteix/locka
 ```
 
-**Implementat:** quan el caller aporta `source_enrollment_id` o `target_enrollment_id`, aquestes relacions són codi real de la branca. **Pendent:** controlador UC-006, titularitat, evidence guard genèric, `INTERNAL_TRANSFER` i audit gateway.
+**Implementat:** quan el caller aporta origen/destí explícits, les relacions de refund, saldo, compensació i transferència A→B són codi real de la branca. **Pendent:** controlador UC-006, titularitat, evidence guard genèric, wiring del transfer al coordinator i audit gateway.
 ## 6. Mancances del model ACTUAL
 
 1. **No hi ha orquestrador UC-006** que converteixi una baixa/canvi/anul·lació en una única decisió econòmica autoritzada.
@@ -351,7 +360,7 @@ EnrollmentFundMovementRepository --> EnrollmentFundMovement : persisteix/locka
    - deduplicació cross-channel.
 4. `CreditBalanceService::createCredit()` ja té K/hash i `CREDIT_CREATE` opcional, però la K de dret no es deriva/obliga des de la UI.
 5. `applyCredit*` comprova saldo, deute i inscripció/línia destí quan s'informa, però no titularitat compatible.
-6. `INTERNAL_TRANSFER` existeix al model però no té servei/orquestració UC-006 per canvi de curs A→B.
+6. `INTERNAL_TRANSFER` té builder/servei/repositori/CLI/proves; falta l'orquestració UC-006/UC-071 que decideixi l'import i l'executi.
 7. `PaymentActionGateway` existeix, però els serveis i scripts examinats no hi passen.
 8. `public/api/payments/register.php` instancia `PaymentService` directament: no és un endpoint UC-006 complet.
 9. La UI llegada d’anul·lació conserva semàntica “A TORNAR” sense separar estat pendent de retorn vs retorn confirmat.
