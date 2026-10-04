@@ -60,6 +60,28 @@ final class HistoricalInvoiceMigrationGovernanceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
     }
 
+    public function testRejectsCurrentYearHistoricalNumberWithoutFiscalSequenceCheckpoint(): void
+    {
+        $db = TestDatabase::fresh();
+        $input = $this->input();
+        $year = (int) (new \DateTimeImmutable(
+            'now',
+            new \DateTimeZone('Europe/Madrid')
+        ))->format('Y');
+        $input['num_visible'] = sprintf('A%d/000123', $year);
+        $input['issue_date'] = sprintf('%d-03-15 10:00:00', $year);
+
+        $exception = Assert::throws(
+            SifException::class,
+            fn (): array => $this->service($db)->importHistoricalInvoice($input),
+            409
+        );
+
+        Assert::stringContainsString('no fiscal sequence checkpoint', $exception->getMessage());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM fiscal_sequence')->fetchColumn());
+    }
+
     public function testRejectsHistoricalNumberAheadOfActiveFiscalSequence(): void
     {
         $db = TestDatabase::fresh();
