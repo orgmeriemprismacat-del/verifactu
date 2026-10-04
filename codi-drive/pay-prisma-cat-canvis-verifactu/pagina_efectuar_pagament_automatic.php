@@ -4,6 +4,23 @@ header('Pragma: no-cache');
 header('Referrer-Policy: no-referrer');
 header('X-Content-Type-Options: nosniff');
 
+$courseCutoverEnabled = filter_var(
+    getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+$legacyDrainConfirmed = filter_var(
+    getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+
+// DRAIN is a valid operational phase, but it must stop before DB access and
+// before creating a new SIF/Redsys payment intent.
+if ($courseCutoverEnabled && !$legacyDrainConfirmed) {
+    http_response_code(503);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit('Tall SIF en preparació. No es creen noves sessions TPV fins confirmar el drenatge legacy.');
+}
+
 // UC-111: authoritative payment gate BEFORE rendering or building Redsys data.
 // This legacy bridge reads the enrollment and secretary decision, never the
 // course/amount/approval from the POST form as its source of truth.
@@ -163,23 +180,14 @@ try {
       $importPagare = (string) $intent['amount'];
       $id = $order;
 
-      // El fallback rep la correlació dins MerchantData signat. No posem PII ni import al callback URL.
-      $legacyMerchantUrl="https://pay.prisma.cat/doit.php";
-
-      // UC-014: el tall de MerchantURL és explícit. Configurar una URL SIF
-      // per si sola no canvia el callback; cal habilitar també el flag de cutover.
-      $courseCutoverEnabled = filter_var(
-         getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
-         FILTER_VALIDATE_BOOLEAN
-      );
-      $legacyDrainConfirmed = filter_var(
-         getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
-         FILTER_VALIDATE_BOOLEAN
-      );
+      // El callback i els retorns de navegador són configuració d'entorn.
+      // Preproducció no pot heretar silenciosament URLs de producció.
       $sifMerchantUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
-      if ($courseCutoverEnabled && !$legacyDrainConfirmed) {
-         throw new RuntimeException('SIF_REDSYS_LEGACY_DRAIN_NOT_CONFIRMED');
-      }
+      $legacyMerchantUrl = trim((string) getenv('SIF_REDSYS_LEGACY_CALLBACK_URL'));
+      $returnBaseUrl = rtrim(trim((string) getenv('SIF_REDSYS_RETURN_BASE_URL')), '/');
+
+      // UC-014: el tall de MerchantURL és explícit. DRAIN (1/0) ja ha estat
+      // aturat a l'inici del script abans de crear cap intent.
       if ($courseCutoverEnabled) {
          if ($sifMerchantUrl === '') {
             throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_REQUIRED_FOR_CUTOVER');
@@ -189,15 +197,28 @@ try {
          }
          $url = $sifMerchantUrl;
       } else {
+         if ($legacyMerchantUrl === '') {
+            throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_NOT_CONFIGURED');
+         }
+         if (!str_starts_with($legacyMerchantUrl, 'https://')) {
+            throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_MUST_USE_HTTPS');
+         }
          $url = $legacyMerchantUrl;
+      }
+
+      if ($returnBaseUrl === '') {
+         throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_NOT_CONFIGURED');
+      }
+      if (!str_starts_with($returnBaseUrl, 'https://')) {
+         throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_MUST_USE_HTTPS');
       }
 
       $returnQuery = http_build_query([
          'order' => $order,
          'idPag' => (int) $idPag,
       ], '', '&', PHP_QUERY_RFC3986);
-      $urlOK="https://pay.prisma.cat/respostaOkPagamentAutomatic.php?".$returnQuery;
-      $urlKO="https://pay.prisma.cat/respostaKoPagamentAutomatic.php?".$returnQuery;
+      $urlOK=$returnBaseUrl."/respostaOkPagamentAutomatic.php?".$returnQuery;
+      $urlKO=$returnBaseUrl."/respostaKoPagamentAutomatic.php?".$returnQuery;
 
       if (!preg_match('/^\d{1,10}\.\d{2}$/D', $importPagare)) {
          throw new RuntimeException('INVALID_SIF_PAYMENT_AMOUNT');
