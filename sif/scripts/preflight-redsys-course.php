@@ -13,6 +13,8 @@ $config = require dirname(__DIR__) . '/config/sif.php';
 $env = (string) ($config['env'] ?? 'local');
 $internalApi = (array) ($config['internal_api'] ?? []);
 $callbackUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
+$legacyCallbackUrl = trim((string) getenv('SIF_REDSYS_LEGACY_CALLBACK_URL'));
+$returnBaseUrl = rtrim(trim((string) getenv('SIF_REDSYS_RETURN_BASE_URL')), '/');
 $gatewayUrl = trim((string) getenv('REDSYS_GATEWAY_URL'));
 $internalApiBaseUrl = rtrim(trim((string) getenv('SIF_INTERNAL_API_BASE_URL')), '/');
 $merchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
@@ -30,6 +32,13 @@ $legacyDrainConfirmed = filter_var(
 );
 $courseIntentPath = trim((string) ($internalApi['redsys_course_intent_signed_path'] ?? ''));
 $courseStatusPath = trim((string) ($internalApi['redsys_course_status_signed_path'] ?? ''));
+
+$cutoverPhase = match (true) {
+    !$courseCutoverEnabled && !$legacyDrainConfirmed => 'NORMAL',
+    $courseCutoverEnabled && !$legacyDrainConfirmed => 'DRAIN',
+    $courseCutoverEnabled && $legacyDrainConfirmed => 'CUTOVER_CONFIRMED',
+    default => 'INVALID',
+};
 
 $checks = [
     'environment_is_test_or_preproduction' => in_array($env, ['test', 'preproduction'], true),
@@ -51,10 +60,13 @@ $checks = [
     'course_intent_signed_path_matches_bridge' => $courseIntentPath === '/api/redsys/course-intent.php',
     'course_status_signed_path_matches_bridge' => $courseStatusPath === '/api/redsys/course-status.php',
     'redsys_callback_url_https_configured' => $callbackUrl !== '' && str_starts_with($callbackUrl, 'https://'),
+    'legacy_callback_url_https_configured_if_not_cutover' => $courseCutoverEnabled
+        || ($legacyCallbackUrl !== '' && str_starts_with($legacyCallbackUrl, 'https://')),
+    'return_base_url_https_configured' => $returnBaseUrl !== '' && str_starts_with($returnBaseUrl, 'https://'),
     'redsys_gateway_url_https_configured' => $gatewayUrl !== '' && str_starts_with($gatewayUrl, 'https://'),
     'cutover_configuration_consistent' => !$courseCutoverEnabled
         || ($callbackUrl !== '' && str_starts_with($callbackUrl, 'https://')),
-    'legacy_drain_confirmed_if_cutover' => !$courseCutoverEnabled || $legacyDrainConfirmed,
+    'cutover_phase_valid' => $cutoverPhase !== 'INVALID',
     'legacy_db_configured' => (string) ($config['legacy_db']['dsn'] ?? '') !== '',
     'sif_database_connectivity' => false,
     'legacy_database_connectivity' => false,
@@ -109,6 +121,7 @@ $failed = array_keys(array_filter($checks, static fn (bool $ok): bool => !$ok));
 $result = [
     'ok' => count($failed) === 0,
     'environment' => $env,
+    'cutover_phase' => $cutoverPhase,
     'checks' => $checks,
 ];
 
