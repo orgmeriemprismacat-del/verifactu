@@ -25,6 +25,7 @@ if (!isset($configOk) || !$configOk || !isset($_SESSION['usuari'], $_SESSION['in
 
 require_once $root . '/SifExistingInvoicePaymentAccess.php';
 require_once $root . '/SifInternalApiClient.php';
+require_once $root . '/Uc002LegacyInvoiceSelectorResolver.php';
 require_once $root . '/Uc002LegacyPaymentProjectionApplier.php';
 require_once $root . '/ConnexioWeb.php';
 
@@ -57,7 +58,11 @@ try {
         throw new RuntimeException('Invalid JSON', 400);
     }
 
-    $numVisible = trim((string) ($payload['num_visible'] ?? ''));
+    $legacyInvoiceNumber = trim((string) (
+        $payload['legacy_invoice_number']
+        ?? $payload['num_visible']
+        ?? ''
+    ));
     $amountRaw = trim(str_replace(',', '.', (string) ($payload['amount'] ?? '')));
     $movementDate = trim((string) ($payload['movement_date'] ?? ''));
     $bank = trim((string) ($payload['bank'] ?? ''));
@@ -65,8 +70,8 @@ try {
     $reference = trim((string) ($payload['reference'] ?? ''));
     $requestId = strtolower(trim((string) ($payload['request_id'] ?? '')));
 
-    if ($numVisible === '' || strlen($numVisible) > 30) {
-        throw new RuntimeException('Invalid SIF invoice number', 422);
+    if ($legacyInvoiceNumber === '' || strlen($legacyInvoiceNumber) > 30) {
+        throw new RuntimeException('Invalid legacy invoice number', 422);
     }
     if (!preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $amountRaw) || (float) $amountRaw <= 0.0) {
         throw new RuntimeException('Invalid payment amount', 422);
@@ -113,13 +118,22 @@ try {
         $payment['reference'] = $reference;
     }
 
+    $selectorResolution = (new Uc002LegacyInvoiceSelectorResolver())->resolve(
+        $legacyInvoiceNumber
+    );
+    $selector = [
+        'legacy_factura_relacionada' =>
+            (int) $selectorResolution['legacy_factura_relacionada'],
+    ];
+
     $client = new SifInternalApiClient();
     $response = $client->registerExistingInvoicePayment(
         $actor['actor_id'],
         $actor['roles'],
-        ['num_visible' => $numVisible],
+        $selector,
         $payment
     );
+    $response['legacy_invoice_number'] = $legacyInvoiceNumber;
 
     $status = (int) ($response['_http_status'] ?? 0);
     unset($response['_http_status']);
