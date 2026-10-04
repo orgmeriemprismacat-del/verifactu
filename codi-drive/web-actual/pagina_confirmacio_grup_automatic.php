@@ -152,7 +152,7 @@ else {
 
    <div id="cnt-pagament-grup" class="prisma-container container separacio-peu" role="main">Confirmació pagament</div>
    <footer class="prisma-footer"></footer>
-   <<script async>
+   <script async>
       var headerCSS = "<link rel='stylesheet' href='https://www.prisma.cat/css1619773569/header.min.css?ver=5.2' />";
       if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
          headerCSS += "<link rel='stylesheet' href='https://www.prisma.cat/css1619773569/header_mbl.min.css?ver=5.0' />";
