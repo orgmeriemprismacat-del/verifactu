@@ -80,6 +80,9 @@ try {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         new EnrollmentPaymentFlowLockRepository()
     );
     $service = new RedsysCourseInvoiceService(
