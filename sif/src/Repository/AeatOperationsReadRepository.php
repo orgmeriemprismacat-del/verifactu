@@ -75,7 +75,7 @@ final class AeatOperationsReadRepository
 
         $attempts = $db->prepare(
             'SELECT UUID_ATTEMPT, ATTEMPT_NO, ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH,
-                    RESPONSE_CODE, RESPONSE_CSV, STATUS, ERROR_CODE, ERROR_DETAIL,
+                    EVIDENCE_ID, RESPONSE_CODE, RESPONSE_CSV, STATUS, ERROR_CODE, ERROR_DETAIL,
                     STARTED_AT, FINISHED_AT, CREATED_AT
              FROM aeat_submission_attempt
              WHERE FISCAL_QUEUE_ID = ?
