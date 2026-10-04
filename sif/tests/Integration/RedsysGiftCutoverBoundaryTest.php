@@ -163,21 +163,27 @@ final class RedsysGiftCutoverBoundaryTest
         Assert::same(true, $guard !== false && $firstInclude !== false && $guard < $firstInclude);
     }
 
-    public function testGiftPaymentFormPostsAuthoritativeGiftIdWithoutLegacyGiftCodeOrEmail(): void
+    public function testGiftPaymentFormPostsSignedCheckoutTokenWithoutMutableGiftContext(): void
     {
         $source = $this->read(
             'codi-drive/pay-prisma-cat-canvis-verifactu/PagamentRegalAutomatic.php'
         );
+        $checkout = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_regal_automatic.php'
+        );
 
-        Assert::stringContainsString("id='giftId' name='giftId'", $source);
-        Assert::stringContainsString("$giftId = (int) $this->idRegal;", $source);
+        Assert::stringContainsString('GiftCheckoutToken::issue($giftId)', $source);
+        Assert::stringContainsString("id='giftToken' name='giftToken'", $source);
+        Assert::stringContainsString('GiftCheckoutToken::verify(', $checkout);
 
         foreach ([
-            "name='codiRegal' value='".$codiRegal",
-            "name='email' value='".$correu",
+            "name='giftId'",
+            "name='codiRegal'",
+            "name='email'",
+            "name='import'",
         ] as $forbidden) {
             if (str_contains($source, $forbidden)) {
-                Assert::fail('Gift payment form still posts undefined/legacy sensitive context: ' . $forbidden);
+                Assert::fail('Gift payment form still posts mutable legacy payment context: ' . $forbidden);
             }
         }
     }
