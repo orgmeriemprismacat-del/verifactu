@@ -42,11 +42,11 @@
 | Descompte del 25 % del builder | Verificar contra la política real i l'snapshot comercial: no reconstruir un descompte diferent si s'aporta explicitament, ni generalitzar el 25 % a tots els tipus d'oferta. |
 | Una sola persona fa totes les inscripcions del pack | La factura pot ser una, però els `ID_INSC` de cada curs/edició continuen independents per permetre canvis, baixes i consulta. |
 
-**Proves localitzades:** `RedsysPackInvoiceServiceTest`, `PackPaymentGateTest`, `LegacyPackInvoicePayloadBuilderTest`, `LegacyPackCallbackBoundaryTest` i scripts de preflight/preview. El paquet UC-015 fusionat a `41d6968...` té `SIF PHP MySQL tests` en **success** (run `36741186555`). La revisió de codi del PR a `0b32fa2...` va passar els quatre workflows del repositori, inclòs `SIF PHP MySQL tests` (run `36943484891`). Qualsevol commit o resincronització posterior ha de tornar a passar CI abans del merge.
+**Proves localitzades:** `RedsysPackInvoiceServiceTest`, `PackPaymentGateTest`, `LegacyPackInvoicePayloadBuilderTest`, `LegacyPackCallbackBoundaryTest`, boundaries web/Redsys i scripts de preflight/preview. La reconciliació del 04/10 pren com a evidència posterior el PR #149: `SIF checks` i `SIF PHP MySQL tests` en **success**, amb **971 passed / 0 failed**. S'afegeix `sif/tests/run-uc015-tests.php` + `UC-015 SIF pack checks` com a gate específic.
 
 ### 1.3. Regles comercials reals i divisió excepcional del pack — contrast amb el xat original
 
-**Composició habitual (no universal):** PrisMa descriu packs de **dos cursos**, amb **dues inscripcions independents** relacionades pel mateix `IDPAG`, i preu total provinent de la taula de preus vinculada a packs. El descompte comercial de pack del 25 % es posa en **el segon curs**, no es reparteix per defecte entre les dues inscripcions. Abans d'emetre, cal validar el snapshot del pack real (ID_PACK, preu, dues inscripcions, imports base, descompte del segon curs i suma final) contra la lògica comercial corresponent; un builder fiscal no substitueix aquesta comprovació.
+**Composició executable actual:** el model admet **N components (mínim 2)**, amb inscripcions independents relacionades pel mateix `IDPAG`. Base, descompte, percentatge i total es congelen **per component** al snapshot (`PACK_BASE`, `PACK_DISCOUNT`, `PACK_DISCOUNT_PCT`, `PACK_TOTAL`) i no s'ha de pressuposar que el descompte pertanyi sempre a un «segon curs». Abans d'emetre es valida el snapshot complet, els ordinals i la suma final.
 
 **P-COMUNICACIÓ PACK N — estat actual:** el correu d'alta ja no pressuposa exactament dos cursos: la plantilla usa `[CURSOS_PACK]` i el PHP hi injecta la llista dinàmica de totes les edicions. El contracte queda cobert per `PackMultiCourseCommunicationBoundaryTest`.
 
@@ -317,4 +317,16 @@ Punts nous incorporats:
 - el text intern del descompte fiscal ja no pressuposa una línia/ordinal concreta;
 - el verificador canònic `verify-redsys-pack-preproduction.php` ja està implementat; resta executar-lo amb un `DS_ORDER` real;
 - les dues còpies productives del callback legacy estan fail-closed amb 410 abans de mutar; el harness `Prova` requereix test/preproduction + flag explícit;
-- el nucli PACK conserva evidència CI històrica i el HEAD final d'aquesta auditoria ha de tornar a passar la CI després dels enduriments web/idempotència/preproducció.
+- el nucli PACK conserva evidència CI històrica; la reconciliació 04/10 afegeix evidència posterior del PR #149 (**971 passed / 0 failed**) i un gate selectiu UC-015 per a regressions futures.
+
+
+## Reconciliació amb main — 2026-10-04
+
+La fitxa/UML integrada continua representant el flux executable de `main@6c8137f...`. No s'han detectat noves classes productives necessàries ni un segon callback fiscal PACK.
+
+Actualitzacions de governança:
+- [inventari PHP/JS ACTUAL/FINAL](uc-015-inventari-codi-php-js-actual-final-2026-10-04.md);
+- [reconciliació completa amb main](uc-015-reconciliacio-main-2026-10-04.md);
+- gate selectiu `sif/tests/run-uc015-tests.php` + `.github/workflows/uc015-sif-checks.yml`.
+
+Notificacions: enqueue PACK i gate genèric `NotificationOutboxDeliveryService` implementats; transport/cutover SMTP real encara pendent d'acceptació operativa.
