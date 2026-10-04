@@ -24,6 +24,8 @@ use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Service\CourseEnrollmentFundAllocationService;
 use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
 use Prisma\Sif\Service\CoursePaymentNotificationService;
+use Prisma\Sif\Service\GiftAeatInvoicePayloadEnricher;
+use Prisma\Sif\Service\GiftPaymentNotificationService;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
 use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
@@ -129,7 +131,22 @@ try {
             )
         ),
         new RedsysGroupInvoiceService($notifications, new LegacyGroupSnapshotRepository(), new LegacyGroupInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
-        new RedsysGiftInvoiceService($notifications, new LegacyGiftSnapshotRepository(), new LegacyGiftInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
+        new RedsysGiftInvoiceService(
+            $notifications,
+            new LegacyGiftSnapshotRepository(),
+            new LegacyGiftInvoicePayloadBuilder(
+                new GiftAeatInvoicePayloadEnricher(
+                    (array) ($config['issuer'] ?? []),
+                    (array) ($config['aeat'] ?? [])
+                )
+            ),
+            $redsysPayloads,
+            $invoiceService,
+            null,
+            new GiftPaymentNotificationService(
+                new NotificationOutboxRepository(new UuidGenerator())
+            )
+        ),
         new RedsysUsocInvoiceService($notifications, new LegacyUsocSnapshotRepository(), new LegacyUsocInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
     ]);
     $processor = new RedsysLegacySyncingProcessor(

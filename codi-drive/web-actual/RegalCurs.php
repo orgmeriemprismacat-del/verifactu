@@ -415,7 +415,7 @@ class RegalCurs{
                    $diesObets=0;
                 else if (intval($valors[0])>0 && $valors[0]==$hores) //si el valor és un numero i les hores son iguals al curs
                    $diesObets = $valors[1];
-                else if (intval($valors[0])<=0 && $valors[0]==$codi) //si el valor no és un numero i el codi és igual al curs
+                else if (intval($valors[0])<=0 && $valors[0]==$codiCurs) //si el valor no és un numero i el codi és igual al curs
                    $diesObets = $valors[1];
              }
              $connexio->closeStmt();
@@ -426,7 +426,7 @@ class RegalCurs{
                 AND (CURS NOT LIKE '%JOR%') AND (CURS NOT LIKE '%0%')
                 ORDER BY ANY, MES LIMIT 1";
              $stmtHoresPreu=$connexio->prepare($consultaHoresPreu);
-             $stmtHoresPreu->bind_param("ds", $diesObets, $codi);
+             $stmtHoresPreu->bind_param("ds", $diesObets, $codiCurs);
              $stmtHoresPreu->execute();
              $stmtHoresPreu->store_result();
              if ( $stmtHoresPreu->num_rows() > 0 ) {
@@ -584,6 +584,26 @@ class RegalCurs{
    * $preu és el preu corresponent del regal de la pròxima edició del curs amb codi $codiCurs
    */
    public function mostrarFormulariAfortunat($codiCurs, $origen, $desti, $dedicatoria, $hores, $preu, $percentatge) {
+      // UC-017: aquest formulari no confia en imports/hores/descompte del client.
+      $pricing = explode('|', $this->obtenirPreuHoresNomCursRegal($codiCurs));
+      if (count($pricing) !== 4
+          || !is_numeric($pricing[0])
+          || !is_numeric($pricing[1])
+          || trim((string) $pricing[2]) === ''
+          || !is_numeric($pricing[3])
+          || (float) $pricing[0] <= 0
+          || (int) $pricing[1] <= 0
+      ) {
+         throw new RuntimeException('INVALID_AUTHORITATIVE_GIFT_PRICING');
+      }
+      $preu = (float) $pricing[0];
+      $hores = (int) $pricing[1];
+      $percentatge = (float) $pricing[3];
+
+      $safeDesti = htmlspecialchars((string) $desti, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeOrigen = htmlspecialchars((string) $origen, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeDedicatoria = htmlspecialchars((string) $dedicatoria, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
       $mostrar ="<h2>Targeta regal</h2>";
 
       require_once 'ConnexioBBDD_PreparedStatment.php';
@@ -620,18 +640,18 @@ class RegalCurs{
       $mostrar.="<div class='d-flex flex-column flex-md-row align-items-center justify-content-center w-100'>";
       $mostrar.="<div class='col-12 col-md-6 pl-0 pr-0 pr-md-2'><div class='form-group field-wrap position-relative'>";
       $mostrar.="<label class='position-absolute mb-0'><span class='camp'>Per a qui</span><span class='req font-weight-bold'>*</span></label>";
-      $mostrar.="<input type='text' class='form-control' id='desti' name='desti' autofocus='' value='".$desti."'>";
+      $mostrar.="<input type='text' class='form-control' id='desti' name='desti' autofocus='' value='".$safeDesti."'>";
       $mostrar.="<span id='desti_erroni' class='d-flex justify-content-center align-items-center px-2 position-absolute text-center text-white'></span>";
       $mostrar.="</div></div>";
       $mostrar.="<div class='col-12 col-md-6 pl-0 pr-0 pr-md-2'><div class='form-group field-wrap position-relative'>";
       $mostrar.="<label class='position-absolute mb-0'><span class='camp'>De part de qui</span></label>";
-      $mostrar.="<input type='text' class='form-control' id='origen' name='origen' value='".$origen."'>";
+      $mostrar.="<input type='text' class='form-control' id='origen' name='origen' value='".$safeOrigen."'>";
       $mostrar.="</div></div></div>";
 
       $mostrar.="<div class='d-flex flex-row align-items-center justify-content-center w-100'>";
       $mostrar.="<div class='col-12 px-0'><div class='form-group field-wrap position-relative'>";
       $mostrar.="<label class='position-absolute mb-0'><span class='camp'>Dedicatòria</span></label>";
-      $mostrar.="<textarea type='text' class='form-control' id='dedicatoria' name='dedicatoria'>".$dedicatoria."</textarea>";
+      $mostrar.="<textarea type='text' class='form-control' id='dedicatoria' name='dedicatoria'>".$safeDedicatoria."</textarea>";
       $mostrar.="</div></div></div>";
 
       $mostrar.="<div class='d-flex w-100'><div class='form-group'>";
@@ -656,9 +676,11 @@ class RegalCurs{
 
       //si $codiRegal=='', es genera el $codiRegal
       if ($codiRegal=='') {
-         $codi = base_convert(uniqid(), 16, 36);
-         $textCodiRegal = new Text($codi);
-         $codiRegal = $textCodiRegal->convertirMaj();
+         $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+         $codiRegal = '';
+         for ($i = 0; $i < 12; $i++) {
+            $codiRegal .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+         }
       }
 
       //buscar el nom del curs del codi $codiCurs
@@ -702,10 +724,16 @@ class RegalCurs{
       $numEstils = $stmtParam->num_rows();
       $stmtParam->bind_result($idEstil);
       $i=1;
+      $allowedStyles = [];
       $mostrar .= "<div class='d-flex mb-3'>";
       while ($stmtParam->fetch()) {
-         //Per cada estils des de params, buscar el nom dels estil
-         $mostrar .= "<button id='".$idEstil."' class='estil mesinfo ";
+         $idEstil = trim((string) $idEstil);
+         if (preg_match('/^estil-[1-9][0-9]?$/D', $idEstil) !== 1) {
+            continue;
+         }
+         $allowedStyles[] = $idEstil;
+         $safeIdEstil = htmlspecialchars($idEstil, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+         $mostrar .= "<button id='".$safeIdEstil."' class='estil mesinfo ";
          if ( $i == $numEstils) $marge = "mr-0";
          $mostrar .= $marge." border-radius-2 text-center position-relative ";
          $mostrar .= "w-100 flex-shrink-1 py-1 px-2 font-weight-bold 500'>";
@@ -715,25 +743,48 @@ class RegalCurs{
       $mostrar .= "</div>";
       $connexio->desconectarBD();
 
+      if ($allowedStyles === []) {
+         throw new RuntimeException('NO_GIFT_STYLES_CONFIGURED');
+      }
+      if (!in_array((string) $nEstil, $allowedStyles, true)) {
+         $nEstil = in_array('estil-4', $allowedStyles, true) ? 'estil-4' : $allowedStyles[0];
+      }
+
+      $safeEstil = htmlspecialchars((string) $nEstil, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeDesti = htmlspecialchars((string) $desti, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeOrigen = htmlspecialchars((string) $origen, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeDedicatoria = nl2br(
+         htmlspecialchars((string) $dedicatoria, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+         false
+      );
+      $giftPreviewCutoverEnabled = filter_var(
+         getenv('SIF_REDSYS_GIFT_CUTOVER_ENABLED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
+      $displayGiftCode = $giftPreviewCutoverEnabled
+         ? 'CODI DISPONIBLE DESPRÉS DEL PAGAMENT'
+         : (string) $codiRegal;
+      $safeCodiRegal = htmlspecialchars($displayGiftCode, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeNomCurs = htmlspecialchars((string) $nomCurs, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
       $classNomCurs = $this->__mostrarClaseTamanyNomCurs($nomCurs);
 
-      $mostrar .= "<div class='regalar-curs ".$nEstil." d-flex flex-column w-100 position-relative'>";
-         $pathPicture = $pathRegal."/val-regal-".$nEstil;
+      $mostrar .= "<div class='regalar-curs ".$safeEstil." d-flex flex-column w-100 position-relative'>";
+         $pathPicture = $pathRegal."/val-regal-".$safeEstil;
          $mostrar .= "<picture>";
          $mostrar .= "<source type='image/webp' class='w-100 val-regal-webp' data-srcset='".$pathPicture.".webp' srcset='".$pathPicture.".webp' alt='Val regal' />";
          $mostrar .= "<source type='image/jpeg' class='w-100 val-regal-jpg' data-srcset='".$pathPicture.".jpg' srcset='".$pathPicture.".jpg' alt='Val regal' />";
          $mostrar .= "<img class='w-100 val-regal lazyloaded' src='".$pathPicture.".jpg' alt='Val regal' />";
          $mostrar .= "</picture>";
          $mostrar .= "<div class='cnt-text-regal d-flex flex-column w-100 position-absolute h-50 px-2 py-2'>";
-            $mostrar .= "<div class='cnt-nom d-flex w-100 align-items-center justify-content-center'>".$desti."</div>";
+            $mostrar .= "<div class='cnt-nom d-flex w-100 align-items-center justify-content-center'>".$safeDesti."</div>";
             $mostrar .= "<div class='cnt-text-dedicatoria d-flex w-100 h-100 px-md-4 px-sm-3 px-2 pl-1'>";
                $mostrar .= "<div class='cnt-text d-flex flex-column w-50 pt-4 align-items-center text-center'>";
-                  $mostrar .= "<div class='cnt-dedicatoria d-flex pb-2'>".$dedicatoria."</div>";
-                  $mostrar .= "<div class='cnt-origen d-flex'>".$origen."</div>";
+                  $mostrar .= "<div class='cnt-dedicatoria d-flex pb-2'>".$safeDedicatoria."</div>";
+                  $mostrar .= "<div class='cnt-origen d-flex'>".$safeOrigen."</div>";
                $mostrar .= "</div>";
                $mostrar .= "<div class='cnt-curs-regal d-flex flex-column w-50 pr-2'>";
-                  $mostrar .= "<div class='cnt-codi-regal d-flex justify-content-center align-items-center'>".$codiRegal."</div>";
-                  $mostrar .= "<div class='cnt-curs d-flex justify-content-center align-items-center text-center pr-2 ".$classNomCurs."'>".$nomCurs."</div>";
+                  $mostrar .= "<div class='cnt-codi-regal d-flex justify-content-center align-items-center'>".$safeCodiRegal."</div>";
+                  $mostrar .= "<div class='cnt-curs d-flex justify-content-center align-items-center text-center pr-2 ".$classNomCurs."'>".$safeNomCurs."</div>";
                $mostrar .= "</div>";
             $mostrar .= "</div>";
          $mostrar .= "</div>";
@@ -894,6 +945,32 @@ class RegalCurs{
       require_once 'Text.php';
       require_once 'Numero.php';
 
+      // UC-017: preu, percentatge, hores i títol no són autoritat del navegador.
+      $pricing = explode('|', $this->obtenirPreuHoresNomCursRegal($codiCurs));
+      if (count($pricing) !== 4
+          || !is_numeric($pricing[0])
+          || !is_numeric($pricing[1])
+          || trim((string) $pricing[2]) === ''
+          || !is_numeric($pricing[3])
+          || (float) $pricing[0] <= 0
+          || (int) $pricing[1] <= 0
+      ) {
+         throw new RuntimeException('INVALID_AUTHORITATIVE_GIFT_PRICING');
+      }
+      $preu = (string) $pricing[0];
+      $hores = (string) $pricing[1];
+      $nomCurs = trim((string) $pricing[2]);
+      $percentatge = (string) $pricing[3];
+
+      $codiRegal = strtoupper(trim((string) $codiRegal));
+      if (preg_match('/^[A-HJ-NP-Z2-9]{12}$/D', $codiRegal) !== 1) {
+         throw new RuntimeException('INVALID_SERVER_GIFT_CODE');
+      }
+      $estilRegal = trim((string) $estilRegal);
+      if (preg_match('/^estil-[1-9][0-9]?$/D', $estilRegal) !== 1) {
+         throw new RuntimeException('INVALID_GIFT_STYLE');
+      }
+
       $textNom = new Text($nom);
       $textCog = new Text($cog);
       $textDocumentacio = new Text($dni);
@@ -902,6 +979,7 @@ class RegalCurs{
    	$textAdreca = new Text($adreca);
    	$textCodiPostal = new Text($cp);
    	$textPoblacio = new Text($poblacio);
+      $textComentaris = null;
       if ($comentaris!='')
    	  $textComentaris = new Text($comentaris);
    	$textTitolCurs = new Text($nomCurs);
@@ -961,10 +1039,27 @@ class RegalCurs{
          $origenBD = $textOrigen->obtenirText();
       $codiRegalBD = $textCodiRegal->obtenirText();
       $estilBD = $numEstil->obtenirNumero();
+      $htmlNomBD = htmlspecialchars((string) $nomBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlCogBD = htmlspecialchars((string) $cogBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlDniBD = htmlspecialchars((string) $dniBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlEmailBD = htmlspecialchars((string) $emailBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlAdrecaBD = htmlspecialchars((string) $adrecaBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlCpBD = htmlspecialchars((string) $cpBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlPobleBD = htmlspecialchars((string) $pobleBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlDestiBD = htmlspecialchars((string) $destiBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlDedicatoriaBD = nl2br(htmlspecialchars((string) $dedicatoriaBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false);
+      $htmlOrigenBD = htmlspecialchars((string) $origenBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlCodiRegalBD = htmlspecialchars((string) $codiRegalBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlNomCursBD = htmlspecialchars((string) $nomCursBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
       if ($textComentaris != null)
-      $observacionsBD = $textComentaris->obtenirText();
+         $observacionsBD = $textComentaris->obtenirText();
       else
-      $observacionsBD = '';
+         $observacionsBD = '';
+      $htmlTelfBD = htmlspecialchars((string) $telfBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlObservacionsBD = nl2br(
+         htmlspecialchars((string) $observacionsBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+         false
+      );
 
       /* ############################### CONNEXIÓ A BD ######################### */
 
@@ -1023,69 +1118,192 @@ class RegalCurs{
    	}
    	$connexio->closeStmt();
 
-      /* ############################# ENVIAR MSG CURT ########################## */
-      $templates = new Template();
-
-      //envia un missatge curt a gestio i botiga
+      /* ######################## RESERVA AUTORITATIVA REGAL ##################### */
       $preuRealBD = $preuBD;
       if ($percentatgeBD>0) {
          $preuRealBD = $preuBD - ($preuBD*$percentatgeBD/100);
       }
 
+      $insertNomCursBD = '';
+      if (intval($codiCurs)!=0)
+         $insertNomCursBD = "Curs de ".$codiCurs." hores";
+      else
+         $insertNomCursBD = $nomCursBD;
+
+      // Serialitza dobles enviaments de la mateixa reserva de sessió.
+      // Els efectes laterals (correus/PDF) només s'executen quan la fila neix ara.
+      $reservationCreated = false;
+      $lockName = 'uc017_gift_' . $codiRegalBD;
+      $stmtLock = $connexio->prepare("SELECT GET_LOCK(?, 5)");
+      $stmtLock->bind_param("s", $lockName);
+      $stmtLock->execute();
+      $stmtLock->bind_result($lockAcquired);
+      $stmtLock->fetch();
+      $connexio->closeStmt();
+      if ((int) $lockAcquired !== 1) {
+         throw new RuntimeException('GIFT_RESERVATION_LOCK_TIMEOUT');
+      }
+
+      try {
+         $stmtExisting = $connexio->prepare(
+            "SELECT ID, NIFC, MAILC, CCURS, IMPORT FROM regal WHERE CODI=? LIMIT 1"
+         );
+         $stmtExisting->bind_param("s", $codiRegalBD);
+         $stmtExisting->execute();
+         $stmtExisting->store_result();
+
+         if ($stmtExisting->num_rows() > 0) {
+            $stmtExisting->bind_result(
+               $existingGiftId,
+               $existingNif,
+               $existingMail,
+               $existingCourse,
+               $existingAmount
+            );
+            $stmtExisting->fetch();
+            $connexio->closeStmt();
+
+            $sameReservation = strtoupper(trim((string) $existingNif)) === strtoupper(trim((string) $dniBD))
+               && strtolower(trim((string) $existingMail)) === strtolower(trim((string) $emailBD))
+               && strtoupper(trim((string) $existingCourse)) === strtoupper(trim((string) $codiCursH))
+               && number_format((float) $existingAmount, 2, '.', '')
+                  === number_format((float) $preuRealBD, 2, '.', '');
+
+            if (!$sameReservation) {
+               throw new RuntimeException('GIFT_CODE_ALREADY_BOUND_TO_DIFFERENT_RESERVATION');
+            }
+
+            $idInserit = (int) $existingGiftId;
+         }
+         else {
+            $connexio->closeStmt();
+
+            $insertBD = "INSERT INTO regal (NOMC, NIFC, TELC, MAILC, CPC, ADRECAC,
+                         POBLEC, DATA, CCURS, NOM_CURS, IMPORT, DESTI, DEDICATORIA,
+                         ORIGEN, CODI, ESTIL, OBSERVACIONS)
+                         VALUES (?,?,?,?,?,?,?,CURRENT_DATE,?,?,?,?,?,?,?,?,?)";
+            $stmtIns=$connexio->prepare($insertBD);
+            $stmtIns->bind_param(
+               "ssdssssssdssssds",
+               $nomCognoms,
+               $dniBD,
+               $telfBD,
+               $emailBD,
+               $cpBD,
+               $adrecaBD,
+               $pobleBD,
+               $codiCursH,
+               $insertNomCursBD,
+               $preuRealBD,
+               $destiBD,
+               $dedicatoriaBD,
+               $origenBD,
+               $codiRegalBD,
+               $estilBD,
+               $observacionsBD
+            );
+            $stmtIns->execute();
+            $idInserit = $connexio->lastInsertId();
+            $stmtIns->fetch();
+            $connexio->closeStmt();
+
+            if ((int) $idInserit <= 0) {
+               throw new RuntimeException('GIFT_RESERVATION_INSERT_FAILED');
+            }
+            $reservationCreated = true;
+         }
+      }
+      finally {
+         $stmtUnlock = $connexio->prepare("SELECT RELEASE_LOCK(?)");
+         $stmtUnlock->bind_param("s", $lockName);
+         $stmtUnlock->execute();
+         $connexio->closeStmt();
+      }
+
+      $giftCutoverEnabled = filter_var(
+         getenv('SIF_REDSYS_GIFT_CUTOVER_ENABLED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
+      $giftReservationNotificationClient = null;
+      $giftReservationNotifications = [];
+
+      $paymentReference = $giftCutoverEnabled
+         ? 'REGAL-' . (int) $idInserit
+         : $codiRegalBD;
+      $htmlPaymentReference = htmlspecialchars(
+         $paymentReference,
+         ENT_QUOTES | ENT_SUBSTITUTE,
+         'UTF-8'
+      );
+
+      if ($giftCutoverEnabled) {
+         require_once __DIR__ . '/inc/SifGiftReservationNotificationClient.php';
+         $giftReservationNotificationClient = new SifGiftReservationNotificationClient();
+         $reservationBundle = $giftReservationNotificationClient->enqueue((int) $idInserit);
+         foreach ((array) ($reservationBundle['notifications'] ?? []) as $notification) {
+            if (!is_array($notification)) {
+               continue;
+            }
+            $messageCode = trim((string) ($notification['message_code'] ?? ''));
+            $uuidNotification = trim((string) ($notification['uuid_notification'] ?? ''));
+            if ($messageCode !== '' && $uuidNotification !== '') {
+               $giftReservationNotifications[$messageCode] = $uuidNotification;
+            }
+         }
+         foreach ([
+            'GIFT_RESERVATION_BUYER_CONFIRMATION',
+            'GIFT_RESERVATION_INTERNAL_CONFIRMATION',
+         ] as $requiredMessageCode) {
+            if (!isset($giftReservationNotifications[$requiredMessageCode])) {
+               throw new RuntimeException(
+                  'INCOMPLETE_GIFT_RESERVATION_NOTIFICATION_BUNDLE'
+               );
+            }
+         }
+      }
+
+      /* ############################# ENVIAR MSG CURT ########################## */
+      $templates = new Template();
+
+      //envia un missatge curt a gestio i botiga
       $msg = $templates->getTemplate_Inscripcions_EnviamenRegalShort($codiCurs, $dedicatoria, $comentaris);
    	$names_template = array("[NOM_ALUMNE]", "[COG_ALUMNE]", "[DNI_ALUMNE]",
    		"[EMAIL_ALUMNE]",	"[TEL_ALUMNE]", "[ADRECA_ALUMNE]", "[CP_ALUMNE]",
    		"[POBLACIO_ALUMNE]", "[CODI_CURS]", "[TITOL]", "[DATA_ACTUAL]",
    		"[PAY]", "[DESTI]", "[DEDICATORIA]", "[ORIGEN]", "[ESTIL]",
          "[COMENTARIS_ALUMNE]", "[URL_PAGAMENT]");
-   	$names_function   = array($nomBD, $cogBD, $dniBD, $emailBD, $telfBD, $adrecaBD,
-      	$cpBD, $pobleBD, $codiCurs, $nomCursBD, date("d/m/Y"), $preuRealBD,
-         $destiBD, $dedicatoriaBD, $origenBD, $estilBD, $observacionsBD, $urlIdPag);
+   	$names_function   = array($htmlNomBD, $htmlCogBD, $htmlDniBD, $htmlEmailBD, $htmlTelfBD, $htmlAdrecaBD,
+      	$htmlCpBD, $htmlPobleBD, $codiCurs, $htmlNomCursBD, date("d/m/Y"), $preuRealBD,
+         $htmlDestiBD, $htmlDedicatoriaBD, $htmlOrigenBD, $estilBD, $htmlObservacionsBD, $urlIdPag);
    	$msg = str_replace($names_template, $names_function, $msg);
 
       $subjectMail = "Curs regal: ".$codiRegalBD;
 
-      $mailCurtGestio = new Mail();
-      $mailCurtGestio->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
-      $mailCurtGestio->addSubject($subjectMail);
-      $mailCurtGestio->addTo('gestio@prisma.cat');
-      // $mailCurtGestio->addTo('meriem.prisma.cat@gmail.com');
-      $mailCurtGestio->addMissatge($msg);
-      $mailCurtGestio->sendMessage();
-
-      $mailCurtBotiga = new Mail();
-   	$mailCurtBotiga->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
-   	$mailCurtBotiga->addSubject($subjectMail);
-   	$mailCurtBotiga->addTo('botiga@prisma.cat');
-   	// $mailCurtBotiga->addTo('meriem.prisma.cat@gmail.com');
-   	$mailCurtBotiga->addMissatge($msg);
-   	$mailCurtBotiga->sendMessage();
-
-      $mailCurtWebMaster = new Mail();
-   	$mailCurtWebMaster->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
-   	$mailCurtWebMaster->addSubject($subjectMail);
-   	$mailCurtWebMaster->addTo('webmaster@prisma.cat');
-   	// $mailCurtWebMaster->addTo('meriem.prisma.cat@gmail.com');
-   	$mailCurtWebMaster->addMissatge($msg);
-   	$mailCurtWebMaster->sendMessage();
-
-      /* ############################ INSERT BD ################################ */
-
-      if (intval($codiCurs)!=0)
-   	  $insertNomCursBD .= "Curs de ".$codiCurs." hores";
-      else
-         $insertNomCursBD .= $nomCursBD;
-
-      $insertBD = "INSERT INTO regal (NOMC, NIFC, TELC, MAILC, CPC, ADRECAC,
-                   POBLEC, DATA, CCURS, NOM_CURS, IMPORT, DESTI, DEDICATORIA,
-         			 ORIGEN, CODI, ESTIL, OBSERVACIONS)
-   	 				 VALUES (?,?,?,?,?,?,?,CURRENT_DATE,?,?,?,?,?,?,?,?,?)";
-   	$stmtIns=$connexio->prepare($insertBD);
-   	$stmtIns->bind_param("ssdssssssdssssds", $nomCognoms, $dniBD, $telfBD, $emailBD, $cpBD, $adrecaBD, $pobleBD, $codiCursH, $insertNomCursBD, $preuRealBD, $destiBD, $dedicatoriaBD, $origenBD, $codiRegalBD, $estilBD, $observacionsBD);
-   	$stmtIns->execute();
-      $idInserit = $connexio->lastInsertId();
-   	$stmtIns->fetch();
-   	$connexio->closeStmt();
+      if (!$giftCutoverEnabled && $reservationCreated) {
+         $mailCurtGestio = new Mail();
+         $mailCurtGestio->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
+         $mailCurtGestio->addSubject($subjectMail);
+         $mailCurtGestio->addTo('gestio@prisma.cat');
+         // $mailCurtGestio->addTo('meriem.prisma.cat@gmail.com');
+         $mailCurtGestio->addMissatge($msg);
+         if ($reservationCreated) $mailCurtGestio->sendMessage();
+   
+         $mailCurtBotiga = new Mail();
+      	$mailCurtBotiga->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
+      	$mailCurtBotiga->addSubject($subjectMail);
+      	$mailCurtBotiga->addTo('botiga@prisma.cat');
+      	// $mailCurtBotiga->addTo('meriem.prisma.cat@gmail.com');
+      	$mailCurtBotiga->addMissatge($msg);
+      	if ($reservationCreated) $mailCurtBotiga->sendMessage();
+   
+         $mailCurtWebMaster = new Mail();
+      	$mailCurtWebMaster->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
+      	$mailCurtWebMaster->addSubject($subjectMail);
+      	$mailCurtWebMaster->addTo('webmaster@prisma.cat');
+      	// $mailCurtWebMaster->addTo('meriem.prisma.cat@gmail.com');
+      	$mailCurtWebMaster->addMissatge($msg);
+      	if ($reservationCreated) $mailCurtWebMaster->sendMessage();
+      }
 
       /* ############### BUSCAR USERNME I PASSWORD AUTENTIFICACIÓ ############# */
 
@@ -1127,27 +1345,116 @@ class RegalCurs{
 
       $msg = $templates->getTemplate_Inscripcions_Pagaments_MissatgeTextManeresPagar2();
    	$names_template = array("[URL_PAGAMENT]", "[TITOL]", "[CODI]", "[TYPE]");
-   	$names_function   = array($urlIdPag, $titolCurs, $codiRegalBD, "regal");
+   	$names_function   = array($urlIdPag, $htmlNomCursBD, $htmlPaymentReference, "regal");
    	$textManeresPagar = str_replace($names_template, $names_function, $msg);
 
       $msg = $templates->getTemplate_Inscripcions_EnviamentRegal($codiCurs, $percentatgeBD);
       $names_template = array("[NOM_ALUMNE]", "[CODI_CURS]", "[TITOL]",
          "[PAY_ORIG]", "[PAY]",
          "[TEXT_ALERT_CONF_INSCR]", "[TEXT_MANERES_PAGAR]");
-      $names_function   = array($nom, $codiCurs, $nomCursBD, $preuBD, $preuRealBD,
+      $names_function   = array($htmlNomBD, $codiCurs, $htmlNomCursBD, $preuBD, $preuRealBD,
          $textAlertaConfirmacioInscripcio, $textManeresPagar);
       $missatge = str_replace($names_template, $names_function, $msg);
 
-      $mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-    										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-    										$subject, $missatge);
+      if ($giftCutoverEnabled) {
+         if (!$giftReservationNotificationClient instanceof SifGiftReservationNotificationClient) {
+            throw new RuntimeException('GIFT_RESERVATION_NOTIFICATION_CLIENT_NOT_READY');
+         }
 
-      $nomTo = 'PrisMa Gestio';
-      $correuTo = 'gestio@prisma.cat';
-      // $correuTo = 'meriem.prisma.cat@gmail.com';
-   	$mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-   										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-   										$subject, $missatge);
+         $reservationMailIssues = [];
+         $sendGovernedReservationMail = static function(
+            string $messageCode,
+            callable $factory
+         ) use (
+            $giftReservationNotificationClient,
+            $giftReservationNotifications,
+            &$reservationMailIssues
+         ): void {
+            $uuidNotification = $giftReservationNotifications[$messageCode] ?? null;
+            if (!is_string($uuidNotification) || trim($uuidNotification) === '') {
+               $reservationMailIssues[] = $messageCode . ':MISSING_NOTIFICATION';
+               return;
+            }
+
+            $claim = $giftReservationNotificationClient->claim($uuidNotification);
+            if (($claim['should_send'] ?? false) !== true) {
+               if (strtoupper((string) ($claim['status'] ?? '')) !== 'SENT') {
+                  $reservationMailIssues[] = $messageCode . ':'
+                     . (string) ($claim['reason'] ?? 'NOT_SENDABLE');
+               }
+               return;
+            }
+
+            $uuidAttempt = trim((string) ($claim['uuid_delivery_attempt'] ?? ''));
+            if ($uuidAttempt === '') {
+               $reservationMailIssues[] = $messageCode . ':MISSING_ATTEMPT';
+               return;
+            }
+
+            try {
+               $mailer = $factory();
+               $accepted = $mailer instanceof MailSMTPComvive && $mailer->enviat();
+               $giftReservationNotificationClient->complete(
+                  $uuidNotification,
+                  $uuidAttempt,
+                  $accepted
+               );
+               if (!$accepted) {
+                  $reservationMailIssues[] = $messageCode . ':SMTP_SEND_FAILED';
+               }
+            }
+            catch (Throwable $mailException) {
+               // El claim queda SENDING i exigeix reconciliació manual.
+               $reservationMailIssues[] = $messageCode . ':AMBIGUOUS_SENDING';
+            }
+         };
+
+         $sendGovernedReservationMail(
+            'GIFT_RESERVATION_BUYER_CONFIRMATION',
+            static function() use (
+               $username, $password, $nomFromHead, $correuFromHead,
+               $nomReplyHead, $correuReplyHead, $nomCognoms, $emailBD,
+               $subject, $missatge
+            ) {
+               return new MailSMTPComvive(
+                  $username, $password, $nomFromHead, $correuFromHead,
+                  $nomReplyHead, $correuReplyHead, $nomCognoms, $emailBD,
+                  $subject, $missatge
+               );
+            }
+         );
+
+         $sendGovernedReservationMail(
+            'GIFT_RESERVATION_INTERNAL_CONFIRMATION',
+            static function() use (
+               $username, $password, $nomFromHead, $correuFromHead,
+               $nomReplyHead, $correuReplyHead, $subject, $missatge
+            ) {
+               return new MailSMTPComvive(
+                  $username, $password, $nomFromHead, $correuFromHead,
+                  $nomReplyHead, $correuReplyHead, 'PrisMa Gestio',
+                  'gestio@prisma.cat', $subject, $missatge
+               );
+            }
+         );
+
+         if ($reservationMailIssues !== []) {
+            throw new RuntimeException(
+               'GIFT_RESERVATION_NOTIFICATIONS_REQUIRE_RECONCILIATION'
+            );
+         }
+      }
+      elseif ($reservationCreated) {
+         $mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
+            $nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+            $subject, $missatge);
+
+         $nomTo = 'PrisMa Gestio';
+         $correuTo = 'gestio@prisma.cat';
+         $mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
+            $nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+            $subject, $missatge);
+      }
 
       /* ######################## CREAR TARGETES REGAL ######################## */
 
@@ -1402,11 +1709,11 @@ class RegalCurs{
           padding-top: 19px;
           padding-left: 10px;
           padding-right: 10px;
-          height: 60px;'>".$desti."</p>
-         <p class='cnt-dedicatoria digital position-absolute'>".str_replace($order, $replace, $dedicatoria)."<br>
-         <span class='cnt-origen digital'>".$origen."</span></p>
-         <p class='cnt-codi-regal digital position-absolute'>".$codiRegal."</p>
-         <p class='cnt-curs digital position-absolute ".$classNomCurs."'>".$varNomCurs."</p>
+          height: 60px;'>".$htmlDestiBD."</p>
+         <p class='cnt-dedicatoria digital position-absolute'>".$htmlDedicatoriaBD."<br>
+         <span class='cnt-origen digital'>".$htmlOrigenBD."</span></p>
+         <p class='cnt-codi-regal digital position-absolute'>".$htmlCodiRegalBD."</p>
+         <p class='cnt-curs digital position-absolute ".$classNomCurs."'>".htmlspecialchars((string) $varNomCurs, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')."</p>
       </div>";
 
       $html = "</body></html>";
@@ -1415,16 +1722,20 @@ class RegalCurs{
 
       // echo $html_digital;
 
-      //generar PDF
-      $options_digital = new \Dompdf\Options();
-      $options_digital->set('isRemoteEnabled', true);
-      $dompdf_digital = new \Dompdf\Dompdf($options_digital);
-      $dompdf_digital->set_paper("A4", "landscape");
-      $dompdf_digital->load_html($html_digital);
-      $dompdf_digital->render();
-      $pdf_digital = $dompdf_digital->output();
-      $filename_digital = "../targetes-regal/".$codiRegal."_targeta_regal_versio_digital.pdf";
-      file_put_contents($filename_digital, $pdf_digital);
+      // Compatibilitat llegat: el PDF públic només es pre-genera mentre
+      // UC-017 encara NO ha fet el tall SIF. En el camí final el document
+      // bescanviable s'ha de generar/servir després del cobrament confirmat.
+      if (!$giftCutoverEnabled && $reservationCreated) {
+         $options_digital = new \Dompdf\Options();
+         $options_digital->set('isRemoteEnabled', true);
+         $dompdf_digital = new \Dompdf\Dompdf($options_digital);
+         $dompdf_digital->set_paper("A4", "landscape");
+         $dompdf_digital->load_html($html_digital);
+         $dompdf_digital->render();
+         $pdf_digital = $dompdf_digital->output();
+         $filename_digital = "../targetes-regal/".$codiRegal."_targeta_regal_versio_digital.pdf";
+         file_put_contents($filename_digital, $pdf_digital);
+      }
 
       $ivlen = openssl_cipher_iv_length($cipher);
    	$iv = openssl_random_pseudo_bytes($ivlen);

@@ -335,3 +335,28 @@ Aquesta secció complementa la regla de 142 casos: els nous fitxers UC-111 són 
 - Proves reintegrades: `ResolvedStudentProfileAuthorizationPolicyTest`, `PersonalDataChangeRepositoryTest` i `StudentProfileServiceTest`.
 - Estat: **[PARCIAL]**. Consulta i proposta idempotent implementades; adaptador d'intranet, aplicador/propagació i evidència d'entorn continuen pendents.
 - No s'importen els recomptes globals de la branca antiga perquè havia divergit 1.228 commits de `main`.
+
+
+## 16. Cobertura específica UC-017 — compra de regal
+
+Paquet de traçabilitat reconciliat el 2026-10-03:
+
+| Peça | Fitxer | Estat |
+| --- | --- | --- |
+| Fitxa funcional | `../06-fitxes-funcionals/uc-017.md` | revisada · candidat implementat · preproducció pendent |
+| UML integrat base | `../07-uml-integrat/uc-017-comprar-regal.md` | actualitzat |
+| Auditoria detallada | `../07-uml-integrat/uc-017-auditoria-tracabilitat-2026-10-03.md` | creada |
+| Classes ACTUAL/FINAL | `../07-uml-integrat/uc-017-classes-actual-final.md` | creada |
+| Seqüències ACTUAL/FINAL | `../07-uml-integrat/uc-017-sequencies-actual-final.md` | creada |
+| Activitats per pàgina ACTUAL/FINAL | `../07-uml-integrat/uc-017-activitats-pagines-actual-final.md` | creada |
+| Inventari PHP/JS | `../07-uml-integrat/uc-017-inventari-codi-php-js-actual-final-2026-10-03.md` | creat |
+| Revalidació reconciliada | `../07-uml-integrat/uc-017-revalidacio-exhaustiva-2026-10-04.md` | creada · findings F-017-19..23 |
+
+**Resultat de traçabilitat revalidat (2026-10-04):** la candidata implementa intenció REGAL,
+callback/cua/worker, factura+payment, entitlement, outbox, estat, sync, snapshot AEAT
+fail-closed, token de checkout signat i fencing d'intents per regal. No obstant això,
+la superfície ACTUAL de `www` i l'overlay candidat de `pay` coexisteixen al repositori
+i el mapping de desplegament encara no està acreditat. A més, l'entrada AES-CBC llegada
+queda pendent de retirada/hardening. Estat: **CANDIDATE_IMPLEMENTED /
+VERIFICATION_PENDING / PRODUCTION_NO_GO** fins a CI verd, configuració, routing
+test/preproducció i prova E2E amb evidència.

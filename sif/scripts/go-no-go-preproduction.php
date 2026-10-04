@@ -201,11 +201,38 @@ $checks = [
         'scripts/process-manual-gift.php',
     ]),
     'redsys_gift_circuit_present' => allFilesPresent($baseDir, [
+        'src/Service/GiftAeatInvoicePayloadEnricher.php',
+        'src/Service/GiftPaymentNotificationService.php',
         'src/Service/RedsysGiftInvoiceService.php',
+        'src/Service/RedsysGiftPaymentIntentService.php',
+        'src/Service/RedsysGiftPaymentStatusService.php',
+        'public/api/redsys/gift-intent.php',
+        'public/api/redsys/gift-status.php',
         'scripts/preflight-redsys-gift.php',
         'scripts/preview-redsys-gift.php',
         'scripts/process-redsys-gift.php',
+        'scripts/verify-redsys-gift-preproduction.php',
     ]),
+    'redsys_gift_aeat_configured' =>
+        trim((string) ($config['issuer']['name'] ?? '')) !== ''
+        && trim((string) ($config['issuer']['nif'] ?? '')) !== ''
+        && trim((string) ($config['aeat']['producer_name'] ?? '')) !== ''
+        && trim((string) ($config['aeat']['producer_nif'] ?? '')) !== ''
+        && trim((string) ($config['aeat']['system_name'] ?? '')) !== ''
+        && preg_match('/^[A-Za-z0-9]{1,2}$/D', trim((string) ($config['aeat']['system_id'] ?? ''))) === 1
+        && trim((string) ($config['aeat']['system_version'] ?? '')) !== ''
+        && trim((string) ($config['aeat']['installation_id'] ?? '')) !== ''
+        && in_array(trim((string) ($config['aeat']['gift_tax_code'] ?? '')), ['01', '02', '03', '05'], true)
+        && in_array(
+            trim((string) ($config['aeat']['gift_regime_key'] ?? '')),
+            ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '14', '15', '17', '18', '19', '20', '21'],
+            true
+        )
+        && in_array(
+            strtoupper(trim((string) ($config['aeat']['gift_exemption_code'] ?? ''))),
+            ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8'],
+            true
+        ),
     'redsys_usoc_circuit_present' => allFilesPresent($baseDir, [
         'src/Service/RedsysUsocInvoiceService.php',
         'scripts/preflight-redsys-usoc.php',

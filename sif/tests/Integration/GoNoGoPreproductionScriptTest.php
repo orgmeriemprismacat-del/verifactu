@@ -89,6 +89,15 @@ final class GoNoGoPreproductionScriptTest
         Assert::stringContainsString('manual_invoice_circuit_present', $source);
         Assert::stringContainsString('historical_migration_circuit_present', $source);
         Assert::stringContainsString('manual_gift_circuit_present', $source);
+        Assert::stringContainsString('redsys_gift_circuit_present', $source);
+        Assert::stringContainsString('redsys_gift_aeat_configured', $source);
+        Assert::stringContainsString('GiftAeatInvoicePayloadEnricher.php', $source);
+        Assert::stringContainsString('RedsysGiftPaymentIntentService.php', $source);
+        Assert::stringContainsString('RedsysGiftPaymentStatusService.php', $source);
+        Assert::stringContainsString('GiftPaymentNotificationService.php', $source);
+        Assert::stringContainsString('public/api/redsys/gift-intent.php', $source);
+        Assert::stringContainsString('public/api/redsys/gift-status.php', $source);
+        Assert::stringContainsString('verify-redsys-gift-preproduction.php', $source);
         Assert::stringContainsString('redsys_course_circuit_present', $source);
         Assert::stringContainsString('credit_balance_circuit_present', $source);
         Assert::stringContainsString('manual_refund_circuit_present', $source);

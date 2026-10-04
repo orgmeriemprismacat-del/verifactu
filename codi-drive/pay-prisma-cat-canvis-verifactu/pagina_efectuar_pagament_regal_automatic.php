@@ -30,13 +30,6 @@
    <header></header>
    <?php include('inc/analitics.html'); ?>
    <div id='cnt-pagament' class="prisma-container container separacio-peu" role="main">
-		<div id='codiCurs' style='display:none'><?php echo $_POST['codiCurs']?></div>
-		<div id='codiRegal' style='display:none'><?php echo $_POST['codiRegal']?></div>
-		<div id='titol' style='display:none'><?php echo $_POST['titol']?></div>
-      <div id='nom-titular' style='display:none'><?php echo $_POST['nom-titular']?></div>
-		<div id='dni' style='display:none'><?php echo $_POST['dni']?></div>
-		<div id='import' style='display:none'><?php echo $_POST['import']?></div>
-
       <?php
 
       include("./ConnexioBBDD_PreparedStatment.php");
@@ -45,73 +38,128 @@
       include("./inc/apiRedsys.php");
       include("./Mail.php");
 
-      $codiCurs = $_POST['codiCurs'];
-      $codiRegal = $_POST['codiRegal'];
-      $titolPag = $_POST['titol'];
-      $email= $_POST['email'];
-      $nomTitularPag = $_POST['nom-titular'];
-      $dniTitularPag = $_POST['dni'];
-      $importPag = $_POST['import'];
+      require_once __DIR__ . '/GiftCheckoutToken.php';
+      $giftIdInput = GiftCheckoutToken::verify((string) ($_POST['giftToken'] ?? ''));
+      $nomTitularPag = trim((string) ($_POST['nom-titular'] ?? ''));
+      $dniTitularPag = trim((string) ($_POST['dni'] ?? ''));
 
       $miObj = new RedsysAPI;
 
-      // Valores de entrada
-      $fuc="11250743";
-      $terminal="1";
-		// $terminal="001";
-      $moneda="978";
-      $trans="0";
-      $id=time();
-      $amount=$importPag * 100;
+      // UC-017: DS_ORDER, gift ID i import provenen del snapshot autoritatiu SIF.
+      // El navegador no és font d'autoritat econòmica.
+      require_once __DIR__ . '/SifRedsysGiftIntentClient.php';
 
-      $name='Associaci&oacute; per al Desenvolupament Infantil i Familiar PrisMa';
+      $fuc = trim((string) getenv('REDSYS_MERCHANT_CODE'));
+      if ($fuc === '') {
+         throw new RuntimeException('REDSYS_MERCHANT_CODE_NOT_CONFIGURED');
+      }
+      $terminal = trim((string) getenv('REDSYS_TERMINAL'));
+      if ($terminal === '') {
+         throw new RuntimeException('REDSYS_TERMINAL_NOT_CONFIGURED');
+      }
+      $moneda = "978";
+      $trans = "0";
 
-      $producto=$codiCurs." | ".$codiRegal;
+      try {
+         $intent = (new SifRedsysGiftIntentClient())->create((int) $giftIdInput, $terminal);
+      } catch (Throwable $exception) {
+         http_response_code(503);
+         exit('No podem preparar el pagament del regal en aquest moment. Torna-ho a provar més tard o contacta amb secretaria.');
+      }
 
-      $order = strval($id);
+      $order = (string) $intent['ds_order'];
+      $giftId = (int) $intent['gift_id'];
+      if ($giftId !== (int) $giftIdInput) {
+         throw new RuntimeException('SIF_GIFT_ID_MISMATCH');
+      }
+      $importPag = (string) $intent['amount'];
+      if (!preg_match('/^\d{1,10}\.\d{2}$/D', $importPag)) {
+         throw new RuntimeException('INVALID_SIF_GIFT_AMOUNT');
+      }
+      [$amountEuros, $amountDecimals] = explode('.', $importPag, 2);
+      $amount = ((int) $amountEuros * 100) + (int) $amountDecimals;
+      $id = $order;
 
-      $urlPag="https://pay.prisma.cat/regal/doit.php?codiCurs=".$codiCurs."&order=".$order."&codiRegal=".$codiRegal."&dni=".$dniTitularPag."&import=".$importPag;
-      $urlOK="https://pay.prisma.cat/respostaOkPagamentRegal.php?email=".$email;
-      $urlKO="https://pay.prisma.cat/respostaKoPagamentRegal.php?email=".$email;
+      $legacyMerchantUrl = "https://pay.prisma.cat/regal/doit.php";
+      $giftCutoverEnabled = filter_var(
+         getenv('SIF_REDSYS_GIFT_CUTOVER_ENABLED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
+      $legacyDrainConfirmed = filter_var(
+         getenv('SIF_REDSYS_GIFT_LEGACY_DRAIN_CONFIRMED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
+      $sifMerchantUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
+      if ($giftCutoverEnabled && !$legacyDrainConfirmed) {
+         throw new RuntimeException('SIF_REDSYS_GIFT_LEGACY_DRAIN_NOT_CONFIRMED');
+      }
+      if ($giftCutoverEnabled) {
+         if ($sifMerchantUrl === '') {
+            throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_REQUIRED_FOR_CUTOVER');
+         }
+         if (!str_starts_with($sifMerchantUrl, 'https://')) {
+            throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_MUST_USE_HTTPS');
+         }
+         $urlPag = $sifMerchantUrl;
+      } else {
+         $urlPag = $legacyMerchantUrl;
+      }
 
-      // Se Rellenan los campos
-      $miObj->setParameter("DS_MERCHANT_AMOUNT",$amount);
-      $miObj->setParameter("DS_MERCHANT_ORDER",$order);
-      $miObj->setParameter("DS_MERCHANT_MERCHANTCODE",$fuc);
-      $miObj->setParameter("DS_MERCHANT_CURRENCY",$moneda);
-      $miObj->setParameter("DS_MERCHANT_PRODUCTDESCRIPTION",$producto);
-      $miObj->setParameter("DS_MERCHANT_TITULAR",$dniTitularPag);
-      $miObj->setParameter("DS_MERCHANT_TRANSACTIONTYPE",$trans);
-      $miObj->setParameter("DS_MERCHANT_TERMINAL",$terminal);
-      $miObj->setParameter("DS_MERCHANT_MERCHANTURL",$urlPag);
-      $miObj->setParameter("DS_MERCHANT_URLOK",$urlOK);
-      $miObj->setParameter("DS_MERCHANT_URLKO",$urlKO);
+      $returnQuery = http_build_query(['order' => $order], '', '&', PHP_QUERY_RFC3986);
+      $urlOK = "https://pay.prisma.cat/respostaOkPagamentRegal.php?" . $returnQuery;
+      $urlKO = "https://pay.prisma.cat/respostaKoPagamentRegal.php?" . $returnQuery;
 
-      //Datos de configuración
-      $version="HMAC_SHA256_V1";
-		$kc = 'N5LhVEkBj0Btcimodf7F+6Pj6ZJTydPb';//Clave recuperada de CANALES
-		// $kc = 'sq7HjrUOBfKmC576ILgskD5srU870gJ7';//Clave recuperada de CANALES prova
+      // MerchantData està signat per Redsys i només serveix al fallback llegat.
+      $merchantData = 'UC017G' . $giftId . 'A' . $amount;
 
-      // Se generan los parámetros de la petición
+      $name = 'Associaci&oacute; per al Desenvolupament Infantil i Familiar PrisMa';
+      $producto = 'Val regal PrisMa';
+
+      $miObj->setParameter("DS_MERCHANT_AMOUNT", $amount);
+      $miObj->setParameter("DS_MERCHANT_ORDER", $order);
+      $miObj->setParameter("DS_MERCHANT_MERCHANTDATA", $merchantData);
+      $miObj->setParameter("DS_MERCHANT_MERCHANTCODE", $fuc);
+      $miObj->setParameter("DS_MERCHANT_CURRENCY", $moneda);
+      $miObj->setParameter("DS_MERCHANT_PRODUCTDESCRIPTION", $producto);
+      $miObj->setParameter("DS_MERCHANT_TITULAR", $nomTitularPag);
+      $miObj->setParameter("DS_MERCHANT_TRANSACTIONTYPE", $trans);
+      $miObj->setParameter("DS_MERCHANT_TERMINAL", $terminal);
+      $miObj->setParameter("DS_MERCHANT_MERCHANTURL", $urlPag);
+      $miObj->setParameter("DS_MERCHANT_URLOK", $urlOK);
+      $miObj->setParameter("DS_MERCHANT_URLKO", $urlKO);
+
+      $gatewayUrl = trim((string) getenv('REDSYS_GATEWAY_URL'));
+      if ($gatewayUrl === '') {
+         throw new RuntimeException('REDSYS_GATEWAY_URL_NOT_CONFIGURED');
+      }
+      if (!str_starts_with($gatewayUrl, 'https://')) {
+         throw new RuntimeException('REDSYS_GATEWAY_URL_MUST_USE_HTTPS');
+      }
+
+      $version = "HMAC_SHA512_V2";
+      $kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
+      if ($kc === '') {
+         throw new RuntimeException('REDSYS_MERCHANT_KEY_NOT_CONFIGURED');
+      }
+
       $request = "";
-      $params = $miObj->createMerchantParameters();
-      $signature = $miObj->createMerchantSignature($kc);
+      $params = $miObj->createMerchantParametersV2();
+      $signature = $miObj->createMerchantSignatureV2($kc);
 
       ?>
       <h1>Pagament amb targeta</h1>
       <div class='d-flex flex-column tota-pagina'><div class='container'><div class='row'>
          <div class='d-flex flex-column cnt_enviar_dades border-0 align-items-center w-100 mb-4'>
-            <p><span class='font-weight-bold'>Titular de la targeta: </span><?php echo $nomTitularPag; ?></p>
-            <p><span class='font-weight-bold'>DNI: </span><?php echo $dniTitularPag; ?></p>
-            <p><span class='font-weight-bold'>Import a pagar: </span><?php echo $importPag; ?> euros</p>
+            <p><span class='font-weight-bold'>Titular de la targeta: </span><?php echo htmlspecialchars($nomTitularPag, ENT_QUOTES, 'UTF-8'); ?></p>
+            <p><span class='font-weight-bold'>DNI: </span><?php echo htmlspecialchars($dniTitularPag, ENT_QUOTES, 'UTF-8'); ?></p>
+            <p><span class='font-weight-bold'>Import a pagar: </span><?php echo htmlspecialchars($importPag, ENT_QUOTES, 'UTF-8'); ?> euros</p>
          </div>
-         <form id='frm' name='frm' action='https://sis.redsys.es/sis/realizarPago' method='post'>
-   		<!-- <form id='frm' name='frm' action='https://sis-t.redsys.es:25443/sis/realizarPago' method='post'> -->
-   		   <input type="hidden" name="producto" value="<?php echo $producto; ?>"/>
-            <input type="hidden" name="rebut" value="<?php echo $id; ?>"/>
-            <input type="hidden" name="Ds_SignatureVersion" value="<?php echo $version; ?>"/>
-            <input type="hidden" name="Ds_MerchantParameters" value="<?php echo $params; ?>"/>
-            <input type="hidden" name="Ds_Signature" value="<?php echo $signature; ?>"/>
+         <form id='frm' name='frm' action='<?php echo htmlspecialchars($gatewayUrl, ENT_QUOTES, 'UTF-8'); ?>' method='post'>
+   		   <input type="hidden" name="producto" value="<?php echo htmlspecialchars($producto, ENT_QUOTES, 'UTF-8'); ?>"/>
+            <input type="hidden" name="rebut" value="<?php echo htmlspecialchars($id, ENT_QUOTES, 'UTF-8'); ?>"/>
+            <input type="hidden" name="Ds_SignatureVersion" value="<?php echo htmlspecialchars($version, ENT_QUOTES, 'UTF-8'); ?>"/>
+            <input type="hidden" name="Ds_MerchantParameters" value="<?php echo htmlspecialchars($params, ENT_QUOTES, 'UTF-8'); ?>"/>
+            <input type="hidden" name="Ds_Signature" value="<?php echo htmlspecialchars($signature, ENT_QUOTES, 'UTF-8'); ?>"/>
          </form>
          <div class='d-flex cnt_enviar_dades border-0 justify-content-center w-100'>
             <a id='form_cancelar_dades' role='button' class='boto-blau-disable

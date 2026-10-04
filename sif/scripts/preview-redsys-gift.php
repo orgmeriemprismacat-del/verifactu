@@ -6,6 +6,7 @@ use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyGiftSnapshotRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Service\GiftAeatInvoicePayloadEnricher;
 use Prisma\Sif\Service\LegacyGiftInvoicePayloadBuilder;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
 
@@ -43,7 +44,12 @@ try {
 
     $snapshot = loadGiftSnapshot($legacyDb, $selector);
     assertGiftAmountMatchesNotification($snapshot, $notification);
-    $basePayload = (new LegacyGiftInvoicePayloadBuilder())->build($snapshot);
+    $basePayload = (new LegacyGiftInvoicePayloadBuilder(
+        new GiftAeatInvoicePayloadEnricher(
+            (array) ($config['issuer'] ?? []),
+            (array) ($config['aeat'] ?? [])
+        )
+    ))->build($snapshot);
     $payload = (new RedsysInvoicePayloadBuilder($notifications))
         ->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
 

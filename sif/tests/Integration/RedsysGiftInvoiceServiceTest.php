@@ -98,7 +98,7 @@ final class RedsysGiftInvoiceServiceTest
         $payment = $sifDb->query('SELECT METODE, IMPORT, DS_ORDER, IDPAG FROM payment_transaction')
             ->fetch(\PDO::FETCH_ASSOC);
 
-        Assert::same('REDSYS|REGAL|IDPAG:NULL|ORDER:ORDERGIFT77', $invoice['IDEMPOTENCY_KEY']);
+        Assert::same('LEGACY|REGAL|ID:77', $invoice['IDEMPOTENCY_KEY']);
         Assert::same('120.00', $invoice['TOTAL']);
         Assert::same('PAID', $invoice['ESTAT_COBRAMENT']);
         Assert::same('Curs regal Comunicacio assertiva', $line['CONCEPTE']);

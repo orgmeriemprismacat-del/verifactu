@@ -10,8 +10,11 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\LegacyGiftSnapshotRepository;
+use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Service\GiftAeatInvoicePayloadEnricher;
+use Prisma\Sif\Service\GiftPaymentNotificationService;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
 use Prisma\Sif\Service\LegacyGiftInvoicePayloadBuilder;
@@ -52,9 +55,18 @@ try {
     $service = new RedsysGiftInvoiceService(
         $notifications,
         new LegacyGiftSnapshotRepository(),
-        new LegacyGiftInvoicePayloadBuilder(),
+        new LegacyGiftInvoicePayloadBuilder(
+                new GiftAeatInvoicePayloadEnricher(
+                    (array) ($config['issuer'] ?? []),
+                    (array) ($config['aeat'] ?? [])
+                )
+            ),
         new RedsysInvoicePayloadBuilder($notifications),
-        $invoiceService
+        $invoiceService,
+        null,
+        new GiftPaymentNotificationService(
+            new NotificationOutboxRepository(new UuidGenerator())
+        )
     );
 
     if (($selector['type'] ?? '') === 'id') {

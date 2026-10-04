@@ -18,6 +18,52 @@ final class RedsysPaymentIntentRepository
         return $row ?: null;
     }
 
+    /**
+     * Returns every still-unnotified intent for one commercial source.
+     *
+     * The caller must serialize creation when this is used as an idempotency
+     * guard; otherwise two concurrent requests could both observe zero rows.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function findUnnotifiedBySource(
+        \PDO $db,
+        string $sourceType,
+        string $sourceId
+    ): array {
+        $stmt = $db->prepare(
+            "SELECT i.*
+             FROM redsys_payment_intent i
+             LEFT JOIN redsys_notifications n ON n.DS_ORDER = i.DS_ORDER
+             WHERE i.SOURCE_TYPE = ?
+               AND i.SOURCE_ID = ?
+               AND n.ID IS NULL
+             LIMIT 2"
+        );
+        $stmt->execute([$sourceType, $sourceId]);
+
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function hasValidatedNotificationForSource(
+        \PDO $db,
+        string $sourceType,
+        string $sourceId
+    ): bool {
+        $stmt = $db->prepare(
+            "SELECT 1
+             FROM redsys_payment_intent i
+             INNER JOIN redsys_notifications n ON n.DS_ORDER = i.DS_ORDER
+             WHERE i.SOURCE_TYPE = ?
+               AND i.SOURCE_ID = ?
+               AND n.STATUS = 'VALIDATED'
+             LIMIT 1"
+        );
+        $stmt->execute([$sourceType, $sourceId]);
+
+        return $stmt->fetchColumn() !== false;
+    }
+
     public function insert(\PDO $db, array $intent): array
     {
         $db->prepare(

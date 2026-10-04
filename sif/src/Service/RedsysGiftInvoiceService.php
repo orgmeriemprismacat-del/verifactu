@@ -18,7 +18,8 @@ final class RedsysGiftInvoiceService implements RedsysIntentHandler
         private LegacyGiftInvoicePayloadBuilder $legacyPayloads,
         private RedsysInvoicePayloadBuilder $redsysPayloads,
         private InvoiceService $invoices,
-        ?GiftEntitlementIssuerService $giftEntitlements = null
+        ?GiftEntitlementIssuerService $giftEntitlements = null,
+        private ?GiftPaymentNotificationService $giftNotifications = null
     ) {
         $this->giftEntitlements = $giftEntitlements
             ?? new GiftEntitlementIssuerService(
@@ -86,12 +87,24 @@ final class RedsysGiftInvoiceService implements RedsysIntentHandler
 
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
         $result = $this->invoices->issueInvoice($payload);
-        $result['gift_entitlement'] = $this->giftEntitlements->issue(
+        $giftEntitlement = $this->giftEntitlements->issue(
             $sifDb,
             (array) ($snapshot['gift'] ?? []),
             $result,
             $dsOrder
         );
+        $result['gift_entitlement'] = $giftEntitlement;
+
+        if ($this->giftNotifications !== null) {
+            $result['notification_outbox'] = $this->giftNotifications->enqueue(
+                $sifDb,
+                $dsOrder,
+                $snapshot,
+                $result,
+                $giftEntitlement
+            );
+        }
+
         $result['legacy_sync'] = [
             'relations' => $payload['relations'] ?? [],
             'estat_cobrament' => isset($payload['payment']) ? 'PAID' : 'PENDING',

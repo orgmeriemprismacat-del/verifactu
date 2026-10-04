@@ -30,7 +30,10 @@ final class LegacyGiftInvoicePayloadBuilderTest
 
         Assert::same(1, count($payload['lines']));
         Assert::same('Curs regal Comunicacio assertiva', $payload['lines'][0]['concept']);
-        Assert::same('Codi regal REGAL-77', $payload['lines'][0]['detail']);
+        Assert::same('Val regal', $payload['lines'][0]['detail']);
+        if (str_contains((string) $payload['lines'][0]['detail'], 'REGAL-77')) {
+            Assert::fail('Gift invoice line must not expose the redeemable gift code.');
+        }
         Assert::same('120.00', $payload['lines'][0]['import_base']);
         Assert::same('120.00', $payload['lines'][0]['total']);
         Assert::same('REGAL', $payload['lines'][0]['source_type']);
@@ -70,7 +73,7 @@ final class LegacyGiftInvoicePayloadBuilderTest
         $result = IssueInvoiceTest::serviceFor($db)->issueInvoice($payload);
 
         Assert::same(true, $result['ok']);
-        Assert::same('REDSYS|REGAL|IDPAG:NULL|ORDER:ORDERGIFT77', $payload['idempotency_key']);
+        Assert::same('LEGACY|REGAL|ID:77', $payload['idempotency_key']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
@@ -84,7 +87,7 @@ final class LegacyGiftInvoicePayloadBuilderTest
             ->fetch(\PDO::FETCH_ASSOC);
 
         Assert::same('Curs regal Comunicacio assertiva', $line['CONCEPTE']);
-        Assert::same('Codi regal REGAL-77', $line['DETALL']);
+        Assert::same('Val regal', $line['DETALL']);
         Assert::same('120.00', $line['TOTAL']);
         Assert::same('REGAL', $line['SOURCE_TYPE']);
         Assert::same(77, (int) $line['SOURCE_ID']);
@@ -96,6 +99,49 @@ final class LegacyGiftInvoicePayloadBuilderTest
         Assert::same('120.00', $payment['IMPORT']);
         Assert::same('ORDERGIFT77', $payment['DS_ORDER']);
         Assert::same(null, $payment['IDPAG']);
+    }
+
+    public function testDistinctRedsysOrderCannotCreateSecondGiftInvoiceOrCharge(): void
+    {
+        $db = TestDatabase::fresh();
+        $notifications = new RedsysNotificationRepository();
+        $builder = new RedsysInvoicePayloadBuilder($notifications);
+
+        foreach (['770000000021', '770000000022'] as $order) {
+            $notifications->recordReceived(
+                $db,
+                $order,
+                null,
+                '120.00',
+                '0000',
+                true,
+                ['source' => 'gift-double-charge-boundary'],
+                'VALIDATED'
+            );
+        }
+
+        $basePayload = (new LegacyGiftInvoicePayloadBuilder())->build($this->giftSnapshot());
+        $firstPayload = $builder->buildFromValidatedNotification(
+            $db,
+            '770000000021',
+            $basePayload
+        );
+        $first = IssueInvoiceTest::serviceFor($db)->issueInvoice($firstPayload);
+        Assert::same(true, $first['ok']);
+
+        $secondPayload = $builder->buildFromValidatedNotification(
+            $db,
+            '770000000022',
+            (new LegacyGiftInvoicePayloadBuilder())->build($this->giftSnapshot())
+        );
+
+        Assert::throws(SifException::class, function () use ($db, $secondPayload): void {
+            IssueInvoiceTest::serviceFor($db)->issueInvoice($secondPayload);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
     }
 
     public function testRequiresGiftIdentifier(): void

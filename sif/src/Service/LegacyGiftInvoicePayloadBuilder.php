@@ -6,6 +6,10 @@ use Prisma\Sif\Exception\SifException;
 
 final class LegacyGiftInvoicePayloadBuilder
 {
+    public function __construct(private ?GiftAeatInvoicePayloadEnricher $aeatEnricher = null)
+    {
+    }
+
     public function build(array $snapshot): array
     {
         $gift = $this->requiredArray($snapshot, 'gift');
@@ -18,7 +22,7 @@ final class LegacyGiftInvoicePayloadBuilder
         $code = $this->requiredString($gift, ['CODI', 'code', 'codi'], 'gift.CODI');
         $courseTitle = $this->requiredString($gift, ['NOM_CURS', 'course_title', 'nom_curs'], 'gift.NOM_CURS');
 
-        return [
+        $payload = [
             'idempotency_key' => 'LEGACY|REGAL|ID:' . $giftId,
             'series' => 'A',
             'year' => (int) ($gift['ANY'] ?? date('Y')),
@@ -28,10 +32,21 @@ final class LegacyGiftInvoicePayloadBuilder
             'created_by' => 'legacy-gift',
             'billing' => $this->billing($gift),
             'totals' => $this->totals($amount),
-            'lines' => [$this->line($giftId, $courseTitle, $code, $amount)],
+            'lines' => [$this->line($giftId, $courseTitle, $amount)],
             'relations' => [$this->relation($gift, $giftId)],
             'gift' => $this->giftMetadata($gift, $code),
         ];
+
+        if ($this->requiresOfficialAeatSnapshot()) {
+            if ($this->aeatEnricher === null) {
+                throw new \RuntimeException(
+                    'UC-017 official AEAT snapshot requires configured GiftAeatInvoicePayloadEnricher'
+                );
+            }
+            $payload = $this->aeatEnricher->enrich($payload);
+        }
+
+        return $payload;
     }
 
     private function billing(array $gift): array
@@ -63,11 +78,11 @@ final class LegacyGiftInvoicePayloadBuilder
         ];
     }
 
-    private function line(int $giftId, string $courseTitle, string $code, string $amount): array
+    private function line(int $giftId, string $courseTitle, string $amount): array
     {
         return [
             'concept' => 'Curs regal ' . $courseTitle,
-            'detail' => 'Codi regal ' . $code,
+            'detail' => 'Val regal',
             'quantity' => '1.00',
             'unit_price' => $amount,
             'base' => $amount,
@@ -109,6 +124,15 @@ final class LegacyGiftInvoicePayloadBuilder
             'legacy_fact_rel' => $this->optional($gift, ['FACT_REL', 'fact_rel']),
             'observations' => $this->optionalString($gift, ['OBSERVACIONS', 'observations']),
         ];
+    }
+
+    private function requiresOfficialAeatSnapshot(): bool
+    {
+        return in_array(
+            strtoupper(trim((string) (getenv('SIF_ENV') ?: 'DEVELOPMENT'))),
+            ['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION'],
+            true
+        );
     }
 
     private function money(mixed $value): string

@@ -21,7 +21,10 @@ final class RedsysGiftPreviewScriptTest
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('new RedsysNotificationRepository()', $source);
         Assert::stringContainsString('new LegacyGiftSnapshotRepository()', $source);
-        Assert::stringContainsString('new LegacyGiftInvoicePayloadBuilder()', $source);
+        Assert::stringContainsString('new LegacyGiftInvoicePayloadBuilder(', $source);
+        Assert::stringContainsString('new GiftAeatInvoicePayloadEnricher(', $source);
+        Assert::stringContainsString("(array) (\$config['issuer'] ?? [])", $source);
+        Assert::stringContainsString("(array) (\$config['aeat'] ?? [])", $source);
         Assert::stringContainsString('new RedsysInvoicePayloadBuilder($notifications)', $source);
         Assert::stringContainsString('--gift-id=', $source);
         Assert::stringContainsString('--gift-code=', $source);
