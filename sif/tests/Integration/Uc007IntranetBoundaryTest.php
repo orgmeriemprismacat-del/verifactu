@@ -150,7 +150,7 @@ final class Uc007IntranetBoundaryTest
 
         foreach ([
             '<p>".$concepte1."</p>',
-            "<strong>".$objRao->get()."</strong>",
+            '$dadesFacturaPagador .= "<strong>".$objRao->get()."</strong><br />";',
         ] as $unsafePattern) {
             if (str_contains($fragment, $unsafePattern)) {
                 Assert::fail('Legacy invoice HTML contains unescaped database value: ' . $unsafePattern);
