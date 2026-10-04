@@ -32,6 +32,7 @@ $classes = [
     'Prisma\\Sif\\Tests\\Integration\\ManualTransferIntranetAdapterTest',
     'Prisma\\Sif\\Tests\\Integration\\ManualTransferNotificationServiceTest',
     'Prisma\\Sif\\Tests\\Integration\\ManualTransferPreproductionPreflightTest',
+    'Prisma\\Sif\\Tests\\Integration\\ManualTransferIntranetPreflightTest',
     'Prisma\\Sif\\Tests\\Unit\\ManualPaymentPayloadBuilderTest',
     'Prisma\\Sif\\Tests\\Unit\\GeneratedInvoiceLegacyPaymentSyncServiceTest',
 ];
