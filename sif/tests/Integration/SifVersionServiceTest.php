@@ -205,7 +205,7 @@ final class SifVersionServiceTest
             Assert::same(true, $evidence['ok']);
             Assert::same(false, $evidence['production_authorized']);
             Assert::same(true, $evidence['checks']['singleton_points_to_version']);
-            Assert::same(true, $evidence['checks']['activation_snapshot_declaration_hash_matches']);
+            Assert::same(true, $evidence['checks']['activation_snapshot_declaration_matches']);
         } finally {
             $this->removeTree($dir);
             $this->removeTree($dir . '-evidence');
@@ -498,6 +498,24 @@ final class SifVersionServiceTest
             Assert::same(true, $evidence['backup_required']);
             Assert::same(true, $evidence['checks']['backup_evidence_required']);
             Assert::same(true, $evidence['checks']['backup_evidence_acceptable']);
+            Assert::same(true, $evidence['checks']['activation_snapshot_backup_matches']);
+
+            $db->prepare(
+                "UPDATE backup_restore_evidence
+                 SET INTEGRITY_RESULT = 'VERIFIED'
+                 WHERE UUID_EVIDENCE = ?"
+            )->execute([$backupUuid]);
+
+            $mutatedEvidence = (new SifVersionEvidenceVerifier(
+                new RuntimeVersionInspector(
+                    $dir,
+                    new MigrationRunner(dirname(__DIR__, 2) . '/database')
+                ),
+                $config
+            ))->verify($db, $uuid);
+            Assert::same(false, $mutatedEvidence['ok']);
+            Assert::same(true, $mutatedEvidence['checks']['backup_evidence_acceptable']);
+            Assert::same(false, $mutatedEvidence['checks']['activation_snapshot_backup_matches']);
         } finally {
             $this->removeTree($dir);
             $this->removeTree($dir . '-evidence');
