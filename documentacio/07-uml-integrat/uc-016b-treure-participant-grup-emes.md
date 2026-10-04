@@ -138,15 +138,21 @@ class CreditBalanceService {
  +createCredit(input) array
 }
 class EnrollmentFundMovementRepository {
- <<PROPOSTA: no implementada>>
- +balanceForEnrollment(db,idInsc) decimal
- +append(db,movement) string
+ <<PHP existent>>
+ +attributedBalanceForEnrollment(db,idInsc,uuidFactura) string
+ +movementsForEnrollment(db,idInsc,uuidFactura) array
+}
+class GroupParticipantRemovalPreviewService {
+ <<PHP implementat>>
+ +preview(db,uuidFactura,idInsc) array
 }
 GroupParticipantRemovalCoordinator --> OperationalEventRepository : event previst
 GroupParticipantRemovalCoordinator --> ManualRectificationService : correcció fiscal classificada
 GroupParticipantRemovalCoordinator --> ManualRefundService : retorn real
 GroupParticipantRemovalCoordinator --> CreditBalanceService : saldo aprovat
 GroupParticipantRemovalCoordinator --> EnrollmentFundMovementRepository : trams per inscripció
+GroupParticipantRemovalCoordinator --> GroupParticipantRemovalPreviewService : previsualització segura
+GroupParticipantRemovalPreviewService --> EnrollmentFundMovementRepository : saldo i moviments
 ```
 
 ## 4. Seqüència objectiu — baixa individual d'un grup facturat
@@ -158,7 +164,8 @@ actor O as Operador
 participant UI as Intranet [pendent]
 participant C as GroupParticipantRemovalCoordinator [DISSENY]
 participant Legacy as Grup i inscripcions llegades
-participant L as Ledger per inscripció [PROPOSTA]
+participant L as Ledger per inscripció [PHP]
+participant PV as GroupParticipantRemovalPreviewService [PHP]
 participant Ev as OperationalEventRepository [PHP]
 participant F as Classificació fiscal [pendent]
 participant Rect as ManualRectificationService [PHP]
@@ -225,3 +232,11 @@ Note over G,M: L'orquestrador de retirada, la política de reprecificació i el 
 [UC-16b original](../06-fitxes-funcionals/uc-016b.md) · [UC-16 grup](uc-016-facturar-grup.md) · [UC-27 baixa](uc-027-donar-de-baixa.md) · [UC-72 expedient](uc-072-registrar-baixa-decisio-economica.md) · [UC-05 correcció](uc-005-rectificar-factura.md) · [UC-28 retorn](uc-028-registrar-devolucio.md) · [UC-29 saldo](uc-029-crear-saldo.md) · [Revisió fons individual](00-revisio-moviments-inscripcions.md) · [ManualRectificationService](../../sif/src/Service/ManualRectificationService.php) · [OperationalEventRepository](../../sif/src/Repository/OperationalEventRepository.php).
 
 **No s'han executat proves PHP ni s'ha acreditat la classificació fiscal d'aquest cas a un entorn real.**
+
+
+## 6. Estat executiu després de la continuació
+
+La part de **localització i quantificació individual** ja està implementada. `GroupParticipantRemovalPreviewService` pot reconstruir per `UUID_FACTURA + ID_INSC`:
+`LINIA_TOTAL`, fons atribuïts nets, pendent, màxim retornable abans de política, receptor i moviments de ledger.
+
+El coordinador de confirmació continua intencionadament no implementat perquè una baixa pot canviar el tram comercial dels restants i aquesta política no està aprovada. Cap servei nou modifica la factura original ni crea un REFUND fictici.
