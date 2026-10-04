@@ -126,6 +126,16 @@ Si falla, el cas es tracta com conflicte funcional i deriva a `INCIDENT`.
 **Problema:** una clau idempotent Redsys no reutilitza una factura UC-004 emesa amb una altra clau.  
 **Correcció:** nou `RedsysCoveredInvoicePaymentService`, precondició transaccional de `PaymentService`, guard específic de `InvoiceService` i mutex persistent compartit `invoice_origin_guard` per `(SOURCE_TYPE,SOURCE_ID)`. `fact_rels` continua aportant la relació fiscal/origen, però la mutual exclusion ja no depèn de gap locks ni del nivell d'aïllament de MySQL. Els orígens es deduplicen i ordenen abans de bloquejar-se. El ledger CURS accepta ara pagaments parcials contra una factura completa existent, mantenint una sola factura fiscal. L'estat de factura parcial canònic és `PARTIAL`; `PARTIALLY_PAID` queda restringit a la projecció de sincronització llegada. El resolver, a més, exigeix `CHARGE/REDSYS/REDSYS`, `PAYMENT|REDSYS|ORDER:<DS_ORDER>`, `provider_ref=DS_ORDER`, IDPAG/import coincidents amb snapshot i `movement_date` determinista.
 
+### UC03-FIX-04 — IDPAG de CURS ambigu al snapshot llegat
+
+**Problema observat:** `LegacyCourseSnapshotRepository` feia `fetch()` de la primera inscripció elegible per `IDPAG`, mentre el flux llegat `PagamentCursAutomatic` només accepta el cas quan `num_rows() == 1`. A més, UC-25a documenta que `IDPAG` **no és una clau globalment única** i pot aparèixer en operacions compartides o repetides legítimes.
+
+**Risc:** si dues files de CURS elegibles comparteixen accidentalment el mateix `IDPAG`, el port SIF podia congelar arbitràriament la primera inscripció i projectar factura/cobrament sobre l'origen equivocat.
+
+**Correcció:** la consulta CURS incorpora un guard correlacionat `COUNT(*) = 1` sobre les files elegibles `INSC CURS ∈ {0,1,M}` i `LIMIT 1`. Zero o més d'una fila fallen tancat amb conflicte “not found or ambiguous”. Aquesta regla és **específica del handler CURS** i no converteix `IDPAG` en clau única global per PACK/GRUP/altres variants.
+
+**Prova:** `testLegacyCourseSnapshotRejectsAmbiguousEligibleIdpag` crea dues files MySQL elegibles amb el mateix IDPAG i exigeix 409 abans de carregar el curs o emetre cap factura.
+
 ## 6. Proves
 
 ### Ja existents i revisades
@@ -194,7 +204,8 @@ Per CURS amb cobertura UC-004, `RedsysCoveredInvoicePaymentService`:
 - exigeix `movement_date` determinista;
 - serialitza UC-004 i Redsys sobre `invoice_origin_guard`, amb adquisició canònica de locks, i després revalida cobertura/`fact_rels`; UC-004 adquireix el mutex abans de seqüència/cadena fiscal per evitar l'ordre invers de locks, i fa rollback si ja hi ha factura Redsys `ISSUED`;
 - inclou prova de dues connexions MySQL a `READ COMMITTED` perquè la garantia no depengui de gap locks;
-- inclou un contract test que exigeix `origin mutex → fiscal sequence → chain` dins `InvoiceService`.
+- inclou un contract test que exigeix `origin mutex → fiscal sequence → chain` dins `InvoiceService`;
+- quan la cobertura ja existeix, el CHARGE bloqueja la fila UNIQUE de `invoice_before_payment_coverage` i factura/línia; `invoice_origin_guard` queda reservat a la serialització de les rutes competidores d'emissió.
 La generalització a altres variants continua sent una decisió específica de cada UC.
 
 ### P0 restant
@@ -211,6 +222,8 @@ Mentre `doit.php`/`realitzaPagamentAutomatic.php` estiguin actius, el llegat pot
 **GAP-003-P1-03 · variants i atribució.** CURS/PACK tenen allocation quantitativa. GRUP/REGAL/USOC tenen models específics; verificar per cada variant que la reconstrucció participant/beneficiari/pagador és suficient i no assumir equivalència.
 
 **GAP-003-P1-04 · preproducció.** Callback real amb Redsys, duplicat, retry, lock stale, parcial/complet i error posterior al commit.
+
+**GAP-003-P1-05 · semàntica IDPAG transversal.** `IDPAG` no és unicitat global. CURS ara exigeix exactament una inscripció elegible per IDPAG; mantenir aquesta regla separada dels casos compartits de PACK/GRUP i usar `DS_ORDER` + ledger per-inscripció per a la traça econòmica.
 
 ### P2
 
@@ -263,7 +276,7 @@ Requereix:
 
 **DOCUMENTAT:** paquet UC-003 completat en aquesta branca.  
 **IMPLEMENTAT:** nucli asíncron + fencing/resultat complet + ruta CURS de cobrament Redsys sobre factura UC-004 existent, inclosos parcials i serialització d'origen.  
-**VERIFICAT:** les correccions 03/10 passen la suite específica del worker al runner GitHub; el CI global manté 6 fallades de baseline reproduïdes fora d'aquest PR.  
+**VERIFICAT:** les correccions inicials passen SIF #1204. A la branca rebased, múltiples heads posteriors han passat SIF checks, SIF PHP MySQL, UC-004, UC-014 i UC-111; `8dc12f2` verifica específicament la contenció a `READ COMMITTED` i `23f8e07` ha completat SIF checks + UC-111 en verd. El head actual continua pendent per saturació de la cua d'Actions.  
 **PENDENT:** CI/preproducció de la nova ruta de factura preexistent, JS candidat, runtime/cutover, evidència final i sanejament del baseline CI compartit.
 
-**Classificació temporal:** `AUDIT_PACKAGE_COMPLETE / UC003_TESTS_PASS / BASELINE_CI_RED / OPERATIONAL_PENDING`.
+**Classificació temporal:** `AUDIT_PACKAGE_COMPLETE / INTERMEDIATE_HEADS_GREEN / CURRENT_HEAD_CI_QUEUED / OPERATIONAL_PENDING`.

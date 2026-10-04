@@ -221,9 +221,9 @@ F->>Cov: findClaims(INSCRIPCIO)
 alt factura UC-004 existent i compatible
   Cov-->>F: UUID_FACTURA
   F->>Pay: registerPaymentWithPrecondition(CHARGE → UUID_FACTURA)
-  Pay->>Cov: revalidar cobertura dins TX
-  Cov->>Guard: UPSERT/lock (INSCRIPCIO,SOURCE_ID)
-  Cov->>Cov: lock coverage + fact_rels i validar saldo/factura
+  Pay->>Cov: findClaims(..., FOR UPDATE)
+  Cov-->>Pay: cobertura única/estable
+  Pay->>F: assertReceivable(): lock factura + línia + saldo pendent
   Pay-->>F: UUID_PAYMENT creat/reutilitzat
   F-->>H: UUID_FACTURA existent + UUID_PAYMENT
 else no hi ha cobertura UC-004
@@ -238,11 +238,11 @@ else cobertura/invoice/import incompatible
 end
 ```
 
-**Estat de branca:** implementat per **CURS + cobertura UC-004**. La ruta valida una factura única, total contractual, línia d'inscripció i saldo pendent; admet parcials sense nova factura. `InvoiceService` rep el guard com a paràmetre fora del payload idempotent. UC-004 i Redsys bloquegen el mateix mutex persistent `invoice_origin_guard` abans de consultar cobertura/relacions; els IDs es deduplicen i s'ordenen numèricament per reduir deadlocks. La prova de contenció usa dues connexions MySQL amb `READ COMMITTED`, de manera que la garantia no depèn d'un gap lock implícit.
+**Estat de branca:** implementat per **CURS + cobertura UC-004**. La ruta valida una factura única, total contractual, línia d'inscripció i saldo pendent; admet parcials sense nova factura. `InvoiceService` rep el guard com a paràmetre fora del payload idempotent. Les **rutes competidores d'emissió** UC-004 i Redsys bloquegen el mateix mutex persistent `invoice_origin_guard` abans de seqüència/cadena fiscal; els IDs es deduplicen i s'ordenen numèricament per reduir deadlocks. Quan la cobertura UC-004 ja existeix, el cobrament no necessita tornar a adquirir el mutex d'emissió: bloqueja la fila UNIQUE d'`invoice_before_payment_coverage` amb `FOR UPDATE` i després factura/línia abans de calcular el saldo. La prova de contenció usa dues connexions MySQL amb `READ COMMITTED`, de manera que la garantia d'emissió no depèn d'un gap lock implícit.
 
 ## 9. Estat
 
 **DOCUMENTAT:** recorregut ACTUAL, candidat, recepció FINAL, worker, duplicat, errors, fencing i cas de factura prèvia.  
 **IMPLEMENTAT:** seqüències 3–8 al codi SIF per CURS/UC-004, inclosos hardening del worker, cobrament sobre factura prèvia, parcials, binding estricte d'identitat Redsys i mutex durable d'origen.  
-**VERIFICAT:** cobertura existent + proves noves de resultat incomplet i worker caducat **PASS** al workflow SIF #1204; CI global vermell únicament per 6 fallades de baseline reproduïdes en un PR paral·lel.  
+**VERIFICAT:** el hardening inicial passa SIF #1204; en la branca rebased, els heads `39799a1`, `8dc12f2`, `144aff7` i `23f8e07` han aportat runs verds de SIF/UC-004/UC-111, inclosa la prova MySQL de dues connexions a `READ COMMITTED`. El head actual encara espera cua d'Actions.  
 **PENDENT:** verificar la seqüència 8 al CI i a preproducció; generalitzar només si el contracte de PACK/GRUP/REGAL/USOC ho requereix; cutover, cron/monitoratge i evidència operativa.

@@ -28,7 +28,7 @@ final class LegacyCourseSnapshotRepository
 
         $inscription = $this->findInscriptionByIdpag($legacyDb, $idpag);
         if ($inscription === null) {
-            throw SifException::conflict('Legacy inscription not found for IDPAG');
+            throw SifException::conflict('Legacy course inscription not found or ambiguous for IDPAG');
         }
 
         $inscription['IDPAG'] = $idpag;
@@ -43,11 +43,24 @@ final class LegacyCourseSnapshotRepository
     private function findInscriptionByIdpag(\PDO $legacyDb, int $idpag): ?array
     {
         $stmt = $legacyDb->prepare(
-            'SELECT ID, `ANY`, MES, CURS, DATA_INSC, NOM, COGNOMS, DNI, CORREU, ADRECA, Codi_Postal,
-                    Poblacio, FACTURA_RELACIONADA, A_PAGAR, `INSC CURS`, PAGAMENT, FRACCIONAT, FRACCIO,
-                    TIPUS_DESC, VALID_DESC
-             FROM inscripcions
-             WHERE IDPAG = ? AND (`INSC CURS` = \'0\' OR `INSC CURS` = \'1\' OR `INSC CURS` = \'M\')'
+            'SELECT i.ID, i.`ANY`, i.MES, i.CURS, i.DATA_INSC, i.NOM, i.COGNOMS,
+                    i.DNI, i.CORREU, i.ADRECA, i.Codi_Postal, i.Poblacio,
+                    i.FACTURA_RELACIONADA, i.A_PAGAR, i.`INSC CURS`, i.PAGAMENT,
+                    i.FRACCIONAT, i.FRACCIO, i.TIPUS_DESC, i.VALID_DESC
+             FROM inscripcions AS i
+             WHERE i.IDPAG = ?
+               AND (i.`INSC CURS` = \'0\' OR i.`INSC CURS` = \'1\' OR i.`INSC CURS` = \'M\')
+               AND (
+                   SELECT COUNT(*)
+                   FROM inscripcions AS duplicate_guard
+                   WHERE duplicate_guard.IDPAG = i.IDPAG
+                     AND (
+                         duplicate_guard.`INSC CURS` = \'0\'
+                         OR duplicate_guard.`INSC CURS` = \'1\'
+                         OR duplicate_guard.`INSC CURS` = \'M\'
+                     )
+               ) = 1
+             LIMIT 1'
         );
         $stmt->execute([$idpag]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);

@@ -188,6 +188,53 @@ final class RedsysCourseInvoiceServiceTest
         Assert::same('90.00', $line['TOTAL']);
     }
 
+    public function testLegacyCourseSnapshotRejectsAmbiguousEligibleIdpag(): void
+    {
+        $db = TestDatabase::fresh();
+        $db->exec(
+            "CREATE TEMPORARY TABLE inscripcions (
+                ID INT NOT NULL,
+                `ANY` INT NOT NULL,
+                MES VARCHAR(10) NOT NULL,
+                CURS VARCHAR(20) NOT NULL,
+                DATA_INSC DATETIME NULL,
+                NOM VARCHAR(80) NOT NULL,
+                COGNOMS VARCHAR(120) NULL,
+                DNI VARCHAR(30) NOT NULL,
+                CORREU VARCHAR(190) NULL,
+                ADRECA VARCHAR(190) NULL,
+                Codi_Postal VARCHAR(20) NULL,
+                Poblacio VARCHAR(120) NULL,
+                FACTURA_RELACIONADA INT NULL,
+                A_PAGAR DECIMAL(12,2) NOT NULL,
+                `INSC CURS` VARCHAR(2) NOT NULL,
+                PAGAMENT DECIMAL(12,2) NOT NULL DEFAULT 0,
+                FRACCIONAT TINYINT NULL,
+                FRACCIO TINYINT NULL,
+                TIPUS_DESC VARCHAR(30) NULL,
+                VALID_DESC VARCHAR(30) NULL,
+                IDPAG INT NOT NULL
+            )"
+        );
+        $db->exec(
+            "INSERT INTO inscripcions
+                (ID, `ANY`, MES, CURS, NOM, DNI, A_PAGAR, `INSC CURS`, PAGAMENT, IDPAG)
+             VALUES
+                (410, 2026, '07', 'LM', 'Joan', '87654321Z', 95.50, '0', 0, 400),
+                (411, 2026, '07', 'LM', 'Joan', '87654321Z', 95.50, '0', 0, 400)"
+        );
+
+        $exception = Assert::throws(
+            SifException::class,
+            function () use ($db): void {
+                (new LegacyCourseSnapshotRepository())->loadByIdpag($db, 400, '95.50');
+            },
+            409
+        );
+
+        Assert::stringContainsString('not found or ambiguous', $exception->getMessage());
+    }
+
     public function testRejectsNonValidatedNotificationBeforeLoadingLegacySnapshot(): void
     {
         $sifDb = TestDatabase::fresh();
