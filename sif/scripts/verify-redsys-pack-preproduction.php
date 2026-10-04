@@ -35,6 +35,14 @@ $result = [
     'checks' => [],
 ];
 
+if ($execute && $diagnosticProcess) {
+    $result['checks']['execution_mode_is_unambiguous'] = false;
+    $result['failed'] = ['execution_mode_is_unambiguous'];
+    $result['usage'] = 'php sif/scripts/verify-redsys-pack-preproduction.php DS_ORDER [--execute|--diagnostic-process]';
+    output($result, 1);
+}
+$result['checks']['execution_mode_is_unambiguous'] = true;
+
 if (!in_array($environment, ['test', 'preproduction'], true)) {
     $result['checks']['environment_is_test_or_preproduction'] = false;
     $result['failed'] = ['environment_is_test_or_preproduction'];
@@ -152,17 +160,13 @@ if ($execute) {
 }
 
 if ($diagnosticProcess) {
-    if ($execute) {
-        $result['checks']['diagnostic_process_not_combined_with_execute'] = false;
-    } else {
-        $process = runJsonScript(
-            [PHP_BINARY, $baseDir . '/scripts/process-redsys-pack.php', $dsOrder],
-            $baseDir
-        );
-        $result['diagnostic_process'] = $process['json'];
-        $result['checks']['diagnostic_process_exit_zero'] = $process['exit_code'] === 0;
-        $result['checks']['diagnostic_process_ok'] = ($process['json']['ok'] ?? false) === true;
-    }
+    $process = runJsonScript(
+        [PHP_BINARY, $baseDir . '/scripts/process-redsys-pack.php', $dsOrder],
+        $baseDir
+    );
+    $result['diagnostic_process'] = $process['json'];
+    $result['checks']['diagnostic_process_exit_zero'] = $process['exit_code'] === 0;
+    $result['checks']['diagnostic_process_ok'] = ($process['json']['ok'] ?? false) === true;
 }
 
 $failed = array_keys(array_filter(
