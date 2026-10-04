@@ -11,6 +11,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\EnrollmentPaymentFlowLockRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
@@ -78,7 +79,7 @@ try {
         new PaymentPayloadValidator(),
         new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator()),
         null,
-        null,
+        new InvoiceBeforePaymentCoverageRepository(),
         null,
         null,
         null,
