@@ -80,7 +80,10 @@ final class InvoiceDocumentAccessService
     private function audit(array $actor, array $document, string $result, string $reason): void
     {
         $roles = is_array($actor['roles'] ?? null) ? $actor['roles'] : [];
-        $role = $roles !== [] ? (string) reset($roles) : null;
+        $scopeRole = trim((string) ($actor['invoice_scope_role'] ?? ''));
+        $role = $scopeRole !== ''
+            ? $scopeRole
+            : ($roles !== [] ? (string) reset($roles) : null);
 
         $this->accessLog->append($this->db, [
             'document_id' => (int) $document['ID'],
