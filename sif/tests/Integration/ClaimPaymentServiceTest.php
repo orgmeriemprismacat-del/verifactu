@@ -100,6 +100,143 @@ final class ClaimPaymentServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
     }
 
+    public function testDistinctExternalReceiptsAllowMultiplePartialPaymentsForSameClaimCase(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|MULTI_RECEIPT|INVOICE',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+        $service = $this->service($db);
+
+        $first = $service->registerByUuid($db, $invoice['uuid_factura'], [
+            'amount' => '40.00',
+            'movement_date' => '2026-10-04 02:20:00',
+            'claim_reference' => 'CLAIM-7',
+            'external_receipt_id' => 'BAN-101',
+            'created_by' => 'admin-cobraments',
+        ]);
+        $second = $service->registerByUuid($db, $invoice['uuid_factura'], [
+            'amount' => '30.00',
+            'movement_date' => '2026-10-04 02:25:00',
+            'claim_reference' => 'CLAIM-7',
+            'external_receipt_id' => 'BAN-205',
+            'created_by' => 'admin-cobraments',
+        ]);
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(false, $second['idempotency_reused']);
+        Assert::same('CLAIM|RECEIPT:BAN-101', $first['payment_idempotency_key']);
+        Assert::same('CLAIM|RECEIPT:BAN-205', $second['payment_idempotency_key']);
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same('PARTIAL', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
+
+        $references = $db->query(
+            'SELECT REFERENCIA_BANCARIA FROM payment_transaction ORDER BY DATA_MOVIMENT'
+        )->fetchAll(\PDO::FETCH_COLUMN);
+        Assert::same(['BAN-101', 'BAN-205'], $references);
+    }
+
+    public function testRejectsSecondDistinctPaymentWhenClaimReferenceIsReused(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|SECOND_PARTIAL|INVOICE',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+        $service = $this->service($db);
+
+        $service->registerByUuid($db, $invoice['uuid_factura'], [
+            'amount' => '40.00',
+            'movement_date' => '2026-10-03 10:00:00',
+            'claim_reference' => 'CLAIM-7',
+            'created_by' => 'admin-cobraments',
+        ]);
+
+        Assert::throws(SifException::class, function () use ($db, $invoice, $service): void {
+            $service->registerByUuid($db, $invoice['uuid_factura'], [
+                'amount' => '30.00',
+                'movement_date' => '2026-10-03 11:00:00',
+                'claim_reference' => 'CLAIM-7',
+                'created_by' => 'admin-cobraments',
+            ]);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same('PARTIAL', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
+    }
+
+    public function testRejectsSameClaimReferenceWhenItTargetsAnotherInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoiceService = IssueInvoiceTest::serviceFor($db);
+        $invoiceA = $invoiceService->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'UC024|CLAIM_REF|INVOICE_A',
+            'emesa_abans_cobrament' => 1,
+        ]));
+        $invoiceB = $invoiceService->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'UC024|CLAIM_REF|INVOICE_B',
+            'emesa_abans_cobrament' => 1,
+        ]));
+        $service = $this->service($db);
+
+        $service->registerByUuid($db, $invoiceA['uuid_factura'], [
+            'amount' => '30.00',
+            'movement_date' => '2026-10-03 10:00:00',
+            'claim_reference' => 'CLAIM-SHARED',
+            'created_by' => 'admin-cobraments',
+        ]);
+
+        Assert::throws(SifException::class, function () use ($db, $invoiceB, $service): void {
+            $service->registerByUuid($db, $invoiceB['uuid_factura'], [
+                'amount' => '30.00',
+                'movement_date' => '2026-10-03 10:00:00',
+                'claim_reference' => 'CLAIM-SHARED',
+                'created_by' => 'admin-cobraments',
+            ]);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+    }
+
+    public function testRegistersClaimPaymentInsideOuterTransactionAndExposesAuditKey(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|OUTER_TX|INVOICE',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        $db->beginTransaction();
+        $result = $this->service($db)->registerByUuidInTransaction(
+            $db,
+            $invoice['uuid_factura'],
+            [
+                'amount' => '30.00',
+                'movement_date' => '2026-10-04 02:00:00',
+                'claim_reference' => 'CLAIM-OUTER-TX',
+                'created_by' => 'gestio-test',
+            ]
+        );
+
+        Assert::same('CLAIM|REF:CLAIM-OUTER-TX', $result['payment_idempotency_key']);
+        Assert::same(true, $db->inTransaction());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+
+        $db->rollBack();
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     private function service(\PDO $db): ClaimPaymentService
     {
         return new ClaimPaymentService(

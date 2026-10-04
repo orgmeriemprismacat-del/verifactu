@@ -2,7 +2,7 @@
 
 **Identitat funcional:** registrar un cobrament **ja confirmat** després d'una reclamació per impagament, imputant-lo a la factura SIF que continua vigent. Reclamar o enviar recordatoris és una operació de comunicació diferent (UC-43). La morositat no comporta donar de baixa la inscripció (UC-27), rectificar la factura (UC-05) ni emetre una factura nova (UC-01).
 
-**Estat contrastat:** `ClaimPaymentService`, `ClaimPaymentPayloadBuilder` i les proves de servei existeixen al repositori; la pantalla, els enllaços de cobrament i els correus finals de reclamació figuren pendents a la documentació de fluxos.
+**Estat contrastat 03/10/2026:** `ClaimPaymentService`, `ClaimPaymentPayloadBuilder`, scripts preview/process i proves existeixen. Les pantalles reals de primera reclamació, recordatori final, reclamació final i control de morosos també existeixen, però continuen sobre lògica llegada (`Intranet.php` + AJAX + SMTP) i **no invoquen el servei SIF de cobrament**. Per tant UC-024 és `PARTIAL_NOT_E2E`.
 
 ## 1. Fitxa de cas d'ús
 
@@ -391,7 +391,7 @@ Note over C,N: Tancament d'expedient i missatgeria no implementats per ClaimPaym
 | --- | --- | --- |
 | CR-24-06 | Factura F amb reclamació CLAIM-7; ingressos E1/40 i E2/30 reals amb la mateixa clau derivada de l'expedient | A main, segon payload d'import diferent → CONFLICT; el contracte final requereix clau per ingrés real diferent, conservant referència d'expedient separada. |
 | CR-24-07 | Transferència E1 ja enregistrada UC-22 i operadora la registra des de UC-24 per la mateixa reclamació | Correlacionar UUID_PAYMENT_E1 amb el cas sense segon CHARGE; les claus `TRANSFERENCIA|REF` i `CLAIM|REF` són diferents. |
-| CR-24-08 | Mateixa clau de reclamació sol·licitada per factura B mentre moviment original correspon a A | Detectar `UUID_PAYMENT_A` + `uuid_factura=B` a la resposta actual; contracte objectiu rebutja falsa assignació a B. |
+| CR-24-08 | Mateixa clau de reclamació sol·licitada per factura B mentre el moviment original correspon a A | `PaymentService::assertSamePayload()` detecta l’assignació diferent i retorna 409 CONFLICT; s’afegeix prova de regressió perquè no es pugui reutilitzar silenciosament el moviment d’A. |
 | CR-24-09 | Primer cobrament parcial deixa deute i es prem «Tancar reclamació» | `CLAIM_PARTIAL`; factura/deute encara pendents i cap nova emissió fiscal. |
 | CR-24-10 | Dues entrades reals han extingit l'import reclamat, però la factura original té altres obligacions no incloses en el cas | Tancar només l'expedient amb abast acreditat, sense afirmar `ESTAT_COBRAMENT=PAID` de tota la factura ni enviar document fiscal incorrecte. |
 | CR-24-11 | `claim_reference=CLAIM-7` identifica l'expedient i l'ingrés extern E1 té referència bancària `BAN-101` | No presentar `CLAIM-7` com a referència bancària de E1; el PHP actual prioritza `CLAIM-7` i el desa a `REFERENCIA_BANCARIA`. Separar ambdós camps en el contracte futur i registrar prova bancària. |
@@ -400,4 +400,14 @@ Note over C,N: Tancament d'expedient i missatgeria no implementats per ClaimPaym
 
 [Fitxa anterior UC-24](../06-fitxes-funcionals/uc-024.md) · [Catàleg UC-24](../04-estat-final/33-casos-us-sif.md) · [Fluxos de morositat](../03-canvis-pendents/04-fluxos-facturacio.md) · [ClaimPaymentService](../../sif/src/Service/ClaimPaymentService.php) · [ClaimPaymentPayloadBuilder](../../sif/src/Service/ClaimPaymentPayloadBuilder.php) · [PaymentService](../../sif/src/Service/PaymentService.php) · [ClaimPaymentServiceTest](../../sif/tests/Integration/ClaimPaymentServiceTest.php).
 
-**No acreditat:** proves executades, estat del banc, permisos, correus i enllaços finals, conciliació amb expedient de reclamació ni desplegament.
+**No acreditat:** suite executada sobre el commit d’aquesta branca, estat del banc, permís específic de mutació/CSRF, conciliació amb expedient de reclamació i ingrés extern, auditoria transversal, outbox ni desplegament E2E.
+
+## 6. Dossiers de l’auditoria 03/10/2026
+
+- [Auditoria i traçabilitat](uc-024-auditoria-tracabilitat-2026-10-03.md)
+- [Classes ACTUAL / FINAL](uc-024-classes-actual-final.md)
+- [Seqüències ACTUAL / FINAL](uc-024-sequencies-actual-final.md)
+- [Activitats ACTUAL / FINAL per pàgina](uc-024-activitats-pagines-actual-final.md)
+- [Matriu de proves i evidència](uc-024-matriu-proves-evidencia.md)
+
+**Correcció d’abast:** els correus i enllaços no són simplement “inexistents”: hi ha implementació **llegada** executable que genera URLs amb IDPAG xifrat i envia SMTP directe. El pendent és substituir/integrar aquest comportament amb el contracte SIF final, no inventar-lo de zero.

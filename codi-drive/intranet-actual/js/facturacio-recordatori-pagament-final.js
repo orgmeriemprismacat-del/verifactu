@@ -15,9 +15,6 @@ requestMain.done(function( message ) {
 	$('.mainpanel').html(message);
 
 	activaFuncionsTaula();
-	$("#recordatori").on("click", "#upd-baixes", function(e) {
-		confirmaReclamacio();
-	});
 });
 
 requestMain.fail(function( jqXHR, textStatus, errorThrown ) {

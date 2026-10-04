@@ -16,12 +16,26 @@ final class ClaimPaymentPayloadBuilder
         $amount = $this->amount($this->required($input, ['amount', 'import', 'pagament'], 'payment amount'));
         $movementDate = $this->requiredString($input, ['movement_date', 'data_pag', 'dataPag'], 'movement_date');
         $method = $this->method($this->optionalString($input, ['method'], 'TRANSFERENCIA'));
-        $reference = $this->claimReference($input);
+        $externalReceiptId = $this->optionalString($input, ['external_receipt_id', 'receipt_id']);
+        $externalReceiptType = $externalReceiptId !== null
+            ? $this->externalReceiptType($this->optionalString($input, ['external_receipt_type']))
+            : null;
+        $reference = $externalReceiptId ?? $this->legacyReference($input);
         $bank = $this->optionalString($input, ['bank', 'banc']);
+        $idpag = $this->optionalPositiveInt($input, ['idpag', 'IDPAG']);
         $createdBy = $this->optionalString($input, ['created_by', 'user', 'usuari']);
 
         $payload = [
-            'idempotency_key' => $this->idempotencyKey($uuidFactura, $input, $amount, $movementDate, $reference, $createdBy),
+            'idempotency_key' => $this->idempotencyKey(
+                $uuidFactura,
+                $input,
+                $amount,
+                $movementDate,
+                $externalReceiptType,
+                $externalReceiptId,
+                $reference,
+                $createdBy
+            ),
             'movement_type' => 'CHARGE',
             'method' => $method,
             'source_channel' => 'INTRANET',
@@ -35,8 +49,13 @@ final class ClaimPaymentPayloadBuilder
         ];
 
         foreach ([
-            'reference' => $reference,
+            'reference' => $externalReceiptType === null || $externalReceiptType === 'BANK_REFERENCE'
+                ? $reference
+                : null,
+            'ds_order' => $externalReceiptType === 'DS_ORDER' ? $externalReceiptId : null,
+            'provider_ref' => $externalReceiptType === 'PROVIDER_REF' ? $externalReceiptId : null,
             'bank' => $bank,
+            'idpag' => $idpag,
             'created_by' => $createdBy,
             'notes' => $this->optionalString($input, ['notes', 'obs', 'observations']),
         ] as $key => $value) {
@@ -48,7 +67,7 @@ final class ClaimPaymentPayloadBuilder
         return $payload;
     }
 
-    private function claimReference(array $input): ?string
+    private function legacyReference(array $input): ?string
     {
         return $this->optionalString($input, [
             'claim_reference',
@@ -65,9 +84,21 @@ final class ClaimPaymentPayloadBuilder
         array $input,
         string $amount,
         string $movementDate,
+        ?string $externalReceiptType,
+        ?string $externalReceiptId,
         ?string $reference,
         ?string $createdBy
     ): string {
+        if ($externalReceiptId !== null) {
+            if ($externalReceiptType !== null) {
+                return 'CLAIM|RECEIPT:'
+                    . $this->keyPart($externalReceiptType)
+                    . ':' . $this->keyPart($externalReceiptId);
+            }
+
+            return 'CLAIM|RECEIPT:' . $this->keyPart($externalReceiptId);
+        }
+
         if ($reference !== null) {
             return 'CLAIM|REF:' . $this->keyPart($reference);
         }
@@ -84,6 +115,20 @@ final class ClaimPaymentPayloadBuilder
             . '|DATA:' . $this->keyPart($date)
             . '|IMPORT:' . $amount
             . '|USUARI:' . $this->keyPart($createdBy);
+    }
+
+    private function externalReceiptType(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $type = strtoupper(trim($value));
+        if (!in_array($type, ['BANK_REFERENCE', 'DS_ORDER', 'PROVIDER_REF'], true)) {
+            throw SifException::validation('Invalid external receipt type');
+        }
+
+        return $type;
     }
 
     private function method(?string $value): string
@@ -129,6 +174,20 @@ final class ClaimPaymentPayloadBuilder
         }
 
         return $value;
+    }
+
+    private function optionalPositiveInt(array $data, array $keys): ?int
+    {
+        $value = $this->optional($data, $keys);
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+            throw SifException::validation('Invalid claim payment IDPAG');
+        }
+
+        return (int) $value;
     }
 
     private function optionalString(array $data, array $keys, ?string $default = null): ?string
