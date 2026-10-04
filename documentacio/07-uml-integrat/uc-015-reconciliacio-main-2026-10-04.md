@@ -142,3 +142,31 @@ Ja existeix `NotificationOutboxDeliveryService`. La documentació passa a distin
 **Auditoria tècnica/documental:** TANCADA, subjecta al gate selectiu d'aquest PR.  
 **Implementació UC-015:** COMPLETA per l'abast definit.  
 **Acceptació de producció:** NO ACREDITADA encara; requereix preproducció real i evidència operativa.
+
+
+## 9. Revalidació addicional de desplegament — 2026-10-04
+
+### R-06 · Paritat de desplegament web/pay
+
+S'ha comparat el circuit PACK a les dues còpies:
+- `PackPaymentGate.php`: idèntic;
+- `SifPaymentIntentClient.php`: idèntic;
+- `apiRedsys.php`: idèntic;
+- checkout: mateix contracte de negoci, amb diferències només de presentació/assets;
+- connexió BD: la web conté transaccions/locks/allocator perquè crea altes; pay no els necessita;
+- OK/KO de pay pertanyen al retorn autoritatiu UC-014, mentre PACK continua retornant a `www.prisma.cat`.
+
+S'ha creat `PackDeploymentParityBoundaryTest` amb tres garanties:
+1. adaptadors crítics web/pay byte-a-byte idèntics;
+2. contracte PACK del checkout present a les dues còpies;
+3. retorn PACK mantingut sobre la frontera pública.
+
+### R-07 · Runbook de preproducció
+
+La plantilla d'evidència s'ha actualitzat perquè `verify-redsys-pack-preproduction.php` sigui l'orquestrador canònic:
+- dry-run;
+- execute;
+- execute + `--sync-legacy`;
+- verificació persistent posterior amb `verify-redsys-pack-evidence.php`.
+
+Això elimina l'ambigüitat entre scripts individuals i el flux d'acceptació recomanat.
