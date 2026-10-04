@@ -19,6 +19,7 @@ else {
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<meta name="csrf-token-debt-claim" content="<?php echo htmlspecialchars($csrfDebtClaim, ENT_QUOTES, 'UTF-8'); ?>">
+		<meta name="debt-claim-surface" content="PRIMERA_RECLAMACIO">
 
 		<title>1a Reclamació Pagament | Intranet</title>
 
