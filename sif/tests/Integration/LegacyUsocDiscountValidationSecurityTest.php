@@ -27,8 +27,16 @@ final class LegacyUsocDiscountValidationSecurityTest
         Assert::stringContainsString("!== 'POST'", $endpoint);
         Assert::stringContainsString("hash_equals", $endpoint);
         Assert::stringContainsString("csrf_validar_descomptes", $endpoint);
+        Assert::stringContainsString("consultaRolsUsuari", $endpoint);
+        Assert::stringContainsString("replaceRols", $endpoint);
         Assert::stringContainsString("consultaRolsEdiicio('/alumnes/validar-descomptes/')", $endpoint);
         Assert::stringContainsString("tePermisVisualitzacio", $endpoint);
+
+        $refreshPos = strpos($endpoint, 'consultaRolsUsuari');
+        $permissionPos = strpos($endpoint, "consultaRolsEdiicio('/alumnes/validar-descomptes/')");
+        if ($refreshPos === false || $permissionPos === false || $refreshPos >= $permissionPos) {
+            Assert::fail('Current user roles must be refreshed before checking edit permission.');
+        }
         Assert::stringContainsString("FILTER_VALIDATE_INT", $endpoint);
         Assert::stringContainsString("validar_descomptes_requests", $endpoint);
         Assert::stringContainsString("validar_descomptes_usoc_requests", $endpoint);
