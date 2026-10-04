@@ -56,10 +56,13 @@ final class GroupParticipantRemovalCoordinatorTest
             'repricing_policy' => 'KEEP_EXISTING_MEMBER_PRICES',
             'fiscal_action' => 'RECTIFY_PARTICIPANT_ONLY',
             'rectification_amount' => '-120.00',
-            'refund_amount' => '120.00',
+            'refund_amount' => '60.00',
             'refund_reference' => 'RET-UC016B-751',
             'refund_movement_date' => '2030-10-02 12:00:00',
-            'credit_amount' => '0.00',
+            'credit_amount' => '60.00',
+            'credit_holder_type' => 'RESPONSABLE',
+            'credit_holder_name' => 'Responsable Grup',
+            'credit_holder_nif_cif' => '44444444G',
             'non_refundable_amount' => '0.00',
             'operation_reference' => 'UC016B-751-REMOVE',
         ];
@@ -85,7 +88,8 @@ final class GroupParticipantRemovalCoordinatorTest
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM payment_transaction WHERE TIPUS_MOVIMENT='REFUND'")->fetchColumn());
-        Assert::same(3, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+        Assert::same(4, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM credit_balance')->fetchColumn());
         Assert::same('0.00', $fundRepository->attributedBalanceForEnrollment(
             $db,
             751,
@@ -107,9 +111,10 @@ final class GroupParticipantRemovalCoordinatorTest
         Assert::same(1, $academic->removeCalls);
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
-        Assert::same(3, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+        Assert::same(4, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM credit_balance')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM group_participant_change_execution')->fetchColumn());
-        Assert::same(4, (int) $db->query('SELECT COUNT(*) FROM group_participant_change_step')->fetchColumn());
+        Assert::same(6, (int) $db->query('SELECT COUNT(*) FROM group_participant_change_step')->fetchColumn());
     }
 
     private function coordinator(
