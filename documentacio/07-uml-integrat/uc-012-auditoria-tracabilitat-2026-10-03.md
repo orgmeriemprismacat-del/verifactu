@@ -101,7 +101,7 @@ GitHub Actions continua `queued` en la darrera comprovació; per tant, aquestes 
 ## 7. Decisions de seguretat
 
 1. El bridge és `SIF_DEBT_CLAIM_UI_ENABLED=0` per defecte.
-2. No es converteix automàticament `ID_INSC` en factura.
+2. `ID_INSC` es resol només server-side contra relacions SIF; si no hi ha una factura aplicable inequívoca, el flux falla tancat (inclòs `409` per múltiples pendents).
 3. Mutacions requereixen factura SIF explícita, CSRF, same-origin, rol i HMAC.
 4. Una reclamació té `fiscal_impact=NONE` i `economic_impact=NONE`.
 5. La baixa acadèmica continua en UC-72/95/96.
@@ -125,3 +125,11 @@ GitHub Actions continua `queued` en la darrera comprovació; per tant, aquestes 
 **Acceptació de preproducció/producció: PENDENT.**
 
 Vegeu també `uc-012-implementacio-sif-2026-10-03.md` i `uc-012-tancament-auditoria-2026-10-03.md`.
+
+
+### Troballes addicionals de cutover (04/10)
+
+- Les quatre pantalles carreguen el bridge, però els JS funcionals encara invoquen els POST legacy; no hi ha cutover efectiu.
+- `updLastClaimPay.php` continua acoblat a baixa de Moodle/BD en funció del resultat acadèmic. La reclamació `FINAL_CLAIM` del SIF i la baixa acadèmica s'han de separar abans del pilot.
+- Corregit el bug legacy de `$reclamatM` no inicialitzat al recordatori final, contrastat amb `IntranetProva.php`.
+- Afegida prova boundary perquè aquesta correcció no regressi i perquè el cutover no elimini accidentalment la separació reclamació/baixa.
