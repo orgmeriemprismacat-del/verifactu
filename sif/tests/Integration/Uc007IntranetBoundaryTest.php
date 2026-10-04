@@ -64,6 +64,18 @@ final class Uc007IntranetBoundaryTest
         }
     }
 
+    public function testLegacySifGuardIsActiveWheneverUc007BoundaryIsEnabled(): void
+    {
+        $guard = $this->readIntranet('SifLegacyInvoiceMutationGuard.php');
+
+        Assert::stringContainsString("getenv('SIF_UC007_QUERY_ENABLED')", $guard);
+        Assert::stringContainsString('return $mutationBlock || $uc007ReadBoundary;', $guard);
+        Assert::stringContainsString(
+            'No s’ha pogut verificar si la factura ja està governada pel SIF',
+            $guard
+        );
+    }
+
     public function testLegacySearchKeepsPersonalDataOutOfUc007QueryStrings(): void
     {
         $js = $this->readIntranet('js/alumnes-factura.js');
