@@ -22,6 +22,7 @@ else {
 
 		<title>Pagaments | Intranet</title>
 		<meta name="csrf-alumnes-pagaments" content="<?php echo htmlspecialchars($csrfAlumnesPagaments, ENT_QUOTES, 'UTF-8'); ?>">
+		<meta name="sif-installment-enforced" content="<?php echo filter_var(getenv('SIF_INSTALLMENT_PAYMENT_ENFORCED') ?: '0', FILTER_VALIDATE_BOOLEAN) ? '1' : '0'; ?>">
 
 		<!-- Bootstrap CSS -->
 		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"/>
