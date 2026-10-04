@@ -203,6 +203,9 @@ final class AeatEvidenceReconciliationService
             $response['evidence_response_sha256'] = (string) (
                 $pair['response_sha256'] ?? ''
             );
+            $response['evidence_http_status'] = (int) (
+                $pair['response_http_status'] ?? 0
+            );
 
             $this->attempts->completeUncertainFromEvidence(
                 $db,
