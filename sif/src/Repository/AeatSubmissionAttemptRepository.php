@@ -64,13 +64,25 @@ final class AeatSubmissionAttemptRepository
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
         );
         $evidenceId = $this->normalizeEvidenceId($response['evidence_id'] ?? null);
-        if ($evidenceId === null) {
+        $responseSha256 = strtolower(trim((string) ($response['response_sha256'] ?? '')));
+        $responseHttpStatus = $response['evidence_http_status'] ?? null;
+        if ($evidenceId === null
+            || preg_match('/^[a-f0-9]{64}$/D', $responseSha256) !== 1
+            || !is_int($responseHttpStatus)
+            || $responseHttpStatus !== 200
+        ) {
             throw new \RuntimeException(
-                'AEAT terminal result requires the preassigned evidence reference.'
+                'AEAT terminal result requires the preassigned, anchored HTTP 200 evidence response.'
             );
         }
         $this->assertPreassignedEvidenceMatches($db, $uuidAttempt, $evidenceId);
-        $this->assertTerminalEvidenceAnchored($db, $uuidAttempt, $evidenceId);
+        $this->assertTerminalEvidenceAnchored(
+            $db,
+            $uuidAttempt,
+            $evidenceId,
+            $responseSha256,
+            $responseHttpStatus
+        );
         $stmt = $db->prepare(
             'UPDATE aeat_submission_attempt
              SET STATUS = ?, RESPONSE_CODE = ?, RESPONSE_CSV = ?, RESPONSE_JSON = ?,
@@ -275,7 +287,9 @@ final class AeatSubmissionAttemptRepository
     private function assertTerminalEvidenceAnchored(
         \PDO $db,
         string $uuidAttempt,
-        string $evidenceId
+        string $evidenceId,
+        string $responseSha256,
+        int $responseHttpStatus
     ): void {
         $stmt = $db->prepare(
             'SELECT EVIDENCE_RESPONSE_SHA256, EVIDENCE_HTTP_STATUS, STATUS
@@ -293,7 +307,12 @@ final class AeatSubmissionAttemptRepository
                 '/^[a-f0-9]{64}$/D',
                 (string) $row['EVIDENCE_RESPONSE_SHA256']
             ) !== 1
-            || (int) ($row['EVIDENCE_HTTP_STATUS'] ?? 0) !== 200
+            || !hash_equals(
+                strtolower((string) $row['EVIDENCE_RESPONSE_SHA256']),
+                $responseSha256
+            )
+            || (int) ($row['EVIDENCE_HTTP_STATUS'] ?? 0) !== $responseHttpStatus
+            || $responseHttpStatus !== 200
         ) {
             throw new \RuntimeException(
                 'AEAT terminal result requires an anchored HTTP 200 evidence response.'
