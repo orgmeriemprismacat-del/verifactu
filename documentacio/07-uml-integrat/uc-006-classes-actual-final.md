@@ -218,8 +218,13 @@ class CreditBalanceRepository {
   +updateAvailableAmount(...)
   +invoiceOutstandingAmount(...)
 }
+class EnrollmentFundTransferActionService {
+  <<EXISTEIX · UC-006 PARCIAL>>
+  +transfer(auditContext,input) array
+  +reverseTransfer(auditContext,input) array
+}
 class PaymentActionGateway {
-  <<EXISTEIX · NO WIRING UC006 ACREDITAT>>
+  <<EXISTEIX · WIRING TRANSFER/REVERSAL>>
   +run(auditContext,operation)
 }
 class PayloadIdempotencyValidator {
@@ -243,6 +248,8 @@ CreditBalanceService --> PaymentPayloadValidator
 CreditBalanceService --> PaymentRepository
 CreditBalanceService --> PayloadIdempotencyValidator : createCredit + reús COMPENSATION
 
+EnrollmentFundTransferActionService --> PaymentActionGateway : REALLOCATE / UNALLOCATE
+EnrollmentFundTransferActionService --> EnrollmentFundTransferService
 PaymentActionGateway ..> PaymentService : possible FINAL, no camí observat
 PaymentActionGateway ..> CreditBalanceService : possible FINAL, no camí observat
 ```
@@ -352,7 +359,7 @@ CreditBalanceService --> EnrollmentFundMovementRepository : CREDIT_CREATE / COMP
 EnrollmentFundMovementRepository --> EnrollmentFundMovement : persisteix/locka
 ```
 
-**Implementat:** quan el caller aporta origen/destí explícits, les relacions de refund, saldo, compensació i transferència A→B són codi real de la branca. **Pendent:** controlador UC-006, titularitat, evidence guard genèric, wiring del transfer al coordinator i audit gateway.
+**Implementat:** refund/saldo/compensació/transfer A→B són codi real quan hi ha IDs explícits; transfer/reversal també passen per un wrapper auditat. **Pendent:** controlador UC-006, titularitat, evidence guard genèric, wiring del transfer al coordinator i auditoria obligatòria de la resta d'accions.
 ## 6. Mancances del model ACTUAL
 
 1. **No hi ha orquestrador UC-006** que converteixi una baixa/canvi/anul·lació en una única decisió econòmica autoritzada.
@@ -364,7 +371,7 @@ EnrollmentFundMovementRepository --> EnrollmentFundMovement : persisteix/locka
 4. `CreditBalanceService::createCredit()` ja té K/hash i `CREDIT_CREATE` opcional, però la K de dret no es deriva/obliga des de la UI.
 5. `applyCredit*` comprova saldo, deute i inscripció/línia destí quan s'informa, però no titularitat compatible.
 6. `INTERNAL_TRANSFER` té builder/servei/repositori/CLI/proves i reversió restringida; falta l'orquestració UC-006/UC-071 que decideixi l'import, actor/event i si una reversió funcional és admissible.
-7. `PaymentActionGateway` existeix, però els serveis i scripts examinats no hi passen.
+7. `PaymentActionGateway` ja està cablejat a transfer/reversal; refund/saldo/compensació i superfícies productives continuen fora del gateway.
 8. `public/api/payments/register.php` instancia `PaymentService` directament: no és un endpoint UC-006 complet.
 9. La UI llegada d’anul·lació conserva semàntica “A TORNAR” sense separar estat pendent de retorn vs retorn confirmat.
 
