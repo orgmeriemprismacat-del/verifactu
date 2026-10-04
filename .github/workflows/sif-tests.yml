@@ -24,6 +24,7 @@ on:
       - "codi-drive/web-actual/RegalCurs.php"
       - "codi-drive/web-actual/BescanviaRegal.php"
       - "codi-drive/web-actual/ajax/previsualitza_regal.php"
+      - "codi-drive/web-actual/ajax/mostrar_formulari_afortunat_regal.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioRegal.php"
       - "codi-drive/web-actual/js1619773569/mostrarRegal.min.js"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/GiftPaymentReturnStatus.php"
@@ -72,6 +73,7 @@ on:
       - "codi-drive/web-actual/RegalCurs.php"
       - "codi-drive/web-actual/BescanviaRegal.php"
       - "codi-drive/web-actual/ajax/previsualitza_regal.php"
+      - "codi-drive/web-actual/ajax/mostrar_formulari_afortunat_regal.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioRegal.php"
       - "codi-drive/web-actual/js1619773569/mostrarRegal.min.js"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/GiftPaymentReturnStatus.php"
@@ -160,6 +162,7 @@ jobs:
           php -l codi-drive/web-actual/RegalCurs.php
           php -l codi-drive/web-actual/BescanviaRegal.php
           php -l codi-drive/web-actual/ajax/previsualitza_regal.php
+          php -l codi-drive/web-actual/ajax/mostrar_formulari_afortunat_regal.php
           php -l codi-drive/web-actual/ajax/enviarInscripcioRegal.php
           node --check codi-drive/web-actual/js1619773569/mostrarRegal.min.js
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/GiftPaymentReturnStatus.php
