@@ -134,11 +134,11 @@ Això implica:
 | GAP09-07 | no hi havia contracte específic UI/proxy | regressió/seguretat | crear test |
 | GAP09-08 | no hi havia preflight específic de menú UC-009 | desplegament | crear script read-only |
 | GAP09-09 | regex UUID reconciliació massa permissiva | validació | endurir + test |
-| GAP09-10 | shell PHP no fa un gate local de rol abans de renderitzar | defensa en profunditat | API continua fail-closed; valorar gate local quan rols intranet reals estiguin definits |
+| GAP09-10 | shell PHP no feia gate local de rol abans de renderitzar | defensa en profunditat | **TANCAT EN CODI**: `SIF_AEAT_READ_ROLES` + rols vigents de sessió; sense intersecció retorna 403 abans de CSRF/UI |
 | GAP09-11 | `AeatSubmissionAttemptRepository` fixa `preproduction` | futur multi-entorn | acceptable mentre transport només admet proves; refactor abans de producció |
 | GAP09-12 | cap evidència de xarxa/certificat/AEAT real | operativa | pendent preproducció |
 | GAP09-13 | alta `apartats` no acreditada | operativa | executar preflight + alta controlada |
-| GAP09-14 | pipeline global main vermell per 6 errors aliens | release | resoldre/baseline abans de considerar release global verd |
+| GAP09-14 | el tall històric 02/10 tenia 6 fallades globals alienes | release/evidència | no usar 917/6 com estat vigent; exigir CI actual de `main`/PR en el moment del merge/release |
 | GAP09-15 | UI/AJAX/assets hardcodejats a `intranet.prisma.cat` | preproducció | canviats a rutes relatives same-origin + test de contracte |
 | GAP09-16 | `recoverStaleLocks()` feia `PROCESSING → RETRY` i podia provocar segon SOAP després d'una caiguda | fiscal/crític | canviat a `REVIEW` + incidència idempotent + cap retry automàtic |
 | GAP09-17 | resultat remot terminal podia acabar en `RETRY` si fallava/era invàlid el flow wait | fiscal/crític | `FlowControlledTransport` preserva resultat terminal, fallback 60 s + `requires_review` |
@@ -146,6 +146,7 @@ Això implica:
 | GAP09-19 | caiguda abrupta podia deixar `STARTED` sense una vinculació inequívoca a l'evidència | fiscal/recuperació | **TANCAT EN CODI**: `EVIDENCE_ID` es preassigna i persisteix amb l'intent abans de xarxa; stale `STARTED → UNCERTAIN` conserva el mateix ID |
 | GAP09-20 | resultat remot retornat però fallada local en persistir l'intent podia perdre l'evidence id | fiscal/recuperació | `reviewHold(... evidenceIdOverride)` conserva `EVIDENCE_ID`; prova específica bloqueja reenviament |
 | GAP09-21 | transport/excepció podia intentar substituir l'`EVIDENCE_ID` preassignat | integritat/fiscal | relació intent↔evidència immutable; divergència → `AEAT_EVIDENCE_REFERENCE_MISMATCH` + `REVIEW` |
+| GAP09-22 | rol de reconciliació podia autoritzar mutació sense rol de lectura si la configuració divergia | autorització | **TANCAT EN CODI**: mutacions exigeixen `hasReadRole && hasReconcileRole`; UI rep només `capabilities.reconcile` |
 
 ## 7. Traçabilitat requisit → implementació → prova
 
@@ -159,6 +160,8 @@ Això implica:
 | separar SENT/resultat fiscal | cua + `ESTAT_AEAT` | processor tests + panell |
 | no exposar payload/XML | read repository projection | `AeatOperationsReadRepositoryTest` |
 | HMAC/anti-replay | `InternalApiAuthenticator` | `InternalApiAuthenticatorTest` |
+| gate local de lectura | `sif-registres-aeat.php` + `SIF_AEAT_READ_ROLES` | `AeatIntranetUiContractTest` |
+| doble rol per mutació | `hasReadRole && hasReconcileRole` a `operations.php` | `AeatIntranetUiContractTest` |
 | reconcile sense resend | `AeatReviewReconciliationService` | `AeatReviewReconciliationServiceTest` |
 | reconcile `UNCERTAIN` des d'evidència | `AeatEvidenceReconciliationService` + `EvidenceVerifier::readVerifiedPair()` | `AeatEvidenceReconciliationServiceTest` |
 | evidència no reutilitzable | `aeat_submission_attempt.EVIDENCE_ID UNIQUE` | migració `2026_10_04_000033` |
@@ -169,9 +172,9 @@ Això implica:
 
 ### Tancat a nivell de codi/documentació quan el CI de la branca confirmi
 
-- fitxa reconciliada amb el main;
+- fitxa reconciliada amb el baseline de `main` i amb les correccions del PR #133;
 - classes, seqüències i activitats A/F presents;
-- contracte UI UC-009 passat;
+- contracte UI UC-009 del **head final** passat;
 - regressió UUID passada;
 - lint del panell passat;
 - cap nova fallada UC-009.
