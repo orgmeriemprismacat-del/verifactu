@@ -66,6 +66,13 @@ class AeatOperationsReadRepository {
 class AeatReviewReconciliationService {
   +reconcile(queueId,attemptUuid,actorId) array
 }
+class AeatEvidenceReconciliationService {
+  +reconcile(queueId,attemptUuid,actorId) array
+}
+class EvidenceVerifier {
+  +verify(directory,id) array
+  +readVerifiedPair(directory,id) array
+}
 class FiscalQueueRepository {
   +claimNext(db,maxAttempts) array
   +complete(db,item,status,response,xml) void
@@ -124,7 +131,11 @@ AeatOperationsEndpoint --> InternalApiAuthenticator
 AeatOperationsEndpoint --> AeatOperationsReadRepository
 AeatOperationsEndpoint --> AeatPreflight
 AeatOperationsEndpoint --> AeatReviewReconciliationService
+AeatOperationsEndpoint --> AeatEvidenceReconciliationService
 AeatReviewReconciliationService --> FiscalQueueRepository
+AeatEvidenceReconciliationService --> FiscalQueueRepository
+AeatEvidenceReconciliationService --> EvidenceVerifier
+AeatEvidenceReconciliationService --> AeatSubmissionAttemptRepository
 FiscalQueueProcessor --> FiscalQueueRepository
 FiscalQueueProcessor --> AeatSubmissionAttemptRepository
 FiscalQueueProcessor --> AeatTransport
@@ -227,3 +238,10 @@ No hi ha evidència d'una classe `AeatPanelController` ni d'un `AeatProductionTr
 - **Implementat:** classes ACTUAL anteriors localitzades a `main`.
 - **Verificat:** tests AEAT del run CI del 02/10 passen; s'afegeix contracte específic d'intranet en aquesta auditoria.
 - **Pendent:** evidència de desplegament/preproducció i política d'activació de producció.
+
+
+## 6. Extensió 2026-10-04 — evidència estructurada
+
+`aeat_submission_attempt` incorpora `EVIDENCE_ID VARCHAR(64) NULL UNIQUE`. La unicitat impedeix que una mateixa evidència privada quedi associada a més d'un intent, mantenint compatibilitat amb intents antics `NULL`.
+
+`AeatEvidenceReconciliationService` no depèn d'`AeatTransport` ni de `SoapTransport`: només llegeix una evidència privada ja existent, la verifica amb `EvidenceVerifier`, valida la resposta amb `ResponseParser` i aplica el resultat terminal mitjançant repositoris transaccionals.
