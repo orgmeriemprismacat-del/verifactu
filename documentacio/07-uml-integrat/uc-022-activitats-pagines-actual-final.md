@@ -136,8 +136,9 @@ endif
 :ManualPaymentService;
 :Commit ledger SIF;
 :Registrar auditoria;
-:Encolar sincronització llegada;
-:Retornar JSON CREATED/REUSED;
+:Projectar legacy des del SIF, només inscripcions;
+:Preparar notification_outbox;
+:Retornar CREATED/REUSED o PENDING_RETRY;
 stop
 @enduml
 ```
@@ -176,12 +177,12 @@ stop
 | P01 cerca | sí | sí | llegat | no en aquesta auditoria |
 | P02 validació/confirmació | sí | sí | llegat | no |
 | P03 endpoint mutació | sí | sí | llegat | no |
-| P04 servei SIF | sí | sí | sí | tests existents, no executats aquí |
-| P05 adaptador autoritzat | n/a | sí | no | no |
+| P04 servei SIF | sí | sí | sí | CI UC-022 amb PASS específics |
+| P05 adaptador autoritzat | n/a | sí | sí en branca | contract tests/CI; preproducció pendent |
 | P06 multifactura | n/a | sí | no | no |
 
 
-**Estat nou P05:** endpoint SIF + HMAC + rols + `external_bank_event_id` implementats; caller intranet, CSRF local del navegador i sincronització llegat continuen pendents.
+**Estat nou P05:** endpoint SIF + HMAC + rols + `external_bank_event_id`, caller intranet, CSRF i projecció SIF→legacy estan implementats en branca; resta l'evidència E2E de test/preproducció.
 
 
 ## P07 — canal intranet segur implementat en branca
@@ -205,7 +206,7 @@ if (efact == 1?) then (sí)
   if (factura existeix al SIF?) then (sí)
     :Registrar/reutilitzar payment;
     :Escriure audit REQUESTED + terminal;
-    :Projectar acumulat SIF al llegat;
+    :Projectar acumulat SIF només a inscripcions llegades;
     if (sync llegat OK?) then (sí)
       :CREATED o REUSED;
     else (no)
@@ -233,3 +234,6 @@ En el camí de cobrament confirmat/reutilitzat, el commit inclou:
 `payment_transaction/payment_allocation + operational_event + sif_audit_event + payment_action_event terminal`.
 
 Un permís denegat o una validació rebutjada genera `payment_action_event = REJECTED` i finalitza sense mutació econòmica. La projecció llegada té un segon cicle `SYNC_LEGACY REQUESTED → SUCCEEDED|FAILED`.
+
+
+**Control final P07:** la projecció no pot executar `UPDATE factures`; l'adaptador d'intranet és només caller i no disposa de projector local.
