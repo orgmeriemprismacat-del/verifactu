@@ -446,7 +446,7 @@ La taula següent amplia la matriu inicial i manté separats el cas de negoci, e
 | UC-21 | Empresa/responsable paga inscripcions | Empresa/responsable | `[PARCIAL]` | Factura abans de cobrar i pagament posterior. |
 | UC-22 | Registrar transferència | Operador | `[BASE/PARCIAL]` | `ManualPaymentService`; pantalla i referència final pendents. |
 | UC-23 | Registrar fracció | Operador | `[BASE/PARCIAL]` | `ManualInstallmentPaymentService`. |
-| UC-24 | Registrar cobrament de reclamació | Operador | `[BASE/PARCIAL]` | `ClaimPaymentService`; correus/URL pendents. |
+| UC-24 | Registrar cobrament de reclamació | Operador | `[IMPLEMENTAT/FLAG]` | Registre `CLAIM_PAYMENT` sobre factura existent, identitat externa tipificada, conciliació, auditoria i projecció legacy; UI desactivada fins evidència preproducció. Correus/recordatoris són UC-12/UC-43. |
 | UC-25 | Analitzar fitxer TPV | Operador | `[DISSENY]` | Resultats `CONCILIADA`, `DUPLICADA`, pendents o incidència. |
 | UC-25a | Comprovar IDPAG duplicats | Operador | `[DISSENY]` | Eina legacy identificada; integració SIF pendent. |
 | UC-26 | Canviar de curs | Operador | `[DISSENY/PARCIAL]` | Històric i decisió fiscal definits; orquestrador final pendent. |
