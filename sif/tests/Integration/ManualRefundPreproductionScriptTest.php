@@ -26,6 +26,7 @@ final class ManualRefundPreproductionScriptTest
         Assert::stringContainsString('--num-visible=', $source);
         Assert::stringContainsString('registerByUuid', $source);
         Assert::stringContainsString('registerByNumVisible', $source);
+        Assert::stringContainsString('--idempotency-key=', $source);
         Assert::stringContainsString('--source-enrollment-id=', $source);
         Assert::stringContainsString('--correlation-id=', $source);
         Assert::stringContainsString('--uuid-operation=', $source);
