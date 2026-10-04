@@ -79,13 +79,17 @@ final class SoapTransport implements AeatTransport
             $ok = curl_exec($curl);
             $http = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
             $errno = curl_errno($curl);
+            $responseSha256 = hash('sha256', $raw);
             try {
                 $this->evidence->response($attempt, $raw, $http);
             } catch (\Throwable $error) {
                 throw new AeatDeliveryUncertainException(
                     'AEAT response evidence could not be persisted; evidence=' . $attempt,
                     0,
-                    $error
+                    $error,
+                    $attempt,
+                    $responseSha256,
+                    $http
                 );
             }
             if ($ok === false || $http !== 200) {
@@ -94,7 +98,14 @@ final class SoapTransport implements AeatTransport
                 } catch (\Throwable) {
                     // The protected request/response attempt id still identifies the uncertain delivery.
                 }
-                throw new AeatDeliveryUncertainException('AEAT delivery uncertain; evidence=' . $attempt);
+                throw new AeatDeliveryUncertainException(
+                    'AEAT delivery uncertain; evidence=' . $attempt,
+                    0,
+                    null,
+                    $attempt,
+                    $responseSha256,
+                    $http
+                );
             }
             try {
                 $result = (new ResponseParser())->parse($raw, $snapshot);
@@ -104,10 +115,19 @@ final class SoapTransport implements AeatTransport
                 } catch (\Throwable) {
                     // Preserve the original parsing failure as the cause of the uncertain outcome.
                 }
-                throw new AeatDeliveryUncertainException('AEAT response requires review; evidence=' . $attempt, 0, $error);
+                throw new AeatDeliveryUncertainException(
+                    'AEAT response requires review; evidence=' . $attempt,
+                    0,
+                    $error,
+                    $attempt,
+                    $responseSha256,
+                    $http
+                );
             }
             $result['request_xml'] = $request;
             $result['response']['evidence_id'] = $attempt;
+            $result['response']['evidence_http_status'] = $http;
+            $result['response']['response_sha256'] = $responseSha256;
             return $result;
         } finally {
             curl_close($curl);
