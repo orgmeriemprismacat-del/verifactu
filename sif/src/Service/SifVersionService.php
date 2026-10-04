@@ -388,8 +388,29 @@ final class SifVersionService
             'declaration' => $declaration,
             'declaration_error' => $declarationError,
             'backup_required' => $backupRequired,
-            'backup' => $backup,
+            'backup' => $this->backupEvidenceSummary($backup),
         ];
+    }
+
+    private function backupEvidenceSummary(?array $backup): ?array
+    {
+        if ($backup === null) {
+            return null;
+        }
+
+        $allowed = [
+            'UUID_EVIDENCE',
+            'OPERATION_TYPE',
+            'ENVIRONMENT',
+            'STATUS',
+            'INTEGRITY_RESULT',
+            'RPO_MINUTES',
+            'RTO_MINUTES',
+            'STARTED_AT',
+            'FINISHED_AT',
+        ];
+
+        return array_intersect_key($backup, array_fill_keys($allowed, true));
     }
 
     private function inspectDeclarationFile(string $storageKey): array
