@@ -78,7 +78,7 @@ $checks = [
     ) === 1,
     'aeat_gift_exemption_code_valid' => in_array(
         strtoupper(trim((string) ($config['aeat']['gift_exemption_code'] ?? ''))),
-        ['E1', 'E2', 'E3', 'E4', 'E5', 'E6'],
+        ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8'],
         true
     ),
     'legacy_db_configured' => (string) ($config['legacy_db']['dsn'] ?? '') !== '',
