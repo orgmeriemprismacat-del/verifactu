@@ -16,6 +16,7 @@ use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\RectificationRepository;
 use Prisma\Sif\Repository\SifAuditEventRepository;
+use Prisma\Sif\Service\AeatRectificationMapper;
 use Prisma\Sif\Service\FiscalCorrectionDecisionGuard;
 use Prisma\Sif\Service\FiscalCorrectionDecisionResolver;
 use Prisma\Sif\Service\InternalApiAuthenticator;
@@ -92,6 +93,7 @@ try {
     }
 
     $fingerprints = new PayloadIdempotencyValidator();
+    $rectificationInvoices = new ManualPaymentInvoiceRepository();
     $invoiceService = new InvoiceService(
         new TransactionRunner($db),
         new InvoicePayloadValidator(),
@@ -103,7 +105,7 @@ try {
     );
 
     $manualRectification = new ManualRectificationService(
-        new ManualPaymentInvoiceRepository(),
+        $rectificationInvoices,
         new RectificationRepository(),
         new ManualRectificationPayloadBuilder(),
         $invoiceService
@@ -119,16 +121,33 @@ try {
         $correction
     );
 
+    $environment = strtoupper(trim((string) ($config['env'] ?? 'local')));
+    $issuer = $config['issuer'] ?? [];
+    $aeat = $config['aeat'] ?? [];
+    $aeatMapper = new AeatRectificationMapper(
+        $rectificationInvoices,
+        (string) ($issuer['nif'] ?? ''),
+        (string) ($issuer['name'] ?? ''),
+        [
+            'system_name' => (string) ($aeat['system_name'] ?? ''),
+            'system_id' => (string) ($aeat['system_id'] ?? ''),
+            'system_version' => (string) ($aeat['system_version'] ?? ''),
+            'installation_id' => (string) ($aeat['installation_id'] ?? ''),
+        ],
+        in_array($environment, ['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION'], true)
+    );
+
     $commands = new RectificationCommandService(
         $db,
-        new ManualPaymentInvoiceRepository(),
+        $rectificationInvoices,
         new ManualRectificationPayloadBuilder(),
         $manualRectification,
         new FiscalCorrectionDecisionGuard(),
         $fingerprints,
         new SifAuditEventRepository(new UuidGenerator()),
         new OperationalEventRepository(new UuidGenerator()),
-        (string) ($config['env'] ?? 'unknown')
+        (string) ($config['env'] ?? 'unknown'),
+        $aeatMapper
     );
 
     $context = [
