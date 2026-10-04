@@ -16,7 +16,7 @@ use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class HistoricalInvoiceInventoryServiceTest
 {
-    public function testInventoryMarksMatchingImportedInvoice(): void
+    public function testInventoryMarksMatchingImportedInvoiceAndAggregatesYearSeries(): void
     {
         $db = $this->fixture();
         $this->import($db);
@@ -29,6 +29,16 @@ final class HistoricalInvoiceInventoryServiceTest
         Assert::same(0, $result['summary']['blocking']);
         Assert::same('IMPORTED_MATCH', $result['items'][0]['status']);
         Assert::same([], $result['items'][0]['differences']);
+        Assert::same('A', $result['groups'][0]['series']);
+        Assert::same(2024, $result['groups'][0]['year']);
+        Assert::same('A2024/000123', $result['groups'][0]['first_num_visible']);
+        Assert::same('A2024/000123', $result['groups'][0]['last_num_visible']);
+        Assert::same('100.00', $result['groups'][0]['legacy_total']);
+        Assert::same(true, $result['groups'][0]['reconciled']);
+
+        $encoded = json_encode($result, JSON_UNESCAPED_SLASHES);
+        Assert::same(false, str_contains((string) $encoded, '12345678Z'));
+        Assert::same(hash('sha256', '12345678Z'), $result['items'][0]['billing_nif_fingerprint']);
     }
 
     public function testInventoryMarksMissingInvoiceWithoutWritingSif(): void
@@ -39,21 +49,32 @@ final class HistoricalInvoiceInventoryServiceTest
 
         Assert::same('NOT_IMPORTED', $result['items'][0]['status']);
         Assert::same(1, $result['summary']['not_imported']);
+        Assert::same(false, $result['fully_reconciled']);
+        Assert::same(false, $result['groups'][0]['reconciled']);
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
     }
 
-    public function testInventoryDetectsMaterialMismatch(): void
+    public function testInventoryDetectsMaterialMismatchWithoutLeakingNif(): void
     {
         $db = $this->fixture();
         $this->import($db);
-        $db->exec("UPDATE factures SET import = 120.00 WHERE id = 9123");
+        $db->exec("UPDATE factures SET import = 120.00, cif = '87654321X' WHERE id = 9123");
 
         $result = (new HistoricalInvoiceInventoryService())->inventory($db, $db);
 
         Assert::same('IMPORTED_MISMATCH', $result['items'][0]['status']);
         Assert::same(1, $result['summary']['mismatch']);
         Assert::same(1, $result['summary']['blocking']);
-        Assert::same('total', $result['items'][0]['differences'][0]['field']);
+        Assert::same('billing_nif', $result['items'][0]['differences'][0]['field']);
+        Assert::same(
+            hash('sha256', '87654321X'),
+            $result['items'][0]['differences'][0]['legacy_fingerprint']
+        );
+        Assert::same('total', $result['items'][0]['differences'][1]['field']);
+
+        $encoded = json_encode($result, JSON_UNESCAPED_SLASHES);
+        Assert::same(false, str_contains((string) $encoded, '87654321X'));
+        Assert::same(false, str_contains((string) $encoded, '12345678Z'));
     }
 
     public function testInventoryVerifiesDocumentBytesAndDetectsTampering(): void
