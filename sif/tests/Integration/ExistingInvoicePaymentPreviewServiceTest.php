@@ -58,6 +58,33 @@ final class ExistingInvoicePaymentPreviewServiceTest
         Assert::same('PARTIAL', $partial['invoice']['estat_cobrament']);
     }
 
+    public function testPreviewByLegacyRelatedInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC002|LEGACY-REL|PREVIEW',
+                'relations' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 10,
+                    'factura_relacionada' => 888,
+                    'idpag' => 123,
+                    'ds_order' => null,
+                    'visible_alumne' => 1,
+                ]],
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        $preview = $this->service()->preview(
+            $db,
+            ['legacy_factura_relacionada' => 888]
+        );
+
+        Assert::same($invoice['uuid_factura'], $preview['invoice']['uuid_factura']);
+        Assert::same('120.00', $preview['invoice']['pending_amount']);
+    }
+
     public function testPreviewRejectsAmbiguousSelector(): void
     {
         $db = TestDatabase::fresh();
