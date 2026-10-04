@@ -47,6 +47,7 @@ final class AeatIntegrityTest
             $pair = $verifier->readVerifiedPair($dir, $id);
             Assert::same('<private-synthetic-request/>', $pair['request_xml']);
             Assert::same('<private-synthetic-response/>', $pair['response_xml']);
+            Assert::same(200, $pair['response_http_status']);
             Assert::matchesRegularExpression('/^[a-f0-9]{64}$/', $pair['request_sha256']);
             Assert::matchesRegularExpression('/^[a-f0-9]{64}$/', $pair['response_sha256']);
             $output = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
