@@ -63,6 +63,62 @@ final class EvidenceVerifier
             'hashes' => $hashes, 'errors' => $errors, 'aeat_acceptance_verified' => false];
     }
 
+
+    public function readVerifiedPair(string $directory, string $id): array
+    {
+        $verification = $this->verify($directory, $id);
+        if (($verification['integrity_ok'] ?? false) !== true
+            || ($verification['state'] ?? '') !== 'RESPONSE_RECORDED'
+        ) {
+            throw new \RuntimeException('AEAT evidence is not a complete verified response pair.');
+        }
+
+        $root = realpath($directory);
+        $attempt = $root === false ? false : realpath($root . '/' . $id);
+        if ($root === false || $attempt === false || !is_dir($attempt)
+            || dirname($attempt) !== $root
+        ) {
+            throw new \RuntimeException('AEAT evidence attempt is unavailable.');
+        }
+
+        $request = $this->readVerifiedFile(
+            $attempt . '/request.xml',
+            $attempt,
+            (string) ($verification['hashes']['request'] ?? '')
+        );
+        $response = $this->readVerifiedFile(
+            $attempt . '/response.xml',
+            $attempt,
+            (string) ($verification['hashes']['response'] ?? '')
+        );
+
+        return [
+            'attempt_id' => $id,
+            'request_xml' => $request,
+            'response_xml' => $response,
+            'request_sha256' => hash('sha256', $request),
+            'response_sha256' => hash('sha256', $response),
+        ];
+    }
+
+    private function readVerifiedFile(string $file, string $attempt, string $expectedHash): string
+    {
+        $this->assertFile($file, $attempt);
+        if (preg_match('/^[a-f0-9]{64}$/D', $expectedHash) !== 1) {
+            throw new \RuntimeException('AEAT evidence expected hash is invalid.');
+        }
+
+        $contents = file_get_contents($file, false, null, 0, 8 * 1024 * 1024 + 1);
+        if ($contents === false || strlen($contents) > 8 * 1024 * 1024) {
+            throw new \RuntimeException('AEAT evidence file is unreadable or too large.');
+        }
+        if (!hash_equals($expectedHash, hash('sha256', $contents))) {
+            throw new \RuntimeException('AEAT evidence changed after verification.');
+        }
+
+        return $contents;
+    }
+
     private function assertFile(string $file, string $attempt): void
     {
         $real = realpath($file);
