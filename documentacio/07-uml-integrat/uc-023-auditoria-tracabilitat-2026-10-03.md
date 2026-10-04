@@ -27,11 +27,11 @@ Però la cobertura era **parcial**: el dossier no separava de forma sistemàtica
 | Reintent exactament equivalent | COBERT PER TEST | proves existents |
 | Dues fraccions diferents | COBERT PER TEST | prova existent 40 + 80 |
 | Dues fraccions reals idèntiques mateix dia | DEFECTE DETECTAT / CORREGIT PARCIALMENT | builder antic col·lisionava; branca admet `operation_id` immutable opcional |
-| Vincle `ID_INSC ↔ UUID_FACTURA` | PENDENT | el servei localitza factura i accepta `id_insc` d'entrada sense contrastar relació |
-| Validació import pendent abans del CHARGE | PENDENT | es pot arribar a `OVERPAID`; no hi ha guard específic d'UC-023 |
-| Conciliació bancària/Redsys abans de MANUAL | PENDENT | no acreditada en aquest servei |
-| Autorització backend específica del canal | PENDENT | endpoint llegat inspeccionat no acredita guard UC-023 |
-| Adaptador intranet → SIF UC-023 | PENDENT | JS actual crida `ajax/alumnes/efectuarPagament.php` per GET |
+| Vincle `ID_INSC ↔ UUID_FACTURA` | IMPLEMENTAT EN BRANCA | guard transaccional sobre `fact_rels` abans de `INSTALLMENT_PAYMENT` |
+| Validació import pendent abans del CHARGE | IMPLEMENTAT EN BRANCA | factura bloquejada `FOR UPDATE`, saldo recalculat i sobrepagament rebutjat |
+| Conciliació bancària/Redsys abans de MANUAL | IMPLEMENTAT EN BRANCA / PENDENT E2E | `PaymentService` reconcilia per `REFERENCIA_BANCARIA` o `DS_ORDER`, reusa si import/assignacions coincideixen i conflicta si divergeixen |
+| Autorització backend específica del canal | IMPLEMENTAT EN BRANCA | POST+CSRF+same-origin+permís a intranet i HMAC+replay guard+rol al SIF |
+| Adaptador intranet → SIF UC-023 | IMPLEMENTAT AMB FEATURE FLAG | `efectuarPagament.php` pot derivar a `/api/payments/installment.php` amb `SIF_INSTALLMENT_PAYMENT_ENFORCED=1` |
 | Activitats ACTUAL/FINAL per pàgina | CREAT EN AQUESTA BRANCA | `uc-023-activitats-pagines-actual-final.md` |
 | Classes ACTUAL/FINAL | CREAT EN AQUESTA BRANCA | `uc-023-classes-actual-final.md` |
 | Seqüències ACTUAL/FINAL | CREAT EN AQUESTA BRANCA | `uc-023-sequencies-actual-final.md` |
@@ -117,8 +117,8 @@ Troballes:
 | UC023-15 | No hi havia dossier separat de seqüències ACTUAL/FINAL. | CORREGIT DOC |
 | UC023-16 | La branca introdueix identificador immutable opcional de fracció sense trencar la clau històrica. | CORREGIT CODI |
 | UC023-17 | Falta que el canal real generi/transporti aquest identificador des d'un fet verificat. | PENDENT INTEGRACIÓ |
-| UC023-18 | Falta guard de relació factura-inscripció i import pendent. | PENDENT |
-| UC023-19 | Falta conciliació transversal per evitar duplicar un ingrés ja registrat com TRANSFERENCIA/REDSYS. | PENDENT |
+| UC023-18 | Guard de relació factura-inscripció i import pendent. | IMPLEMENTAT BRANCA |
+| UC023-19 | Conciliació transversal per referència bancària o DS_ORDER evita duplicar un ingrés existent i detecta discrepàncies. | IMPLEMENTAT BRANCA / PENDENT E2E |
 | UC023-20 | Falta evidència E2E i de preproducció. | PENDENT |
 
 ## 5. Correcció de codi aplicada
@@ -182,3 +182,28 @@ UC-023 només es pot considerar **TANCAT** quan:
 - [Classes ACTUAL/FINAL](uc-023-classes-actual-final.md)
 - [Seqüències ACTUAL/FINAL](uc-023-sequencies-actual-final.md)
 - [Activitats per pàgina ACTUAL/FINAL](uc-023-activitats-pagines-actual-final.md)
+
+
+## 9. Continuació executable — 04/10/2026
+
+### 9.1. Seguretat i canal
+
+- `alumnes-pagaments.js` envia la mutació per POST amb CSRF i `operationId`.
+- `efectuarPagament.php` exigeix sessió, CSRF, same-origin/AJAX i permís.
+- `SifInternalInstallmentClient` signa la petició server-to-server.
+- `/api/payments/installment.php` exigeix `InternalApiAuthenticator`, replay guard i rol explícit.
+- `/api/payments/register.php` també queda endurit amb HMAC i rols; s'elimina el bypass genèric anònim.
+
+### 9.2. Guards econòmics dins transacció
+
+Abans de persistir `INSTALLMENT_PAYMENT`, `PaymentRepository` bloqueja la factura, valida cobertura `fact_rels`, recalcula saldo net i rebutja imports superiors al pendent.
+
+### 9.3. Reconciliació cross-channel
+
+`PaymentService` cerca `DS_ORDER` i `REFERENCIA_BANCARIA` abans de crear. Si el moviment existent té mateix tipus, import i assignacions, reutilitza `UUID_PAYMENT`; si divergeix, retorna `409 CONFLICT`.
+
+Cobertura afegida: transferència existent → fracció manual = reús; mateixa referència amb import diferent = conflicte; Redsys existent + mateix DS_ORDER → reús.
+
+### 9.4. Estat de CI observat
+
+Al commit `afcef346c8f6a8f0a3a0d780bf45009605cb0aeb`, la suite va donar **923 passats / 7 fallats**. Un error era el contracte antic de `payments/register.php` i ja s'ha actualitzat al nou contracte HMAC/raw-body; els altres sis són PACK/Redsys aliens a UC-023. Cal executar el nou HEAD i conservar l'E2E de preproducció abans de declarar verificat el cas.
