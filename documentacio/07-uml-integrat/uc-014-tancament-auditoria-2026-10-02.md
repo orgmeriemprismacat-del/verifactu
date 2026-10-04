@@ -25,7 +25,7 @@ No queda cap fitxa, diagrama, inventari, traçabilitat, boundary o implementaci�
 
 El tancament del PR #118 es manté vigent. El PR #119 es conserva com a evidència diagnòstica, però la seva branca va quedar divergent i **no s'ha de fusionar**. El PR #149 ha integrat al `main` la correcció canònica del vector `payload_hash` Redsys i els boundaries PACK que mantenien la suite compartida en vermell.
 
-La continuació neta d'UC-014 parteix de `main@2bd2a751832fc3f767b1e250b955922145a5577a`, afegeix un runner/workflow selectiu UC-014 i elimina el warning d'interpolació de `$fractional` al boundary llegat.
+El PR #153 és la continuació neta d'UC-014 sobre `main@2bd2a751832fc3f767b1e250b955922145a5577a`: afegeix un runner/workflow selectiu UC-014 i elimina el warning d'interpolació de `$fractional` al boundary llegat.
 
 Evidència històrica del gate específic: **125 passed / 0 failed**.
 
