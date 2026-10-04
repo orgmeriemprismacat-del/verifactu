@@ -19,6 +19,7 @@ final class ManualInstallmentPaymentPayloadBuilder
         $user = $this->requiredString($input, ['user', 'usuari', 'created_by'], 'installment user');
         $reference = $this->optionalString($input, ['reference', 'referencia', 'referencia_bancaria']);
         $bank = $this->optionalString($input, ['bank', 'banc']);
+        $dsOrder = $this->optionalString($input, ['ds_order', 'dsOrder']);
         $operationId = $this->optionalString($input, ['operation_id', 'installment_id', 'external_event_id', 'receipt_id']);
 
         $payload = [
@@ -37,7 +38,7 @@ final class ManualInstallmentPaymentPayloadBuilder
             ]],
         ];
 
-        foreach (['reference' => $reference, 'bank' => $bank, 'notes' => $this->optionalString($input, ['notes', 'obs', 'observations'])] as $key => $value) {
+        foreach (['reference' => $reference, 'bank' => $bank, 'ds_order' => $dsOrder, 'notes' => $this->optionalString($input, ['notes', 'obs', 'observations'])] as $key => $value) {
             if ($value !== null) {
                 $payload[$key] = $value;
             }
