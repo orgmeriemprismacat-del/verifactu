@@ -6,7 +6,7 @@ UC-002 **no estava complet** a `main`. El repositori sí contenia el nucli SIF d
 
 L'auditoria ha recuperat i inspeccionat el `Intranet.php` real com a blob gran, ha separat el cobrament d'una factura existent (`efact=1`) de la facturació llegada durant el cobrament (`efact=0`) i ha corregit defectes de seguretat i consistència que podien afectar el cobrament.
 
-**Conclusió:** el nucli SIF és sòlid i ha quedat més protegit; la UI llegada encara no està connectada al SIF de manera autoritativa. UC-002 queda **PARCIAL / NO TANCAT** fins completar adaptador, auditoria, sync post-commit i E2E.
+**Conclusió actualitzada:** el nucli SIF és sòlid i el pont Intranet → SIF autoritatiu ja està implementat darrere de `SIF_UC002_AUTHORITATIVE`, amb CSRF, HMAC, request UUID estable i sync llegat post-commit basat en projecció absoluta. UC-002 continua **PARCIAL / NO TANCAT** perquè falta validar-lo E2E/preproducció, connectar l'auditoria funcional genèrica, acreditar l'evidència externa del cobrament i moure notificacions/correus a post-commit.
 
 ## 1. Fonts revisades
 
@@ -145,23 +145,33 @@ La lectura convencional del connector retornava contingut buit perquè el fitxer
 
 ---
 
-### F-002-10 · ALTA · La intranet encara no delega al SIF
+### F-002-10 · ALTA · Pont Intranet → SIF autoritatiu
 
-Tot i les correccions de frontera, l'endpoint llegat continua cridant `Intranet::efectuarPagament()`, no `PaymentService`.
+**Situació inicial:** l'endpoint llegat cridava `Intranet::efectuarPagament()` sense registrar primer el moviment al SIF.
 
-**Risc:** doble font de veritat, absència d'UUID econòmic SIF al flux de pantalla i manca d'idempotència end-to-end.
+**Acció implementada:**
+- `SifInternalApiClient::registerExistingInvoicePayment()`;
+- proxy `sifPagamentFactura.php` amb HMAC/CSRF/actor/rol;
+- feature flag `SIF_UC002_AUTHORITATIVE`;
+- bloqueig fail-closed del vell `efectuarPagament.php` per `efact=1` quan el mode està actiu;
+- command `register_existing_invoice` a `/api/payments/register.php`.
 
-**Estat:** **PENDENT / BLOQUEJANT TANCAMENT**.
+**Estat:** **IMPLEMENTAT DARRERE FLAG / PENDENT E2E I ACTIVACIÓ**.
 
 ---
 
-### F-002-11 · ALTA · Idempotència SIF sí implementada, però no end-to-end
+### F-002-11 · ALTA · Idempotència end-to-end tècnica
 
-A `main`, `PaymentService` ja compara payload per hash v1/v2. `PayloadIdempotencyValidator` v2 elimina metadades de traça abans del fingerprint.
+A `main`, `PaymentService` ja comparava payload per hash v1/v2. La branca completa la traça tècnica:
+- el JS conserva un UUID v4 a `sessionStorage` per la mateixa intenció;
+- el proxy valida l'UUID i construeix `INTRANET|UC002|REQ:<uuid>`;
+- `ManualPaymentPayloadBuilder` accepta una idempotency key explícita;
+- un retry equivalent reutilitza el mateix `UUID_PAYMENT`;
+- si el SIF ja ha fet commit però el sync falla, es respon `202 PENDING_RETRY`.
 
-**Estat nucli:** **IMPLEMENTAT I DOCUMENTAT**.
+**Estat:** **IMPLEMENTAT / PENDENT PROVA E2E DE PÈRDUA DE RESPOSTA**.
 
-**Pendent:** la UI llegada ha de crear/reutilitzar una clau durable i transportar-la fins al SIF.
+**Límit:** aquesta idempotència evita duplicats tècnics, però no substitueix la prova bancària/TPV del fet extern.
 
 ---
 
@@ -181,23 +191,28 @@ Però `register.php -> PaymentService` no usa el gateway.
 
 ---
 
-### F-002-13 · MITJANA/ALTA · Ledger per inscripció no integrat genèricament
+### F-002-13 · MITJANA/ALTA · Projecció per inscripció implementada; ledger econòmic genèric parcial
 
-`EnrollmentFundMovementRepository` i serveis d'assignació existeixen, però el cobrament genèric només imputa a factura.
+`ExistingInvoiceLegacyProjectionService` resol les línies `SOURCE_TYPE=INSCRIPCIO`, suma el net confirmat del ledger de pagaments, el limita al total fiscal i projecta de forma determinista l'import absolut per `ID_INSC`. La projecció detecta divergències de `IDPAG`, `FACTURA_RELACIONADA` i cobertura incompleta.
 
-**Estat:** **PARCIAL**.  
-**Pendent:** resoldre línies d'inscripció i reconciliar suma factura/pagament/ID_INSC.
+Això permet sincronitzar el resum acadèmic/llegat sense sumar dues vegades, però **no substitueix** `enrollment_fund_movement` com a ledger econòmic explícit per inscripció.
+
+**Estat:** **PROJECCIÓ IMPLEMENTADA / LEDGER GENÈRIC PARCIAL**.
 
 ---
 
-### F-002-14 · ALTA · Llegat no transaccional end-to-end
+### F-002-14 · ALTA · Sync llegat post-commit
 
-`efectuarPagamentFacturaGenerada()` usa connexions diferents, actualitza factura i inscripcions i envia correu dins el mateix procediment.
+**Situació inicial:** `efectuarPagamentFacturaGenerada()` feia escriptures incrementals i correus dins un procediment no idempotent.
 
-**Risc:** fallada intermèdia amb estat parcial i reexecució manual potencialment duplicada.
+**Acció implementada al mode autoritatiu:**
+1. el SIF fa commit del `CHARGE`;
+2. `ExistingInvoiceLegacyProjectionService` calcula una projecció absoluta;
+3. `Uc002LegacyPaymentProjectionApplier` bloqueja files amb `FOR UPDATE`, valida imports/identitats i escriu `PAGAMENT = valor_projectat` dins una transacció;
+4. un error de sync retorna `202 PENDING_RETRY`, no crea un nou cobrament.
 
-**Estat:** **PENDENT / BLOQUEJANT**.  
-**FINAL:** SIF commit únic; sync legacy + correus post-commit, idempotents i retryables.
+**Estat sync:** **IMPLEMENTAT DARRERE FLAG / PENDENT E2E**.  
+**Encara pendent:** correus/notificacions post-commit; el vell mètode continua enviant correus quan el flag és desactivat.
 
 ---
 
@@ -239,8 +254,8 @@ Al tall:
 | R-14 | audit event d'alta | PaymentActionGateway | — | PENDENT |
 | R-15 | imputació per ID_INSC | fund movement infra | fluxos específics | PARCIAL |
 | R-16 | evidència externa | — genèric | — | PENDENT |
-| R-17 | intranet -> SIF | — | — | PENDENT |
-| R-18 | sync legacy post-commit | — | — | PENDENT |
+| R-17 | intranet -> SIF | client HMAC + proxy + command | bridge boundary + command tests | IMPLEMENTAT FLAGGED |
+| R-18 | sync legacy post-commit | projection service + applier absolut | projection + boundary tests | IMPLEMENTAT FLAGGED / E2E PENDENT |
 | R-19 | mail post-commit | — | — | PENDENT |
 | R-20 | E2E preproducció | entorn | evidència | PENDENT |
 
@@ -278,15 +293,13 @@ Al tall:
 
 ### PENDENT
 
-- adaptador UI → SIF;
-- idempotència durable end-to-end;
-- PaymentActionGateway al flux genèric;
-- ledger genèric ID_INSC;
-- reconciliació d'evidència externa;
-- sync legacy post-commit/retry;
-- outbox notificacions;
-- resposta JSON tipificada;
-- proves E2E i evidència.
+- activar i validar `SIF_UC002_AUTHORITATIVE=1` a test/preproducció;
+- PaymentActionGateway/`payment_action_event` al flux genèric;
+- ledger econòmic genèric `enrollment_fund_movement` per ID_INSC quan sigui exigible;
+- reconciliació d'evidència externa bancària/TPV;
+- outbox/notificacions post-commit;
+- E2E de parcial, complet, retry, pèrdua de resposta, conflicte i sobrepagament;
+- conservar evidència d'execució.
 
 ## 5. Fitxers canviats per l'auditoria
 
@@ -326,12 +339,12 @@ Es pot declarar **“nucli SIF implementat + fronteres corregides + documentaci�
 
 ## 7. Ordre recomanat de continuació
 
-1. crear `SifInternalPaymentClient` / adaptador intranet;
-2. definir mapping factura llegada → `UUID_FACTURA`;
-3. construir idempotency key estable + request/correlation IDs;
-4. registrar SIF primer;
-5. fer sync llegat amb mateix `UUID_PAYMENT`;
-6. redissenyar owner transaccional per connectar `PaymentActionGateway`;
-7. afegir ledger `ID_INSC` quan la factura tingui diverses inscripcions;
+1. desplegar la branca a `sif_test` / preproducció amb les variables internes de pagament;
+2. activar `SIF_UC002_AUTHORITATIVE=1` només en aquell entorn;
+3. executar E2E: parcial, complet, retry, pèrdua de resposta, conflicte de payload i sobrepagament;
+4. verificar una factura multiinscripció i la projecció absoluta al llegat;
+5. conservar UUID/request-id i evidència SQL abans/després;
+6. redissenyar l'owner transaccional per connectar `PaymentActionGateway`;
+7. decidir/afegir `enrollment_fund_movement` genèric;
 8. moure correus a post-commit/outbox;
-9. executar E2E: parcial, complet, retry, conflicte i pèrdua de resposta.
+9. només després valorar activació en producció.
