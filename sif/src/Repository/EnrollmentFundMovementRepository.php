@@ -14,7 +14,7 @@ final class EnrollmentFundMovementRepository
     public function lockPayment(\PDO $db, string $uuidPayment): array
     {
         $stmt = $db->prepare(
-            'SELECT UUID_PAYMENT, TIPUS_MOVIMENT, IMPORT, ESTAT
+            'SELECT UUID_PAYMENT, TIPUS_MOVIMENT, IMPORT, ESTAT, PROVIDER_REF
              FROM payment_transaction
              WHERE UUID_PAYMENT = ?
              FOR UPDATE'
@@ -92,6 +92,7 @@ final class EnrollmentFundMovementRepository
 
         if ($normalized['order'] <= 0
             || $normalized['invoice_line_id'] <= 0
+            || $normalized['invoice_line_id'] <= 0
             || $normalized['id_insc'] <= 0
             || (float) $normalized['amount'] <= 0
         ) {
@@ -156,6 +157,9 @@ final class EnrollmentFundMovementRepository
             'idempotency_key',
             'order',
             'uuid_payment',
+            'uuid_credit',
+            'uuid_factura',
+            'invoice_line_id',
             'id_insc',
             'amount',
             'correlation_id',
@@ -176,6 +180,9 @@ final class EnrollmentFundMovementRepository
             'movement_type' => 'COMPENSATION_ALLOCATION',
             'order' => (int) $movement['order'],
             'uuid_payment' => trim((string) $movement['uuid_payment']),
+            'uuid_credit' => trim((string) $movement['uuid_credit']),
+            'uuid_factura' => trim((string) $movement['uuid_factura']),
+            'invoice_line_id' => (int) $movement['invoice_line_id'],
             'id_insc' => (int) $movement['id_insc'],
             'amount' => $this->money($movement['amount']),
             'currency' => strtoupper(trim((string) ($movement['currency'] ?? 'EUR'))),
@@ -197,11 +204,12 @@ final class EnrollmentFundMovementRepository
         }
 
         $payment = $this->lockPayment($db, $normalized['uuid_payment']);
-        if ((string) $payment['TIPUS_MOVIMENT'] !== 'CHARGE'
+        if ((string) $payment['TIPUS_MOVIMENT'] !== 'COMPENSATION'
             || (string) $payment['ESTAT'] !== 'CONFIRMED'
+            || (string) ($payment['PROVIDER_REF'] ?? '') !== $normalized['uuid_credit']
         ) {
             throw SifException::conflict(
-                'Compensation allocation requires a confirmed origin charge'
+                'Compensation allocation requires a confirmed compensation for the credit balance'
             );
         }
 
@@ -215,16 +223,19 @@ final class EnrollmentFundMovementRepository
             $db->prepare(
                 'INSERT INTO enrollment_fund_movement (
                     UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
-                    UUID_PAYMENT, UUID_FACTURA, ID_FACTURA_LINIA,
+                    UUID_PAYMENT, UUID_CREDIT, UUID_FACTURA, ID_FACTURA_LINIA,
                     ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
                     UUID_OPERATION, CORRELATION_ID, NOTES
-                 ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?)'
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)'
             )->execute([
                 $normalized['uuid_movement'],
                 $normalized['idempotency_key'],
                 $normalized['movement_type'],
                 $normalized['order'],
                 $normalized['uuid_payment'],
+                $normalized['uuid_credit'],
+                $normalized['uuid_factura'],
+                $normalized['invoice_line_id'],
                 $normalized['id_insc'],
                 $normalized['amount'],
                 $normalized['currency'],
@@ -722,9 +733,9 @@ final class EnrollmentFundMovementRepository
             (string) $existing['MOVEMENT_TYPE'] === $movement['movement_type']
             && (int) $existing['ORDRE'] === $movement['order']
             && (string) $existing['UUID_PAYMENT'] === $movement['uuid_payment']
-            && $existing['UUID_CREDIT'] === null
-            && $existing['UUID_FACTURA'] === null
-            && $existing['ID_FACTURA_LINIA'] === null
+            && (string) ($existing['UUID_CREDIT'] ?? '') === $movement['uuid_credit']
+            && (string) ($existing['UUID_FACTURA'] ?? '') === $movement['uuid_factura']
+            && (int) $existing['ID_FACTURA_LINIA'] === $movement['invoice_line_id']
             && $existing['ID_INSC_ORIGEN'] === null
             && (int) $existing['ID_INSC_DESTI'] === $movement['id_insc']
             && $this->money($existing['IMPORT']) === $movement['amount']
