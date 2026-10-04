@@ -25,6 +25,9 @@ final class CreditBalancePreproductionScriptTest
         Assert::stringContainsString('--holder-name=', $source);
         Assert::stringContainsString('--source-type=', $source);
         Assert::stringContainsString('createCredit($input)', $source);
+        Assert::stringContainsString('--source-enrollment-id=', $source);
+        Assert::stringContainsString('--correlation-id=', $source);
+        Assert::stringContainsString('--uuid-operation=', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
 
         if (str_contains($source, 'new InvoiceService(') || str_contains($source, 'issueInvoice(')) {
