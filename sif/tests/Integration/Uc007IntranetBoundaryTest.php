@@ -98,6 +98,21 @@ final class Uc007IntranetBoundaryTest
         }
     }
 
+    public function testLegacyInvoiceDownloadIsolatesConcurrentTemporaryFiles(): void
+    {
+        $wrapper = $this->readIntranet('ajax/alumnes/descarregaFactura.php');
+
+        Assert::stringContainsString('bin2hex(random_bytes(16))', $wrapper);
+        Assert::stringContainsString('mkdir($requestTempRoot, 0700, false)', $wrapper);
+        Assert::stringContainsString('realpath($requestTempRoot)', $wrapper);
+        Assert::stringContainsString(
+            'str_starts_with($generated, rtrim($requestTempRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)',
+            $wrapper
+        );
+        Assert::stringContainsString('rmdir($requestTempRoot)', $wrapper);
+        Assert::stringContainsString('@unlink($generated)', $wrapper);
+    }
+
     public function testLegacyInvoiceDownloadUsesBinaryPdfContractOnBothPages(): void
     {
         $wrapper = $this->readIntranet('ajax/alumnes/descarregaFactura.php');
