@@ -29,6 +29,10 @@ final class ManualRectificationAeatMappingTest
         $commands = $this->commands($db);
 
         $input = $this->taxedInput('DIFERENCIES', '-50.00', '-10.50', '-60.50');
+        $input['type'] = 'R5';
+        $input['aeat_fields'] = [
+            'SistemaInformatico' => ['Version' => 'ATTACKER'],
+        ];
         $preview = $commands->preview(
             $this->actor('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
             $original['uuid_factura'],
