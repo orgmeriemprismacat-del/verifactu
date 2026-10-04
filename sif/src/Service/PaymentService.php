@@ -59,9 +59,11 @@ final class PaymentService
 
     private function reusePaymentAfterDuplicateConstraint(
         array $payload,
-        \PDOException $original
+        \PDOException $original,
+        ?callable $afterPersist
     ): array {
-        return $this->transactions->run(function (\PDO $db) use ($payload, $original): array {
+        return $this->transactions->run(
+            function (\PDO $db) use ($payload, $original, $afterPersist): array {
             $existing = $this->payments->findByIdempotencyKey(
                 $db,
                 $payload['idempotency_key'],
@@ -79,8 +81,9 @@ final class PaymentService
                 return $this->finalizeResult($db, $payload, $this->existingResult($external, true), $afterPersist);
             }
 
-            throw $original;
-        });
+                throw $original;
+            }
+        );
     }
 
     private function finalizeResult(
