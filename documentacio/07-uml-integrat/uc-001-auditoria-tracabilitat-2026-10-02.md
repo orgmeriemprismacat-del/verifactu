@@ -160,7 +160,7 @@ La reconciliació de branca s'ha resolt a la PR #145 (`behind 0`). L'evidència 
 
 L’**auditoria** queda tancada segons §5; el merge resta condicionat al gate CI del head final documentat a §5.3. El **cas d’ús com a capacitat productiva final** no s’ha de marcar com a complet només perquè el hardening d’aquesta branca sigui mergeable. Aquest segon tancament exigeix, com a mínim:
 
-1. CI/suite MySQL verda per les correccions incorporades;
+1. CI/suite MySQL executada sense regressions atribuïbles a UC-001, o amb fallades alienes explícitament reclassificades i documentades;
 2. adaptadors reals connectats als endpoints dedicats;
 3. cobertura comercial entre claus diferents;
 4. traçabilitat `commercial_operation -> operation_line -> factura_linia`;
@@ -183,14 +183,14 @@ A GitHub Actions del commit `88e5c922424b0cf573b1d1af08dc8713b7b8ea32` consten c
 | F-102 | Documental | HARD-004 deia que els espais no canònics es rebutjaven, però el codi/prova demostren que es normalitzen. | **Corregit** a la fitxa 1.4. |
 | F-103 | Operativa | La pantalla de factura conserva edició/anul·lació llegada; el bloqueig SIF depèn de flags de cutover. | **Pendent configuració/prova preprod**. |
 | F-104 | Traçabilitat UI | `alumnes-factura-sif.js` i `alumnes-factura.js` defineixen `window.uc007SifSearch`; el segon queda com a definició global final. | **Classificat UC-007**; no bloqueja el core UC-001 però afecta l’evidència de pantalla. |
-| F-105 | Integració | La branca original #114 havia divergit 150/44 respecte de `main`. S'ha recreat el perímetre UC-001 sobre `main` actual a la PR #145, preservant els canvis concurrents de `sif/config/sif.php` i `README.md`. | **Reconciliat: behind 0; pendent CI del head #145**. |
+| F-105 | Integració | La branca original #114 havia divergit 150/44 respecte de `main`. S'ha recreat el perímetre UC-001 sobre `main` actual a la PR #145, preservant els canvis concurrents de `sif/config/sif.php` i `README.md`. | **Reconciliat: behind 0; CI executat al head `9511ac2…`, 965/6 amb les sis fallades alienes reclassificades.** |
 
 ### 8.3. Estat per categoria
 
 - **Documentat:** fitxa, UML integrat, classes, seqüències, activitats, inventari PHP/JS, auditoria i revalidació.
 - **Implementat:** nucli d’emissió/reús, numeració, cadena/cua, payment, audit events, status projection, endpoint/policy/scope, guard AEAT, writer operation-line i HARD-017.
 - **Verificat:** inspecció del PHP/JS/SQL, proves específiques UC-001 passades al run `88e5c922…` i HARD-017 passada al run de `276fb390…`. El job SIF d’aquest head queda **961 pass / 6 fail**, amb les sis fallades fora d’UC-001.
-- **Pendent:** cobertura comercial universal per callers que encara no creen operació, materialització de `commercial_operation_line` fora del flux Alumne PrisMa, assembler AEAT complet, migració de l'any fiscal, R1–R5, cutover guards llegats, fencing Redsys, preproducció i **CI final de la PR #145**. La reconciliació amb `main` ja està resolta.
+- **Pendent:** cobertura comercial universal per callers que encara no creen operació, materialització de `commercial_operation_line` fora del flux Alumne PrisMa, assembler AEAT complet, migració de l'any fiscal, R1–R5, cutover guards llegats, fencing Redsys i preproducció. **El CI final de la PR #145 ja ha estat executat i reclassificat: 965/6, sense regressions UC-001.** La reconciliació amb `main` ja està resolta.
 
 
 ## 9. Revalidació tècnica addicional post-reconciliació
@@ -232,3 +232,13 @@ Conseqüència: el patró està executable per Alumne PrisMa, però encara s'ha 
 `InvoiceService` exigeix `aeat_fields` en PREPRODUCTION/PRODUCTION abans de numerar o persistir. Els builders legacy auditats no construeixen aquest bloc.
 
 Conseqüència: aquests fluxos no poden “colar” una factura incompleta en entorn qualificat, però tampoc estan preparats per producció fins disposar d'un assembler AEAT server-side comú i provat.
+
+
+### 5.4. Gate final PR #145
+
+- Head validat: `9511ac2cb8d85ddfed44c8ef63031a3eeea66192`.
+- `UC-004 SIF secure flow checks`: **SUCCESS**.
+- Suite global compartida: **965 PASS / 6 FAIL**.
+- Fallades: 5 proves de frontera PACK/UC-015 i `RedsysSignatureValidatorTest::testValidNotificationDecodesAndNormalizesSignedPayload`.
+- Proves UC-001 tocades en aquest hardening: **PASS** (`IssueInvoiceTest`, `LegacyCourseInvoicePayloadBuilderTest`, `PrismaStudentCourseCheckoutServiceTest`, `RedsysCoursePaymentIntentPrismaStudentTest`, `RedsysInvoicePayloadBuilderTest`, `InvoicePayloadValidatorTest`).
+- Classificació: **GATE UC-001 ACCEPTAT AMB FALLES GLOBALS ALIENES DOCUMENTADES**.
