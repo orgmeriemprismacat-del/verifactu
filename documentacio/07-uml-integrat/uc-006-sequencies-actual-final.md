@@ -117,7 +117,7 @@ Note over J,C: Introduir A TORNAR no acredita que el banc/Redsys hagi retornat d
 Note over C,I: No s'ha localitzat ManualRefundService en aquest camí.
 ```
 
-## 4. ACTUAL — registre SIF de devolució disponible però no cablejat a la UI
+## 4. ACTUAL — registre SIF de devolució amb ledger opcional
 
 ```mermaid
 sequenceDiagram
@@ -127,7 +127,7 @@ participant R as ManualRefundService
 participant IR as ManualPaymentInvoiceRepository
 participant B as ManualRefundPayloadBuilder
 participant PS as PaymentService
-participant PR as PaymentRepository
+participant F as EnrollmentFundMovementRepository
 participant DB as BD SIF
 
 Caller->>R: registerByUuid/NumVisible(invoice,input)
@@ -137,25 +137,31 @@ alt factura absent
   R--xCaller: 422
 else factura existent
   R->>B: forExistingInvoice(...)
-  B-->>R: REFUND + K + allocation
-  R->>PS: registerPayment(payload)
-  PS->>PR: findByIdempotencyKey(K, FOR UPDATE)
-  alt existent
-    PS->>PS: assertSamePayload(hash)
-    PS-->>R: reused
-  else nou
-    PS->>PR: createPayment()
-    PR->>DB: INSERT payment_transaction REFUND
-    PR->>DB: INSERT payment_allocation
-    PR->>DB: recalcular ESTAT_COBRAMENT
-    PS-->>R: uuid_payment
+  B-->>R: REFUND + K + allocation + source_enrollment_id?
+  alt sense source_enrollment_id
+    R->>PS: registerPayment(payload)
+    PS->>DB: create/reuse REFUND + allocation
+    R-->>Caller: resultat
+  else amb source_enrollment_id
+    R->>DB: BEGIN
+    R->>PS: registerPaymentInTransaction(db,payload)
+    PS->>DB: create/reuse REFUND + allocation
+    R->>F: insertOrReuseRefundExit(...)
+    F->>DB: lock REFUND + ledger origen
+    alt excedeix import REFUND o dret disponible
+      F--xR: 409
+      R->>DB: ROLLBACK
+    else vàlid
+      F->>DB: INSERT REFUND_EXIT
+      R->>DB: COMMIT
+      R-->>Caller: uuid_payment / reused
+    end
   end
-  R-->>Caller: resultat
 end
-Note over Caller,R: El caller ha d'acreditar permisos, límit retornable i retorn extern; el servei no ho resol completament.
+Note over Caller,R: El límit quantitatiu per inscripció ja existeix; titularitat i evidència externa del retorn continuen fora d'aquest servei.
 ```
 
-## 5. ACTUAL — crear saldo
+## 5. ACTUAL — crear saldo amb idempotència i consum opcional del dret
 
 ```mermaid
 sequenceDiagram
@@ -164,22 +170,41 @@ participant Caller as Script/adaptador tècnic
 participant CS as CreditBalanceService
 participant B as CreditBalancePayloadBuilder
 participant CR as CreditBalanceRepository
-participant TR as TransactionRunner
+participant F as EnrollmentFundMovementRepository
 participant DB as BD SIF
 
 Caller->>CS: createCredit(input)
 CS->>B: forCreditBalance(input)
-B-->>CS: titular + import + origen
-CS->>TR: run()
-TR->>DB: BEGIN
-CS->>CR: createCredit(db,payload)
-CR->>DB: INSERT credit_balance ACTIVE
-TR->>DB: COMMIT
-CS-->>Caller: uuid_credit + disponible + ACTIVE
-Note over CS,CR: No clau idempotent/origin uniqueness observada en aquest contracte.
+B-->>CS: titular + import + origen + K? + source_enrollment_id?
+alt source_enrollment_id sense K
+  CS--xCaller: 422
+else alta/reintent
+  CS->>DB: BEGIN
+  CS->>CR: findByIdempotencyKey(K, FOR UPDATE) si K
+  alt K existent
+    CS->>CS: assertSameCreditPayload()
+  else nou
+    CS->>CR: createCredit()
+    CR->>DB: INSERT credit_balance ACTIVE
+  end
+  alt source_enrollment_id informat
+    CS->>F: insertOrReuseCreditCreate(...)
+    F->>DB: lock credit + ledger origen
+    alt dret insuficient
+      F--xCS: 409
+      CS->>DB: ROLLBACK
+    else dret disponible
+      F->>DB: INSERT CREDIT_CREATE
+    end
+  end
+  CS->>DB: COMMIT
+  CS-->>Caller: uuid_credit + disponible + reused
+end
 ```
 
-## 6. ACTUAL — aplicar compensació
+**Límit ACTUAL:** la K tècnica i el consum quantitatiu ja existeixen, però el futur orquestrador encara ha de construir la identitat estable del dret i validar-ne titularitat/origen de negoci.
+
+## 6. ACTUAL — aplicar compensació amb destí d'inscripció opcional
 
 ```mermaid
 sequenceDiagram
@@ -190,32 +215,42 @@ participant CR as CreditBalanceRepository
 participant IR as ManualPaymentInvoiceRepository
 participant B as CreditBalancePayloadBuilder
 participant PR as PaymentRepository
+participant F as EnrollmentFundMovementRepository
 participant DB as BD SIF
 
-Caller->>CS: applyCredit(uuidCredit,invoice,amount,date)
+Caller->>CS: applyCredit(uuidCredit,invoice,amount,date,target_enrollment_id?)
 CS->>DB: BEGIN
 CS->>CR: findByUuid(uuidCredit, FOR UPDATE)
 CS->>IR: find invoice FOR UPDATE
 CS->>B: forCompensation(...)
-B-->>CS: COMPENSATION + K
+B-->>CS: COMPENSATION + K + target?
 CS->>PR: findByIdempotencyKey(K, FOR UPDATE)
 alt moviment existent
   PR-->>CS: payment existent
-  CS-->>Caller: reused=true
+  CS->>CS: assertSamePaymentPayload()
 else nou
   CS->>CR: assert credit ACTIVE
   CS->>CR: invoiceOutstandingAmount(invoice)
   CS->>CS: amount <= available && amount <= outstanding
   CS->>PR: createPayment(COMPENSATION)
   PR->>DB: INSERT transaction + allocation
-  CS->>CR: updateAvailableAmount()
-  DB-->>CS: saldo ACTIVE/USED
-  CS->>DB: COMMIT
-  CS-->>Caller: uuid_payment + saldo restant
 end
-Note over CS,DB: El lock/consum és transaccional.
-Note over CS,IR: No es veu comprovació de titular del saldo contra factura.
-Note over CS,DB: EnrollmentFundMovementRepository té suport COMPENSATION_ALLOCATION, però aquest wiring no apareix en CreditBalanceService.
+alt target_enrollment_id informat
+  CS->>F: findInvoiceLineForInscription()
+  F->>F: assertMoneyBackedCredit()
+  CS->>F: insertOrReuseCompensationAllocation()
+  alt target invàlid / credit no respaldat
+    F--xCS: 409
+    CS->>DB: ROLLBACK
+  else vàlid
+    F->>DB: INSERT COMPENSATION_ALLOCATION
+  end
+end
+CS->>CR: updateAvailableAmount() si moviment nou
+DB-->>CS: saldo ACTIVE/USED
+CS->>DB: COMMIT
+CS-->>Caller: uuid_payment + saldo restant/reused
+Note over CS,IR: La titularitat compatible entre saldo i factura continua pendent.
 ```
 
 ## 6.1. ACTUAL — atribució de fons per inscripció ja implementada en curs/pack
@@ -239,7 +274,7 @@ M-->>A: moviment atribuït a ID_INSC_DESTI
 A-->>R: count + amount + movements
 ```
 
-**Lectura d'auditoria:** aquesta seqüència és executable i demostra que el sistema ja pot atribuir cobraments reals a inscripcions. El buit d'UC-006 és posterior: no s'ha localitzat una seqüència equivalent per treure fons via refund, convertir-los en saldo o lligar el consum d'un saldo al mateix ledger.
+**Lectura d'auditoria actualitzada:** l'atribució inicial `EXTERNAL_ALLOCATION` continua sent la base; les seccions 6.2–6.4 documenten ara els recorreguts executables afegits per treure fons via refund, convertir-los en saldo i tornar a atribuir un saldo a una inscripció.
 
 ## 6.2. ACTUAL ampliat — crear saldo consumint dret d'inscripció
 
