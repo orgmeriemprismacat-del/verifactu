@@ -87,23 +87,29 @@ OperationalEventRepository --> OperationalEvent
 ```mermaid
 classDiagram
 direction LR
-class IntranetRectificationProxy { <<IMPLEMENTAT>> +preview() +confirm() +assertSession() +assertCsrf() }
+class InvoiceQueryService { <<IMPLEMENTAT>> +view() }
+class InvoiceReadRepository { <<IMPLEMENTAT>> +latestFiscalCorrectionDecision() }
 class AlumnesFacturaSifJS { <<IMPLEMENTAT>> +renderDecision() +previewRectification() +confirmRectification() }
-class RectifyEndpoint { <<IMPLEMENTAT>> }
-class FiscalCorrectionClassifier { <<PENDENT/UC-74>> +classify() }
-class FiscalCorrectionDecisionGuard { <<IMPLEMENTAT>> }
-class RectificationCommandService { <<IMPLEMENTAT>> }
-class ManualRectificationService { <<IMPLEMENTAT>> }
+class SifRectificationAccess { <<IMPLEMENTAT>> +resolve() +csrfToken() +assertCsrf() }
+class IntranetRectificationProxy { <<IMPLEMENTAT>> +preview() +confirm() }
+class FiscalCorrectionClassifier { <<PENDENT/UC-74 PRODUCTOR>> +classify() +persistDecision() }
+class FiscalCorrectionDecisionResolver { <<IMPLEMENTAT>> +resolve() }
+class RectifyEndpoint { <<IMPLEMENTAT>> +POST() }
+class RectificationCommandService { <<IMPLEMENTAT>> +preview() +confirm() }
+class ManualRectificationService { <<IMPLEMENTAT>> +issueByUuid() }
 class AeatRectificationMapper { <<PARCIAL/FAIL-CLOSED>> +map() }
 class DocumentService { <<TRANSVERSAL/PENDENT E2E>> +ensureFiscalDocument() }
 
+FiscalCorrectionClassifier ..> InvoiceReadRepository : persisteix event UC-74 [pendent]
+InvoiceQueryService --> InvoiceReadRepository
+InvoiceReadRepository --> AlumnesFacturaSifJS : decisió projectada via API/proxy consulta
 AlumnesFacturaSifJS --> IntranetRectificationProxy
-IntranetRectificationProxy --> FiscalCorrectionClassifier
+IntranetRectificationProxy --> SifRectificationAccess
 IntranetRectificationProxy --> RectifyEndpoint
-RectifyEndpoint --> FiscalCorrectionDecisionGuard
+RectifyEndpoint --> FiscalCorrectionDecisionResolver
 RectifyEndpoint --> RectificationCommandService
 RectificationCommandService --> ManualRectificationService
-ManualRectificationService --> AeatRectificationMapper
+RectificationCommandService --> AeatRectificationMapper
 ManualRectificationService --> DocumentService
 ```
 
