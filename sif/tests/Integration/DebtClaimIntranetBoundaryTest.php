@@ -27,7 +27,16 @@ final class DebtClaimIntranetBoundaryTest
         Assert::stringContainsString('hash_equals', $ajax);
         Assert::stringContainsString('SifAuthenticatedActor::fromUser', $ajax);
         Assert::stringContainsString('assertCanEdit', $ajax);
-        Assert::stringContainsString("'/facturacio/morosos/'", $ajax);
+        Assert::stringContainsString('$permissionPage', $ajax);
+        Assert::same(false, str_contains(
+            $ajax,
+            "assertCanEdit(\n        $user,\n        $intranet,\n        '/facturacio/morosos/'"
+        ));
+        Assert::stringContainsString('routeForSurface', $context);
+        Assert::stringContainsString("'/facturacio/recordatori-pagament/'", $context);
+        Assert::stringContainsString("'/facturacio/primera-reclamacio/'", $context);
+        Assert::stringContainsString("'/facturacio/reclamacio-final/'", $context);
+        Assert::stringContainsString("'/facturacio/morosos/'", $context);
         Assert::stringContainsString('SifInternalDebtClaimClient', $ajax);
         Assert::stringContainsString('operation_id', $ajax);
         Assert::stringContainsString('uuid_payment', $ajax);
@@ -38,6 +47,8 @@ final class DebtClaimIntranetBoundaryTest
 
         Assert::stringContainsString('X-Requested-With', $js);
         Assert::stringContainsString('csrf-token-debt-claim', $js);
+        Assert::stringContainsString('debt-claim-surface', $js);
+        Assert::stringContainsString("params.set('surface', surface())", $js);
         Assert::stringContainsString('credentials: \'same-origin\'', $js);
         Assert::stringContainsString('record_notice', $js);
         Assert::stringContainsString('reconcile_after_payment', $js);
@@ -48,11 +59,11 @@ final class DebtClaimIntranetBoundaryTest
     {
         $root = dirname(__DIR__, 3);
         foreach ([
-            'facturacio-recordatori-pagament-final.php',
-            'facturacio-primera-reclamacio-pagament.php',
-            'facturacio-reclamacio-final.php',
-            'facturacio-control-morosos.php',
-        ] as $file) {
+            'facturacio-recordatori-pagament-final.php' => 'RECORDATORI',
+            'facturacio-primera-reclamacio-pagament.php' => 'PRIMERA_RECLAMACIO',
+            'facturacio-reclamacio-final.php' => 'RECLAMACIO_FINAL',
+            'facturacio-control-morosos.php' => 'MOROSOS',
+        ] as $file => $surface) {
             $page = file_get_contents($root . '/codi-drive/intranet-actual/' . $file);
             if ($page === false) {
                 Assert::fail('Could not read UC-012 legacy page ' . $file);
@@ -60,6 +71,10 @@ final class DebtClaimIntranetBoundaryTest
 
             Assert::stringContainsString('csrf_debt_claim', $page);
             Assert::stringContainsString('csrf-token-debt-claim', $page);
+            Assert::stringContainsString(
+                'name="debt-claim-surface" content="' . $surface . '"',
+                $page
+            );
             Assert::stringContainsString('sif-debt-claim-bridge.js', $page);
         }
     }
@@ -101,6 +116,23 @@ final class DebtClaimIntranetBoundaryTest
         Assert::stringContainsString('updateSendMsg_LastClaimPay_noApprove', $section);
         Assert::stringContainsString('__donarBaixaMoodleNou', $section);
         Assert::stringContainsString('updCampInscripcioBaixaMorosBD', $section);
+    }
+
+
+    public function testUnknownDebtSurfaceCannotSelectArbitraryPermissionRoute(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $context = file_get_contents(
+            $root . '/codi-drive/intranet-actual/LegacyDebtClaimContext.php'
+        );
+        if ($context === false) {
+            Assert::fail('Could not read LegacyDebtClaimContext.php');
+        }
+
+        Assert::stringContainsString('SURFACE_ROUTES', $context);
+        Assert::stringContainsString('!isset(self::SURFACE_ROUTES[$surface])', $context);
+        Assert::stringContainsString('Superfície de morositat no vàlida', $context);
+        Assert::same(false, str_contains($context, '$_POST'));
     }
 
 }
