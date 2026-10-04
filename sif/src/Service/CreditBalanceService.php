@@ -32,6 +32,7 @@ final class CreditBalanceService
                 'uuid_credit' => $created['uuid_credit'],
                 'import_disponible' => $created['import_disponible'],
                 'estat' => $created['estat'],
+                'idempotency_reused' => (bool) ($created['idempotency_reused'] ?? false),
             ];
         });
     }
