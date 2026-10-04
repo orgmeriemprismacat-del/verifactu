@@ -15,7 +15,7 @@ header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 
 try {
-    $encr = trim((string) ($_GET['keyEncr'] ?? ''));
+    $encr = trim((string) ($_COOKIE['uc015_pack_confirmation'] ?? ''));
     if ($encr === '' || strlen($encr) > 2048) {
         http_response_code(400);
         echo missatgeError('1501');
