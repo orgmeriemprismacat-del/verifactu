@@ -120,6 +120,23 @@ final class RedsysCourseCutoverBoundaryTest
         }
     }
 
+
+    public function testCandidateNormalModeDoesNotCreateSifIntent(): void
+    {
+        $source = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_automatic.php'
+        );
+
+        $cutoverBranch = strpos($source, 'if ($courseCutoverEnabled) {');
+        $client = strpos($source, "SifRedsysCourseIntentClient.php");
+        $legacyOrder = strpos($source, 'random_int(100000000000, 999999999999)');
+
+        Assert::same(true, $cutoverBranch !== false);
+        Assert::same(true, $client !== false && $cutoverBranch < $client);
+        Assert::same(true, $legacyOrder !== false && $client < $legacyOrder);
+        Assert::stringContainsString('// NORMAL = legacy pur.', $source);
+    }
+
     public function testInternalSifClientsRequireHttpsAtRuntime(): void
     {
         foreach ([
