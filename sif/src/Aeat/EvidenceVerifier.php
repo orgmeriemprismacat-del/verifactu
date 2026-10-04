@@ -92,6 +92,16 @@ final class EvidenceVerifier
             $attempt,
             (string) ($verification['hashes']['response'] ?? '')
         );
+        $this->assertFile($attempt . '/request.json', $attempt);
+        $requestMetadata = $this->metadata($attempt . '/request.json');
+        if (!hash_equals(
+            (string) ($verification['hashes']['request'] ?? ''),
+            (string) ($requestMetadata['request_sha256'] ?? '')
+        )) {
+            throw new \RuntimeException('AEAT evidence request metadata changed after verification.');
+        }
+
+        $this->assertFile($attempt . '/response.json', $attempt);
         $responseMetadata = $this->metadata($attempt . '/response.json');
         $httpStatus = $responseMetadata['http_status'] ?? null;
         if (!is_int($httpStatus) || $httpStatus < 100 || $httpStatus > 599) {
@@ -103,6 +113,9 @@ final class EvidenceVerifier
             'request_xml' => $request,
             'response_xml' => $response,
             'response_http_status' => $httpStatus,
+            'submission_attempt_uuid' => $requestMetadata['submission_attempt_uuid'] ?? null,
+            'uuid_factura' => $requestMetadata['uuid_factura'] ?? null,
+            'fiscal_order' => $requestMetadata['fiscal_order'] ?? null,
             'request_sha256' => hash('sha256', $request),
             'response_sha256' => hash('sha256', $response),
         ];
