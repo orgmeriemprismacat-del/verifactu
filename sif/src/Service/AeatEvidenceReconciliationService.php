@@ -123,6 +123,12 @@ final class AeatEvidenceReconciliationService
                 );
             }
 
+            if ((int) ($pair['response_http_status'] ?? 0) !== 200) {
+                throw SifException::conflict(
+                    'AEAT evidence HTTP status is not a successful delivery'
+                );
+            }
+
             if (!hash_equals(
                 hash('sha256', $requestXml),
                 (string) ($pair['request_sha256'] ?? '')
