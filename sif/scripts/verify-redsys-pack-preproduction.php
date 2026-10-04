@@ -13,7 +13,7 @@ $environment = (string) ($config['env'] ?? 'local');
 
 $args = array_slice($argv, 1);
 $execute = in_array('--execute', $args, true);
-$syncLegacy = in_array('--sync-legacy', $args, true);
+$diagnosticProcess = in_array('--diagnostic-process', $args, true);
 $dsOrder = '';
 
 foreach ($args as $arg) {
@@ -31,8 +31,7 @@ $result = [
     'environment' => $environment,
     'executed_at' => (new DateTimeImmutable('now'))->format(DATE_ATOM),
     'php_version' => PHP_VERSION,
-    'mode' => $execute ? 'execute' : 'dry-run',
-    'sync_legacy_requested' => $syncLegacy,
+    'mode' => $execute ? 'execute-worker' : ($diagnosticProcess ? 'diagnostic-process' : 'dry-run'),
     'checks' => [],
 ];
 
@@ -65,7 +64,7 @@ if ($dsOrder === '') {
         array_keys(array_filter($result['checks'], static fn ($ok): bool => $ok !== true)),
         ['ds_order_provided']
     )));
-    $result['usage'] = 'php sif/scripts/verify-redsys-pack-preproduction.php DS_ORDER [--execute] [--sync-legacy]';
+    $result['usage'] = 'php sif/scripts/verify-redsys-pack-preproduction.php DS_ORDER [--execute|--diagnostic-process]';
     output($result, 1);
 }
 $result['checks']['ds_order_provided'] = true;
@@ -106,56 +105,49 @@ $result['preview'] = [
 ];
 
 if ($execute) {
-    $command = [PHP_BINARY, $baseDir . '/scripts/process-redsys-pack.php', $dsOrder];
-    if ($syncLegacy) {
-        $command[] = '--sync-legacy';
+    $workerId = 'uc015-evidence-' . substr(hash('sha256', $dsOrder), 0, 12);
+    $worker = runJsonScript(
+        [
+            PHP_BINARY,
+            $baseDir . '/scripts/process-redsys-callback-queue.php',
+            '--limit=1',
+            '--worker-id=' . $workerId,
+            '--ds-order=' . $dsOrder,
+        ],
+        $baseDir
+    );
+    $result['worker'] = $worker['json'];
+    $result['checks']['worker_exit_zero'] = $worker['exit_code'] === 0;
+    $result['checks']['worker_ok'] = ($worker['json']['ok'] ?? false) === true;
+    $result['checks']['worker_targeted'] = ($worker['json']['targeted'] ?? false) === true
+        && (string) ($worker['json']['ds_order'] ?? '') === $dsOrder;
+    $result['checks']['worker_claimed_one'] = (int) ($worker['json']['claimed'] ?? 0) === 1;
+    $result['checks']['worker_processed_one'] = (int) ($worker['json']['processed'] ?? 0) === 1;
+
+    $evidence = runJsonScript(
+        [PHP_BINARY, $baseDir . '/scripts/verify-redsys-pack-evidence.php', $dsOrder],
+        $baseDir
+    );
+    $result['evidence'] = $evidence['json'];
+    $result['checks']['evidence_exit_zero'] = $evidence['exit_code'] === 0;
+    $result['checks']['evidence_ok'] = ($evidence['json']['ok'] ?? false) === true;
+
+    foreach (($evidence['json']['checks'] ?? []) as $name => $ok) {
+        $result['checks']['evidence_' . $name] = $ok === true;
     }
+}
 
-    $process = runJsonScript($command, $baseDir);
-    $result['process'] = $process['json'];
-    $result['checks']['process_exit_zero'] = $process['exit_code'] === 0;
-    $result['checks']['process_ok'] = ($process['json']['ok'] ?? false) === true;
-
-    $uuidFactura = trim((string) ($process['json']['uuid_factura'] ?? ''));
-    $numVisible = trim((string) ($process['json']['num_visible'] ?? ''));
-    $uuidPayment = trim((string) ($process['json']['uuid_payment'] ?? ''));
-    $result['checks']['process_has_invoice_identity'] = $uuidFactura !== '' && $numVisible !== '';
-    $result['checks']['process_has_payment_identity'] = $uuidPayment !== '';
-
-    $fundAllocations = $process['json']['fund_allocations'] ?? null;
-    $fundMovements = is_array($fundAllocations) ? ($fundAllocations['movements'] ?? null) : null;
-    $fundCount = is_array($fundAllocations) ? (int) ($fundAllocations['count'] ?? 0) : 0;
-    $fundAmount = is_array($fundAllocations) ? ($fundAllocations['amount'] ?? null) : null;
-
-    $result['checks']['fund_allocation_present'] = is_array($fundAllocations);
-    $result['checks']['fund_allocation_has_multiple_components'] = is_array($fundMovements)
-        && $fundCount >= 2
-        && count($fundMovements) === $fundCount;
-    $result['checks']['fund_allocation_amount_positive'] = is_numeric($fundAmount)
-        && (float) $fundAmount > 0.0;
-    $result['checks']['fund_allocation_matches_preview_total'] = is_numeric($fundAmount)
-        && is_numeric($previewTotal)
-        && money($fundAmount) === money($previewTotal);
-    $result['checks']['fund_allocation_movements_have_identity'] = is_array($fundMovements)
-        && $fundMovements !== []
-        && array_reduce(
-            $fundMovements,
-            static fn (bool $valid, mixed $movement): bool => $valid
-                && is_array($movement)
-                && trim((string) ($movement['uuid_movement'] ?? '')) !== ''
-                && (int) ($movement['id_insc'] ?? 0) > 0,
-            true
+if ($diagnosticProcess) {
+    if ($execute) {
+        $result['checks']['diagnostic_process_not_combined_with_execute'] = false;
+    } else {
+        $process = runJsonScript(
+            [PHP_BINARY, $baseDir . '/scripts/process-redsys-pack.php', $dsOrder],
+            $baseDir
         );
-
-    $notificationOutbox = $process['json']['notification_outbox'] ?? null;
-    $result['checks']['notification_outbox_present'] = is_array($notificationOutbox);
-    $result['checks']['notification_outbox_has_identity'] = is_array($notificationOutbox)
-        && trim((string) ($notificationOutbox['uuid_notification'] ?? '')) !== ''
-        && trim((string) ($notificationOutbox['status'] ?? '')) !== '';
-
-    if ($syncLegacy) {
-        $result['checks']['legacy_sync_executed'] =
-            ($process['json']['legacy_sync_executed'] ?? false) === true;
+        $result['diagnostic_process'] = $process['json'];
+        $result['checks']['diagnostic_process_exit_zero'] = $process['exit_code'] === 0;
+        $result['checks']['diagnostic_process_ok'] = ($process['json']['ok'] ?? false) === true;
     }
 }
 
