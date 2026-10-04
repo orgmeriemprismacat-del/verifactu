@@ -155,6 +155,13 @@ Els JS canònics definien `path = "https://intranet.prisma.cat/ajax/"` i les pà
 
 La prova de frontera rebutja tornar a introduir `https://intranet.prisma.cat/ajax/` dins dels JS UC-007.
 
+### UC007-FIND-19 · Escape de comodins legacy inefectiu — CORREGIT
+`buscarUsuaris_Factures()` transformava `%` → `=%` i `_` → `=_`, però les consultes SQL feien `LIKE ?` sense declarar `ESCAPE '='`. Això no convertia els comodins de l'usuari en literals de forma fiable i podia alterar els resultats F02.
+
+**Correcció:** les consultes UC-007 de DNI, CIF, correu i factura relacionada declaren `ESCAPE '='`, mantenint els `%` externs afegits per l'aplicació com a cerca parcial i tractant els comodins introduïts per l'usuari com a literals.
+
+**Regressió:** `Uc007IntranetBoundaryTest::testLegacyLikeEscapingMatchesSqlEscapeContract`.
+
 ## 5. Estat F01–F07
 
 | Ref | Funció | Documentat | Implementat | Verificat | Pendent |
