@@ -51,6 +51,12 @@ final class ManualTransferIntranetAdapterTest
         Assert::stringContainsString("res.status == 'PENDING_RETRY'", $js);
         Assert::stringContainsString("res.status == 'CONFLICT'", $js);
 
+        if (str_contains($endpoint, 'SifLegacyPaymentProjection')
+            || str_contains($endpoint, 'ConnexioWeb')
+        ) {
+            Assert::fail('UC-022 intranet adapter must not project legacy state locally; SIF owns projection.');
+        }
+
         if (str_contains($endpoint, '$_GET')) {
             Assert::fail('UC-022 secure transfer adapter must not mutate through GET.');
         }
