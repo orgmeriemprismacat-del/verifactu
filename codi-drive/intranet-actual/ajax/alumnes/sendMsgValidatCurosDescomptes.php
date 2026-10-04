@@ -78,16 +78,53 @@ try {
 	if (!isset($_SESSION['validar_descomptes_requests']) || !is_array($_SESSION['validar_descomptes_requests'])) {
 		$_SESSION['validar_descomptes_requests'] = [];
 	}
-
-	if (array_key_exists($requestId, $_SESSION['validar_descomptes_requests'])) {
-		echo (string) $_SESSION['validar_descomptes_requests'][$requestId];
-		return;
+	if (!isset($_SESSION['validar_descomptes_usoc_requests']) || !is_array($_SESSION['validar_descomptes_usoc_requests'])) {
+		$_SESSION['validar_descomptes_usoc_requests'] = [];
 	}
 
 	$idInsc = (int) $idInscRaw;
 	$verificat = (int) $verificatRaw;
 	$desiredValidDesc = $verificat === 1 ? 1 : 2;
-	$isUsoc = (new LegacyDiscountValidationLookup())->isUsoc($idInsc);
+
+	if (array_key_exists($requestId, $_SESSION['validar_descomptes_requests'])) {
+		$memo = $_SESSION['validar_descomptes_requests'][$requestId];
+		if (is_array($memo)) {
+			if (
+				(int) ($memo['id_insc'] ?? 0) !== $idInsc
+				|| (int) ($memo['desired_valid_desc'] ?? 0) !== $desiredValidDesc
+			) {
+				http_response_code(409);
+				throw new Exception('Error: requestId reutilitzat amb una operació diferent.');
+			}
+			echo (string) ($memo['result'] ?? '');
+			return;
+		}
+
+		// Compatibilitat temporal amb sessions creades abans del format estructurat.
+		echo (string) $memo;
+		return;
+	}
+
+	$legacyLookup = new LegacyDiscountValidationLookup();
+	$currentUsoc = $legacyLookup->isUsoc($idInsc);
+	$rememberedUsoc = $_SESSION['validar_descomptes_usoc_requests'][$requestId] ?? null;
+	if (is_array($rememberedUsoc)) {
+		if (
+			(int) ($rememberedUsoc['id_insc'] ?? 0) !== $idInsc
+			|| (int) ($rememberedUsoc['desired_valid_desc'] ?? 0) !== $desiredValidDesc
+		) {
+			http_response_code(409);
+			throw new Exception('Error: requestId USOC reutilitzat amb una operació diferent.');
+		}
+	}
+	$isUsoc = $currentUsoc || is_array($rememberedUsoc);
+
+	if ($currentUsoc && !is_array($rememberedUsoc)) {
+		$_SESSION['validar_descomptes_usoc_requests'][$requestId] = [
+			'id_insc' => $idInsc,
+			'desired_valid_desc' => $desiredValidDesc,
+		];
+	}
 	$beginDecision = ['tracked' => false, 'should_apply_legacy' => true];
 	$sifClient = null;
 	$actorId = '';
@@ -135,10 +172,22 @@ try {
 		}
 	}
 
-	$_SESSION['validar_descomptes_requests'][$requestId] = $resultat;
+	$_SESSION['validar_descomptes_requests'][$requestId] = [
+		'id_insc' => $idInsc,
+		'desired_valid_desc' => $desiredValidDesc,
+		'result' => $resultat,
+	];
 	if (count($_SESSION['validar_descomptes_requests']) > 50) {
 		$_SESSION['validar_descomptes_requests'] = array_slice(
 			$_SESSION['validar_descomptes_requests'],
+			-50,
+			null,
+			true
+		);
+	}
+	if (count($_SESSION['validar_descomptes_usoc_requests']) > 50) {
+		$_SESSION['validar_descomptes_usoc_requests'] = array_slice(
+			$_SESSION['validar_descomptes_usoc_requests'],
 			-50,
 			null,
 			true
