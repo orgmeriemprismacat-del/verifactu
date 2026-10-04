@@ -66,6 +66,7 @@ final class ClaimPaymentInvoiceLinkRepository
 
         $stmt = $db->prepare(
             'SELECT DISTINCT f.UUID_FACTURA, f.NUM_VISIBLE, f.ESTAT_FACTURA, f.ESTAT_COBRAMENT,
+                    r.IDPAG,
                     r.IDPAG
              FROM factura AS f
              INNER JOIN fact_rels AS r ON r.UUID_FACTURA = f.UUID_FACTURA
