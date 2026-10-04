@@ -240,7 +240,18 @@ final class LegacyUsocInvoicePayloadBuilder
             ?? $this->optional($payment, ['amount', 'IMPORT'])
             ?? $this->optional($inscription, ['A_PAGAR', 'a_pagar']);
 
-        return $this->positiveMoney($value, 'Invalid USOC student amount');
+        $studentAmount = $this->positiveMoney($value, 'Invalid USOC student amount');
+        $legacyAmountRaw = $this->optional($inscription, ['A_PAGAR', 'a_pagar']);
+        if ($legacyAmountRaw !== null && $legacyAmountRaw !== '') {
+            $legacyAmount = $this->positiveMoney($legacyAmountRaw, 'Invalid legacy USOC A_PAGAR amount');
+            if ($studentAmount !== $legacyAmount) {
+                throw SifException::conflict(
+                    'USOC student amount does not match legacy A_PAGAR'
+                );
+            }
+        }
+
+        return $studentAmount;
     }
 
     private function studentRelation(array $inscription, int $inscriptionId, int $idpag): array

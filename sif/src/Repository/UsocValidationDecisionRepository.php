@@ -50,11 +50,19 @@ final class UsocValidationDecisionRepository
                 throw $exception;
             }
             $raced = $this->findByRequestId($db, $requestId, true);
-            if ($raced === null) {
-                throw $exception;
+            if ($raced !== null) {
+                $this->assertSameRequest($raced, $idInsc, $desiredValidDesc, $actorId);
+                return $raced;
             }
-            $this->assertSameRequest($raced, $idInsc, $desiredValidDesc, $actorId);
-            return $raced;
+
+            $active = $this->findRequestedByInscription($db, $idInsc, true);
+            if ($active !== null) {
+                throw SifException::conflict(
+                    'Another USOC validation decision is already pending for this inscription'
+                );
+            }
+
+            throw $exception;
         }
 
         return $this->findByRequestId($db, $requestId, true)
@@ -136,6 +144,27 @@ final class UsocValidationDecisionRepository
         $stmt->execute();
 
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function findRequestedByInscription(
+        \PDO $db,
+        int $idInsc,
+        bool $forUpdate = false
+    ): ?array {
+        $sql = "SELECT *
+                FROM usoc_validation_decision
+                WHERE ID_INSC = ? AND STATE = 'REQUESTED'
+                ORDER BY REQUESTED_AT ASC, ID ASC
+                LIMIT 1";
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$idInsc]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
     }
 
     public function findByRequestId(\PDO $db, string $requestId, bool $forUpdate = false): ?array

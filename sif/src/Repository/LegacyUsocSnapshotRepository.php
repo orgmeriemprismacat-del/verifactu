@@ -30,6 +30,16 @@ final class LegacyUsocSnapshotRepository
         }
 
         $studentAmount = $this->positiveMoney($studentPaymentAmount, 'Invalid current USOC student payment amount');
+        $legacyAmount = $this->positiveMoney(
+            $inscription['A_PAGAR'] ?? null,
+            'Invalid legacy USOC A_PAGAR amount'
+        );
+        if ($studentAmount !== $legacyAmount) {
+            throw SifException::conflict(
+                'Validated Redsys USOC student amount does not match legacy A_PAGAR'
+            );
+        }
+
         $entityAmount = $usocAmount === null || $usocAmount === ''
             ? null
             : $this->positiveMoney($usocAmount, 'Invalid USOC entity amount');

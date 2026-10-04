@@ -4,6 +4,7 @@ namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
+use Prisma\Sif\Repository\UsocFinancingTermsRepository;
 
 final class RedsysCoursePaymentIntentService
 {
@@ -12,8 +13,11 @@ final class RedsysCoursePaymentIntentService
         private RedsysPaymentIntentService $intents,
         private RedsysDsOrderGenerator $orders,
         private ?PrismaStudentCourseCheckoutService $prismaStudentCheckout = null,
-        private ?LegacyPrismaStudentPriceSnapshotResolver $prismaStudentPrices = null
+        private ?LegacyPrismaStudentPriceSnapshotResolver $prismaStudentPrices = null,
+        private ?UsocFinancingTermsRepository $usocTerms = null,
+        private ?UsocFinancingTermsStateHasher $usocTermsStateHasher = null
     ) {
+        $this->usocTermsStateHasher ??= new UsocFinancingTermsStateHasher();
     }
 
     public function create(\PDO $sifDb, \PDO $legacyDb, array $input): array
@@ -61,6 +65,94 @@ final class RedsysCoursePaymentIntentService
             throw SifException::validation(
                 'Redsys course DS_ORDER must be 4-12 alphanumeric characters and start with four digits'
             );
+        }
+
+        if ((int) ($inscription['TIPUS_DESC'] ?? 0) === 4) {
+            if ((int) ($inscription['VALID_DESC'] ?? 0) !== 1) {
+                throw SifException::conflict('USOC discount is not in a payable state.');
+            }
+            if ($this->usocTerms === null) {
+                throw SifException::conflict(
+                    'USOC course payment requires prepared financing terms.'
+                );
+            }
+            if ($fractional || $paidCents > 0 || $requestedCents !== $pendingCents) {
+                throw SifException::conflict(
+                    'USOC student payment must use the complete prepared student amount.'
+                );
+            }
+
+            $terms = $this->usocTerms->findByInscriptionAndIdpag(
+                $sifDb,
+                (int) $inscription['ID'],
+                $idpag
+            );
+            if ($terms === null) {
+                throw SifException::conflict(
+                    'USOC financing terms must be prepared before payment.'
+                );
+            }
+
+            $storedHash = trim((string) ($terms['LEGACY_STATE_HASH'] ?? ''));
+            $currentHash = $this->usocTermsStateHasher->hash($inscription);
+            if ($storedHash === '' || !hash_equals($storedHash, $currentHash)) {
+                throw SifException::conflict(
+                    'Prepared USOC financing terms no longer match the current course state.'
+                );
+            }
+
+            $termsStudentCents = $this->cents($terms['STUDENT_AMOUNT'] ?? null, 'USOC student amount');
+            $termsEntityCents = $this->cents($terms['ENTITY_AMOUNT'] ?? null, 'USOC entity amount');
+            if (
+                $termsStudentCents !== $totalCents
+                || $termsStudentCents !== $requestedCents
+                || $termsEntityCents <= 0
+            ) {
+                throw SifException::conflict(
+                    'Prepared USOC financing terms do not match the current inscription.'
+                );
+            }
+
+            $snapshot = $context;
+            $snapshot['payment'] = [
+                'idpag' => $idpag,
+                'amount' => $requested,
+                'pending_before' => $pending,
+                'paid_before' => $paid,
+                'contract_total' => $total,
+                'fractional' => false,
+            ];
+            $snapshot['usoc'] = [
+                'student_amount' => $this->amount($termsStudentCents),
+                'entity_amount' => $this->amount($termsEntityCents),
+                'tipus_desc' => 4,
+                'valid_desc' => 1,
+                'terms_uuid' => (string) ($terms['UUID_TERMS'] ?? ''),
+            ];
+
+            $result = $this->intents->create($sifDb, [
+                'ds_order' => $dsOrder,
+                'idpag' => $idpag,
+                'source_type' => 'USOC_ALUMNE',
+                'source_id' => (string) $this->positiveInt($inscription['ID'] ?? null, 'inscription.ID'),
+                'expected_amount' => $requested,
+                'currency' => 'EUR',
+                'terminal' => $terminal,
+                'snapshot' => $snapshot,
+                'created_by' => trim((string) ($input['created_by'] ?? 'pay-prisma-cat')),
+                'expires_at' => isset($input['expires_at']) ? trim((string) $input['expires_at']) : null,
+            ]);
+
+            return $result + [
+                'idpag' => $idpag,
+                'source_id' => (int) $inscription['ID'],
+                'source_type' => 'USOC_ALUMNE',
+                'amount' => $requested,
+                'entity_amount' => $this->amount($termsEntityCents),
+                'pending_before' => $pending,
+                'currency' => 'EUR',
+                'terminal' => $terminal,
+            ];
         }
 
         if ((int) ($inscription['TIPUS_DESC'] ?? 0) === 1) {

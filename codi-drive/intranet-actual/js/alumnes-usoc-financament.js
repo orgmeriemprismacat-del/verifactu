@@ -44,11 +44,11 @@
     function applyCapabilities(capabilities) {
         canManage = !!(capabilities && capabilities.manage === true);
 
-        $('#usoc-reconciliar, #usoc-emetre-entitat, #usoc-registrar-cobrament, #usoc-lifecycle-preview, #usoc-lifecycle-operation')
+        $('#usoc-reconciliar, #usoc-terms-preparar, #usoc-emetre-entitat, #usoc-registrar-cobrament, #usoc-lifecycle-preview, #usoc-lifecycle-operation')
             .prop('disabled', !canManage);
 
         $('#usoc-financament')
-            .find('#usoc-student-uuid, #usoc-student-input-amount, #usoc-entity-input-amount, #usoc-billing-name, #usoc-billing-nif, #usoc-billing-email, #usoc-billing-address, #usoc-billing-cp, #usoc-billing-city, #usoc-billing-province, #usoc-billing-country, #usoc-payment-uuid, #usoc-payment-amount, #usoc-payment-date, #usoc-payment-reference, #usoc-payment-method, #usoc-payment-bank, #usoc-payment-notes')
+            .find('#usoc-terms-student-amount, #usoc-terms-entity-amount, #usoc-student-uuid, #usoc-student-input-amount, #usoc-entity-input-amount, #usoc-billing-name, #usoc-billing-nif, #usoc-billing-email, #usoc-billing-address, #usoc-billing-cp, #usoc-billing-city, #usoc-billing-province, #usoc-billing-country, #usoc-payment-uuid, #usoc-payment-amount, #usoc-payment-date, #usoc-payment-reference, #usoc-payment-method, #usoc-payment-bank, #usoc-payment-notes')
             .prop('disabled', !canManage);
 
         if (!canManage) {
@@ -96,6 +96,108 @@
             idpag: field('usoc-idpag')
         };
     }
+
+    function newRequestId() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return window.crypto.randomUUID();
+        }
+        return 'usoc-terms-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    }
+
+    function termsRequestKey(id) {
+        return 'prisma-usoc-terms:' + String(id.id_insc) + ':' + String(id.idpag);
+    }
+
+    function financingTermsRequestId(id) {
+        const key = termsRequestKey(id);
+        try {
+            const existing = window.sessionStorage.getItem(key);
+            if (existing) return existing;
+            const created = newRequestId();
+            window.sessionStorage.setItem(key, created);
+            return created;
+        } catch (e) {
+            return newRequestId();
+        }
+    }
+
+    function clearFinancingTermsRequestId(id) {
+        try {
+            window.sessionStorage.removeItem(termsRequestKey(id));
+        } catch (e) {}
+    }
+
+    function renderTerms(terms) {
+        if (!terms) return;
+        if (terms.STUDENT_AMOUNT) {
+            $('#usoc-terms-student-amount').val(money(terms.STUDENT_AMOUNT));
+        }
+        if (terms.ENTITY_AMOUNT) {
+            $('#usoc-terms-entity-amount').val(money(terms.ENTITY_AMOUNT));
+        }
+        $('#usoc-terms-status').text(
+            'Preparat: ' + (terms.UUID_TERMS || '—')
+            + ' · ' + (terms.PREPARED_AT || 'data no disponible')
+        );
+    }
+
+    $('#usoc-terms-consultar').on('click', function () {
+        post('view_terms', identity())
+            .done(function (response) {
+                if (response.ok && response.terms) {
+                    renderTerms(response.terms);
+                    showAlert('info', 'Imports USOC preparats carregats.');
+                } else {
+                    showAlert('danger', response.error || 'No hi ha imports USOC preparats.');
+                }
+            })
+            .fail(function (xhr) {
+                showAlert(
+                    'danger',
+                    xhr.responseJSON && xhr.responseJSON.error
+                        ? xhr.responseJSON.error
+                        : 'Error consultant els imports USOC preparats.'
+                );
+            });
+    });
+
+    $('#usoc-terms-preparar').on('click', function () {
+        if (!canManage) {
+            showAlert('danger', 'No tens permisos per preparar imports USOC.');
+            return;
+        }
+
+        const id = identity();
+        post('prepare_terms', {
+            id_insc: id.id_insc,
+            idpag: id.idpag,
+            request_id: financingTermsRequestId(id),
+            student_amount: field('usoc-terms-student-amount'),
+            entity_amount: field('usoc-terms-entity-amount')
+        })
+            .done(function (response) {
+                if (response.ok && response.terms) {
+                    renderTerms(response.terms);
+                    clearFinancingTermsRequestId(id);
+                    showAlert(
+                        'success',
+                        response.terms.idempotency_reused
+                            ? 'Imports USOC ja preparats; s’ha reutilitzat el mateix contracte.'
+                            : 'Imports USOC preparats per al checkout.'
+                    );
+                } else {
+                    showAlert('danger', response.error || 'No s’han pogut preparar els imports USOC.');
+                }
+            })
+            .fail(function (xhr) {
+                showAlert(
+                    'danger',
+                    xhr.responseJSON && xhr.responseJSON.error
+                        ? xhr.responseJSON.error
+                        : 'Error preparant els imports USOC.'
+                );
+            });
+    });
 
     $('#usoc-consultar').on('click', function () {
         post('view', identity())

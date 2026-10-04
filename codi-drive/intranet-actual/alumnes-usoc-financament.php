@@ -79,7 +79,37 @@ if (!$configOk || !filter_var(getenv('SIF_USOC_UI_ENABLED') ?: '0', FILTER_VALID
     </div>
 
     <div class="card mb-3">
-        <div class="card-header">3. Emetre factura de la part USOC</div>
+        <div class="card-header">3. Preparar imports de finançament abans del pagament</div>
+        <div class="card-body">
+            <p class="text-muted">
+                Aquesta preparació no crea cap factura ni cobrament. Congela la part de l'alumne
+                i la part de l'entitat perquè el checkout Redsys pugui crear una intenció
+                <code>USOC_ALUMNE</code> coherent.
+            </p>
+            <div class="form-row">
+                <div class="form-group col-md-3">
+                    <label for="usoc-terms-student-amount">Import alumne</label>
+                    <input type="number" step="0.01" min="0.01" class="form-control" id="usoc-terms-student-amount">
+                </div>
+                <div class="form-group col-md-3">
+                    <label for="usoc-terms-entity-amount">Import USOC</label>
+                    <input type="number" step="0.01" min="0.01" class="form-control" id="usoc-terms-entity-amount">
+                </div>
+                <div class="form-group col-md-6 d-flex align-items-end">
+                    <button type="button" class="btn btn-outline-secondary mr-2" id="usoc-terms-consultar">
+                        Consultar imports preparats
+                    </button>
+                    <button type="button" class="btn btn-primary" id="usoc-terms-preparar">
+                        Preparar imports
+                    </button>
+                </div>
+            </div>
+            <div class="small text-muted" id="usoc-terms-status">Sense preparar</div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">4. Emetre factura de la part USOC</div>
         <div class="card-body">
             <div class="form-row">
                 <div class="form-group col-md-6">
@@ -112,7 +142,7 @@ if (!$configOk || !filter_var(getenv('SIF_USOC_UI_ENABLED') ?: '0', FILTER_VALID
     </div>
 
     <div class="card mb-3">
-        <div class="card-header">4. Registrar cobrament de la factura USOC</div>
+        <div class="card-header">5. Registrar cobrament de la factura USOC</div>
         <div class="card-body">
             <div class="form-row">
                 <div class="form-group col-md-5"><label>UUID factura entitat</label><input type="text" class="form-control" id="usoc-payment-uuid"></div>
@@ -135,7 +165,7 @@ if (!$configOk || !filter_var(getenv('SIF_USOC_UI_ENABLED') ?: '0', FILTER_VALID
         </div>
     </div>
     <div class="card mb-3" id="usoc-lifecycle-plan">
-        <div class="card-header">5. Pla segur de canvi / baixa</div>
+        <div class="card-header">6. Pla segur de canvi / baixa</div>
         <div class="card-body">
             <p class="text-muted">
                 Aquest apartat no executa rectificatives ni devolucions. Mostra el pla separat per pagador

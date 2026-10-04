@@ -70,6 +70,27 @@ final class LegacyUsocSnapshotRepositoryTest
         Assert::same([], $db->preparedSql);
     }
 
+    public function testRejectsStudentPaymentAmountThatDoesNotMatchLegacyAPagar(): void
+    {
+        $db = new LegacyUsocSpyPdo([$this->inscriptionRow(), $this->courseRow()]);
+
+        $exception = Assert::throws(SifException::class, function () use ($db): void {
+            (new LegacyUsocSnapshotRepository())->loadByIdpag(
+                $db,
+                980,
+                '74.00',
+                '25.00',
+                880
+            );
+        }, 409);
+
+        Assert::same(
+            'Validated Redsys USOC student amount does not match legacy A_PAGAR',
+            $exception->getMessage()
+        );
+        Assert::same(2, count($db->preparedSql));
+    }
+
     public function testRejectsNonUsocInscriptionBeforeLoadingCourse(): void
     {
         $row = $this->inscriptionRow();

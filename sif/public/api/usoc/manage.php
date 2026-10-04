@@ -16,6 +16,7 @@ use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\UsocFinancingCaseRepository;
+use Prisma\Sif\Repository\UsocFinancingTermsRepository;
 use Prisma\Sif\Repository\UsocStudentInvoiceLinkRepository;
 use Prisma\Sif\Repository\UsocValidationDecisionRepository;
 use Prisma\Sif\Repository\EnrollmentCancellationEventRepository;
@@ -33,6 +34,7 @@ use Prisma\Sif\Service\PaymentService;
 use Prisma\Sif\Service\UsocCaseReconciler;
 use Prisma\Sif\Service\UsocEntityInvoiceService;
 use Prisma\Sif\Service\UsocEntityPaymentService;
+use Prisma\Sif\Service\UsocFinancingTermsService;
 use Prisma\Sif\Service\UsocLifecycleGuardService;
 use Prisma\Sif\Service\UsocLifecyclePlanService;
 use Prisma\Sif\Service\UsocValidationDecisionService;
@@ -87,6 +89,21 @@ try {
 
     $cases = new UsocFinancingCaseRepository(new UuidGenerator());
 
+    if ($action === 'view_financing_terms') {
+        assertUsocRole($actor, array_merge($readRoles, $manageRoles), 'read');
+        $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
+        $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
+        $service = new UsocFinancingTermsService(
+            new UsocFinancingTermsRepository(new UuidGenerator())
+        );
+
+        JsonResponse::send([
+            'ok' => true,
+            'terms' => $service->view($db, $idInsc, $idpag),
+        ]);
+        return;
+    }
+
     if ($action === 'view') {
         assertUsocRole($actor, array_merge($readRoles, $manageRoles), 'read');
         $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
@@ -108,6 +125,29 @@ try {
     }
 
     assertUsocRole($actor, $manageRoles, 'manage');
+
+    if ($action === 'prepare_financing_terms') {
+        $legacyDb = ConnectionFactory::makeLegacy($config);
+        $service = new UsocFinancingTermsService(
+            new UsocFinancingTermsRepository(new UuidGenerator())
+        );
+
+        JsonResponse::send([
+            'ok' => true,
+            'terms' => $service->prepare(
+                $db,
+                $legacyDb,
+                requiredRequestId($payload['request_id'] ?? null),
+                positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID'),
+                positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG'),
+                $payload['student_amount'] ?? null,
+                $payload['entity_amount'] ?? null,
+                (string) ($actor['actor_id'] ?? ''),
+                (array) ($actor['roles'] ?? [])
+            ),
+        ]);
+        return;
+    }
 
     if ($action === 'lifecycle_guard') {
         $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');

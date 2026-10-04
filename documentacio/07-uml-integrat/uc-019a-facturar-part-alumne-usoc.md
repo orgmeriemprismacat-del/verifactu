@@ -182,3 +182,25 @@ Note over S,Funds: Cap CHARGE d'entitat en UC-19a, UC-19b és posterior
 ## 5. Traçabilitat
 
 [Fitxa anterior UC-19a](../06-fitxes-funcionals/uc-019a.md) · [UC-13 expedient USOC](uc-013-orquestrar-doble-facturacio-usoc.md) · [UC-19b entitat](../06-fitxes-funcionals/uc-019b.md) · [UC-03 callback](uc-003-processar-cobrament-redsys-asincron.md) · [UC-63 intenció](uc-063-crear-intencio-redsys.md) · [Revisió del ledger](00-revisio-moviments-inscripcions.md) · [RedsysUsocInvoiceService](../../sif/src/Service/RedsysUsocInvoiceService.php) · [LegacyUsocInvoicePayloadBuilder](../../sif/src/Service/LegacyUsocInvoicePayloadBuilder.php) · [RedsysUsocInvoiceServiceTest](../../sif/tests/Integration/RedsysUsocInvoiceServiceTest.php).
+
+
+## 6. Auditoria de frontera 2026-10-04 — checkout productiu
+
+S'ha verificat que el checkout actual de `pay.prisma.cat` utilitza
+`/api/redsys/course-intent.php`. El servei de curs genèric no resol per si mateix
+la part finançada per USOC.
+
+Per evitar una classificació fiscal errònia:
+
+- `TIPUS_DESC=4, VALID_DESC!=1` → **bloqueig**;
+- `TIPUS_DESC=4, VALID_DESC=1` → **bloqueig del ramal CURS** i exigència
+  de circuit dedicat `USOC_ALUMNE`;
+- `USOC_ALUMNE` exigeix snapshot amb `student_amount`,
+  `entity_amount`, `A_PAGAR`, `IDPAG`, `ID_INSC` i marcadors 4/1 coherents;
+- el callback compara l'import real Redsys amb `EXPECTED_AMOUNT`;
+- `RedsysUsocInvoiceService` emet només la factura/cobrament de l'alumne i
+  deixa l'entitat en `PENDING_ENTITY_INVOICE`.
+
+**Pendent real:** implementar l'adaptador productiu que obtingui
+`entity_amount` d'una font comercial autoritativa i creï la intenció
+`USOC_ALUMNE`. No s'ha inferit ni inventat aquest import durant l'auditoria.

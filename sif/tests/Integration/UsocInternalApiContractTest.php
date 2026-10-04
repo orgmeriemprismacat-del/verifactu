@@ -26,6 +26,10 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("reconcile", $api);
         Assert::stringContainsString("begin_validation_decision", $api);
         Assert::stringContainsString("complete_validation_decision", $api);
+        Assert::stringContainsString("view_financing_terms", $api);
+        Assert::stringContainsString("prepare_financing_terms", $api);
+        Assert::stringContainsString("UsocFinancingTermsService", $api);
+        Assert::stringContainsString("UsocFinancingTermsRepository", $api);
         Assert::stringContainsString("lifecycle_guard", $api);
         Assert::stringContainsString("lifecycle_plan", $api);
         Assert::stringContainsString("execute_cancellation", $api);
@@ -47,6 +51,8 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("public function reconcile", $client);
         Assert::stringContainsString("public function beginValidationDecision", $client);
         Assert::stringContainsString("public function completeValidationDecision", $client);
+        Assert::stringContainsString("public function viewFinancingTerms", $client);
+        Assert::stringContainsString("public function prepareFinancingTerms", $client);
         Assert::stringContainsString("public function lifecycleGuard", $client);
         Assert::stringContainsString("public function lifecyclePlan", $client);
         Assert::stringContainsString("public function executeCancellation", $client);

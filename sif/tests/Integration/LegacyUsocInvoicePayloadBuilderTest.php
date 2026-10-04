@@ -190,6 +190,22 @@ final class LegacyUsocInvoicePayloadBuilderTest
         }, 409);
     }
 
+    public function testRejectsStudentSnapshotAmountDifferentFromLegacyAPagar(): void
+    {
+        $snapshot = $this->usocSnapshot();
+        $snapshot['usoc']['student_amount'] = '74.00';
+        $snapshot['payment']['amount'] = '74.00';
+
+        $exception = Assert::throws(SifException::class, function () use ($snapshot): void {
+            (new LegacyUsocInvoicePayloadBuilder())->buildStudentPayload($snapshot);
+        }, 409);
+
+        Assert::same(
+            'USOC student amount does not match legacy A_PAGAR',
+            $exception->getMessage()
+        );
+    }
+
     public function testUsesExplicitAmountsWithoutFixedUsocPercentage(): void
     {
         $snapshot = $this->usocSnapshot();

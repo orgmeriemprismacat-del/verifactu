@@ -17,6 +17,10 @@ final class UsocIntranetPreflightScriptTest
 
         Assert::stringContainsString('usoc_financing_case_table', $script);
         Assert::stringContainsString('usoc_validation_decision_table', $script);
+        Assert::stringContainsString('usoc_financing_terms_table', $script);
+        Assert::stringContainsString('usoc_validation_active_unique_index', $script);
+        Assert::stringContainsString('uq_usoc_validation_active_inscription', $script);
+        Assert::stringContainsString('information_schema.statistics', $script);
         Assert::stringContainsString('legacy_database_configured', $script);
         Assert::stringContainsString('legacy_database_connectivity', $script);
         Assert::stringContainsString("ConnectionFactory::makeLegacy", $script);
@@ -26,6 +30,8 @@ final class UsocIntranetPreflightScriptTest
         Assert::stringContainsString('UsocLifecyclePlanService::class', $script);
         Assert::stringContainsString('usoc_validation_decision_service', $script);
         Assert::stringContainsString('UsocValidationDecisionService::class', $script);
+        Assert::stringContainsString('usoc_financing_terms_service', $script);
+        Assert::stringContainsString('UsocFinancingTermsService::class', $script);
 
         Assert::stringContainsString('usoc_api_endpoint_file', $script);
         Assert::stringContainsString('/public/api/usoc/manage.php', $script);
