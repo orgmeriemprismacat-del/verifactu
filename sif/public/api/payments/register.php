@@ -10,12 +10,14 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
+use Prisma\Sif\Repository\PaymentActionEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Service\ExistingInvoiceLegacyProjectionService;
 use Prisma\Sif\Service\ExistingInvoicePaymentCommandService;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\ManualPaymentPayloadBuilder;
 use Prisma\Sif\Service\ManualPaymentService;
+use Prisma\Sif\Service\PaymentActionGateway;
 use Prisma\Sif\Service\PaymentPayloadValidator;
 use Prisma\Sif\Service\PaymentService;
 
@@ -80,14 +82,69 @@ try {
 
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
     if ($action === 'register_existing_invoice') {
-        $result = (new ExistingInvoicePaymentCommandService(
+        $payment = $payload['payment'] ?? null;
+        if (!is_array($payment)) {
+            throw SifException::validation('Existing invoice payment requires payment object');
+        }
+
+        $idempotencyKey = trim((string) ($payment['idempotency_key'] ?? ''));
+        if ($idempotencyKey === '') {
+            throw SifException::validation('Existing invoice payment requires idempotency key');
+        }
+
+        $effectiveRoles = array_values(array_intersect($roles, $allowedRoles));
+        $effectiveRole = (string) ($effectiveRoles[0] ?? '');
+        if ($effectiveRole === '') {
+            throw SifException::forbidden('Payment registration role is not authorized');
+        }
+
+        $configuredEnvironment = strtoupper(trim((string) ($config['env'] ?? '')));
+        $sourceEnvironment = match ($configuredEnvironment) {
+            'PROD', 'PRODUCTION' => 'PRODUCTION',
+            'PRE', 'PREPRODUCTION', 'PRE-PRODUCTION', 'STAGING' => 'PREPRODUCTION',
+            'TEST', 'TESTING' => 'TEST',
+            'MIGRATION' => 'MIGRATION',
+            'LOCAL', 'DEV', 'DEVELOPMENT' => 'DEVELOPMENT',
+            default => throw SifException::validation('Unsupported SIF environment for payment audit'),
+        };
+
+        $auditContext = [
+            'request_id' => (string) ($actor['request_id'] ?? ''),
+            'correlation_id' => $idempotencyKey,
+            'action' => 'CREATE',
+            'source_environment' => $sourceEnvironment,
+            'source_channel' => 'INTRANET',
+            'actor_type' => 'HUMAN',
+            'actor_id' => (string) ($actor['actor_id'] ?? ''),
+            'actor_role' => $effectiveRole,
+            'reason_code' => 'UC002_EXISTING_INVOICE_PAYMENT',
+            'payment_idempotency_key' => $idempotencyKey,
+            'occurred_at' => (new \DateTimeImmutable(
+                'now',
+                new \DateTimeZone('Europe/Madrid')
+            ))->format('Y-m-d H:i:s.u'),
+        ];
+
+        $command = new ExistingInvoicePaymentCommandService(
             new ManualPaymentService(
                 new ManualPaymentInvoiceRepository(),
                 new ManualPaymentPayloadBuilder(),
                 $service
             ),
             new ExistingInvoiceLegacyProjectionService()
-        ))->register($db, $payload);
+        );
+
+        $result = (new PaymentActionGateway(
+            $db,
+            new TransactionRunner($db),
+            new PaymentActionEventRepository(new UuidGenerator())
+        ))->run(
+            $auditContext,
+            static fn (\PDO $transactionDb): array => $command->register(
+                $transactionDb,
+                $payload
+            )
+        );
     } elseif ($action === '') {
         // Backwards-compatible low-level registration for trusted internal callers.
         $result = $service->registerPayment($payload);
