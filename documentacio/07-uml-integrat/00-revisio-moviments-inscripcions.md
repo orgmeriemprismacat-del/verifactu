@@ -1,6 +1,6 @@
 # Revisió transversal · Traçabilitat dels fons associats a cada inscripció
 
-**Estat reconciliat 2026-10-04:** la base és executable i la branca UC-006 l'amplia. A més de l'atribució inicial (`EXTERNAL_ALLOCATION`), ara hi ha primitives per `REFUND_EXIT`, `CREDIT_CREATE` i `COMPENSATION_ALLOCATION` amb `UUID_CREDIT`, càlcul de disponibilitat per inscripció i rollback transaccional. Continuen pendents l'orquestració `INTERNAL_TRANSFER`, titularitat, autorització, audit gateway i E2E/preproducció.
+**Estat reconciliat 2026-10-04:** la base és executable i la branca UC-006 l'amplia. A més de `EXTERNAL_ALLOCATION`, hi ha primitives per `INTERNAL_TRANSFER`, `REFUND_EXIT`, `CREDIT_CREATE` i `COMPENSATION_ALLOCATION`, amb disponibilitat per inscripció, idempotència i rollback. Continuen pendents l'orquestrador funcional, titularitat, autorització, audit gateway i E2E/preproducció.
 
 ## 1. Diagnòstic contrastat: què existeix i què falta
 
@@ -14,7 +14,7 @@
 | `credit_balance` + `CreditBalanceService` | Saldo original/disponible, titular, origen i consum per compensació. | La creació/consum canvia imports disponibles, però no deixa, per si sola, un assentament immutable per cada sortida des d'una inscripció i cada aplicació del saldo a una altra. |
 | `academic_economic_state_event` | Esquema de transicions acadèmiques/d'accés i una fotografia econòmica. | Un snapshot d'estat no reemplaça la traçabilitat quantitativa per cada moviment de fons. |
 
-**Conclusió reconciliada 04/10:** `enrollment_fund_movement` ja cobreix la traça quantitativa principal d'UC-006 quan l'origen/destí d'inscripció és explícit: cobrament → inscripció, inscripció → saldo, inscripció → refund extern i saldo → inscripció. `availableAmountForInscription()` reconstrueix el dret net. El buit ja no és la persistència bàsica sinó l'orquestració obligatòria, titularitat, `INTERNAL_TRANSFER`, auditoria i verificació executada.
+**Conclusió reconciliada 04/10:** `enrollment_fund_movement` ja cobreix la traça quantitativa principal: cobrament → inscripció, inscripció → inscripció, inscripció → saldo, inscripció → refund extern i saldo → inscripció. `availableAmountForInscription()` reconstrueix el dret net. El buit ja no és la persistència bàsica sinó l'orquestració obligatòria, titularitat, auditoria i verificació executada.
 
 ## 2. Separar tres fets que no són sinònims
 
@@ -43,7 +43,7 @@
 - `CREDIT_CREATE`: inscripció → saldo (`UUID_CREDIT`);
 - `REFUND_EXIT`: inscripció → exterior, lligat a `payment_transaction.REFUND`;
 - `COMPENSATION_ALLOCATION`: saldo/COMPENSATION → factura/línia/inscripció;
-- `INTERNAL_TRANSFER`: admès per esquema però encara sense servei d'orquestració;
+- `INTERNAL_TRANSFER`: **IMPLEMENTAT com a primitiva** amb builder, servei transaccional, repo, CLI i proves; el coordinator de canvi de curs encara no el crida;
 - `REVERSAL`: admès per esquema; la política completa de reversió continua pendent.
 
 Els camps conceptuals de la taula ampliada que **no** existeixen físicament (per exemple `ORIGIN_TYPE`, `TARGET_TYPE`, `ACTOR_ID`) continuen sent disseny; la implementació actual usa `ID_INSC_ORIGEN`, `ID_INSC_DESTI`, `UUID_PAYMENT`, `UUID_CREDIT`, factura/línia, operació i correlació.
@@ -141,7 +141,7 @@ EnrollmentFundMovementRepository --> EnrollmentFundMovement : emmagatzema
 PaymentService --> PaymentRepository : codi existent
 ```
 
-**Precisió 04/10/2026:** `EnrollmentFundMovementRepository` ja cobreix atribució inicial, disponibilitat, `CREDIT_CREATE`, `REFUND_EXIT` i `COMPENSATION_ALLOCATION`. No existeix encara l'`EnrollmentFundsOrchestrator`; `INTERNAL_TRANSFER`, titularitat i auditoria transversal continuen sent objectiu.
+**Precisió 04/10/2026:** `EnrollmentFundMovementRepository` ja cobreix atribució inicial, disponibilitat, `INTERNAL_TRANSFER`, `CREDIT_CREATE`, `REFUND_EXIT` i `COMPENSATION_ALLOCATION`. `EnrollmentFundTransferService` implementa A→B sense nou `CHARGE`. No existeix encara l'`EnrollmentFundsOrchestrator`; titularitat, decisió funcional i auditoria transversal continuen sent objectiu.
 
 ## 6. Seqüència transversal proposada — traspàs entre cursos ja cobrats
 
@@ -150,9 +150,9 @@ sequenceDiagram
 autonumber
 actor O as Operador
 participant UI as Intranet [adaptador pendent]
-participant Or as EnrollmentFundsOrchestrator [PROPOSTA]
+participant Or as EnrollmentFundsOrchestrator [PENDENT]
 participant Ev as OperationalEventRepository [existent]
-participant Ledger as EnrollmentFundMovementRepository [PROPOSTA]
+participant Ledger as EnrollmentFundMovementRepository [IMPLEMENTAT]
 participant SIF as BD SIF
 participant Fiscal as Decisió/UC-05 [separada]
 O->>UI: Confirmar canvi A → B i import que es traspassa
@@ -166,7 +166,7 @@ else Saldo insuficient o destí incongruent
  Or--xUI: Bloqueig, cap assentament nou
 else Reassignació vàlida
  Or->>Ev: append(causa/actor/origen/destí)
- Or->>Ledger: append(A → B, import, UUID_PAYMENT_ORIGIN, event)
+ Or->>Ledger: insertOrReuseInternalTransfer(A → B, import, K)
  Ledger->>SIF: INSERT moviment immutable
  Or->>SIF: COMMIT de l'atribució
  Or-->>UI: UUID_MOVEMENT i nova atribució
