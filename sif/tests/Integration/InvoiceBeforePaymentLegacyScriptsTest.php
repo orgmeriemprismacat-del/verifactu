@@ -19,6 +19,7 @@ final class InvoiceBeforePaymentLegacyScriptsTest
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacyIntranet($config)', $source);
         Assert::stringContainsString('InvoiceBeforePaymentLegacyPreparationService', $source);
+        Assert::stringContainsString('InvoiceBeforePaymentAeatPayloadEnricher', $source);
         Assert::stringContainsString('--inscriptions=', $source);
         Assert::stringContainsString('--entity-id=', $source);
         Assert::stringContainsString('--created-by=', $source);
@@ -53,6 +54,7 @@ final class InvoiceBeforePaymentLegacyScriptsTest
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacyIntranet($config)', $source);
         Assert::stringContainsString('new InvoiceBeforePaymentCoverageRepository()', $source);
+        Assert::stringContainsString('InvoiceBeforePaymentAeatPayloadEnricher', $source);
         Assert::stringContainsString('issueBeforePayment($prepared[\'input\'])', $commandSource);
         Assert::stringContainsString('fingerprint_verified', $commandSource);
 
@@ -75,6 +77,10 @@ final class InvoiceBeforePaymentLegacyScriptsTest
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacyIntranet($config)', $source);
         Assert::stringContainsString('invoice_before_payment_coverage', $source);
+        Assert::stringContainsString('enrollment_payment_flow_lock', $source);
+        Assert::stringContainsString('enrollment_fund_movement', $source);
+        Assert::stringContainsString('official_aeat_snapshot_config', $source);
+        Assert::stringContainsString("aeat['system_id']", $source);
         Assert::stringContainsString('inscripcions', $source);
         Assert::stringContainsString('curs', $source);
         Assert::stringContainsString('entitats', $source);
