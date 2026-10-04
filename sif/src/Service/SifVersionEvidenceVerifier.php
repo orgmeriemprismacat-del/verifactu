@@ -81,8 +81,9 @@ final class SifVersionEvidenceVerifier
             $snapshot = is_array($decoded) ? $decoded : [];
         }
 
+        $backupRequired = (bool) ($this->config['version_governance']['require_backup_evidence'] ?? true);
         $backupAcceptable = $backupUuid === ''
-            ? true
+            ? !$backupRequired
             : is_array($backup)
                 && $this->backupEvidence->isAcceptable(
                     $backup,
@@ -116,6 +117,7 @@ final class SifVersionEvidenceVerifier
                     $snapshot['declaration']['document_hash'] ?? null,
                     $declaration['DOCUMENT_HASH'] ?? null
                 ),
+            'backup_evidence_required' => !$backupRequired || $backupUuid !== '',
             'backup_evidence_acceptable' => $backupAcceptable,
             'audit_activation_present' => $auditCount > 0,
             'operational_activation_present' => $operationalCount > 0,
@@ -153,6 +155,7 @@ final class SifVersionEvidenceVerifier
                 'status' => $declaration['STATUS'] ?? null,
                 'file_integrity' => $declarationFileOk,
             ] : null,
+            'backup_required' => $backupRequired,
             'backup' => $this->backupSummary($backup),
             'runtime' => [
                 'complete' => $runtime['complete'] ?? false,
@@ -178,7 +181,12 @@ final class SifVersionEvidenceVerifier
             return false;
         }
 
-        $root = realpath(trim((string) ($this->config['version_governance']['declaration_root'] ?? '')));
+        $rootConfig = trim((string) ($this->config['version_governance']['declaration_root'] ?? ''));
+        if ($rootConfig === '') {
+            return false;
+        }
+
+        $root = realpath($rootConfig);
         if ($root === false || !is_dir($root)) {
             return false;
         }
