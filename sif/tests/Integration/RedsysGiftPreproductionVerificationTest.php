@@ -11,7 +11,7 @@ final class RedsysGiftPreproductionVerificationTest
         $source = $this->read('sif/scripts/verify-redsys-gift-preproduction.php');
 
         Assert::stringContainsString('uc-017-redsys-gift-preproduction-verification', $source);
-        Assert::stringContainsString("['test', 'preproduction', 'pre']", $source);
+        Assert::stringContainsString("['test', 'preproduction', 'preprod']", $source);
         Assert::stringContainsString('preflight-redsys-gift.php', $source);
         Assert::stringContainsString('preflight-redsys-callback-queue.php', $source);
         Assert::stringContainsString('gift_intent_present', $source);
@@ -59,9 +59,22 @@ final class RedsysGiftPreproductionVerificationTest
         Assert::stringContainsString('gift_status_endpoint_present', $preflight);
         Assert::stringContainsString('gift_intent_signed_path_matches_bridge', $preflight);
         Assert::stringContainsString('gift_status_signed_path_matches_bridge', $preflight);
+        Assert::stringContainsString('aeat_system_name_present', $preflight);
+        Assert::stringContainsString('aeat_system_id_valid', $preflight);
+        Assert::stringContainsString('aeat_producer_name_present', $preflight);
+        Assert::stringContainsString('aeat_producer_nif_present', $preflight);
+        Assert::stringContainsString('aeat_gift_tax_code_valid', $preflight);
+        Assert::stringContainsString('aeat_gift_regime_key_valid', $preflight);
+        Assert::stringContainsString('aeat_gift_exemption_code_valid', $preflight);
 
         Assert::stringContainsString('SIF_INTERNAL_REDSYS_GIFT_INTENT_SIGNED_PATH', $config);
         Assert::stringContainsString('SIF_INTERNAL_REDSYS_GIFT_STATUS_SIGNED_PATH', $config);
+        Assert::stringContainsString('SIF_AEAT_SYSTEM_NAME', $config);
+        Assert::stringContainsString('SIF_AEAT_PRODUCER_NAME', $config);
+        Assert::stringContainsString('SIF_AEAT_PRODUCER_NIF', $config);
+        Assert::stringContainsString('SIF_AEAT_GIFT_TAX_CODE', $config);
+        Assert::stringContainsString('SIF_AEAT_GIFT_REGIME_KEY', $config);
+        Assert::stringContainsString('SIF_AEAT_GIFT_EXEMPTION_CODE', $config);
     }
 
     private function read(string $relativePath): string
