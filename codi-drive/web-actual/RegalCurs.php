@@ -717,10 +717,26 @@ class RegalCurs{
       $mostrar .= "</div>";
       $connexio->desconectarBD();
 
+      if ($allowedStyles === []) {
+         throw new RuntimeException('NO_GIFT_STYLES_CONFIGURED');
+      }
+      if (!in_array((string) $nEstil, $allowedStyles, true)) {
+         $nEstil = in_array('estil-4', $allowedStyles, true) ? 'estil-4' : $allowedStyles[0];
+      }
+
+      $safeEstil = htmlspecialchars((string) $nEstil, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeDesti = htmlspecialchars((string) $desti, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeOrigen = htmlspecialchars((string) $origen, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeDedicatoria = nl2br(
+         htmlspecialchars((string) $dedicatoria, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+         false
+      );
+      $safeCodiRegal = htmlspecialchars((string) $codiRegal, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeNomCurs = htmlspecialchars((string) $nomCurs, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
       $classNomCurs = $this->__mostrarClaseTamanyNomCurs($nomCurs);
 
-      $mostrar .= "<div class='regalar-curs ".$nEstil." d-flex flex-column w-100 position-relative'>";
-         $pathPicture = $pathRegal."/val-regal-".$nEstil;
+      $mostrar .= "<div class='regalar-curs ".$safeEstil." d-flex flex-column w-100 position-relative'>";
+         $pathPicture = $pathRegal."/val-regal-".$safeEstil;
          $mostrar .= "<picture>";
          $mostrar .= "<source type='image/webp' class='w-100 val-regal-webp' data-srcset='".$pathPicture.".webp' srcset='".$pathPicture.".webp' alt='Val regal' />";
          $mostrar .= "<source type='image/jpeg' class='w-100 val-regal-jpg' data-srcset='".$pathPicture.".jpg' srcset='".$pathPicture.".jpg' alt='Val regal' />";
@@ -917,6 +933,10 @@ class RegalCurs{
       if (preg_match('/^[A-HJ-NP-Z2-9]{12}$/D', $codiRegal) !== 1) {
          throw new RuntimeException('INVALID_SERVER_GIFT_CODE');
       }
+      $estilRegal = trim((string) $estilRegal);
+      if (preg_match('/^estil-[1-9][0-9]?$/D', $estilRegal) !== 1) {
+         throw new RuntimeException('INVALID_GIFT_STYLE');
+      }
 
       $textNom = new Text($nom);
       $textCog = new Text($cog);
@@ -986,6 +1006,18 @@ class RegalCurs{
          $origenBD = $textOrigen->obtenirText();
       $codiRegalBD = $textCodiRegal->obtenirText();
       $estilBD = $numEstil->obtenirNumero();
+      $htmlNomBD = htmlspecialchars((string) $nomBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlCogBD = htmlspecialchars((string) $cogBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlDniBD = htmlspecialchars((string) $dniBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlEmailBD = htmlspecialchars((string) $emailBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlAdrecaBD = htmlspecialchars((string) $adrecaBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlCpBD = htmlspecialchars((string) $cpBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlPobleBD = htmlspecialchars((string) $pobleBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlDestiBD = htmlspecialchars((string) $destiBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlDedicatoriaBD = nl2br(htmlspecialchars((string) $dedicatoriaBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false);
+      $htmlOrigenBD = htmlspecialchars((string) $origenBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlCodiRegalBD = htmlspecialchars((string) $codiRegalBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlNomCursBD = htmlspecialchars((string) $nomCursBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
       if ($textComentaris != null)
       $observacionsBD = $textComentaris->obtenirText();
       else
@@ -1508,11 +1540,11 @@ class RegalCurs{
           padding-top: 19px;
           padding-left: 10px;
           padding-right: 10px;
-          height: 60px;'>".$desti."</p>
-         <p class='cnt-dedicatoria digital position-absolute'>".str_replace($order, $replace, $dedicatoria)."<br>
-         <span class='cnt-origen digital'>".$origen."</span></p>
-         <p class='cnt-codi-regal digital position-absolute'>".$codiRegal."</p>
-         <p class='cnt-curs digital position-absolute ".$classNomCurs."'>".$varNomCurs."</p>
+          height: 60px;'>".$htmlDestiBD."</p>
+         <p class='cnt-dedicatoria digital position-absolute'>".$htmlDedicatoriaBD."<br>
+         <span class='cnt-origen digital'>".$htmlOrigenBD."</span></p>
+         <p class='cnt-codi-regal digital position-absolute'>".$htmlCodiRegalBD."</p>
+         <p class='cnt-curs digital position-absolute ".$classNomCurs."'>".htmlspecialchars((string) $varNomCurs, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')."</p>
       </div>";
 
       $html = "</body></html>";
