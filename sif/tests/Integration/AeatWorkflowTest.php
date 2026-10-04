@@ -359,6 +359,48 @@ final class AeatWorkflowTest
         Assert::same('PENDING', $db->query('SELECT ESTAT_AEAT FROM factura_registres ORDER BY FISCAL_ORDER LIMIT 1')->fetchColumn());
     }
 
+
+    public function testWorkerPassesPreassignedAttemptAndEvidenceContextToTransport(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-PREASSIGNED-EVIDENCE-CONTEXT')
+        );
+
+        $transport = new class implements AeatTransport {
+            public array $context = [];
+
+            public function send(array $payload): array
+            {
+                $this->context = (array) ($payload['_sif_submission_attempt'] ?? []);
+
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'csv' => 'PREASSIGNED-CONTEXT',
+                        'flow_wait_seconds' => 60,
+                        'evidence_id' => $this->context['evidence_id'] ?? null,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
+            }
+        };
+
+        $result = (new SerialWorker($db, $transport))->runOnce();
+        $attempt = $db->query(
+            'SELECT UUID_ATTEMPT, EVIDENCE_ID, STATUS FROM aeat_submission_attempt LIMIT 1'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('ACCEPTED', $result['aeat_status']);
+        Assert::same((string) $attempt['UUID_ATTEMPT'], (string) ($transport->context['uuid_attempt'] ?? ''));
+        Assert::same((string) $attempt['EVIDENCE_ID'], (string) ($transport->context['evidence_id'] ?? ''));
+        Assert::matchesRegularExpression(
+            '/^\d{8}T\d{6}Z-[a-f0-9]{24}$/',
+            (string) $attempt['EVIDENCE_ID']
+        );
+        Assert::same('ACCEPTED', $attempt['STATUS']);
+    }
+
     public function testPersistsSubmissionAttemptBeforeAndAfterAcceptedDelivery(): void
     {
         $db = TestDatabase::fresh();
