@@ -100,9 +100,10 @@ final class ExistingInvoiceEnrollmentFundAllocationService
                  FROM enrollment_fund_movement
                  WHERE UUID_FACTURA = ?
                    AND ID_FACTURA_LINIA = ?
-                   AND MOVEMENT_TYPE = 'EXTERNAL_ALLOCATION'"
+                   AND MOVEMENT_TYPE = 'EXTERNAL_ALLOCATION'
+                   AND UUID_PAYMENT <> ?"
             );
-            $usedStmt->execute([$uuidFactura, $lineId]);
+            $usedStmt->execute([$uuidFactura, $lineId, $uuidPayment]);
             $alreadyAllocated = $this->cents($usedStmt->fetchColumn());
             $capacity = max(0, $lineTotal - $alreadyAllocated);
             if ($capacity === 0) {
