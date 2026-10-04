@@ -235,6 +235,8 @@ class PagamentRegal {
       $codiCurs = $this->obtenirCodiCurs()->obtenirText();
       $titol = $this->obtenirTitol()->obtenirText();
       $giftId = (int) $this->idRegal;
+      require_once __DIR__ . '/GiftCheckoutToken.php';
+      $giftCheckoutToken = GiftCheckoutToken::issue($giftId);
 
       $mostrar = "<div class='form-dades'>";
       if ($tipus==2) {
@@ -251,11 +253,8 @@ class PagamentRegal {
       $mostrar .= "<div class='d-flex flex-column algin-items-center justify-content-center'>";
       $mostrar .= "<form id='frm' name='frm' action='https://www.prisma.cat/regal/efectuarPagament/' method='post'>";
 
-      $mostrar .= "<input type='hidden' id='giftId' name='giftId' value='".$giftId."'>";
-      $mostrar .= "<input type='hidden' id='codiCurs' name='codiCurs' value='".
-         htmlspecialchars((string) $codiCurs, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')."'>";
-      $mostrar .= "<input type='hidden' id='titol' name='titol' value=\"".
-         htmlspecialchars((string) $titol, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')."\">";
+      $mostrar .= "<input type='hidden' id='giftToken' name='giftToken' value='".
+         htmlspecialchars($giftCheckoutToken, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')."'>";
 
       $mostrar .= "<div class='d-flex flex-column flex-md-row align-items-center justify-content-center w-100'>";
       $mostrar .= "<div class='col-12 pl-0 pr-0 pr-md-2'>";
