@@ -13,7 +13,8 @@ final class RedsysGroupInvoiceService implements RedsysIntentHandler
         private LegacyGroupSnapshotRepository $legacySnapshots,
         private LegacyGroupInvoicePayloadBuilder $legacyPayloads,
         private RedsysInvoicePayloadBuilder $redsysPayloads,
-        private InvoiceService $invoices
+        private InvoiceService $invoices,
+        private ?GroupEnrollmentFundAllocationService $fundAllocations = null
     ) {
     }
 
@@ -26,8 +27,25 @@ final class RedsysGroupInvoiceService implements RedsysIntentHandler
     {
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
+        $this->assertPaymentMatchesInvoice($payload);
 
-        return $this->invoices->issueInvoice($payload);
+        $result = $this->invoices->issueInvoice($payload);
+        if ($this->fundAllocations !== null) {
+            $result['fund_allocations'] = $this->fundAllocations->allocate(
+                $sifDb,
+                $dsOrder,
+                $snapshot,
+                $result
+            );
+        }
+        $result['legacy_sync'] = [
+            'mode' => 'GROUP_FULL_PAYMENT',
+            'relations' => $payload['relations'] ?? [],
+            'estat_cobrament' => isset($payload['payment']) ? 'PAID' : 'PENDING',
+            'movement_date' => (string) ($payload['payment']['movement_date'] ?? date('Y-m-d H:i:s')),
+        ];
+
+        return $result;
     }
 
     public function issueFromValidatedNotification(\PDO $sifDb, \PDO $legacyDb, string $dsOrder): array
@@ -39,13 +57,41 @@ final class RedsysGroupInvoiceService implements RedsysIntentHandler
         $snapshot = $this->legacySnapshots->loadByIdpag($legacyDb, $idpag, $amount);
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
+        $this->assertPaymentMatchesInvoice($payload);
         $result = $this->invoices->issueInvoice($payload);
+        if ($this->fundAllocations !== null) {
+            $result['fund_allocations'] = $this->fundAllocations->allocate(
+                $sifDb,
+                $dsOrder,
+                $snapshot,
+                $result
+            );
+        }
         $result['legacy_sync'] = [
+            'mode' => 'GROUP_FULL_PAYMENT',
             'relations' => $payload['relations'] ?? [],
             'estat_cobrament' => isset($payload['payment']) ? 'PAID' : 'PENDING',
+            'movement_date' => (string) ($payload['payment']['movement_date'] ?? date('Y-m-d H:i:s')),
         ];
 
         return $result;
+    }
+
+    private function assertPaymentMatchesInvoice(array $payload): void
+    {
+        $invoiceTotal = $payload['totals']['total'] ?? null;
+        $paymentAmount = $payload['payment']['amount'] ?? null;
+
+        if (!is_numeric($invoiceTotal) || !is_numeric($paymentAmount)) {
+            throw SifException::validation('Group invoice/payment reconciliation data is incomplete');
+        }
+
+        $invoiceTotal = number_format((float) $invoiceTotal, 2, '.', '');
+        $paymentAmount = number_format((float) $paymentAmount, 2, '.', '');
+
+        if ($invoiceTotal !== $paymentAmount) {
+            throw SifException::conflict('Group invoice total does not match validated Redsys amount');
+        }
     }
 
     private function validatedNotification(\PDO $sifDb, string $dsOrder): array
