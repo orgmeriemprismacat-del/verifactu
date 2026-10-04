@@ -149,3 +149,11 @@ El primer run del PR ha executat i aprovat `Uc007IntranetBoundaryTest`, `Invoice
 - [x] SQL declara `ESCAPE '='` a les consultes UC-007 amb `LIKE`.
 - [x] El `%` exterior afegit pel sistema continua permetent cerca parcial.
 - [ ] Regressió amb dades reals que continguin `%`, `_` i `=` en camps històrics.
+
+## 11. F07 · concurrència de PDF temporal — 2026-10-04
+
+- [x] Cada petició crea un subdirectori privat aleatori.
+- [x] El PDF ha de resoldre dins del subdirectori de la mateixa petició.
+- [x] Cleanup d'èxit elimina PDF i subdirectori abans de respondre.
+- [x] `finally` intenta cleanup també quan hi ha excepció.
+- [ ] Preproducció: dues descàrregues simultànies de la mateixa factura han de retornar dos PDFs correctes sense 404/500 ni temporals residuals.
