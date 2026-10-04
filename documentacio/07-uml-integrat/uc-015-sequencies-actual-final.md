@@ -173,4 +173,21 @@ end
 - Checkout → intenció SIF: implementat.
 - Ledger per inscripció: implementat i cablejat al worker.
 - Outbox: implementat i cablejat al worker.
-- Codi/doc intern UC-015: tancat, inclosa la frontera pública configurable. Pendent d'acceptació: executar el verificador/PK-01..PK-11 en preproducció i mantenir la CI final verda; UC-58 cobreix el lliurament efectiu de notificacions.
+- Codi/doc intern UC-015: tancat, inclosa la frontera pública configurable. El PR #149 acredita els boundaries actuals amb **971 passed / 0 failed** i s'ha afegit un gate selectiu UC-015. Pendent d'acceptació: executar el verificador/PK-01..PK-11 en preproducció i acreditar el transport/cutover real de l'outbox PACK.
+
+
+## 7. Reconciliació 2026-10-04
+
+La seqüència ACTUAL/FINAL continua corresponent al codi de `main@6c8137f...`:
+
+1. alta pública POST + guard + REQUEST_ID;
+2. N inscripcions transaccionals amb snapshot;
+3. `PackPaymentGate` i intenció `SOURCE_TYPE=PACK`;
+4. Redsys -> callback SIF -> cua -> worker;
+5. `RedsysPackInvoiceService` -> factura/payment;
+6. ledger per inscripció + outbox;
+7. sincronització legacy post-SIF.
+
+El callback fiscal legacy productiu no reapareix. El canvi posterior #149 afecta les proves de frontera, no aquesta seqüència productiva.
+
+En notificacions, l'enqueue PACK i el gate genèric `NotificationOutboxDeliveryService::claim/complete` existeixen. La seqüència de transport SMTP/worker real queda com a acceptació operativa/UC-58.
