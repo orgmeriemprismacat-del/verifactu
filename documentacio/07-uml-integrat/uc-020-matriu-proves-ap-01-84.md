@@ -60,7 +60,7 @@
 | AP-26 | INT | Aplicar codi promocional després d'haver calculat AP. | Tipus/origen registrat coincideix amb l'import final realment aplicat. | PENDENT_EXECUCIO |
 | AP-27 | INT | Canviar d'edició amb tarifes diferents. | L'oferta usa la tarifa exacta de l'edició final. | PENDENT_EXECUCIO |
 | AP-28 | CONC | Dues confirmacions simultànies de la mateixa inscripció. | No duplicar inscripció ni operació comercial. | PENDENT_EXECUCIO |
-| AP-29 | CONC | Dues altes simultànies requereixen nou `IDPAG`. | Identificadors inequívocs o migració a identificador segur; cap col·lisió. | PENDENT_EXECUCIO |
+| AP-29 | CONC | Dues altes simultànies requereixen nou `IDPAG`. | Identificadors inequívocs; cap col·lisió de l'allocator. | IMPLEMENTAT_GET_LOCK · TEST_EXISTENT_LEGACY_IDPAG · PENDENT_CI_HEAD |
 | AP-30 | INT | Error tècnic durant el càlcul de preu. | Cap confirmació amb oferta indeterminada; resposta estructurada d'error. | PENDENT_EXECUCIO |
 | AP-31 | INT | Descompte pendent o denegat en obrir confirmació/pagament. | Pantalles mostren el mateix estat comercial i només mètodes autoritzats. | IMPLEMENTAT_BOUNDARY_VALID_DESC · TEST_NOU_PENDENT_CI |
 | AP-32 | SEC | Manipular l'import enviat al formulari de pagament. | El servidor usa import autoritzat/persistent, no el valor manipulat. | TEST_NOU_PENDENT_CI_AMOUNT_AUTHORITY |
@@ -272,3 +272,11 @@ Aquest hardening redueix el risc monetari de P02 abans de la migració a `offer_
 - intenció Redsys AP SIF → rebutja `VALID_DESC != 1`.
 
 La conciliació/registre efectiu d'una transferència és UC-022 i continua fora del commit comercial immediat d'UC-020.
+
+
+## Token P03/P04 i concurrència d'alta — 04/10/2026
+
+- `LegacyPaymentTokenTest`: token vàlid, manipulació, base64 invàlid, payload no positiu, endpoints sense `REQUEST_URI` i JS amb `encodeURIComponent`.
+- `LegacyIdpagAllocatorSecurityTest`: `GET_LOCK`/ `RELEASE_LOCK`, allocator compartit i invariant `reserveIdPag() < INSERT < releaseIdPag()`.
+- **AP-29:** reclassificat a implementat/protegit.
+- **AP-28:** continua pendent; un allocator únic no és idempotència semàntica de matrícula. Destí transversal: UC-107.
