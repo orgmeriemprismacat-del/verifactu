@@ -146,6 +146,28 @@ try {
 
     $sifStatus = (int) ($response['_http_status'] ?? 0);
     if (
+        ($response['payment_persisted'] ?? false) === true
+        && ($response['requires_reconciliation'] ?? false) === true
+        && is_array($response['payment'] ?? null)
+    ) {
+        $status = $sifStatus >= 400 && $sifStatus <= 599 ? $sifStatus : 409;
+        http_response_code($status);
+        echo json_encode(
+            [
+                'ok' => false,
+                'error' => trim((string) ($response['error'] ?? ''))
+                    ?: 'El cobrament ja consta al SIF però falta completar la conciliació legacy.',
+                'payment_persisted' => true,
+                'requires_reconciliation' => true,
+                'reconciliation_error_code' => $response['reconciliation_error_code'] ?? null,
+                'payment' => $response['payment'],
+            ],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+        return;
+    }
+
+    if (
         $sifStatus < 200
         || $sifStatus >= 300
         || ($response['ok'] ?? false) !== true
