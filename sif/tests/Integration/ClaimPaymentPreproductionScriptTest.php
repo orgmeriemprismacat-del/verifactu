@@ -6,6 +6,38 @@ use Prisma\Sif\Tests\Support\Assert;
 
 final class ClaimPaymentPreproductionScriptTest
 {
+    public function testPreflightCoversSignedApiAuditAndLegacyProjectionDependencies(): void
+    {
+        $source = file_get_contents(dirname(__DIR__, 2) . '/scripts/preflight-claim-payment.php');
+
+        if ($source === false) {
+            Assert::fail('Could not read claim payment preflight script');
+        }
+
+        foreach ([
+            'environment_not_production',
+            'internal_api_key_configured',
+            'internal_api_secret_configured',
+            'claim_payment_signed_path_configured',
+            'claim_payment_manage_roles_configured',
+            'fact_rels_table',
+            'payment_action_event_table',
+            'internal_api_request_table',
+            'payment_payload_hash_version_column',
+            'legacy_database_connectivity',
+            'legacy_inscripcions_table',
+            'legacy_claim_payment_columns',
+            'ConnectionFactory::makeLegacy($config)',
+            'DATA PAG',
+            'INSC CURS',
+        ] as $required) {
+            Assert::stringContainsString($required, $source);
+        }
+
+        Assert::stringContainsString('safeError', $source);
+        Assert::stringContainsString('configuration/connectivity check failed', $source);
+    }
+
     public function testScriptBuildsPreproductionClaimPaymentProcessor(): void
     {
         $source = file_get_contents(dirname(__DIR__, 2) . '/scripts/process-claim-payment.php');
