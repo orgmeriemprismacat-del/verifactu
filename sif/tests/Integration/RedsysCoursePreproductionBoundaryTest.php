@@ -107,6 +107,7 @@ final class RedsysCoursePreproductionBoundaryTest
         $source = $this->read('sif/scripts/verify-redsys-course-preproduction.php');
 
         foreach ([
+            "'error'",
             "'secret'",
             "'password'",
             "'signature'",
