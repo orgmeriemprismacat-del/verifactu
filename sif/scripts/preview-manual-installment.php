@@ -93,6 +93,8 @@ function parseManualInstallmentArgs(array $args): array
         'id_insc' => ['--id-insc=', '--id-inscripcio=', '--inscription-id='],
         'user' => ['--user=', '--usuari=', '--created-by='],
         'reference' => ['--reference=', '--referencia=', '--referencia-bancaria='],
+        'ds_order' => ['--ds-order=', '--ds_order='],
+        'operation_id' => ['--operation-id=', '--operation_id=', '--external-event-id=', '--receipt-id='],
         'bank' => ['--bank=', '--banc='],
         'notes' => ['--notes=', '--obs=', '--observations='],
         'allocation_type' => ['--allocation-type='],
@@ -168,7 +170,7 @@ function usage(string $script): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/{$script}-manual-installment.php (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE --id-insc=ID --user=USER [--reference=REF] [--bank=BANK] [--notes=TEXT]\n"
+        "Usage: php sif/scripts/{$script}-manual-installment.php (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE --id-insc=ID --user=USER [--reference=REF] [--ds-order=ORDER] [--operation-id=EVENT] [--bank=BANK] [--notes=TEXT]\n"
     );
     exit(1);
 }
