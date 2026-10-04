@@ -131,6 +131,13 @@ final class SifVersionServiceTest
 
             file_put_contents($dir . '/src/runtime.php', '<?php echo "modified";');
 
+            $registerReplayAfterDrift = $service->registerCurrentRuntime(
+                $actor,
+                $this->operation('REGISTER-DRIFT', 'RELEASE_CANDIDATE') + ['version_code' => '2026.10.03-drift']
+            );
+            Assert::same(true, $registerReplayAfterDrift['reused']);
+            Assert::same($uuid, $registerReplayAfterDrift['version']['UUID_VERSION']);
+
             $preflight = $service->preflight($actor, $uuid);
             Assert::same(false, $preflight['preflight']['ok']);
             Assert::same(true, in_array('runtime_complete', $preflight['preflight']['failed'], true));
