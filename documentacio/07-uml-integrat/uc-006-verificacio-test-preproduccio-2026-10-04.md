@@ -201,6 +201,8 @@ Preview:
 php sif/scripts/preview-manual-refund.php \
   --uuid-factura=<UUID_FACTURA> \
   40.00 '2026-10-04 10:00:00' \
+  --idempotency-key='REFUND|EXTERNAL|UC006|PRE|001' \
+  --idempotency-key='REFUND|EXTERNAL|UC006|PRE|001' \
   --reference='UC006-PRE-REFUND-001' \
   --source-enrollment-id=<ID_INSC_ORIGEN> \
   --correlation-id='UC006-PRE-REFUND-A'
@@ -256,6 +258,7 @@ php sif/scripts/preview-credit-compensation.php \
   --uuid-credit=<UUID_CREDIT> \
   --uuid-factura=<UUID_FACTURA_DESTI> \
   60.00 '2026-10-04 10:30:00' \
+  --idempotency-key='COMP|UC006|PRE|ORDER:A' \
   --target-enrollment-id=<ID_INSC_DESTI> \
   --correlation-id='UC006-PRE-COMP-A'
 ```
