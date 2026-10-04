@@ -1,0 +1,121 @@
+name: UC-015 SIF pack checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "sif/**"
+      - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
+      - "codi-drive/web-actual/EdicioPack.php"
+      - "codi-drive/web-actual/Pack.php"
+      - "codi-drive/web-actual/inc/buscantPacksDisponibles.php"
+      - "codi-drive/web-actual/inc/PublicWebMutationAuthorization.php"
+      - "codi-drive/web-actual/inc/PackPaymentGate.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/pagina_inscripcio_pack.php"
+      - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
+      - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
+      - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php"
+      - "codi-drive/web-actual/respostaOkPagamentAutomatic.php"
+      - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
+      - "documentacio/06-fitxes-funcionals/uc-015.md"
+      - "documentacio/07-uml-integrat/uc-015-*"
+      - ".github/workflows/uc015-sif-checks.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "sif/**"
+      - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
+      - "codi-drive/web-actual/EdicioPack.php"
+      - "codi-drive/web-actual/Pack.php"
+      - "codi-drive/web-actual/inc/buscantPacksDisponibles.php"
+      - "codi-drive/web-actual/inc/PublicWebMutationAuthorization.php"
+      - "codi-drive/web-actual/inc/PackPaymentGate.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/pagina_inscripcio_pack.php"
+      - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
+      - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
+      - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php"
+      - "codi-drive/web-actual/respostaOkPagamentAutomatic.php"
+      - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
+      - "documentacio/06-fitxes-funcionals/uc-015.md"
+      - "documentacio/07-uml-integrat/uc-015-*"
+      - ".github/workflows/uc015-sif-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  uc015-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_test;charset=utf8mb4
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+      SIF_LEGACY_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_legacy_test;charset=utf8mb4
+      SIF_LEGACY_DB_USER: root
+      SIF_LEGACY_DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 amb extensions SIF
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, openssl, mbstring
+          coverage: none
+
+      - name: Preparar BD legacy de proves
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot \
+            -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+      - name: Sintaxi canal PACK
+        run: |
+          php -l sif/tests/run-uc015-tests.php
+          php -l codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php
+          php -l codi-drive/web-actual/EdicioPack.php
+          php -l codi-drive/web-actual/Pack.php
+          php -l codi-drive/web-actual/inc/buscantPacksDisponibles.php
+          php -l codi-drive/web-actual/inc/PublicWebMutationAuthorization.php
+          php -l codi-drive/web-actual/inc/PackPaymentGate.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
+          php -l codi-drive/web-actual/pagina_inscripcio_pack.php
+          php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
+          php -l codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php
+          php -l codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php
+          php -l codi-drive/web-actual/respostaOkPagamentAutomatic.php
+          php -l codi-drive/web-actual/respostaKoPagamentAutomatic.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php
+          node --check codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js
+
+      - name: Executar suite selectiva UC-015
+        run: php sif/tests/run-uc015-tests.php
