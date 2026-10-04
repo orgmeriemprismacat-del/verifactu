@@ -189,7 +189,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | `operational_event` / `sif_audit_event` | Sí | **IMPLEMENTATS AL MAIN dins la mateixa transacció** com `ISSUE_INVOICE` | Sí | suite global històrica | inspeccionar evidència real d'entorn |
 | Cobrament posterior separat | Sí | Sí, serveis SIF | Sí | No | integrar canal |
 | Preview segur abans d'emetre | Sí FINAL | **Implementat en CLI + HTTP + pantalla** amb fingerprint, relectura i comprovació prèvia de coverage UC-004 | Sí | No | executar E2E |
-| Document per UUID | Sí FINAL | **NO IMPLEMENTAT EN EL MAIN UC-004** | Sí com a disseny | No | job/worker/snapshot/storage + renderer PDF/QR/XML + E2E |
+| Document per UUID | Sí FINAL | **PARCIAL**: schema `document_job`, `factura_documents` i descàrrega privada sí; productor UC-004 no | Sí | lectura/UC-080 sí; generació UC-004 no | producer/queue + snapshot + worker + storage writer + renderer PDF/QR/XML + E2E |
 | Sincronització llegada post-commit | Sí FINAL | processador UC-004 diu que no la fa | Sí | No | decidir/implementar |
 | Preproducció | Sí | scripts disponibles, però `InvoiceService` exigeix `aeat_fields` en PREPROD/PROD | estàtic | No | **construir snapshot AEAT oficial + executar i evidenciar** |
 
@@ -235,7 +235,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | UC004-GAP-029 | Text d'exempció IVA codificat al PDF llegat | el document FINAL ha de sortir del snapshot fiscal |
 | UC004-GAP-030 | `generaFactura()` reinicialitza `$mostrar` després de preparar l'obertura HTML de descàrrega | revisar generació documental llegada abans de donar-la per estable |
 | UC004-GAP-031 | E_FACT llegat es posa a 1 mentre `InvoiceRepository` SIF insereix E_FACT=0 | cal documentar la semàntica/mapeig, no copiar flags a cegues |
-| UC004-GAP-032 | **OBERT:** estat documental post-COMMIT | el `main` UC-004 no té `document_job`/worker/snapshot/storage; el codi del PR #134 no es considera implementació vigent |
+| UC004-GAP-032 | **OBERT:** estat documental post-COMMIT | el `main` té schema `document_job`, `factura_documents` i descàrrega privada; falten producer/queue UC-004, snapshot verificat, worker, storage writer i renderer. El PR #134 és una font candidata de recuperació, no implementació vigent |
 
 ### P2 — evidència i tancament
 
