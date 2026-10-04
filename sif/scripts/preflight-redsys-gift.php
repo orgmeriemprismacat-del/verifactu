@@ -51,6 +51,30 @@ $checks = [
     'legacy_drain_confirmed_if_cutover' => !$giftCutoverEnabled || $legacyDrainConfirmed,
     'environment_not_production' => $env !== 'production',
     'redsys_merchant_key_configured' => (string) ($config['redsys']['merchant_key'] ?? '') !== '',
+    'aeat_issuer_name_present' => trim((string) ($config['issuer']['name'] ?? '')) !== '',
+    'aeat_issuer_nif_present' => trim((string) ($config['issuer']['nif'] ?? '')) !== '',
+    'aeat_system_name_present' => trim((string) ($config['aeat']['system_name'] ?? '')) !== '',
+    'aeat_system_id_valid' => preg_match(
+        '/^[A-Za-z0-9]{1,2}$/D',
+        trim((string) ($config['aeat']['system_id'] ?? ''))
+    ) === 1,
+    'aeat_system_version_present' => trim((string) ($config['aeat']['system_version'] ?? '')) !== '',
+    'aeat_installation_id_present' => trim((string) ($config['aeat']['installation_id'] ?? '')) !== '',
+    'aeat_producer_name_present' => trim((string) ($config['aeat']['producer_name'] ?? '')) !== '',
+    'aeat_producer_nif_present' => trim((string) ($config['aeat']['producer_nif'] ?? '')) !== '',
+    'aeat_gift_tax_code_valid' => preg_match(
+        '/^[0-9]{2}$/D',
+        trim((string) ($config['aeat']['gift_tax_code'] ?? ''))
+    ) === 1,
+    'aeat_gift_regime_key_valid' => preg_match(
+        '/^[0-9]{2}$/D',
+        trim((string) ($config['aeat']['gift_regime_key'] ?? ''))
+    ) === 1,
+    'aeat_gift_exemption_code_valid' => in_array(
+        strtoupper(trim((string) ($config['aeat']['gift_exemption_code'] ?? ''))),
+        ['E1', 'E2', 'E3', 'E4', 'E5', 'E6'],
+        true
+    ),
     'legacy_db_configured' => (string) ($config['legacy_db']['dsn'] ?? '') !== '',
     'sif_database_connectivity' => false,
     'legacy_database_connectivity' => false,
@@ -72,6 +96,7 @@ $checks = [
     'worker_script_present' => is_file($root . '/scripts/process-redsys-callback-queue.php'),
     'gift_intent_service_present' => is_file($root . '/src/Service/RedsysGiftPaymentIntentService.php'),
     'gift_entitlement_service_present' => is_file($root . '/src/Service/GiftEntitlementIssuerService.php'),
+    'gift_aeat_enricher_present' => is_file($root . '/src/Service/GiftAeatInvoicePayloadEnricher.php'),
     'fiscal_chain_state_seeded' => false,
     'legacy_regal_table' => false,
     'legacy_regal_observacions_column' => false,
