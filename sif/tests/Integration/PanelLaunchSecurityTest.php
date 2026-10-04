@@ -99,6 +99,16 @@ final class PanelLaunchSecurityTest
         Assert::throws(
             \RuntimeException::class,
             fn () => new \SifPanelLaunchToken(
+                'https://intranet.prisma.cat/sif/versions/',
+                '/sif/versions/',
+                'key',
+                'secret'
+            )
+        );
+
+        Assert::throws(
+            \RuntimeException::class,
+            fn () => new \SifPanelLaunchToken(
                 'https://pay.prisma.cat/sif/incidencies/',
                 '/sif/versions/',
                 'key',
