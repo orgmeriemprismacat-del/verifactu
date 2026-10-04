@@ -30,7 +30,12 @@ final class RedsysCoveredInvoicePaymentService
         }
 
         $uuidFactura = (string) $claim['UUID_FACTURA'];
-        $paymentPayload = $this->paymentPayload($invoicePayload, $uuidFactura, $dsOrder);
+        $paymentPayload = $this->paymentPayload(
+            $invoicePayload,
+            $uuidFactura,
+            $dsOrder,
+            $snapshot
+        );
 
         $payment = $this->payments->registerPaymentWithPrecondition(
             $paymentPayload,
@@ -91,7 +96,8 @@ final class RedsysCoveredInvoicePaymentService
     private function paymentPayload(
         array $invoicePayload,
         string $uuidFactura,
-        string $dsOrder
+        string $dsOrder,
+        array $snapshot
     ): array {
         $payment = $invoicePayload['payment'] ?? null;
         if (!is_array($payment)) {
@@ -107,15 +113,39 @@ final class RedsysCoveredInvoicePaymentService
             $payment['amount'] ?? null,
             'Invalid Redsys covered-invoice payment amount'
         );
+        $snapshotAmount = $this->snapshotPaymentAmount($snapshot);
+        if ($amount !== $snapshotAmount) {
+            throw SifException::conflict(
+                'Validated Redsys amount does not match the frozen intent snapshot'
+            );
+        }
+
+        $movementType = strtoupper(trim((string) ($payment['movement_type'] ?? '')));
+        $method = strtoupper(trim((string) ($payment['method'] ?? '')));
+        $sourceChannel = strtoupper(trim((string) ($payment['source_channel'] ?? '')));
+        if ($movementType !== 'CHARGE' || $method !== 'REDSYS' || $sourceChannel !== 'REDSYS') {
+            throw SifException::conflict(
+                'Covered Redsys payment requires CHARGE/REDSYS/REDSYS semantics'
+            );
+        }
+
+        if (!array_key_exists('movement_date', $payment)
+            || trim((string) $payment['movement_date']) === ''
+        ) {
+            throw SifException::validation(
+                'Covered Redsys payment requires deterministic movement_date'
+            );
+        }
+        $movementDate = trim((string) $payment['movement_date']);
 
         return [
             'idempotency_key' => (string) ($payment['idempotency_key']
                 ?? ('PAYMENT|REDSYS|ORDER:' . $dsOrder)),
-            'movement_type' => (string) ($payment['movement_type'] ?? 'CHARGE'),
-            'method' => (string) ($payment['method'] ?? 'REDSYS'),
-            'source_channel' => (string) ($payment['source_channel'] ?? 'REDSYS'),
+            'movement_type' => $movementType,
+            'method' => $method,
+            'source_channel' => $sourceChannel,
             'amount' => $amount,
-            'movement_date' => (string) ($payment['movement_date'] ?? date('Y-m-d H:i:s')),
+            'movement_date' => $movementDate,
             'provider_ref' => $payment['provider_ref'] ?? $dsOrder,
             'ds_order' => $order,
             'idpag' => $payment['idpag'] ?? null,
@@ -223,6 +253,14 @@ final class RedsysCoveredInvoicePaymentService
         }
 
         return (int) $raw;
+    }
+
+    private function snapshotPaymentAmount(array $snapshot): string
+    {
+        $payment = $snapshot['payment'] ?? null;
+        $raw = is_array($payment) ? ($payment['amount'] ?? null) : null;
+
+        return $this->positiveMoney($raw, 'Missing frozen Redsys payment amount');
     }
 
     private function contractTotal(array $snapshot): string
