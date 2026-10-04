@@ -139,6 +139,13 @@ S'han eliminat logs d'id/import/data/observacions i els errors de validació es 
 ### UC007-FIND-16 · Flag UI buit — CORREGIT
 S'elimina `SIF_INVOICE_QUERY_UI_ENABLED` buit. Els flags efectius són `SIF_UC007_QUERY_ENABLED` i `SIF_UC080_DOCUMENT_ENABLED`.
 
+### UC007-FIND-17 · Contracte de descàrrega llegada backend ↔ navegador divergent — CORREGIT
+`descarregaFactura.php` ja lliurava directament `application/pdf` amb bytes i `Content-Disposition`, però els dos JS continuaven esperant `dataType: "html"` i interpretaven la resposta com un nom de fitxer temporal. Això podia construir una URL invàlida a partir del contingut binari.
+
+**Correcció:** les dues superfícies consumeixen ara el PDF com a `Blob` mitjançant POST same-origin, `X-Requested-With`, `response.blob()`, nom derivat de `Content-Disposition`, `URL.createObjectURL()` i revocació posterior de l'object URL.
+
+**Regressió:** `Uc007IntranetBoundaryTest::testLegacyInvoiceDownloadUsesBinaryPdfContractOnBothPages`.
+
 ## 5. Estat F01–F07
 
 | Ref | Funció | Documentat | Implementat | Verificat | Pendent |
