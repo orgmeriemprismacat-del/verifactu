@@ -206,7 +206,7 @@ requestMain.done(function( message ) {
 
 						var esValidData = dataEsValida( dataPagInsc );
 
-						var bancInsc = $('#banc-'+idTipus+" .element-selected").html().trim();
+						var bancInsc = uc002SelectedBank(idTipus);
 
 						var esValidBanc = "";
 						if ( bancInsc == "" || bancInsc == "Triar" ) {
@@ -524,6 +524,22 @@ requestMain.done(function( message ) {
 			errorFunction( jqXHR, textStatus, errorThrown,
 				"Hi ha hagut algun error a l'hora d'efectuar el pagament: " );
 		});
+	}
+
+	function uc002SelectedBank(idTipus) {
+		var bankContainer = $('#banc-' + idTipus);
+
+		if (bankContainer.is('select')) {
+			return String(bankContainer.val() || '').trim();
+		}
+
+		var nativeSelect = bankContainer.find('select');
+		if (nativeSelect.length > 0) {
+			return String(nativeSelect.val() || '').trim();
+		}
+
+		var selected = bankContainer.find('.element-selected').html();
+		return selected ? String(selected).trim() : '';
 	}
 
 	function initializeSecureUc002Payment() {
