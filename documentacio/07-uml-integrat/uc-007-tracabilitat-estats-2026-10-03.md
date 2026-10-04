@@ -35,6 +35,7 @@
 | Flag UI buit eliminat | pàgines PHP | F01 | boundary | CORREGIT · CI HEAD FINAL PENDENT |
 | Fallback cerca no envia DNI/email per query string | JS + 3 wrappers legacy | S6/F02-F04 | boundary POST/same-origin | CORREGIT · CI HEAD FINAL PENDENT |
 | Fallback limita candidats i longituds | wrappers legacy | S6/F02-F04 | validació server-side | CORREGIT · CI HEAD FINAL PENDENT |
+| DNI/correu no es trunca silenciosament a 200 inscripcions | `sifFactures.php::enrollmentIdsByIdentity` | S1/F02 | LIMIT 201 + >200 → 422 + boundary | CORREGIT · CI HEAD FINAL PENDENT |
 | F02 inicialitza estat de cerca | `Intranet::buscarUsuaris_Factures` | F02 | boundary | CORREGIT · CI HEAD FINAL PENDENT |
 | F02 delimitador DNI/CIF estable | `buscarUsuaris_Factures` | F02/F03 | boundary | CORREGIT · CI HEAD FINAL PENDENT |
 | F04 títol de cerca escapat | `mostrarTotesFacturesUsuari_Factures` | F04 | boundary | CORREGIT · CI HEAD FINAL PENDENT |
