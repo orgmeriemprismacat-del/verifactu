@@ -109,6 +109,8 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 
 ## 6. Implementació que encara falta
 
+> **Gap de traça encara obert:** `INTERNAL_TRANSFER` és quantitativament segur per inscripció, però no conserva encara un enllaç físic obligatori al `UUID_PAYMENT`/`EXTERNAL_ALLOCATION` que finança cada tram quan una inscripció agrega diversos cobraments.
+
 | ID | Peça | Estat |
 | --- | --- | --- |
 | C-01 | `Uc006Controller`/command segur | FALTA |
@@ -125,6 +127,7 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 | C-12 | Primitiva `INTERNAL_TRANSFER` | **IMPLEMENTADA** · builder + servei + repo + CLI + proves |
 | C-12c | `REVERSAL` de transfer | **IMPLEMENTAT RESTRINGIT** · només `INTERNAL_TRANSFER`, amb guard de disponible |
 | C-12b | Wiring amb canvi curs / coordinator | FALTA |
+| C-12d | Proveniència exacta transfer→cobrament origen | FALTA · model/partició per tram |
 | C-13 | Separació definitiva UI “A TORNAR” | FALTA |
 | C-14 | Sync llegat post-COMMIT | FALTA / CAL VALIDAR |
 | C-15 | E2E a `sif_test*` / `sif_pre` | FALTA EVIDÈNCIA |
