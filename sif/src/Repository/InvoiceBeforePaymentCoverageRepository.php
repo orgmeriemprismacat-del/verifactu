@@ -10,9 +10,27 @@ final class InvoiceBeforePaymentCoverageRepository
         \PDO $db,
         array $relations,
         string $uuidFactura,
-        string $idempotencyKey
+        string $idempotencyKey,
+        bool $originAlreadyLocked = false
     ): void {
         $origins = $this->inscriptionOrigins($relations);
+        $linkedInvoices = $originAlreadyLocked
+            ? $this->lockedOriginInvoiceRelations($db, $origins)
+            : $this->lockOriginInvoiceRelations($db, $relations);
+
+        foreach ($linkedInvoices as $linkedInvoice) {
+            if ((string) $linkedInvoice['UUID_FACTURA'] === $uuidFactura) {
+                continue;
+            }
+
+            if ((string) $linkedInvoice['SOURCE_CHANNEL'] === 'REDSYS'
+                && (string) $linkedInvoice['ESTAT_FACTURA'] === 'ISSUED'
+            ) {
+                throw SifException::conflict(
+                    'Invoice-before-payment origin already has an issued Redsys invoice'
+                );
+            }
+        }
 
         $stmt = $db->prepare(
             'INSERT INTO invoice_before_payment_coverage (
@@ -30,19 +48,61 @@ final class InvoiceBeforePaymentCoverageRepository
         }
     }
 
-    public function findClaims(\PDO $db, array $relations): array
+    public function findClaims(\PDO $db, array $relations, bool $forUpdate = false): array
     {
         $origins = $this->inscriptionOrigins($relations);
         $placeholders = implode(',', array_fill(0, count($origins), '?'));
-
-        $stmt = $db->prepare(
+        $sql =
             'SELECT SOURCE_ID, UUID_FACTURA, IDEMPOTENCY_KEY
              FROM invoice_before_payment_coverage
              WHERE SOURCE_TYPE = ?
                AND SOURCE_ID IN (' . $placeholders . ')
-             ORDER BY SOURCE_ID'
-        );
+             ORDER BY SOURCE_ID';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
         $stmt->execute(array_merge(['INSCRIPCIO'], $origins));
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        return is_array($rows) ? $rows : [];
+    }
+
+    public function lockOriginInvoiceRelations(\PDO $db, array $relations): array
+    {
+        $origins = $this->inscriptionOrigins($relations);
+        $guard = $db->prepare(
+            "INSERT INTO invoice_origin_guard (SOURCE_TYPE, SOURCE_ID)
+             VALUES ('INSCRIPCIO', ?)
+             ON DUPLICATE KEY UPDATE SOURCE_ID = SOURCE_ID"
+        );
+        foreach ($origins as $sourceId) {
+            // INSERT or duplicate-key update takes an exclusive row lock on
+            // the durable origin mutex for the lifetime of this transaction.
+            // This does not depend on InnoDB gap locks or isolation level.
+            $guard->execute([$sourceId]);
+        }
+
+        return $this->lockedOriginInvoiceRelations($db, $origins);
+    }
+
+    private function lockedOriginInvoiceRelations(\PDO $db, array $origins): array
+    {
+        $placeholders = implode(',', array_fill(0, count($origins), '?'));
+
+        $stmt = $db->prepare(
+            "SELECT fr.ID, fr.SOURCE_ID, fr.UUID_FACTURA,
+                    f.SOURCE_CHANNEL, f.ESTAT_FACTURA, f.EMESA_ABANS_COBRAMENT
+             FROM fact_rels fr
+             INNER JOIN factura f ON f.UUID_FACTURA = fr.UUID_FACTURA
+             WHERE fr.SOURCE_TYPE = 'INSCRIPCIO'
+               AND fr.RELATION_TYPE = 'ORIGIN'
+               AND fr.SOURCE_ID IN (" . $placeholders . ")
+             ORDER BY fr.SOURCE_ID, fr.ID
+             FOR UPDATE"
+        );
+        $stmt->execute($origins);
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         return is_array($rows) ? $rows : [];
@@ -84,6 +144,9 @@ final class InvoiceBeforePaymentCoverageRepository
                 'Invoice before payment coverage requires at least one INSCRIPCIO/ORIGIN relation'
             );
         }
+
+        $origins = array_values(array_unique($origins));
+        sort($origins, SORT_NUMERIC);
 
         return $origins;
     }

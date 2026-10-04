@@ -19,7 +19,8 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
         private ?NovicePromotionCodePreparationService $noviceCodes = null,
         private string $noviceWrappingKeyHex = '',
         private string $noviceKeyVersion = 'v1',
-        private ?CourseEnrollmentFundAllocationService $fundAllocations = null
+        private ?CourseEnrollmentFundAllocationService $fundAllocations = null,
+        private ?RedsysCoveredInvoicePaymentService $coveredPayments = null
     ) {
     }
 
@@ -32,10 +33,9 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
     {
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
+        $result = $this->issueOrRegisterCoveredPayment($sifDb, $dsOrder, $snapshot, $payload);
 
-        $invoice = $this->invoices->issueInvoice($payload);
-
-        return $this->afterCommittedCourseInvoice($sifDb, $dsOrder, $snapshot, $invoice);
+        return $this->afterCommittedCourseInvoice($sifDb, $dsOrder, $snapshot, $result);
     }
 
     public function issueFromValidatedNotification(
@@ -56,14 +56,60 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
 
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
-        $result = $this->invoices->issueInvoice($payload);
+        $result = $this->issueOrRegisterCoveredPayment($sifDb, $dsOrder, $snapshot, $payload);
         $result = $this->afterCommittedCourseInvoice($sifDb, $dsOrder, $snapshot, $result);
         $result['legacy_sync'] = [
             'relations' => $payload['relations'] ?? [],
-            'estat_cobrament' => isset($payload['payment']) ? 'PAID' : 'PENDING',
+            'estat_cobrament' => (string) (
+                $result['payment_status']
+                ?? (isset($payload['payment']) ? 'PAID' : 'PENDING')
+            ),
         ];
 
         return $result;
+    }
+
+    private function issueOrRegisterCoveredPayment(
+        \PDO $sifDb,
+        string $dsOrder,
+        array $snapshot,
+        array $payload
+    ): array {
+        if ($this->coveredPayments === null) {
+            return $this->invoices->issueInvoice($payload);
+        }
+
+        $covered = $this->coveredPayments->registerIfCovered(
+            $sifDb,
+            $dsOrder,
+            $snapshot,
+            $payload
+        );
+        if ($covered !== null) {
+            return $covered;
+        }
+
+        try {
+            return $this->invoices->issueInvoice($payload, true);
+        } catch (SifException $exception) {
+            if ($exception->getCode() !== 409) {
+                throw $exception;
+            }
+
+            // Close the race where UC-004 claims the inscription after the
+            // first lookup but before the Redsys invoice transaction.
+            $covered = $this->coveredPayments->registerIfCovered(
+                $sifDb,
+                $dsOrder,
+                $snapshot,
+                $payload
+            );
+            if ($covered !== null) {
+                return $covered;
+            }
+
+            throw $exception;
+        }
     }
 
     /**

@@ -75,6 +75,7 @@ final class InvoiceBeforePaymentLegacyScriptsTest
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacyIntranet($config)', $source);
         Assert::stringContainsString('invoice_before_payment_coverage', $source);
+        Assert::stringContainsString('invoice_origin_guard', $source);
         Assert::stringContainsString('inscripcions', $source);
         Assert::stringContainsString('curs', $source);
         Assert::stringContainsString('entitats', $source);

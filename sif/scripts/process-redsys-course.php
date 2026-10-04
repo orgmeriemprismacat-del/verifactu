@@ -11,11 +11,13 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
 use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 use Prisma\Sif\Service\CourseEnrollmentFundAllocationService;
 use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
 use Prisma\Sif\Service\CoursePaymentNotificationService;
@@ -25,7 +27,9 @@ use Prisma\Sif\Service\InvoiceService;
 use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacySyncService;
 use Prisma\Sif\Service\PaymentPayloadValidator;
+use Prisma\Sif\Service\PaymentService;
 use Prisma\Sif\Service\RedsysCourseInvoiceService;
+use Prisma\Sif\Service\RedsysCoveredInvoicePaymentService;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
 
 if (PHP_SAPI !== 'cli') {
@@ -65,17 +69,36 @@ if ($dsOrder === '') {
 
 try {
     $sifDb = ConnectionFactory::make($config);
-    $legacyDb = ConnectionFactory::makeLegacy($config);
+    $legacyDb = $syncLegacy ? ConnectionFactory::makeLegacy($config) : null;
     $discountSnapshot = (new DiscountSnapshotFileReader())->read($discountFile);
     $notifications = new RedsysNotificationRepository();
+    $intent = (new RedsysPaymentIntentRepository())->findByDsOrder($sifDb, $dsOrder);
+    if (!is_array($intent) || strtoupper(trim((string) ($intent['SOURCE_TYPE'] ?? ''))) !== 'CURS') {
+        throw SifException::validation('CURS Redsys intent not found');
+    }
+    $snapshot = json_decode((string) ($intent['SNAPSHOT_JSON'] ?? ''), true);
+    if (!is_array($snapshot)) {
+        throw SifException::validation('Invalid CURS Redsys intent snapshot');
+    }
+    if ($discountSnapshot !== null) {
+        $snapshot['discount'] = $discountSnapshot;
+    }
     $legacySnapshots = new LegacyCourseSnapshotRepository();
+    $beforePaymentCoverage = new InvoiceBeforePaymentCoverageRepository();
+    $paymentService = new PaymentService(
+        new TransactionRunner($sifDb),
+        new PaymentPayloadValidator(),
+        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+    );
     $invoiceService = new InvoiceService(
         new TransactionRunner($sifDb),
         new InvoicePayloadValidator(),
         new FiscalSequenceRepository(),
         new InvoiceRepository(new UuidGenerator(), new HashCalculator()),
         new PaymentPayloadValidator(),
-        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator()),
+        null,
+        $beforePaymentCoverage
     );
     $service = new RedsysCourseInvoiceService(
         $notifications,
@@ -90,13 +113,29 @@ try {
         'v1',
         new CourseEnrollmentFundAllocationService(
             new EnrollmentFundMovementRepository(new UuidGenerator())
+        ),
+        new RedsysCoveredInvoicePaymentService(
+            $beforePaymentCoverage,
+            $paymentService
         )
     );
 
-    $result = $service->issueFromValidatedNotification($sifDb, $legacyDb, $dsOrder, $discountSnapshot);
-    $legacySync = $result['legacy_sync'] ?? ['relations' => [], 'estat_cobrament' => 'PAID'];
+    $result = $service->issueFromIntentSnapshot($sifDb, $dsOrder, $snapshot);
+    $basePayload = (new LegacyCourseInvoicePayloadBuilder())->build($snapshot);
+    $validatedPayload = (new RedsysInvoicePayloadBuilder($notifications))
+        ->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
+    $legacySync = [
+        'relations' => $validatedPayload['relations'] ?? [],
+        'estat_cobrament' => (string) (
+            $result['payment_status']
+            ?? ($result['status']['payment'] ?? 'PAID')
+        ),
+    ];
 
     if ($syncLegacy && ($result['ok'] ?? false) === true) {
+        if (!$legacyDb instanceof \PDO) {
+            throw new \RuntimeException('Legacy DB is required only when --sync-legacy is requested');
+        }
         $relations = $legacySync['relations'] ?? [];
         (new LegacySyncService(new LegacySyncRepository()))->syncAfterSifSuccess(
             $legacyDb,
@@ -140,7 +179,9 @@ try {
         $amount = intdiv($amountCents, 100)
             . '.'
             . str_pad((string) ($amountCents % 100), 2, '0', STR_PAD_LEFT);
-        $notificationSnapshot = $legacySnapshots->loadByIdpag($legacyDb, $idpag, $amount);
+        $notificationSnapshot = $snapshot;
+        $notificationSnapshot['payment']['amount'] = $amount;
+        $notificationSnapshot['payment']['idpag'] = $idpag;
         $result['notification_outbox'] = (new CoursePaymentNotificationService(
             new NotificationOutboxRepository(new UuidGenerator())
         ))->enqueue(

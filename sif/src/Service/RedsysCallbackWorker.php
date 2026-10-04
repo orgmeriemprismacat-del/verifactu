@@ -28,7 +28,8 @@ final class RedsysCallbackWorker
 
         try {
             $result = $this->processor->process($db, $job);
-            $this->queue->markProcessed($db, (int) $job['ID'], $result, $now);
+            $this->assertCompletedResult($result);
+            $this->queue->markProcessed($db, (int) $job['ID'], $result, $now, $workerId);
 
             return $result;
         } catch (\Throwable $exception) {
@@ -37,8 +38,12 @@ final class RedsysCallbackWorker
             $functional = $exception instanceof SifException
                 && in_array($exception->getCode(), [409, 422], true);
 
+            if ($this->isLostOwnershipConflict($exception)) {
+                throw $exception;
+            }
+
             if ($functional || $attempts >= $this->maxAttempts) {
-                $incident = $this->moveToIncident($db, $job, $exception, $safeMessage);
+                $incident = $this->moveToIncident($db, $job, $exception, $safeMessage, $workerId);
 
                 return [
                     'ok' => false,
@@ -53,7 +58,8 @@ final class RedsysCallbackWorker
                 $db,
                 (int) $job['ID'],
                 $now->modify("+{$delay} minutes"),
-                $safeMessage
+                $safeMessage,
+                $workerId
             );
 
             return ['ok' => false, 'status' => 'RETRY'];
@@ -64,7 +70,8 @@ final class RedsysCallbackWorker
         \PDO $db,
         array $job,
         \Throwable $exception,
-        string $safeMessage
+        string $safeMessage,
+        string $workerId
     ): array {
         $ownsTransaction = !$db->inTransaction();
         if ($ownsTransaction) {
@@ -72,7 +79,7 @@ final class RedsysCallbackWorker
         }
 
         try {
-            $this->queue->markIncident($db, (int) $job['ID'], $safeMessage);
+            $this->queue->markIncident($db, (int) $job['ID'], $safeMessage, $workerId);
             $incident = $this->incidents->openDetailed($db, [
                 'uuid_factura' => $job['UUID_FACTURA'] ?? null,
                 'resource_type' => 'REDSYS_CALLBACK_JOB',
@@ -98,6 +105,26 @@ final class RedsysCallbackWorker
             }
             throw $failure;
         }
+    }
+
+    private function assertCompletedResult(array $result): void
+    {
+        if (($result['ok'] ?? null) !== true) {
+            throw SifException::conflict('Redsys callback processor returned an unsuccessful result');
+        }
+
+        foreach (['uuid_factura', 'uuid_payment'] as $field) {
+            if (!isset($result[$field]) || !is_string($result[$field]) || trim($result[$field]) === '') {
+                throw SifException::conflict('Redsys callback result is incomplete: missing ' . $field);
+            }
+        }
+    }
+
+    private function isLostOwnershipConflict(\Throwable $exception): bool
+    {
+        return $exception instanceof SifException
+            && $exception->getCode() === 409
+            && $exception->getMessage() === 'Redsys callback job is not owned by this worker';
     }
 
     private function retryDelayMinutes(int $attempts): int

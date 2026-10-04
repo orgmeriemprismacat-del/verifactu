@@ -30,6 +30,8 @@ final class RedsysCoursePreflightScriptTest
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('redsys_notifications', $source);
         Assert::stringContainsString('payment_transaction', $source);
+        Assert::stringContainsString('invoice_before_payment_coverage', $source);
+        Assert::stringContainsString('invoice_origin_guard', $source);
         Assert::stringContainsString('inscripcions', $source);
         Assert::stringContainsString('curs', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);

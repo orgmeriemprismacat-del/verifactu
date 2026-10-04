@@ -18,18 +18,24 @@ final class RedsysCoursePreviewScriptTest
         Assert::stringContainsString('PHP_SAPI !== \'cli\'', $source);
         Assert::stringContainsString('SIF_ENV=production', $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
-        Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('new RedsysNotificationRepository()', $source);
-        Assert::stringContainsString('new LegacyCourseSnapshotRepository()', $source);
+        Assert::stringContainsString('new RedsysPaymentIntentRepository()', $source);
+        Assert::stringContainsString('findByDsOrder($sifDb, $dsOrder)', $source);
+        Assert::stringContainsString('SNAPSHOT_JSON', $source);
         Assert::stringContainsString('new LegacyCourseInvoicePayloadBuilder()', $source);
         Assert::stringContainsString('new RedsysInvoicePayloadBuilder($notifications)', $source);
-        Assert::stringContainsString('loadByIdpag($legacyDb, $idpag, $amount)', $source);
         Assert::stringContainsString('--discount-file=discount.json', $source);
         Assert::stringContainsString('new DiscountSnapshotFileReader()', $source);
         Assert::stringContainsString('->read($discountFile)', $source);
         Assert::stringContainsString('$snapshot[\'discount\'] = $discountSnapshot;', $source);
         Assert::stringContainsString('buildFromValidatedNotification($sifDb, $dsOrder, $basePayload)', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
+
+        if (str_contains($source, 'ConnectionFactory::makeLegacy($config)')
+            || str_contains($source, 'LegacyCourseSnapshotRepository')
+        ) {
+            Assert::fail('Course preview must use the frozen intent snapshot, not live legacy data.');
+        }
 
         if (str_contains($source, 'new InvoiceService(')) {
             Assert::fail('Preview must not build InvoiceService.');

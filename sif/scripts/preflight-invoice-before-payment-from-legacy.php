@@ -16,6 +16,7 @@ $checks = [
     'environment_not_production' => $env !== 'production',
     'sif_database_connectivity' => false,
     'sif_invoice_before_payment_coverage_table' => false,
+    'sif_invoice_origin_guard_table' => false,
     'legacy_web_database_connectivity' => false,
     'legacy_web_inscripcions_table' => false,
     'legacy_web_curs_table' => false,
@@ -31,6 +32,10 @@ try {
     $checks['sif_invoice_before_payment_coverage_table'] = tableExists(
         $sifDb,
         'invoice_before_payment_coverage'
+    );
+    $checks['sif_invoice_origin_guard_table'] = tableExists(
+        $sifDb,
+        'invoice_origin_guard'
     );
 } catch (\Throwable $exception) {
     $errors['sif_database'] = $exception->getMessage();

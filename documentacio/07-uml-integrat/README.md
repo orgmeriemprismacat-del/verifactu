@@ -8,13 +8,15 @@ Aquesta carpeta conté les **142 fitxes integrades del catàleg**, amb una revis
 
 Tots els 142 UC canònics tenen representació en aquesta àrea, però **no tots tenen encara el mateix nivell de descomposició separada**.
 
-En el tall revisat l'01/10/2026, i comptant només fitxers separats detectables per la convenció de nom, hi ha aproximadament:
+En el tall actualitzat del 03/10/2026, i partint del recompte aproximat anterior més el paquet UC-003 creat en aquesta auditoria, hi ha com a mínim:
 
-- 8 UC amb document separat de **classes ACTUAL/FINAL**;
-- 8 amb **seqüències ACTUAL/FINAL**;
-- 25 amb **activitats** separades;
-- 8 amb **auditoria/traçabilitat** separada;
-- 6 amb les quatre peces separades anteriors.
+- 9 UC amb document separat de **classes ACTUAL/FINAL**;
+- 9 amb **seqüències ACTUAL/FINAL**;
+- 26 amb **activitats** separades;
+- 9 amb **auditoria/traçabilitat** separada;
+- 7 amb les quatre peces separades anteriors.
+
+Aquest recompte és orientatiu i s'ha de regenerar automàticament si es vol usar com a mètrica de control; el catàleg canònic continua sent de 142 UC.
 
 Això **no significa** que la resta no contingui UML dins la fitxa integrada. Significa que el nivell d'auditoria exhaustiva UC-per-UC encara és progressiu.
 
@@ -40,7 +42,7 @@ Quan una peça no aplica, s'ha de justificar explícitament en lloc de crear un 
 | --- | --- | --- | --- |
 | UC-01 | Emetre o reutilitzar factura | [Fitxa i UML](uc-001-emetre-o-reutilitzar-factura.md) · [auditoria i traçabilitat](uc-001-auditoria-tracabilitat-2026-10-02.md) · [classes A/F](uc-001-classes-actual-final.md) · [seqüències A/F](uc-001-sequencies-actual-final.md) · [activitats A/F](uc-001-activitats-superficies-actual-final.md) · [inventari PHP/JS](uc-001-inventari-codi-php-js-actual-final-2026-10-02.md) · [revalidació 03/10](uc-001-revalidacio-2026-10-03.md) | `[RECONCILIAT #145 · CORE ENDURIT · TRAÇA REDSYS/ALUMNE PRISMA E2E IMPLEMENTADA · CI #145/PREPROD/F107/F109 PENDENTS]` |
 | UC-02 | Registrar pagament sobre factura | [Fitxa i UML](uc-002-registrar-cobrament-factura.md) | `[BASE]` |
-| UC-03 | Processar cobrament Redsys asíncron | [Fitxa i UML](uc-003-processar-cobrament-redsys-asincron.md) | `[ASYNC]` |
+| UC-03 | Processar cobrament Redsys asíncron | [Fitxa i UML](uc-003-processar-cobrament-redsys-asincron.md) · [classes A/F](uc-003-classes-actual-final.md) · [seqüències A/F](uc-003-sequencies-actual-final.md) · [activitats](uc-003-activitats-actual-final.md) · [inventari PHP/JS](uc-003-inventari-codi-php-js-actual-final-2026-10-03.md) · [auditoria 03/10](uc-003-auditoria-tracabilitat-2026-10-03.md) | `[ASYNC · PAQUET AUDITORIA COMPLET · PROVES UC003 PASS · BASELINE CI RED · ROLLOUT PENDENT]` |
 | UC-04 | Emetre factura abans de cobrar | [Fitxa i UML](uc-004-emetre-factura-abans-cobrar.md) | `[PARCIAL]` |
 | UC-05 | Crear rectificativa | [Fitxa i UML](uc-005-rectificar-factura.md) | `[PARCIAL]` |
 | UC-06 | Registrar devolució, saldo o compensació | [Fitxa i UML](uc-006-devolucio-saldo-compensacio.md) | `[PARCIAL]` |

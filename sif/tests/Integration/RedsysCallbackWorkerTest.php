@@ -25,6 +25,8 @@ final class RecordingRedsysJobProcessor implements RedsysJobProcessor
         return [
             'ok' => true,
             'uuid_job' => $job['UUID_JOB'],
+            'uuid_factura' => '11111111-1111-4111-8111-111111111111',
+            'uuid_payment' => '22222222-2222-4222-8222-222222222222',
         ];
     }
 }
@@ -102,6 +104,105 @@ final class RedsysCallbackWorkerTest
         Assert::same('PROCESSED', $job['STATUS']);
         Assert::same('11111111-1111-4111-8111-111111111111', $job['UUID_FACTURA']);
         Assert::same('22222222-2222-4222-8222-222222222222', $job['UUID_PAYMENT']);
+    }
+
+    public function testIncompleteSuccessfulResultBecomesIncident(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->queuedJob($db, 'ORDERINCOMPLETE1');
+        $worker = $this->workerWithOutcome([
+            'ok' => true,
+            'uuid_factura' => '11111111-1111-4111-8111-111111111111',
+        ]);
+
+        $result = $worker->runOne(
+            $db,
+            'worker-a',
+            new \DateTimeImmutable('2030-06-19 10:00:00')
+        );
+        $job = $db->query('SELECT STATUS, UUID_FACTURA, UUID_PAYMENT FROM redsys_callback_queue')
+            ->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('INCIDENT', $job['STATUS']);
+        Assert::same(null, $job['UUID_FACTURA']);
+        Assert::same(null, $job['UUID_PAYMENT']);
+        Assert::same('INCIDENT', $result['status']);
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE TIPUS_INCIDENCIA = 'REDSYS_CALLBACK'"
+            )->fetchColumn()
+        );
+    }
+
+    public function testPreviousWorkerCannotFinalizeReclaimedJob(): void
+    {
+        $db = TestDatabase::fresh();
+        $job = $this->queuedJob($db, 'ORDERFENCE1');
+        $queue = new RedsysCallbackQueueRepository(new UuidGenerator());
+
+        $claimedA = $queue->claimNext(
+            $db,
+            'worker-a',
+            new \DateTimeImmutable('2030-06-19 09:00:00')
+        );
+        Assert::same($job['ID'], $claimedA['ID']);
+
+        Assert::same(
+            1,
+            $queue->recoverStaleLocks($db, new \DateTimeImmutable('2030-06-19 10:00:00'))
+        );
+        $claimedB = $queue->claimNext(
+            $db,
+            'worker-b',
+            new \DateTimeImmutable('2030-06-19 10:00:00')
+        );
+        Assert::same($job['ID'], $claimedB['ID']);
+
+        $success = [
+            'ok' => true,
+            'uuid_factura' => '11111111-1111-4111-8111-111111111111',
+            'uuid_payment' => '22222222-2222-4222-8222-222222222222',
+        ];
+
+        Assert::throws(
+            SifException::class,
+            fn () => $queue->markProcessed(
+                $db,
+                (int) $job['ID'],
+                $success,
+                new \DateTimeImmutable('2030-06-19 10:01:00'),
+                'worker-a'
+            ),
+            409
+        );
+        Assert::throws(
+            SifException::class,
+            fn () => $queue->markRetry(
+                $db,
+                (int) $job['ID'],
+                new \DateTimeImmutable('2030-06-19 10:02:00'),
+                'late worker retry',
+                'worker-a'
+            ),
+            409
+        );
+        Assert::throws(
+            SifException::class,
+            fn () => $queue->markIncident(
+                $db,
+                (int) $job['ID'],
+                'late worker incident',
+                'worker-a'
+            ),
+            409
+        );
+
+        $after = $db->query('SELECT STATUS, LOCKED_BY FROM redsys_callback_queue')
+            ->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('PROCESSING', $after['STATUS']);
+        Assert::same('worker-b', $after['LOCKED_BY']);
     }
 
     public function testTechnicalFailureSchedulesRetry(): void
