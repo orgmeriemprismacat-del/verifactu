@@ -69,6 +69,13 @@ final class SifVersionServiceTest
                 409
             );
 
+            $declarationReplayAfterActivation = $service->attachDeclaration(
+                $actor,
+                $uuid,
+                $declarationInput
+            );
+            Assert::same(true, $declarationReplayAfterActivation['reused']);
+
             Assert::throws(
                 SifException::class,
                 fn () => $service->attachDeclaration(
