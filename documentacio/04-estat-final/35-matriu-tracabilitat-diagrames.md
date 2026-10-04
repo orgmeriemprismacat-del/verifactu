@@ -350,5 +350,13 @@ Paquet de traçabilitat reconciliat el 2026-10-03:
 | Seqüències ACTUAL/FINAL | `../07-uml-integrat/uc-017-sequencies-actual-final.md` | creada |
 | Activitats per pàgina ACTUAL/FINAL | `../07-uml-integrat/uc-017-activitats-pagines-actual-final.md` | creada |
 | Inventari PHP/JS | `../07-uml-integrat/uc-017-inventari-codi-php-js-actual-final-2026-10-03.md` | creat |
+| Revalidació reconciliada | `../07-uml-integrat/uc-017-revalidacio-exhaustiva-2026-10-04.md` | creada · findings F-017-19..23 |
 
-**Resultat de traçabilitat:** la còpia ACTUAL documenta el circuit llegat, però la branca candidata implementa el tall complet cap al SIF: intenció REGAL, callback/cua/worker, factura+payment, entitlement, outbox, estat, sync posterior i snapshot AEAT fail-closed. UC-017 queda **CANDIDATE_IMPLEMENTED_NEEDS_PREPRODUCTION_EVIDENCE** i no es pot marcar `VERIFIED/CLOSED` fins al desplegament i prova E2E de preproducció amb configuració fiscal validada.
+**Resultat de traçabilitat revalidat (2026-10-04):** la candidata implementa intenció REGAL,
+callback/cua/worker, factura+payment, entitlement, outbox, estat, sync, snapshot AEAT
+fail-closed, token de checkout signat i fencing d'intents per regal. No obstant això,
+la superfície ACTUAL de `www` i l'overlay candidat de `pay` coexisteixen al repositori
+i el mapping de desplegament encara no està acreditat. A més, l'entrada AES-CBC llegada
+queda pendent de retirada/hardening. Estat: **CANDIDATE_IMPLEMENTED /
+VERIFICATION_PENDING / PRODUCTION_NO_GO** fins a CI verd, configuració, routing
+test/preproducció i prova E2E amb evidència.
