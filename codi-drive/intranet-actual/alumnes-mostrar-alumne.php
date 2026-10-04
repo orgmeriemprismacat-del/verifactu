@@ -50,7 +50,7 @@ else {
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/modals.min.css?ver=1.0"/>
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/alumnes-mostrar-alumne.css?ver=1.0"/>
 		<script src="https://intranet.prisma.cat/js/general_v5.js?ver=1.0"></script>
-		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne.js?ver=1.7"></script>
+		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne.js?ver=1.8"></script>
 <?php if (getenv('SIF_COURSE_CHANGE_UI_ENABLED') === '1') { ?>
 		<script src="https://intranet.prisma.cat/js/alumnes-canvi-curs-sif.js?ver=1.0"></script>
 <?php } ?>
