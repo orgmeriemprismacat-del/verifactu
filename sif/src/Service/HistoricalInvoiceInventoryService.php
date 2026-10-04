@@ -232,7 +232,7 @@ final class HistoricalInvoiceInventoryService
         ?PrivateDocumentStore $documentStore
     ): array {
         $stmt = $db->prepare(
-            'SELECT ID, TIPUS, PATH_FITXER, HASH_FITXER, ESTAT
+            'SELECT ID, TIPUS, PATH_FITXER, STORAGE_REF, HASH_FITXER, ESTAT
              FROM factura_documents
              WHERE UUID_FACTURA = ?
              ORDER BY ID'
@@ -246,6 +246,8 @@ final class HistoricalInvoiceInventoryService
             }
 
             $path = (string) ($row['PATH_FITXER'] ?? '');
+            $storageRef = trim((string) ($row['STORAGE_REF'] ?? ''));
+            $verificationPath = $storageRef !== '' ? $storageRef : $path;
             $hash = strtolower(trim((string) ($row['HASH_FITXER'] ?? '')));
             $assessment = [
                 'id' => (int) ($row['ID'] ?? 0),
@@ -253,12 +255,14 @@ final class HistoricalInvoiceInventoryService
                 'status' => strtoupper(trim((string) ($row['ESTAT'] ?? ''))),
                 'hash' => $hash,
                 'path_hash' => hash('sha256', $path),
+                'storage_ref_hash' => $storageRef === '' ? null : hash('sha256', $storageRef),
+                'private_storage' => $storageRef !== '',
                 'verification' => $documentStore === null ? 'NOT_CHECKED' : 'UNVERIFIED',
             ];
 
             if ($documentStore !== null) {
                 try {
-                    $bytes = $documentStore->readVerified($path, $hash);
+                    $bytes = $documentStore->readVerified($verificationPath, $hash);
                     $assessment['verification'] = 'VERIFIED';
                     $assessment['size_bytes'] = strlen($bytes);
                 } catch (\Throwable $exception) {
