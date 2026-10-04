@@ -69,8 +69,8 @@ final class Uc007IntranetBoundaryTest
         $bridge = $this->readIntranet('ajax/alumnes/sifFactures.php');
         $js = $this->readIntranet('js/alumnes-factura.js');
 
-        Assert::stringContainsString("'has_more' => $hasMore", $bridge);
-        Assert::stringContainsString("($matches['has_more'] ?? false) === true", $bridge);
+        Assert::stringContainsString("'has_more' => \$hasMore", $bridge);
+        Assert::stringContainsString("(\$matches['has_more'] ?? false) === true", $bridge);
         Assert::stringContainsString('res.has_more === true', $js);
         Assert::stringContainsString(
             'La cerca té més resultats dels que es poden mostrar. Afegeix algun filtre per veure un conjunt complet.',
