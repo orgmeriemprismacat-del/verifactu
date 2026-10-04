@@ -12,6 +12,16 @@
         return value;
     }
 
+    function surface() {
+        const meta = document.querySelector('meta[name="debt-claim-surface"]');
+        const value = meta ? String(meta.getAttribute('content') || '').trim().toUpperCase() : '';
+        const allowed = ['RECORDATORI', 'PRIMERA_RECLAMACIO', 'RECLAMACIO_FINAL', 'MOROSOS'];
+        if (allowed.indexOf(value) === -1) {
+            throw new Error('Falta o no és vàlida la superfície de morositat');
+        }
+        return value;
+    }
+
     function newOperationId() {
         if (global.crypto && typeof global.crypto.randomUUID === 'function') {
             return global.crypto.randomUUID();
@@ -41,6 +51,7 @@
             }
         });
         params.set('csrfToken', csrfToken());
+        params.set('surface', surface());
 
         const response = await fetch(endpoint, {
             method: 'POST',
