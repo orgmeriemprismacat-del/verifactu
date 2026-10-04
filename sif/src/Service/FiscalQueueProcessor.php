@@ -78,6 +78,11 @@ final class FiscalQueueProcessor
             return $this->failure($item, $exception);
         }
 
+        $transportResponse = $transportResult['response'] ?? null;
+        $transportEvidenceId = is_array($transportResponse)
+            ? ($transportResponse['evidence_id'] ?? null)
+            : null;
+
         $status = strtoupper((string) ($transportResult['status'] ?? ''));
         if (!in_array($status, ['ACCEPTED', 'ACCEPTED_WITH_ERRORS', 'REJECTED'], true)) {
             return $this->reviewHold(
@@ -85,10 +90,11 @@ final class FiscalQueueProcessor
                 $attemptUuid,
                 new \RuntimeException('Invalid AEAT transport status.'),
                 'AEAT_REMOTE_RESULT_INVALID',
-                true
+                true,
+                is_string($transportEvidenceId) ? $transportEvidenceId : null
             );
         }
-        $response = $transportResult['response'] ?? null;
+        $response = $transportResponse;
         if (!is_array($response)) {
             return $this->reviewHold(
                 $item,
@@ -107,7 +113,16 @@ final class FiscalQueueProcessor
                     }
                 );
             } catch (\Throwable $exception) {
-                return $this->reviewHold($item, $attemptUuid, $exception, 'AEAT_REMOTE_RESULT_NOT_PERSISTED', true);
+                return $this->reviewHold(
+                    $item,
+                    $attemptUuid,
+                    $exception,
+                    'AEAT_REMOTE_RESULT_NOT_PERSISTED',
+                    true,
+                    is_string($response['evidence_id'] ?? null)
+                        ? (string) $response['evidence_id']
+                        : null
+                );
             }
         }
 
@@ -302,12 +317,14 @@ final class FiscalQueueProcessor
         ?string $attemptUuid,
         \Throwable $exception,
         string $incidentType,
-        bool $markAttemptUncertain
+        bool $markAttemptUncertain,
+        ?string $evidenceIdOverride = null
     ): array {
         $message = $exception->getMessage();
-        $evidenceId = $exception instanceof AeatDeliveryUncertainException
-            ? $exception->evidenceId()
-            : null;
+        $evidenceId = $evidenceIdOverride;
+        if ($evidenceId === null && $exception instanceof AeatDeliveryUncertainException) {
+            $evidenceId = $exception->evidenceId();
+        }
         $incident = $this->transactions->run(function (\PDO $db) use (
             $item,
             $attemptUuid,
