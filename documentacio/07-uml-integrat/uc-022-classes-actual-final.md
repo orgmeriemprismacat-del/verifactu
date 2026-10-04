@@ -105,14 +105,14 @@ class PaymentService {
  +registerPayment()
 }
 class PaymentActionAudit {
- <<PENDENT INTEGRACIÓ>>
+ <<IMPLEMENTAT>>
  +requested()
  +completed()
  +failed()
 }
-class LegacyPaymentSync {
- <<PENDENT>>
- +enqueueAfterCommit(uuidPayment)
+class ManualTransferLegacyProjectionService {
+ <<IMPLEMENTAT EN BRANCA>>
+ +project(legacyDb,actor,payload,paymentResult)
 }
 ManualTransferCommandService --> ManualPaymentService
 InternalApiAuthenticator --> ManualTransferCommandService : actor signat + anti-replay
@@ -120,8 +120,8 @@ ExternalBankReceiptResolver --> ManualTransferCommandService : external_bank_eve
 ManualTransferCommandService --> MultiInvoiceTransferService : UC-105 futur
 ManualPaymentService --> PaymentService
 MultiInvoiceTransferService --> PaymentService
-ManualTransferCommandService --> PaymentActionAudit : pendent integració
-ManualTransferCommandService --> LegacyPaymentSync : pendent
+ManualTransferCommandService --> PaymentActionAudit : commit econòmic auditat
+ManualTransferCommandService --> ManualTransferLegacyProjectionService : post-commit via endpoint
 ```
 
 ## 4. Invariants FINAL
@@ -167,7 +167,7 @@ classDiagram
       +registerPaymentInTransaction(db,payload)
     }
     class GeneratedInvoiceLegacyPaymentSyncService {
-      +sync(sifDb,legacyDb,uuidFactura,numVisible,movementDate,method)
+      +sync(sifDb,legacyDb,uuidFactura,numVisible,movementDate)
     }
 
     SifPaymentSessionGuard --> SifManualTransferGateway : actor + rols, CSRF validat
@@ -176,10 +176,11 @@ classDiagram
     InternalApiAuthenticator --> ManualTransferCommandService
     ManualTransferCommandService --> PaymentActionGateway
     PaymentActionGateway --> PaymentService : transacció compartida
-    ManualTransferCommandService --> GeneratedInvoiceLegacyPaymentSyncService : post-commit
+    ManualTransferCommandService --> ManualTransferLegacyProjectionService : endpoint post-commit
+    ManualTransferLegacyProjectionService --> GeneratedInvoiceLegacyPaymentSyncService : només inscripcions
 ```
 
-La notificació de confirmació queda separada de la projecció llegada i continua pendent de convertir-se en una operació post-commit/outbox.
+La notificació de confirmació queda separada de la projecció llegada mitjançant `ManualTransferNotificationService` + `notification_outbox`; resta verificar-ne el delivery real a test/preproducció.
 
 
 ## Auditoria transversal implementada
@@ -201,3 +202,6 @@ classDiagram
 ```
 
 Els errors previs de permís/validació passen per `PaymentActionGateway::reject()` i queden com `REJECTED` sense obrir mutació de domini.
+
+
+**Invariant de propietat:** la intranet no projecta cap estat al legacy. El SIF és l'únic propietari de `ManualTransferLegacyProjectionService`, i `GeneratedInvoiceLegacyPaymentSyncService` no executa cap `UPDATE factures`.
