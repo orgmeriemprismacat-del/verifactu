@@ -222,3 +222,10 @@ No registra cap pagament en planificar l'alta. Si la política és `KEEP_EXISTIN
 ## 8. Saga implementada
 
 `GroupParticipantAdditionCoordinator` persisteix execució i passos, valida fingerprint i reprèn retries sense repetir l'alta. El pas acadèmic és executable via gateway; el pas fiscal queda `WAITING_EXTERNAL` fins disposar d'un executor fiscal específic aprovat.
+
+
+## 8. Execució implementada del subcas segur
+
+`GroupParticipantAdditionCoordinator` ja persisteix una saga idempotent. Quan la decisió aprovada és mantenir el preu dels membres existents i emetre una factura independent per la persona nova, `GroupParticipantSupplementalInvoiceService` crea una A/F1 nova amb el mateix receptor fiscal i perfil exempt homogeni de la factura original.
+
+Si el grup té perfil fiscal heterogeni/no exempt o la decisió implica rectificar/reprecificar la resta, el servei falla tancat o queda `WAITING_EXTERNAL`. No es modifica la factura original.
