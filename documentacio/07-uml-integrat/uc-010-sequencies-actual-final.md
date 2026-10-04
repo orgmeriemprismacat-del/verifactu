@@ -77,8 +77,13 @@ participant DB as MySQL SIF
 U->>JS: storage_key + versió documental
 JS->>API: attach_declaration
 API->>S: attachDeclaration(actor,uuid,input)
-S->>DB: comprovar candidata
-S->>FS: realpath dins root privat
+S->>DB: cercar idempotency key
+alt replay exacte existent
+  DB-->>S: declaració persistent
+  S-->>API: reused=true
+else comanda nova
+  S->>DB: comprovar candidata DRAFT
+  S->>FS: realpath dins root privat
 alt path traversal o absent
   FS-->>S: error
   S-->>API: 404/422
@@ -91,6 +96,7 @@ else fitxer vàlid
   S->>DB: audit + operational_event
   S->>DB: COMMIT
   S-->>API: declaració vinculada
+end
 end
 ```
 
