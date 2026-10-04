@@ -131,3 +131,13 @@ El primer run del PR ha executat i aprovat `Uc007IntranetBoundaryTest`, `Invoice
 - [x] El navegador crea una URL temporal amb `URL.createObjectURL()` i la revoca.
 - [x] La prova de frontera impedeix reintroduir `dataType: "html"` en aquest contracte.
 - [ ] E2E navegador real: confirmar que el PDF s'obre/descarrega amb nom correcte a preproducció.
+
+
+## 9. Aïllament dev/pre/prod — 2026-10-04
+
+- [x] JS UC-007 usa `window.location.origin + "/ajax/"`.
+- [x] La pàgina de factures carrega `/js/alumnes-factura.js?ver=1.3`.
+- [x] La fitxa alumne carrega `/js/alumnes-mostrar-alumne.js?ver=1.9`.
+- [x] Boundary test impedeix hardcode de `https://intranet.prisma.cat/ajax/`.
+- [ ] A `intranet-pre.prisma.cat`, Network ha de mostrar totes les crides UC-007 contra `intranet-pre.prisma.cat`, mai contra producció.
+- [ ] Confirmar que els assets 1.3/1.9 existeixen realment al document root de preproducció abans d'activar flags.
