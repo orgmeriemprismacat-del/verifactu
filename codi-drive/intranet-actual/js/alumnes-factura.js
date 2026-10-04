@@ -293,7 +293,7 @@ function cercarFacturesLlegat(dni, email, factRel, factNum, generation) {
 
 	var request = $.ajax({
 		url: path + "alumnes/consultaUsuarisFacturaRelacionada.php",
-		method: "GET",
+		method: "POST",
 		data: {
 			dni : dni,
 			email : email,
@@ -613,7 +613,7 @@ function mostraLlistatUsuaris(dnies, orderby, asc) {
 
 	var request = $.ajax({
 		url: path + "alumnes/mostrarTaulaUsuaris2.php",
-		method: "GET",
+		method: "POST",
 		data: {
 			dnies : dnies,
 			orderBy : orderby,
@@ -655,7 +655,7 @@ function mostraLlistatUsuaris(dnies, orderby, asc) {
 function cercarUSuari(dniUser) {
 	var request = $.ajax({
 		url: path + "alumnes/mostrarTotesFacturesUsuari_Factures.php",
-		method: "GET",
+		method: "POST",
 		data: {
 			dni : dniUser,
 			cercaPer : cercaPer
