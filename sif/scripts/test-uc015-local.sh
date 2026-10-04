@@ -81,6 +81,8 @@ fi
   echo "  LegacyPackCallbackBoundaryTest::testProductionLegacyPackCallbacksArePhysicallyRemoved"
   echo "  PackCommercialOrderBoundaryTest::testPackPresentationAndEnrollmentUseSameDeterministicOrder"
   echo "  PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop"
+  echo "  PackConfirmationTokenTest"
+  echo "  PackConfirmationTokenBoundaryTest"
   echo "  PackPublicEnrollmentBoundaryTest"
   echo "  PackEnrollmentAtomicityBoundaryTest"
   echo "  PackEnrollmentIdempotencyBoundaryTest"
