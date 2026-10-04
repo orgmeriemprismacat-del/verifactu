@@ -92,7 +92,8 @@ final class AeatEvidenceReconciliationServiceTest
             ))->reconcile(
                 (int) $queue['ID'],
                 $attemptUuid,
-                'tester'
+                'tester',
+                'AEAT_RECONCILER'
             );
 
             Assert::same(true, $result['ok']);
@@ -117,6 +118,14 @@ final class AeatEvidenceReconciliationServiceTest
                      WHERE OPERATION_TYPE = 'AEAT_RECONCILE'
                        AND REASON_CODE = 'AEAT_EVIDENCE_RECONCILED'
                        AND STATUS = 'COMPLETED'"
+                )->fetchColumn()
+            );
+            Assert::same(
+                'AEAT_RECONCILER',
+                $db->query(
+                    "SELECT ACTOR_ROLE FROM operational_event
+                     WHERE OPERATION_TYPE = 'AEAT_RECONCILE'
+                     ORDER BY ID DESC LIMIT 1"
                 )->fetchColumn()
             );
             $stored = json_decode(
