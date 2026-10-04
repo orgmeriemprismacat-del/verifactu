@@ -140,6 +140,16 @@ El llegat envia confirmacions directament des del callback. El FINAL necessita o
 
 El builder de regal no podia inferir jurídicament impost, règim o causa d'exempció a partir d'un simple estat intern. La candidata incorpora `GiftAeatInvoicePayloadEnricher`, exigeix configuració explícita en PREPROD/PRODUCTION i falla tancada si falta. **Queda pendent validar i configurar els valors fiscals reals; no queda pendent programació coneguda.**
 
+### F-017-14 · Previsualització amb GET i dades personals
+**Severitat:** ALTA.
+
+La previsualització transportava destinatari, origen i dedicatòria per query string i, alhora, creava/reservava estat de sessió. A més de ser un efecte impropi d'un GET, podia deixar contingut personal en URL/logs. **RESOLTA EN CANDIDATA:** `pagina_regal.php` emet CSRF de sessió no cachejable i `previsualitza_regal.php` només accepta POST+CSRF.
+
+### F-017-15 · HTML no escapat en preview/PDF llegat
+**Severitat:** ALTA.
+
+Destinatari, origen, dedicatòria i estil arribaven a fragments HTML sense escaping explícit; en el fallback de PDF també hi havia HTML generat amb recursos remots. **RESOLTA EN CANDIDATA:** escaping per context, estil restringit/configurat i prova de regressió; el PDF públic prepagament continua desactivat quan hi ha cutover.
+
 ## 6. Matriu documentat / implementat / verificat / pendent
 
 | Peça | Documentat | Implementat | Verificat | Pendent |
@@ -256,6 +266,8 @@ Aquesta secció és l'estat vigent de les troballes F-017-01..12 després del ha
 | F-017-11 Codi al detall fiscal | **RESOLTA EN CANDIDATA** | línia factura usa `Val regal`; test rebutja codi bescanviable al detall | verificar PDF/QR generat |
 | F-017-12 Correus directes | **RESOLTA EN CAMÍ SIF** | `GiftPaymentNotificationService` + `notification_outbox` idempotent; payload sense codi cru | activar consumidor/outbox en preproducció i comprovar destinatari/plantilla |
 | F-017-13 Snapshot oficial AEAT absent al builder de regal | **RESOLTA EN CANDIDATA** | `GiftAeatInvoicePayloadEnricher`; builder fail-closed en PREPROD/PRODUCTION; configuració fiscal explícita; prova XSD | validar valors fiscals reals, configurar-los i conservar evidència d'alta oficial en preproducció |
+| F-017-14 Preview GET/PII | **RESOLTA EN CANDIDATA** | preview passa a POST, CSRF de sessió, no-store/no-referrer; el JS ja no posa dedicatòria/destinatari a URL | prova navegador/preproducció |
+| F-017-15 HTML preview/PDF | **RESOLTA EN CANDIDATA** | `htmlspecialchars`/`nl2br`, allowlist d'estils i PDF prepagament bloquejat amb cutover | verificar render visual i PDF final |
 
 ### 10.1 Estat de tancament resultant
 
