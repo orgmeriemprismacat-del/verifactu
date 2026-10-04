@@ -100,8 +100,12 @@ final class RedsysCourseCutoverBoundaryTest
 
         Assert::stringContainsString("getenv('SIF_REDSYS_LEGACY_CALLBACK_URL')", $source);
         Assert::stringContainsString("getenv('SIF_REDSYS_RETURN_BASE_URL')", $source);
+        Assert::stringContainsString("getenv('SIF_REDSYS_EXPECTED_PAY_HOST')", $source);
         Assert::stringContainsString('SIF_REDSYS_LEGACY_CALLBACK_URL_NOT_CONFIGURED', $source);
         Assert::stringContainsString('SIF_REDSYS_RETURN_BASE_URL_NOT_CONFIGURED', $source);
+        Assert::stringContainsString('SIF_REDSYS_EXPECTED_PAY_HOST_NOT_CONFIGURED', $source);
+        Assert::stringContainsString('SIF_REDSYS_RETURN_BASE_URL_HOST_MISMATCH', $source);
+        Assert::stringContainsString('SIF_REDSYS_LEGACY_CALLBACK_URL_HOST_MISMATCH', $source);
 
         if (str_contains($source, 'https://pay.prisma.cat/doit.php')
             || str_contains($source, 'https://pay.prisma.cat/respostaOkPagamentAutomatic.php')
