@@ -130,14 +130,19 @@ final class InvoiceQueryService
         $invoiceType = strtoupper(trim((string) ($classification['invoice_type'] ?? '')));
         $mode = strtoupper(trim((string) ($classification['rectification_mode'] ?? '')));
 
+        $correction = $this->correctionSnapshotProjection($changeset['correction'] ?? null);
+        $eligible = $decision === 'RECTIFICATION'
+            && $sourceUc === 'UC-74'
+            && in_array($invoiceType, ['R1', 'R2', 'R3', 'R4', 'R5'], true)
+            && in_array($mode, ['DIFERENCIES', 'SUBSTITUCIO'], true);
+
         return [
             'event_uuid' => strtolower((string) $event['UUID_EVENT']),
-            'eligible_for_uc005' => $decision === 'RECTIFICATION'
-                && $sourceUc === 'UC-74'
-                && in_array($invoiceType, ['R1', 'R2', 'R3', 'R4', 'R5'], true)
-                && in_array($mode, ['DIFERENCIES', 'SUBSTITUCIO'], true),
+            'eligible_for_uc005' => $eligible,
+            'ready_for_uc005_ui' => $eligible && $correction !== null,
             'reason_code' => strtoupper(trim((string) ($event['REASON_CODE'] ?? ''))),
             'correction_fingerprint' => $fingerprint,
+            'correction' => $correction,
             'classification' => [
                 'decision' => $decision,
                 'source_uc' => $sourceUc,
@@ -149,6 +154,65 @@ final class InvoiceQueryService
             'occurred_at' => $event['OCCURRED_AT'] ?? null,
             'recorded_at' => $event['RECORDED_AT'] ?? null,
         ];
+    }
+
+    private function correctionSnapshotProjection(mixed $correction): ?array
+    {
+        if (!is_array($correction)) {
+            return null;
+        }
+
+        $result = [];
+
+        foreach ([
+            'amount',
+            'reason',
+            'mode',
+            'concept',
+            'detail',
+            'reference',
+        ] as $field) {
+            if (!array_key_exists($field, $correction)) {
+                continue;
+            }
+            $value = $correction[$field];
+            if (is_scalar($value) || $value === null) {
+                $result[$field] = $value;
+            }
+        }
+
+        if (isset($correction['fiscal']) && is_array($correction['fiscal'])) {
+            $result['fiscal'] = array_intersect_key(
+                $correction['fiscal'],
+                array_flip([
+                    'import_base',
+                    'taxable_base',
+                    'iva_regim',
+                    'iva_pct',
+                    'iva_import',
+                    'total',
+                    'exemption_reason',
+                ])
+            );
+        }
+
+        if (isset($correction['billing']) && is_array($correction['billing'])) {
+            $result['billing'] = array_intersect_key(
+                $correction['billing'],
+                array_flip([
+                    'name',
+                    'nif',
+                    'address',
+                    'cp',
+                    'city',
+                    'province',
+                    'country',
+                    'email',
+                ])
+            );
+        }
+
+        return $result === [] ? null : $result;
     }
 
     private function invoiceProjection(array $invoice, ?array $fiscalRecord = null): array
