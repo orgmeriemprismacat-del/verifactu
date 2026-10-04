@@ -75,7 +75,7 @@ try {
         'checks' => [
             'single_payment_match' => true,
             'has_allocation' => count($allocations) > 0,
-            'no_additional_fiscal_record_created_by_payment' => true,
+            'fiscal_register_count_is_observation_only' => true,
         ],
     ];
 
