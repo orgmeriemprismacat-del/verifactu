@@ -415,7 +415,7 @@ class RegalCurs{
                    $diesObets=0;
                 else if (intval($valors[0])>0 && $valors[0]==$hores) //si el valor és un numero i les hores son iguals al curs
                    $diesObets = $valors[1];
-                else if (intval($valors[0])<=0 && $valors[0]==$codi) //si el valor no és un numero i el codi és igual al curs
+                else if (intval($valors[0])<=0 && $valors[0]==$codiCurs) //si el valor no és un numero i el codi és igual al curs
                    $diesObets = $valors[1];
              }
              $connexio->closeStmt();
@@ -426,7 +426,7 @@ class RegalCurs{
                 AND (CURS NOT LIKE '%JOR%') AND (CURS NOT LIKE '%0%')
                 ORDER BY ANY, MES LIMIT 1";
              $stmtHoresPreu=$connexio->prepare($consultaHoresPreu);
-             $stmtHoresPreu->bind_param("ds", $diesObets, $codi);
+             $stmtHoresPreu->bind_param("ds", $diesObets, $codiCurs);
              $stmtHoresPreu->execute();
              $stmtHoresPreu->store_result();
              if ( $stmtHoresPreu->num_rows() > 0 ) {
@@ -656,9 +656,11 @@ class RegalCurs{
 
       //si $codiRegal=='', es genera el $codiRegal
       if ($codiRegal=='') {
-         $codi = base_convert(uniqid(), 16, 36);
-         $textCodiRegal = new Text($codi);
-         $codiRegal = $textCodiRegal->convertirMaj();
+         $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+         $codiRegal = '';
+         for ($i = 0; $i < 12; $i++) {
+            $codiRegal .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+         }
       }
 
       //buscar el nom del curs del codi $codiCurs
@@ -894,6 +896,28 @@ class RegalCurs{
       require_once 'Text.php';
       require_once 'Numero.php';
 
+      // UC-017: preu, percentatge, hores i títol no són autoritat del navegador.
+      $pricing = explode('|', $this->obtenirPreuHoresNomCursRegal($codiCurs));
+      if (count($pricing) !== 4
+          || !is_numeric($pricing[0])
+          || !is_numeric($pricing[1])
+          || trim((string) $pricing[2]) === ''
+          || !is_numeric($pricing[3])
+          || (float) $pricing[0] <= 0
+          || (int) $pricing[1] <= 0
+      ) {
+         throw new RuntimeException('INVALID_AUTHORITATIVE_GIFT_PRICING');
+      }
+      $preu = (string) $pricing[0];
+      $hores = (string) $pricing[1];
+      $nomCurs = trim((string) $pricing[2]);
+      $percentatge = (string) $pricing[3];
+
+      $codiRegal = strtoupper(trim((string) $codiRegal));
+      if (preg_match('/^[A-HJ-NP-Z2-9]{12}$/D', $codiRegal) !== 1) {
+         throw new RuntimeException('INVALID_SERVER_GIFT_CODE');
+      }
+
       $textNom = new Text($nom);
       $textCog = new Text($cog);
       $textDocumentacio = new Text($dni);
@@ -902,6 +926,7 @@ class RegalCurs{
    	$textAdreca = new Text($adreca);
    	$textCodiPostal = new Text($cp);
    	$textPoblacio = new Text($poblacio);
+      $textComentaris = null;
       if ($comentaris!='')
    	  $textComentaris = new Text($comentaris);
    	$textTitolCurs = new Text($nomCurs);
@@ -1023,15 +1048,109 @@ class RegalCurs{
    	}
    	$connexio->closeStmt();
 
-      /* ############################# ENVIAR MSG CURT ########################## */
-      $templates = new Template();
-
-      //envia un missatge curt a gestio i botiga
+      /* ######################## RESERVA AUTORITATIVA REGAL ##################### */
       $preuRealBD = $preuBD;
       if ($percentatgeBD>0) {
          $preuRealBD = $preuBD - ($preuBD*$percentatgeBD/100);
       }
 
+      $insertNomCursBD = '';
+      if (intval($codiCurs)!=0)
+         $insertNomCursBD = "Curs de ".$codiCurs." hores";
+      else
+         $insertNomCursBD = $nomCursBD;
+
+      // Serialitza dobles enviaments de la mateixa reserva de sessió.
+      $lockName = 'uc017_gift_' . $codiRegalBD;
+      $stmtLock = $connexio->prepare("SELECT GET_LOCK(?, 5)");
+      $stmtLock->bind_param("s", $lockName);
+      $stmtLock->execute();
+      $stmtLock->bind_result($lockAcquired);
+      $stmtLock->fetch();
+      $connexio->closeStmt();
+      if ((int) $lockAcquired !== 1) {
+         throw new RuntimeException('GIFT_RESERVATION_LOCK_TIMEOUT');
+      }
+
+      try {
+         $stmtExisting = $connexio->prepare(
+            "SELECT ID, NIFC, MAILC, CCURS, IMPORT FROM regal WHERE CODI=? LIMIT 1"
+         );
+         $stmtExisting->bind_param("s", $codiRegalBD);
+         $stmtExisting->execute();
+         $stmtExisting->store_result();
+
+         if ($stmtExisting->num_rows() > 0) {
+            $stmtExisting->bind_result(
+               $existingGiftId,
+               $existingNif,
+               $existingMail,
+               $existingCourse,
+               $existingAmount
+            );
+            $stmtExisting->fetch();
+            $connexio->closeStmt();
+
+            $sameReservation = strtoupper(trim((string) $existingNif)) === strtoupper(trim((string) $dniBD))
+               && strtolower(trim((string) $existingMail)) === strtolower(trim((string) $emailBD))
+               && strtoupper(trim((string) $existingCourse)) === strtoupper(trim((string) $codiCursH))
+               && number_format((float) $existingAmount, 2, '.', '')
+                  === number_format((float) $preuRealBD, 2, '.', '');
+
+            if (!$sameReservation) {
+               throw new RuntimeException('GIFT_CODE_ALREADY_BOUND_TO_DIFFERENT_RESERVATION');
+            }
+
+            $idInserit = (int) $existingGiftId;
+         }
+         else {
+            $connexio->closeStmt();
+
+            $insertBD = "INSERT INTO regal (NOMC, NIFC, TELC, MAILC, CPC, ADRECAC,
+                         POBLEC, DATA, CCURS, NOM_CURS, IMPORT, DESTI, DEDICATORIA,
+                         ORIGEN, CODI, ESTIL, OBSERVACIONS)
+                         VALUES (?,?,?,?,?,?,?,CURRENT_DATE,?,?,?,?,?,?,?,?,?)";
+            $stmtIns=$connexio->prepare($insertBD);
+            $stmtIns->bind_param(
+               "ssdssssssdssssds",
+               $nomCognoms,
+               $dniBD,
+               $telfBD,
+               $emailBD,
+               $cpBD,
+               $adrecaBD,
+               $pobleBD,
+               $codiCursH,
+               $insertNomCursBD,
+               $preuRealBD,
+               $destiBD,
+               $dedicatoriaBD,
+               $origenBD,
+               $codiRegalBD,
+               $estilBD,
+               $observacionsBD
+            );
+            $stmtIns->execute();
+            $idInserit = $connexio->lastInsertId();
+            $stmtIns->fetch();
+            $connexio->closeStmt();
+
+            if ((int) $idInserit <= 0) {
+               throw new RuntimeException('GIFT_RESERVATION_INSERT_FAILED');
+            }
+         }
+      }
+      finally {
+         $stmtUnlock = $connexio->prepare("SELECT RELEASE_LOCK(?)");
+         $stmtUnlock->bind_param("s", $lockName);
+         $stmtUnlock->execute();
+         $connexio->closeStmt();
+      }
+
+      /* ############################# ENVIAR MSG CURT ########################## */
+      $templates = new Template();
+
+      //envia un missatge curt a gestio i botiga
       $msg = $templates->getTemplate_Inscripcions_EnviamenRegalShort($codiCurs, $dedicatoria, $comentaris);
    	$names_template = array("[NOM_ALUMNE]", "[COG_ALUMNE]", "[DNI_ALUMNE]",
    		"[EMAIL_ALUMNE]",	"[TEL_ALUMNE]", "[ADRECA_ALUMNE]", "[CP_ALUMNE]",
@@ -1068,24 +1187,6 @@ class RegalCurs{
    	// $mailCurtWebMaster->addTo('meriem.prisma.cat@gmail.com');
    	$mailCurtWebMaster->addMissatge($msg);
    	$mailCurtWebMaster->sendMessage();
-
-      /* ############################ INSERT BD ################################ */
-
-      if (intval($codiCurs)!=0)
-   	  $insertNomCursBD .= "Curs de ".$codiCurs." hores";
-      else
-         $insertNomCursBD .= $nomCursBD;
-
-      $insertBD = "INSERT INTO regal (NOMC, NIFC, TELC, MAILC, CPC, ADRECAC,
-                   POBLEC, DATA, CCURS, NOM_CURS, IMPORT, DESTI, DEDICATORIA,
-         			 ORIGEN, CODI, ESTIL, OBSERVACIONS)
-   	 				 VALUES (?,?,?,?,?,?,?,CURRENT_DATE,?,?,?,?,?,?,?,?,?)";
-   	$stmtIns=$connexio->prepare($insertBD);
-   	$stmtIns->bind_param("ssdssssssdssssds", $nomCognoms, $dniBD, $telfBD, $emailBD, $cpBD, $adrecaBD, $pobleBD, $codiCursH, $insertNomCursBD, $preuRealBD, $destiBD, $dedicatoriaBD, $origenBD, $codiRegalBD, $estilBD, $observacionsBD);
-   	$stmtIns->execute();
-      $idInserit = $connexio->lastInsertId();
-   	$stmtIns->fetch();
-   	$connexio->closeStmt();
 
       /* ############### BUSCAR USERNME I PASSWORD AUTENTIFICACIÓ ############# */
 
@@ -1415,16 +1516,24 @@ class RegalCurs{
 
       // echo $html_digital;
 
-      //generar PDF
-      $options_digital = new \Dompdf\Options();
-      $options_digital->set('isRemoteEnabled', true);
-      $dompdf_digital = new \Dompdf\Dompdf($options_digital);
-      $dompdf_digital->set_paper("A4", "landscape");
-      $dompdf_digital->load_html($html_digital);
-      $dompdf_digital->render();
-      $pdf_digital = $dompdf_digital->output();
-      $filename_digital = "../targetes-regal/".$codiRegal."_targeta_regal_versio_digital.pdf";
-      file_put_contents($filename_digital, $pdf_digital);
+      // Compatibilitat llegat: el PDF públic només es pre-genera mentre
+      // UC-017 encara NO ha fet el tall SIF. En el camí final el document
+      // bescanviable s'ha de generar/servir després del cobrament confirmat.
+      $giftCutoverEnabled = filter_var(
+         getenv('SIF_REDSYS_GIFT_CUTOVER_ENABLED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
+      if (!$giftCutoverEnabled) {
+         $options_digital = new \Dompdf\Options();
+         $options_digital->set('isRemoteEnabled', true);
+         $dompdf_digital = new \Dompdf\Dompdf($options_digital);
+         $dompdf_digital->set_paper("A4", "landscape");
+         $dompdf_digital->load_html($html_digital);
+         $dompdf_digital->render();
+         $pdf_digital = $dompdf_digital->output();
+         $filename_digital = "../targetes-regal/".$codiRegal."_targeta_regal_versio_digital.pdf";
+         file_put_contents($filename_digital, $pdf_digital);
+      }
 
       $ivlen = openssl_cipher_iv_length($cipher);
    	$iv = openssl_random_pseudo_bytes($ivlen);

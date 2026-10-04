@@ -335,3 +335,20 @@ Aquesta secció complementa la regla de 142 casos: els nous fitxers UC-111 són 
 - Proves reintegrades: `ResolvedStudentProfileAuthorizationPolicyTest`, `PersonalDataChangeRepositoryTest` i `StudentProfileServiceTest`.
 - Estat: **[PARCIAL]**. Consulta i proposta idempotent implementades; adaptador d'intranet, aplicador/propagació i evidència d'entorn continuen pendents.
 - No s'importen els recomptes globals de la branca antiga perquè havia divergit 1.228 commits de `main`.
+
+
+## 16. Cobertura específica UC-017 — compra de regal
+
+Paquet de traçabilitat reconciliat el 2026-10-03:
+
+| Peça | Fitxer | Estat |
+| --- | --- | --- |
+| Fitxa funcional | `../06-fitxes-funcionals/uc-017.md` | revisada · implementació parcial |
+| UML integrat base | `../07-uml-integrat/uc-017-comprar-regal.md` | actualitzat |
+| Auditoria detallada | `../07-uml-integrat/uc-017-auditoria-tracabilitat-2026-10-03.md` | creada |
+| Classes ACTUAL/FINAL | `../07-uml-integrat/uc-017-classes-actual-final.md` | creada |
+| Seqüències ACTUAL/FINAL | `../07-uml-integrat/uc-017-sequencies-actual-final.md` | creada |
+| Activitats per pàgina ACTUAL/FINAL | `../07-uml-integrat/uc-017-activitats-pagines-actual-final.md` | creada |
+| Inventari PHP/JS | `../07-uml-integrat/uc-017-inventari-codi-php-js-actual-final-2026-10-03.md` | creat |
+
+**Resultat de traçabilitat:** el core SIF de factura/cobrament i dret GIFT existeix, però el canal web llegat continua generant la request Redsys i facturant directament. Per tant, UC-017 és **PARCIAL** i no es pot marcar com a verificat fins al tall del canal, retirada de l'escriptura fiscal llegada i prova E2E de preproducció.

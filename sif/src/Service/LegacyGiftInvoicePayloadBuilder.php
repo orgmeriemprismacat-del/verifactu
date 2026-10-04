@@ -28,7 +28,7 @@ final class LegacyGiftInvoicePayloadBuilder
             'created_by' => 'legacy-gift',
             'billing' => $this->billing($gift),
             'totals' => $this->totals($amount),
-            'lines' => [$this->line($giftId, $courseTitle, $code, $amount)],
+            'lines' => [$this->line($giftId, $courseTitle, $amount)],
             'relations' => [$this->relation($gift, $giftId)],
             'gift' => $this->giftMetadata($gift, $code),
         ];
@@ -63,11 +63,11 @@ final class LegacyGiftInvoicePayloadBuilder
         ];
     }
 
-    private function line(int $giftId, string $courseTitle, string $code, string $amount): array
+    private function line(int $giftId, string $courseTitle, string $amount): array
     {
         return [
             'concept' => 'Curs regal ' . $courseTitle,
-            'detail' => 'Codi regal ' . $code,
+            'detail' => 'Val regal',
             'quantity' => '1.00',
             'unit_price' => $amount,
             'base' => $amount,

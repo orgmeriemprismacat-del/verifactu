@@ -242,3 +242,45 @@ Note over P,Mail: La compra i el bescanvi són fases diferents, aquesta seqüèn
 ## 6. Traçabilitat
 
 [UC-17 original](../06-fitxes-funcionals/uc-017.md) · [UC-18 bescanvi original](../06-fitxes-funcionals/uc-018.md) · [UC-18a excepcional](../06-fitxes-funcionals/uc-018a.md) · [UC-03 Redsys](uc-003-processar-cobrament-redsys-asincron.md) · [UC-63 intenció](uc-063-crear-intencio-redsys.md) · [RedsysGiftInvoiceService](../../sif/src/Service/RedsysGiftInvoiceService.php) · [LegacyGiftInvoicePayloadBuilder](../../sif/src/Service/LegacyGiftInvoicePayloadBuilder.php) · [RedsysGiftInvoiceServiceTest](../../sif/tests/Integration/RedsysGiftInvoiceServiceTest.php).
+
+
+---
+
+## Auditoria reconciliada 2026-10-03
+
+L'auditoria específica de codi i pantalles queda desglossada en:
+
+- `uc-017-auditoria-tracabilitat-2026-10-03.md`
+- `uc-017-classes-actual-final.md`
+- `uc-017-sequencies-actual-final.md`
+- `uc-017-activitats-pagines-actual-final.md`
+- `uc-017-inventari-codi-php-js-actual-final-2026-10-03.md`
+
+### Estat canònic després de la revisió
+
+| Dimensió | Estat |
+| --- | --- |
+| Fitxa funcional | REVISADA |
+| PHP/JS web | REVISAT ESTÀTICAMENT |
+| Core SIF UC-017 | IMPLEMENTAT PARCIAL |
+| Factura/pagament REGAL | IMPLEMENTAT AL CORE SIF |
+| Emissió entitlement GIFT | IMPLEMENTADA |
+| Canal web -> intenció SIF | PENDENT |
+| Callback SIF com a únic origen | PENDENT |
+| Retirada facturació llegada | PENDENT BLOQUEJANT |
+| Proves automatitzades específiques | EXISTENTS |
+| Execució E2E preproducció | NO ACREDITADA |
+| Estat global | PARCIAL · NO TANCAT |
+
+### Troballa principal
+
+El codi llegat `realitzaPagamentRegalAutomatic.php` continua sent incompatible amb el model final perquè calcula numeració fiscal, insereix `factures`, actualitza `regal.FACT_REL` i envia correus directament. La implementació final ja disposa de `RedsysGiftInvoiceService` i `GiftEntitlementIssuerService`; el treball pendent és sobretot d'**integració i tall de canal**, no de recrear el domini de regal des de zero.
+
+### Regla de lectura dels diagrames
+
+A partir d'aquesta revisió:
+- **ACTUAL** = codi llegat real de `codi-drive/web-actual`;
+- **FINAL IMPLEMENTAT** = classes presents a `sif/src`;
+- **FINAL PENDENT** = adaptadors, outbox, recovery/evidència i substitució del callback llegat.
+
+Cap diagrama FINAL s'ha d'interpretar com a desplegament productiu verificat.
