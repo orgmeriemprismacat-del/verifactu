@@ -11,7 +11,7 @@ final class Uc007IntranetBoundaryTest
         $page = $this->readIntranet('alumnes-factura.php');
         $js = $this->readIntranet('js/alumnes-factura.js');
 
-        Assert::stringContainsString('/js/alumnes-factura.js?ver=1.3', $page);
+        Assert::stringContainsString('/js/alumnes-factura.js?ver=1.4', $page);
         if (str_contains($page, 'SIF_INVOICE_QUERY_UI_ENABLED')) {
             Assert::fail('Obsolete no-op UC-007 UI flag must not remain in the page template.');
         }
@@ -307,7 +307,7 @@ final class Uc007IntranetBoundaryTest
         $page = $this->readIntranet('alumnes-mostrar-alumne.php');
         $js = $this->readIntranet('js/alumnes-mostrar-alumne.js');
 
-        Assert::stringContainsString('/js/alumnes-mostrar-alumne.js?ver=1.9', $page);
+        Assert::stringContainsString('/js/alumnes-mostrar-alumne.js?ver=2.0', $page);
         if (str_contains($page, 'SIF_INVOICE_QUERY_UI_ENABLED')) {
             Assert::fail('Obsolete no-op UC-007 UI flag must not remain in the student page template.');
         }
