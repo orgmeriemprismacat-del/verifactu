@@ -6,8 +6,6 @@ include '../../Usuari.php';
 include '../../SifPaymentSessionGuard.php';
 include '../../SifInternalApiClient.php';
 include '../../SifManualTransferGateway.php';
-include '../../SifLegacyPaymentProjection.php';
-include '../../ConnexioWeb.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -55,29 +53,6 @@ try {
         $bank,
         $notes !== '' ? $notes : null
     );
-
-    try {
-        $legacyProjection = (new SifLegacyPaymentProjection(new ConnexioWeb()))->apply(
-            $externalBankEventId,
-            $numFact,
-            $amount,
-            $movementDate
-        );
-        $result['legacy_sync'] = $legacyProjection['status'];
-    } catch (Throwable $projectionError) {
-        http_response_code(202);
-        echo json_encode([
-            'ok' => true,
-            'status' => 'PENDING_RETRY',
-            'payment_status' => (string) ($result['status'] ?? ''),
-            'uuid_payment' => $result['uuid_payment'] ?? null,
-            'uuid_factura' => $result['uuid_factura'] ?? null,
-            'request_id' => $result['request_id'] ?? null,
-            'legacy_sync' => 'FAILED',
-            'error' => $projectionError->getMessage(),
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        return;
-    }
 
     http_response_code(200);
     echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
