@@ -32,7 +32,12 @@ class SifInternalApiClient
         $this->secret = (string) $configuredSecret;
         $this->courseChangeUrl = trim((string) ($courseChangeUrl ?? getenv('SIF_COURSE_CHANGE_API_URL') ?: ''));
         $this->courseChangeSignedPath = trim((string) ($courseChangeSignedPath ?? getenv('SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH') ?: '/api/course-changes/preview.php'));
-        $this->paymentUrl = trim((string) ($paymentUrl ?? getenv('SIF_INTERNAL_PAYMENT_URL') ?: ''));
+        $this->paymentUrl = trim((string) (
+            $paymentUrl
+            ?? getenv('SIF_INTERNAL_PAYMENT_URL')
+            ?: getenv('SIF_INTERNAL_API_URL')
+            ?: ''
+        ));
         $this->paymentSignedPath = trim((string) ($paymentSignedPath ?? getenv('SIF_INTERNAL_PAYMENT_SIGNED_PATH') ?: '/api/payments/register.php'));
         $this->timeout = max(1, min(30, $timeout));
 
