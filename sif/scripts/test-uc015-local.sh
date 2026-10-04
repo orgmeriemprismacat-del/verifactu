@@ -46,6 +46,10 @@ fi
   export SIF_DB_USER="${DB_USER}"
   export SIF_DB_PASSWORD="${DB_PASSWORD}"
 
+  echo "== UC-015 selective suite =="
+  "${PHP_BIN}" sif/tests/run-uc015-tests.php
+
+  echo
   echo "== Full SIF suite =="
   "${PHP_BIN}" sif/tests/run-tests.php
 
