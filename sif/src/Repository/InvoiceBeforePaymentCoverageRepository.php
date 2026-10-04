@@ -69,6 +69,18 @@ final class InvoiceBeforePaymentCoverageRepository
     public function lockOriginInvoiceRelations(\PDO $db, array $relations): array
     {
         $origins = $this->inscriptionOrigins($relations);
+        $guard = $db->prepare(
+            "INSERT INTO invoice_origin_guard (SOURCE_TYPE, SOURCE_ID)
+             VALUES ('INSCRIPCIO', ?)
+             ON DUPLICATE KEY UPDATE SOURCE_ID = SOURCE_ID"
+        );
+        foreach ($origins as $sourceId) {
+            // INSERT or duplicate-key update takes an exclusive row lock on
+            // the durable origin mutex for the lifetime of this transaction.
+            // This does not depend on InnoDB gap locks or isolation level.
+            $guard->execute([$sourceId]);
+        }
+
         $placeholders = implode(',', array_fill(0, count($origins), '?'));
 
         $stmt = $db->prepare(
