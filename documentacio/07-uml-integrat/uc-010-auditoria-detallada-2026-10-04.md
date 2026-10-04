@@ -601,3 +601,21 @@ Sí en la branca reconciliada:
 8. decisió productiva separada.
 
 **Producció continua NO autoritzada.**
+
+
+## 28. Troballes finals de preflight i CI selectiu
+
+| ID | Severitat | Troballa | Correcció |
+| --- | --- | --- | --- |
+| UC010-AUD-30 | Alta | El preflight CLI feia `realpath()` directament sobre configuracions potencialment buides i no comprovava HMAC del panell ni TTL; un root de declaracions dins del release tampoc estava prohibit pel servei | valors buits es rebutgen abans de `realpath`; preflight exigeix key id/secret, path SIF, TTL vàlid i storage fora de webroot/release; servei i verificador d'evidència apliquen el mateix límit |
+| UC010-AUD-31 | Mitjana | El gate selectiu UC-010 usava MySQL 8.4 mentre la suite SIF canònica usa 8.0, no vigilava el nou test de `RuntimeConfigFingerprint` i només lintava el runner | workflow alineat a MySQL 8.0, path del test afegit i lint autosuficient de tot `sif/*.php` més PHP/JS intranet afectat |
+
+### Criteri de congelació de branca
+
+A partir d'aquest punt no s'han d'afegir canvis funcionals a UC-010 només per provocar nous runs de GitHub Actions. El PR es manté en draft fins que la cua assigni runner. Qualsevol canvi posterior ha de respondre a:
+
+1. una fallada concreta de CI amb log;
+2. una incidència reproduïda a `sif_test*`/preproducció;
+3. un canvi de contracte explícit d'UC-85 o governança.
+
+La cua de GitHub Actions continua sent un bloqueig d'infraestructura observable: tots els workflows del head queden `queued`, no només el gate UC-010.
