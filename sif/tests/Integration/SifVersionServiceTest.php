@@ -504,6 +504,55 @@ final class SifVersionServiceTest
         }
     }
 
+    public function testDeclarationStorageInsideReleaseTreeIsRejected(): void
+    {
+        $db = TestDatabase::fresh();
+        [$service, $dir, $config] = $this->service($db);
+
+        try {
+            $actor = ['actor_id' => 'meriem', 'roles' => ['SIF_ADMIN'], 'source_channel' => 'TEST'];
+            $created = $service->registerCurrentRuntime(
+                $actor,
+                $this->operation('REGISTER-INTERNAL-STORAGE', 'RELEASE_CANDIDATE') + [
+                    'version_code' => '2026.10.04-storage-boundary',
+                ]
+            );
+
+            $unsafeConfig = $config;
+            $unsafeConfig['version_governance']['declaration_root'] = dirname(__DIR__, 2) . '/config';
+            $unsafeService = new SifVersionService(
+                $db,
+                new TransactionRunner($db),
+                new SifVersionRepository(),
+                new SifDeclarationRepository(),
+                new SifVersionActivationRepository(),
+                new BackupRestoreEvidenceRepository(),
+                new SifAuditEventRepository(new UuidGenerator()),
+                new RuntimeVersionInspector(
+                    $dir,
+                    new MigrationRunner(dirname(__DIR__, 2) . '/database')
+                ),
+                $unsafeConfig
+            );
+
+            Assert::throws(
+                SifException::class,
+                fn () => $unsafeService->attachDeclaration(
+                    $actor,
+                    $created['version']['UUID_VERSION'],
+                    $this->operation('DECL-INTERNAL-STORAGE', 'DECLARATION_APPROVAL') + [
+                        'declaration_version' => 'v1',
+                        'storage_key' => 'sif.php',
+                    ]
+                ),
+                422
+            );
+        } finally {
+            $this->removeTree($dir);
+            $this->removeTree($dir . '-evidence');
+        }
+    }
+
     public function testManagePermissionAndDeclarationTraversalFailClosed(): void
     {
         $db = TestDatabase::fresh();
