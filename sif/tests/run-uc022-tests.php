@@ -8,34 +8,43 @@ try {
             throw new RuntimeException("Missing PHP extension: {$extension}");
         }
     }
-    PrismaSifTestsSupportTestDatabase::fresh();
+    \Prisma\Sif\Tests\Support\TestDatabase::fresh();
 } catch (Throwable $exception) {
     fwrite(STDERR, '[INFRASTRUCTURE FAIL] ' . $exception->getMessage() . PHP_EOL);
     exit(1);
 }
 
-$testFiles = [
-    __DIR__ . '/Integration/IssueInvoiceTest.php',
-    __DIR__ . '/Integration/RegisterPaymentTest.php',
-    __DIR__ . '/Integration/ManualPaymentServiceTest.php',
-    __DIR__ . '/Integration/ManualTransferCommandServiceTest.php',
-    __DIR__ . '/Unit/ManualPaymentPayloadBuilderTest.php',
-];
+$testFiles = array_merge(
+    glob(__DIR__ . '/Database/*Test.php') ?: [],
+    glob(__DIR__ . '/Integration/*Test.php') ?: [],
+    glob(__DIR__ . '/Unit/*Test.php') ?: []
+);
 
 foreach ($testFiles as $file) {
     require_once $file;
 }
 
 $classes = [
-    PrismaSifTestsIntegrationManualPaymentServiceTest::class,
-    PrismaSifTestsIntegrationManualTransferCommandServiceTest::class,
-    PrismaSifTestsUnitManualPaymentPayloadBuilderTest::class,
+    'Prisma\\Sif\\Tests\\Integration\\ManualPaymentServiceTest',
+    'Prisma\\Sif\\Tests\\Integration\\ManualTransferCommandServiceTest',
+    'Prisma\\Sif\\Tests\\Integration\\ManualTransferAuditedFlowTest',
+    'Prisma\\Sif\\Tests\\Integration\\ManualTransferHttpEndpointTest',
+    'Prisma\\Sif\\Tests\\Integration\\ManualTransferIntranetAdapterTest',
+    'Prisma\\Sif\\Tests\\Integration\\ManualTransferNotificationServiceTest',
+    'Prisma\\Sif\\Tests\\Unit\\ManualPaymentPayloadBuilderTest',
+    'Prisma\\Sif\\Tests\\Unit\\GeneratedInvoiceLegacyPaymentSyncServiceTest',
 ];
 
 $passed = 0;
 $failed = 0;
 
 foreach ($classes as $class) {
+    if (!class_exists($class)) {
+        echo "[FAIL] {$class}: class not found\n";
+        $failed++;
+        continue;
+    }
+
     $instance = new $class();
     $reflection = new ReflectionClass($class);
 
