@@ -73,6 +73,10 @@ on:
       - ".github/workflows/uc010-sif-checks.yml"
   workflow_dispatch:
 
+concurrency:
+  group: uc010-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
