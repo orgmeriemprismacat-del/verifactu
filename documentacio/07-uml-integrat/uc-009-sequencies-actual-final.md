@@ -311,6 +311,55 @@ Note over W,T: AeatTransport NO és invocat
 
 **Invariant de seguretat:** un timeout de lock local no és evidència que AEAT no hagi rebut el SOAP. La recuperació només allibera ownership local; qualsevol nou enviament exigeix revisió/conciliació explícita.
 
+## 8.2. SQ09-10 · Conciliar un intent UNCERTAIN des d'evidència privada
+
+### ACTUAL implementat / FINAL
+
+```mermaid
+sequenceDiagram
+autonumber
+actor U as Responsable autoritzat
+participant JS as Panell intranet
+participant B as Bridge + CSRF
+participant API as API AEAT HMAC
+participant S as AeatEvidenceReconciliationService
+participant EV as EvidenceVerifier
+participant FS as Evidence store privat
+participant RP as ResponseParser
+participant A as AeatSubmissionAttemptRepository
+participant Q as FiscalQueueRepository
+participant DB as BD SIF
+
+U->>JS: Validar evidència i conciliar
+JS->>B: POST reconcile_evidence + queue_id + attempt_uuid + CSRF
+B->>API: petició HMAC server-to-server
+API->>S: reconcile(queue, attempt, actor)
+S->>Q: reviewForUpdate()
+Q->>DB: lock queue REVIEW
+S->>DB: carregar últim attempt
+S->>S: exigir STATUS=UNCERTAIN + EVIDENCE_ID
+S->>EV: readVerifiedPair(privateDir,evidenceId)
+EV->>FS: verificar hashes + no symlinks + mida
+FS-->>EV: request.xml + response.xml
+EV-->>S: parella íntegra
+S->>S: regenerar request XML des snapshot immutable
+S->>S: request evidència == request immutable + REQUEST_HASH
+S->>RP: parse(response.xml, snapshot)
+RP-->>S: estat terminal validat
+S->>A: completeUncertainFromEvidence()
+A->>DB: UNCERTAIN -> estat terminal
+S->>Q: reconcileReview()
+Q->>DB: REVIEW -> SENT + ESTAT_AEAT
+S->>DB: resoldre incidències + operational_event
+S-->>JS: reconciled_without_resend=true
+JS-->>U: resultat terminal
+Note over S,Q: cap AeatTransport / SoapTransport és invocat
+```
+
+### Bloqueig explícit
+
+Si l'intent és `STARTED`, no té `EVIDENCE_ID`, l'evidència és incompleta/alterada, el request no coincideix o la resposta no valida per aquella factura, la seqüència acaba en conflicte i el job continua `REVIEW`.
+
 ## 9. Matriu de verificació
 
 | Seqüència | Codi localitzat | Prova existent abans | Cobertura afegida 03/10 |
@@ -325,6 +374,7 @@ Note over W,T: AeatTransport NO és invocat
 | SQ09-07b | sí | `AeatWorkflowTest::testInvalidRemoteFlowWaitKeepsTerminalResultAndRequiresReviewWithoutResend` | resultat terminal preservat |
 | SQ09-08 | sí | `IncidentPanelUiContractTest` | contracte UI UC-009 |
 | SQ09-09 | sí | tests stale de `FiscalQueueProcessorTest` i `AeatWorkflowTest` | `PROCESSING → REVIEW`, cap transport |
+| SQ09-10 | implementat a branca | `AeatEvidenceReconciliationServiceTest` | evidència íntegra + mismatch fail-closed |
 
 ## 10. Estat
 
