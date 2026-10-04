@@ -269,7 +269,7 @@ window.uc007SifSearch = function(params) {
 			return;
 		}
 
-		uc007RenderResultatsSif(res.results, params.cercaPer);
+		uc007RenderResultatsSif(res.results, params.cercaPer, res.has_more === true);
 	});
 
 	request.fail(function(jqXHR, textStatus) {
@@ -354,10 +354,15 @@ function cercarFacturesLlegat(dni, email, factRel, factNum, generation) {
 	});
 }
 
-function uc007RenderResultatsSif(resultats, titol) {
+function uc007RenderResultatsSif(resultats, titol, hasMore) {
 	var html = '<div class="apartat uc007-sif-results">';
 	html += '<div class="apartat-header"><strong>' + uc007EscapeHtml(titol) + '</strong>';
 	html += ' <span class="label label-info">SIF · només lectura</span></div>';
+	if (hasMore === true) {
+		html += '<div class="alert alert-warning mt-2" role="alert">';
+		html += 'La cerca té més resultats dels que es poden mostrar. Afegeix algun filtre per veure un conjunt complet.';
+		html += '</div>';
+	}
 	html += '<div class="table-responsive"><table class="table table-hover">';
 	html += '<thead><tr><th>Factura</th><th>Data</th><th>Receptor</th><th>Total</th><th>Factura</th><th>Cobrament</th><th>AEAT</th><th></th></tr></thead><tbody>';
 
