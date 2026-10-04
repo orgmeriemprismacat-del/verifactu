@@ -32,6 +32,22 @@ class PublicWebMutationAuthorization {
   +WEB_ALLOWED_ORIGINS
   +exigeix X-Requested-With
 }
+class PackConfirmationToken {
+  +encode(idInsc,key,issuedAt) token_v2
+  +decode(token,key,now) idInsc
+  +AES-256-CBC
+  +MAC domini+IV+ciphertext
+  +TTL 24h
+}
+class ConfirmacioPackEndpoint {
+  <<script PHP>>
+  +rep keyEncr per GET
+  +valida token abans de desxifrar
+  +no-store/no-referrer
+}
+class PagamentGrupAutomatic {
+  +mostrarPaginaConfirmacio()
+}
 class EnviarInscripcioPack {
   <<script PHP>>
   +rep alta publica per POST [PUBLIC]
@@ -49,6 +65,9 @@ class EnviarInscripcioPack {
 Pack --> EdicioPack : conté N edicions
 InscripcioPack --> EdicioPack : mostra components
 EnviarInscripcioPack --> PublicWebMutationAuthorization : autoritza mutacio AJAX
+EnviarInscripcioPack --> PackConfirmationToken : emet token v2
+ConfirmacioPackEndpoint --> PackConfirmationToken : valida i descodifica
+ConfirmacioPackEndpoint --> PagamentGrupAutomatic : mostra continuacio pagament
 EnviarInscripcioPack --> InscripcioPack : rep dades formulari
 EnviarInscripcioPack --> EdicioPack : determina components/preus
 ```
@@ -59,7 +78,7 @@ EnviarInscripcioPack --> EdicioPack : determina components/preus
 - `EdicioPack.php`: resol edició, curs, dates, preu i obertura; `inscripcioOberta()` usa ara una data límit amb signe (`data_inici + dies`) i comparació real contra avui.
 - `InscripcioPack.php`: genera el formulari.
 - `PublicWebMutationAuthorization.php`: és l'única autoritat per `Origin`/`Referer` de la mutació pública; llegeix `WEB_ALLOWED_ORIGINS`, exigeix `X-Requested-With: XMLHttpRequest` i falla amb 403 fora de l'allowlist.
-- `enviarInscripcioPack.php`: rep dades per **POST**, delega `Origin`/`Referer` al guard configurable i conserva `Sec-Fetch-Site` com a defensa addicional; valida `REQUEST_ID` UUID v4 i fingerprint SHA-256, serialitza reintents amb named lock i resol `REUSED/409` abans dels validators legacy i de rellegir el pack actual. Per una alta nova exigeix que **totes les edicions** continuïn obertes, recalcula imports des de BD, genera `IDPAG` i crea N files `inscripcions` amb snapshot comercial + `RID/RH1` dins una transacció única. En error fa rollback i garanteix l'alliberament dels locks.
+- `PackConfirmationToken.php`: encapsula el token temporal de confirmació PACK v2; usa AES-256-CBC amb clau derivada, HMAC SHA-256 amb clau separada sobre domini + IV + ciphertext, Base64URL i TTL de 24 h. La MAC es valida abans de desxifrar.\n- `mostrar_pagina_confirmacio_pagament_grup_automatic.php`: consumidor exclusiu de la confirmació PACK; llegeix `$_GET['keyEncr']`, delega tota la criptografia al helper i només després construeix `PagamentGrupAutomatic`.\n- `enviarInscripcioPack.php`: rep dades per **POST**, delega `Origin`/`Referer` al guard configurable i conserva `Sec-Fetch-Site` com a defensa addicional; valida `REQUEST_ID` UUID v4 i fingerprint SHA-256, serialitza reintents amb named lock i resol `REUSED/409` abans dels validators legacy i de rellegir el pack actual. Per una alta nova exigeix que **totes les edicions** continuïn obertes, recalcula imports des de BD, genera `IDPAG` i crea N files `inscripcions` amb snapshot comercial + `RID/RH1` dins una transacció única. En error fa rollback i garanteix l'alliberament dels locks.
 - Els dos `realitzaPagamentPackAutomatic.php` productius han estat **eliminats físicament**. Només resta l'arnès `realitzaPagamentPackAutomaticProva.php`, restringit a test/preproducció i fail-closed.
 
 ## 2. Classes ACTUAL — SIF ja implementat
@@ -181,6 +200,14 @@ class EnrollmentFundMovementRepository {
 class PackPaymentNotificationService {
   <<IMPLEMENTAT · ENQUEUE>>
 }
+class PackConfirmationToken {
+  <<IMPLEMENTAT · TOKEN V2>>
+  +encode()
+  +decode()
+}
+class ConfirmacioPackEndpoint {
+  <<IMPLEMENTAT · FAIL-CLOSED>>
+}
 class NotificationOutboxDeliveryService {
   <<IMPLEMENTAT · GATE TRANSVERSAL>>
   +claim()
@@ -194,6 +221,9 @@ class LegacySyncService {
 }
 
 EnviarInscripcioPack --> PublicWebMutationAuthorization
+EnviarInscripcioPack --> PackConfirmationToken : token temporal v2
+PackConfirmationToken --> ConfirmacioPackEndpoint : fragment -> GET codificat
+ConfirmacioPackEndpoint --> PackPaymentGate : continuacio de pagament
 EnviarInscripcioPack --> PackPaymentGate : IDPAG creat
 PackPaymentGate --> SifPaymentIntentClient
 SifPaymentIntentClient --> RedsysPackInvoiceService : intent/callback/worker
