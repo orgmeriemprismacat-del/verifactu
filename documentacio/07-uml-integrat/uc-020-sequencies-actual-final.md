@@ -31,39 +31,63 @@ E-->>JS: resultat
 
 **Problema de frontera:** la confirmació confia en dades comercials mantingudes al navegador; no existeix una oferta servidor immutable entre preview i commit.
 
-## 2. Seqüència FINAL — decisió comercial i intenció
+## 2. Seqüència FINAL — checkout CURS integrat i intenció
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor A as Alumne
-participant Web as Checkout servidor
+participant Pay as pay.prisma.cat
+participant Client as SifRedsysCourseIntentClient
+participant API as /api/redsys/course-intent.php
+participant Course as RedsysCoursePaymentIntentService
+participant Price as LegacyPrismaStudentPriceSnapshotResolver
+participant Checkout as PrismaStudentCourseCheckoutService
 participant Hist as LegacyPrismaStudentHistoryRepository
 participant Policy as PrismaStudentDiscountPolicy
-participant Decision as DiscountDecisionService [PENDENT]
-participant DV as discount_validation
-participant CO as commercial_operation
-participant IV as CourseIntentSnapshotValidator
+participant CO as CommercialOperationRepository
+participant Party as CommercialOperationPartyRepository
+participant Line as CommercialOperationLineRepository
+participant DV as DiscountValidationRepository
 participant Intent as RedsysPaymentIntentService
-participant DB as redsys_payment_intent
+participant IV as CourseIntentSnapshotValidator
+participant RI as RedsysPaymentIntentRepository
 participant Bank as Redsys
 
-A->>Web: Confirmar compra
-Web->>Hist: findByDocument(DNI)
-Hist-->>Web: historial estructurat
-Web->>Policy: evaluate(historial)
-Policy-->>Web: eligible, rule_version, evidence
-Web->>Decision: calcular/autoritzar oferta
-Decision->>DV: persistir regla i evidencia
-Decision->>CO: persistir gross/discount/net + PRICE_SNAPSHOT
-CO-->>Web: UUID_OPERATION / oferta
-Web->>Intent: create(CURS, source_id, idpag, expected_amount, snapshot)
-Intent->>IV: validate(snapshot,idpag,sourceId,expectedAmount)
-IV-->>Intent: OK
-Intent->>DB: INSERT/reuse intent
-Intent-->>Web: UUID_INTENT
-Web->>Bank: Redireccio pel mateix import congelat
+A->>Pay: Confirmar pagament
+Pay->>Client: create(IDPAG, requestedAmount)
+Client->>API: POST signat
+API->>Course: create(sifDb, legacyDb, input)
+Course->>Course: rellegir matrícula / saldo servidor
+alt TIPUS_DESC = 1
+    Course->>Price: resolve(context legacy)
+    Price-->>Course: base/descompte/net + PRICE_RULE_VERSION
+    Course->>Checkout: stageAndCreateIntent(...)
+    Checkout->>Hist: findByDocument(DNI)
+    Hist-->>Checkout: historial
+    Checkout->>Policy: evaluate(historial)
+    Policy-->>Checkout: eligible + rule_version + evidence
+    Checkout->>CO: find/insert operation
+    Checkout->>Party: find/insert participant
+    Checkout->>Line: find/insert line
+    Checkout->>DV: find/insert validation
+    Checkout->>Intent: create(CURS, snapshot autoritatiu)
+    Intent->>IV: validate(source,IDPAG,amount,discount)
+    IV-->>Intent: OK
+    Intent->>RI: insert/reuse intent
+    Intent-->>Checkout: UUID_INTENT
+    Checkout->>CO: linkIntent + INTENT_CREATED
+    Checkout-->>Course: amount autoritatiu + intent
+else Altres tarifes
+    Course->>Intent: create(CURS, context servidor)
+end
+Course-->>API: intent
+API-->>Client: intent
+Client-->>Pay: DS_ORDER + amount autoritatiu
+Pay->>Bank: Formulari Redsys
 ```
+
+**Regla:** el navegador no és l'autoritat de l'import que arriba a Redsys. El servei rellegeix el context servidor; per Alumne PrisMa, el mateix snapshot comercial origina operació, validació, línia i intenció.
 
 ## 3. Seqüència FINAL — callback i factura
 
@@ -109,7 +133,8 @@ Abans de crear la intenció:
 
 ## 5. Pendent
 
-- orquestrador de checkout que creï `discount_validation` i `commercial_operation`;
-- vinculació runtime `UUID_OPERATION ↔ UUID_INTENT`;
-- substitució de la confiança en imports del navegador;
-- test E2E complet des d'historial fins a factura.
+- retirar completament l'autoritat dels imports/tipus del navegador en l'**alta** llegat, anterior al checkout;
+- harmonitzar el checkout CURS amb `PaymentLinkService` / `CommercialOfferService` com a model únic;
+- definir pagament Alumne PrisMa fraccionat/reprès, actualment fail-closed;
+- ratificar les decisions `UC20-DEC-001…006`;
+- conservar evidència E2E/preproducció completa.

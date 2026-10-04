@@ -371,10 +371,11 @@ start
 :Calcular saldo des del ledger;
 if (Operació PAYABLE?) then (Sí)
  :Habilitar només mètodes autoritzats;
- :Crear/reutilitzar intenció Redsys des de snapshot;
+ :Crear/reutilitzar intenció Redsys des de snapshot autoritatiu;
 note right
-  PENDENT en aquesta branca: adaptador
-  payment_link/commercial_operation -> RedsysPaymentIntentService
+  Per checkout CURS actiu, course-intent
+  ja està connectat. PaymentLinkService
+  encara no és la via única.
 end note
 else (No)
  :No mostrar instruccions executables;
@@ -588,10 +589,11 @@ stop
 
 ### 4.5. Estat d'implementació del FINAL
 
-- `CommercialOfferService::createOrReuse()`: **implementat en aquesta branca**; encara no cridat pel web/intranet llegat.
-- `PaymentLinkService::issue()/resolve()/revoke()`: **implementat en aquesta branca**; encara no substitueix les rutes llegades `/confirmacio/` i `/pagament/`.
-- Política `PrismaStudentDiscountPolicy`: **pendent de decisions de negoci i implementació**.
-- Adaptador `UUID_OPERATION/payment_link → RedsysPaymentIntentService`: **pendent**.
+- `CommercialOfferService::createOrReuse()`: **implementat** com a infraestructura genèrica; UC-020 CURS manté un orquestrador específic que reutilitza repositories i conserva la transacció única.
+- `PaymentLinkService::issue()/resolve()/revoke()`: **implementat**; encara no substitueix totes les rutes llegades `/confirmacio/` i `/pagament/`.
+- `PrismaStudentDiscountPolicy`: **implementada en compatibilitat `ALUMNE_PRISMA_LEGACY_V1`**; decisions futures de negoci continuen pendents.
+- Checkout CURS → `RedsysPaymentIntentService`: **implementat i connectat** via `/api/redsys/course-intent.php`.
+- Pagament AP fraccionat/reprès: **fail-closed**, pendent de model explícit.
 
 ## 7. Matriu ACTUAL → FINAL
 

@@ -307,9 +307,13 @@ class payment_link {
   EXPIRES_AT
 }
 
-PrismaStudentDiscountPolicy --> CommercialOfferService : decisió + regla [INTEGRACIÓ PENDENT]
+PrismaStudentDiscountPolicy --> PrismaStudentCourseCheckoutService : decisió AP [IMPLEMENTAT]
+PrismaStudentCourseCheckoutService --> CommercialOperationRepository : operació/vincle
+PrismaStudentCourseCheckoutService --> DiscountValidationRepository : validació
 CommercialOfferService --> CommercialOperationRepository
 CommercialOfferService --> DiscountValidationRepository
+PrismaStudentCourseCheckoutService --> CommercialOperationPartyRepository
+PrismaStudentCourseCheckoutService --> CommercialOperationLineRepository
 CommercialOfferService --> OperationalEventRepository
 CommercialOperationRepository --> commercial_operation
 DiscountValidationRepository --> discount_validation
@@ -324,7 +328,7 @@ PrismaStudentCourseCheckoutService --> RedsysPaymentIntentService
 RedsysPaymentIntentService --> CourseIntentSnapshotValidator : SOURCE_TYPE=CURS
 ```
 
-**Estat actual de runtime:** `main` ja aporta la persistència idempotent d'oferta i link (`CommercialOfferService`, repositoris comercials i `PaymentLinkService`). El tall UC-020 aporta a més `PrismaStudentDiscountPolicy` sota `ALUMNE_PRISMA_LEGACY_V1`, historial, validació del snapshot CURS i `PrismaStudentCourseCheckoutService`, que crea/reutilitza operació i validació, crea la intenció i vincula `UUID_OPERATION ↔ UUID_INTENT`. **Continua pendent connectar aquest nucli al checkout web/intranet llegat i definir/ratificar la política futura de negoci.**
+**Estat actual de runtime:** `main` ja aporta la persistència idempotent d'oferta i link (`CommercialOfferService`, repositoris comercials i `PaymentLinkService`). El tall UC-020 aporta a més `PrismaStudentDiscountPolicy` sota `ALUMNE_PRISMA_LEGACY_V1`, historial, validació del snapshot CURS i `PrismaStudentCourseCheckoutService`, que crea/reutilitza operació i validació, crea la intenció i vincula `UUID_OPERATION ↔ UUID_INTENT`. **El nucli ja està connectat al checkout actiu de `pay.prisma.cat` mitjançant `SifRedsysCourseIntentClient` i `/api/redsys/course-intent.php`. Continuen pendents altres canals llegats, la integració homogènia amb `payment_link` i la política futura de negoci.**
 
 ## 7. Seqüència ACTUAL — web d'inscripció
 
@@ -487,7 +491,7 @@ sequenceDiagram
     end
 ```
 
-**Tall d'implementació:** fins a `PaymentLinkService::resolve()` hi ha codi nou en aquesta branca; des de la creació de la intenció Redsys continua faltant l'adaptador que consumeixi l'operació/link i congeli el mateix snapshot comercial a `RedsysPaymentIntentService`.
+**Tall d'implementació actual:** el checkout actiu de curs ja crea `redsys_payment_intent` des del context rellegit al servidor; per `TIPUS_DESC=1` reconstrueix de forma fail-closed la tarifa AP, crea operació/validació/línia comercial i congela el mateix snapshot abans del TPV. `payment_link` continua sent infraestructura disponible però encara no és la via única d'aquest checkout.
 
 ## 11. Seqüència FINAL — factura posterior
 
@@ -579,7 +583,7 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 | Intenció Redsys | `redsys_payment_intent` | repositori + servei | IMPLEMENTAT |
 | Snapshot factura curs | factura/línia | builder + servei | IMPLEMENTAT |
 
-`redsys_payment_intent` no conté `UUID_OPERATION`. `commercial_operation.UUID_INTENT` existeix al DDL, però no s'ha identificat el codi que en faci l'enllaç.
+`redsys_payment_intent` no conté `UUID_OPERATION`; l'enllaç invers està implementat a `commercial_operation.UUID_INTENT`. `PrismaStudentCourseCheckoutService` crea/reutilitza la intenció i el repository d'operacions imposa el vincle idempotent.
 
 ## 15. Concurrència i seguretat
 
