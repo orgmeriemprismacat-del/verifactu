@@ -137,7 +137,13 @@ flowchart TD
   C -->|GRUP| F[RedsysGroupInvoiceService]
   C -->|REGAL| G[RedsysGiftInvoiceService]
   C -->|USOC_ALUMNE| H[RedsysUsocInvoiceService]
-  D --> I[RedsysCoveredInvoicePaymentService o InvoiceService + CHARGE]
+  D --> P{cobertura UC-004?}
+  P -->|Sí| Q[invoice_origin_guard lock + revalidar cobertura]
+  Q --> R[PaymentService CHARGE sobre factura existent]
+  P -->|No| S[invoice_origin_guard lock + recheck abans d'emetre]
+  S --> T[InvoiceService crea/reutilitza factura + CHARGE]
+  R --> I[resultat factura + payment]
+  T --> I
   E --> I
   F --> I
   G --> I
@@ -156,7 +162,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A[preflight-redsys-callback-queue.php] --> B{extensions/config/DB/taules OK?}
+  A[preflight-redsys-callback-queue.php] --> B{extensions/config/DB/taules inclòs invoice_origin_guard OK?}
   B -->|No| X[exit 1]
   B -->|Sí| C[process-redsys-callback-queue.php]
   C --> D{SIF_ENV=production?}
