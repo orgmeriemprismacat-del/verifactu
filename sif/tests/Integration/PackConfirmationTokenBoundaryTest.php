@@ -67,6 +67,7 @@ final class PackConfirmationTokenBoundaryTest
 
         Assert::stringContainsString("const PREFIX = 'v2.'", $source);
         Assert::stringContainsString("const CIPHER = 'AES-256-CBC'", $source);
+        Assert::stringContainsString('const TTL_SECONDS = 86400', $source);
         Assert::stringContainsString(
             'self::DOMAIN . $iv . $ciphertext',
             $source
@@ -113,7 +114,45 @@ final class PackConfirmationTokenBoundaryTest
             $js
         );
         Assert::stringContainsString(
-            'mostrarConfirmacioPagamentGrupAutomatic.min.js?ver=2.1',
+            'window.location.hash',
+            $js
+        );
+        Assert::stringContainsString(
+            'decodeURIComponent(window.location.hash.substring(1))',
+            $js
+        );
+
+        $enrollmentJs = file_get_contents(
+            $root
+            . '/codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js'
+        );
+        $enrollmentPage = file_get_contents(
+            $root . '/codi-drive/web-actual/pagina_inscripcio_pack.php'
+        );
+        $htaccess = file_get_contents(
+            $root . '/codi-drive/web-actual/.htaccess'
+        );
+        if (!is_string($enrollmentJs)
+            || !is_string($enrollmentPage)
+            || !is_string($htaccess)
+        ) {
+            Assert::fail('Could not read PACK fragment routing boundary');
+        }
+
+        Assert::stringContainsString(
+            'https://www.prisma.cat/packs/confirmacio/#',
+            $enrollmentJs
+        );
+        Assert::stringContainsString(
+            'mostrarInscripcioPack.min.js?ver=7.6',
+            $enrollmentPage
+        );
+        Assert::stringContainsString(
+            'RewriteRule ^packs/confirmacio/?$ /pagina_confirmacio_grup_automatic.php [L,QSA]',
+            $htaccess
+        );
+        Assert::stringContainsString(
+            'mostrarConfirmacioPagamentGrupAutomatic.min.js?ver=2.2',
             $page
         );
         Assert::stringContainsString('Referrer-Policy: no-referrer', $page);
