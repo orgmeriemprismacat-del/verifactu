@@ -22,6 +22,7 @@ final class ClaimPaymentPayloadBuilder
             : null;
         $reference = $externalReceiptId ?? $this->legacyReference($input);
         $bank = $this->optionalString($input, ['bank', 'banc']);
+        $idpag = $this->optionalPositiveInt($input, ['idpag', 'IDPAG']);
         $createdBy = $this->optionalString($input, ['created_by', 'user', 'usuari']);
 
         $payload = [
@@ -54,6 +55,7 @@ final class ClaimPaymentPayloadBuilder
             'ds_order' => $externalReceiptType === 'DS_ORDER' ? $externalReceiptId : null,
             'provider_ref' => $externalReceiptType === 'PROVIDER_REF' ? $externalReceiptId : null,
             'bank' => $bank,
+            'idpag' => $idpag,
             'created_by' => $createdBy,
             'notes' => $this->optionalString($input, ['notes', 'obs', 'observations']),
         ] as $key => $value) {
@@ -172,6 +174,20 @@ final class ClaimPaymentPayloadBuilder
         }
 
         return $value;
+    }
+
+    private function optionalPositiveInt(array $data, array $keys): ?int
+    {
+        $value = $this->optional($data, $keys);
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+            throw SifException::validation('Invalid claim payment IDPAG');
+        }
+
+        return (int) $value;
     }
 
     private function optionalString(array $data, array $keys, ?string $default = null): ?string
