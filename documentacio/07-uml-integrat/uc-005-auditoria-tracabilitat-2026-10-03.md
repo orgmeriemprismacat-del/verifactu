@@ -57,7 +57,7 @@ La validació rebutja imports amb valor absolut < 0,005. Cal decidir documentalm
 
 ### UC005-F05 — CONSUM D'EVIDÈNCIA IMPLEMENTAT / CLASSIFICADOR PENDENT · UC-74 abans de mutar
 
-El botó llegat “anul·lar” no pot mapar-se directament a UC-005. A més del `FiscalCorrectionDecisionGuard`, l'endpoint ara exigeix `classification_event_uuid` i el resol contra `sif_audit_event`. Només s'accepta un event `FISCAL_CORRECTION_CLASSIFIED` amb `RESULT=SUCCEEDED`, `RESOURCE_TYPE=FACTURA`, la mateixa factura i reason code coherent; la classificació inline del request deixa de ser font de veritat.
+El botó llegat “anul·lar” no pot mapar-se directament a UC-005. A més del `FiscalCorrectionDecisionGuard`, l'endpoint exigeix `classification_event_uuid` i el resol contra `sif_audit_event`. Només s'accepta un event `FISCAL_CORRECTION_CLASSIFIED` amb `RESULT=SUCCEEDED`, `RESOURCE_TYPE=FACTURA`, la mateixa factura, reason code coherent i `correction_fingerprint` igual al payload actual; la classificació inline del request deixa de ser font de veritat.
 
 Això **no equival a tenir UC-74 implementat**: encara falta el productor/classificador genèric que crea aquesta decisió persistent segons regles fiscals aprovades.
 
