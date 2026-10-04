@@ -8,6 +8,8 @@ class SifInternalApiClient
     private string $secret;
     private string $courseChangeUrl;
     private string $courseChangeSignedPath;
+    private string $rectificationUrl;
+    private string $rectificationSignedPath;
     private int $timeout;
 
     public function __construct(
@@ -17,7 +19,9 @@ class SifInternalApiClient
         ?string $secret = null,
         int $timeout = 10,
         ?string $courseChangeUrl = null,
-        ?string $courseChangeSignedPath = null
+        ?string $courseChangeSignedPath = null,
+        ?string $rectificationUrl = null,
+        ?string $rectificationSignedPath = null
     ) {
         $this->url = trim((string) ($url ?? getenv('SIF_INTERNAL_API_URL') ?: ''));
         $this->signedPath = trim((string) ($signedPath ?? getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php'));
@@ -28,6 +32,14 @@ class SifInternalApiClient
         $this->secret = (string) $configuredSecret;
         $this->courseChangeUrl = trim((string) ($courseChangeUrl ?? getenv('SIF_COURSE_CHANGE_API_URL') ?: ''));
         $this->courseChangeSignedPath = trim((string) ($courseChangeSignedPath ?? getenv('SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH') ?: '/api/course-changes/preview.php'));
+        $this->rectificationUrl = trim((string) (
+            $rectificationUrl ?? getenv('SIF_RECTIFICATION_API_URL') ?: ''
+        ));
+        $this->rectificationSignedPath = trim((string) (
+            $rectificationSignedPath
+            ?? getenv('SIF_INTERNAL_RECTIFICATION_SIGNED_PATH')
+            ?: '/api/factures/rectify.php'
+        ));
         $this->timeout = max(1, min(30, $timeout));
 
         if ($this->url === '' || $this->keyId === '' || $this->secret === '') {
@@ -37,6 +49,9 @@ class SifInternalApiClient
         $this->assertSecureUrl($this->url);
         if ($this->courseChangeUrl !== '') {
             $this->assertSecureUrl($this->courseChangeUrl);
+        }
+        if ($this->rectificationUrl !== '') {
+            $this->assertSecureUrl($this->rectificationUrl);
         }
     }
 
@@ -89,6 +104,54 @@ class SifInternalApiClient
         ]);
     }
 
+    public function previewRectification(
+        string $actorId,
+        array $roles,
+        string $uuidFactura,
+        array $correction,
+        string $classificationEventUuid
+    ): array {
+        $this->assertRectificationConfigured();
+
+        return $this->requestTo(
+            $this->rectificationUrl,
+            $this->rectificationSignedPath,
+            $actorId,
+            $roles,
+            [
+                'action' => 'preview',
+                'uuid_factura' => trim($uuidFactura),
+                'correction' => $correction,
+                'classification_event_uuid' => strtolower(trim($classificationEventUuid)),
+            ]
+        );
+    }
+
+    public function confirmRectification(
+        string $actorId,
+        array $roles,
+        string $uuidFactura,
+        array $correction,
+        string $classificationEventUuid,
+        string $expectedFingerprint
+    ): array {
+        $this->assertRectificationConfigured();
+
+        return $this->requestTo(
+            $this->rectificationUrl,
+            $this->rectificationSignedPath,
+            $actorId,
+            $roles,
+            [
+                'action' => 'confirm',
+                'uuid_factura' => trim($uuidFactura),
+                'correction' => $correction,
+                'classification_event_uuid' => strtolower(trim($classificationEventUuid)),
+                'expected_fingerprint' => strtolower(trim($expectedFingerprint)),
+            ]
+        );
+    }
+
     public function previewCourseChange(string $actorId, array $roles, array $payload): array
     {
         if ($this->courseChangeUrl === '') {
@@ -102,6 +165,13 @@ class SifInternalApiClient
             $roles,
             $payload
         );
+    }
+
+    private function assertRectificationConfigured(): void
+    {
+        if ($this->rectificationUrl === '' || $this->rectificationSignedPath === '') {
+            throw new RuntimeException('SIF rectification API is not configured');
+        }
     }
 
     private function request(string $actorId, array $roles, array $payload): array
