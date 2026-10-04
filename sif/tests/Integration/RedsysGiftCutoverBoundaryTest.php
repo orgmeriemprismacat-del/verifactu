@@ -163,6 +163,31 @@ final class RedsysGiftCutoverBoundaryTest
         Assert::same(true, $guard !== false && $firstInclude !== false && $guard < $firstInclude);
     }
 
+    public function testGiftCheckoutJavascriptDoesNotSendPiiBeforeRedsys(): void
+    {
+        $js = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/js/mostrarEfectuarPagamentRegal.min.js'
+        );
+        $retired = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/ajax/efectuarPagamentRegalAutomatic.php'
+        );
+
+        Assert::stringContainsString("form.submit();", $js);
+        Assert::stringContainsString("var submitting = false;", $js);
+        Assert::stringContainsString("http_response_code(410)", $retired);
+        Assert::stringContainsString("Endpoint de preparació llegat retirat", $retired);
+
+        foreach (['codiRegal=', 'dni=', 'nomTit=', 'import=', 'efectuarPagamentRegalAutomatic.php?'] as $forbidden) {
+            if (str_contains($js, $forbidden)) {
+                Assert::fail('Gift checkout JS leaks legacy payment context: ' . $forbidden);
+            }
+        }
+
+        if (str_contains($retired, '$_GET[') || str_contains($retired, 'new Mail(')) {
+            Assert::fail('Retired gift preparation endpoint must not consume GET data or send mail.');
+        }
+    }
+
     private function read(string $relativePath): string
     {
         $path = dirname(__DIR__, 3) . '/' . $relativePath;
