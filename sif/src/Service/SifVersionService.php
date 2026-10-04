@@ -607,6 +607,14 @@ final class SifVersionService
             throw SifException::unavailable('SIF declaration storage is not available');
         }
 
+        $releaseRoot = realpath(dirname(__DIR__, 2));
+        if ($releaseRoot !== false
+            && ($rootReal === $releaseRoot
+                || str_starts_with($rootReal, $releaseRoot . DIRECTORY_SEPARATOR))
+        ) {
+            throw SifException::validation('SIF declaration storage must be outside the release tree');
+        }
+
         $storageKey = str_replace('\\', '/', trim($storageKey));
         if ($storageKey === '' || str_starts_with($storageKey, '/') || str_contains('/' . $storageKey . '/', '/../')) {
             throw SifException::validation('Invalid declaration storage key');
