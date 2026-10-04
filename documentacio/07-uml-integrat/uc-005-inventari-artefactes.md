@@ -33,6 +33,8 @@ Abans d'aquesta auditoria, UC-005 tenia la fitxa funcional i una fitxa/UML integ
 - `sif/tests/Integration/ManualRectificationPreviewScriptTest.php`
 - `sif/tests/Integration/ManualRectificationPreproductionScriptTest.php`
 - `sif/src/Service/FiscalCorrectionDecisionGuard.php`
+- `sif/src/Service/FiscalCorrectionDecisionResolver.php`
+- `sif/src/Repository/FiscalCorrectionDecisionRepository.php`
 - `sif/src/Service/InternalRectificationScopeResolver.php`
 - `sif/src/Service/RectificationCommandService.php`
 - `sif/src/Repository/SifAuditEventRepository.php`
@@ -65,7 +67,7 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 ## 5. Peces que encara falten
 
 1. **PENDENT UI:** proxy/adaptador intranet amb sessió, permís i CSRF que signi i consumeixi `/api/factures/rectify.php`.
-2. **PENDENT UC-74:** classificador fiscal genèric executable. El guard d'entrada UC-005 ja està implementat, però no substitueix el classificador.
+2. **PENDENT UC-74:** productor/classificador fiscal genèric executable. UC-005 ja exigeix i resol una decisió UC-74 persistida; això no substitueix el component que la genera.
 3. **PENDENT AEAT:** mapping específic de rectificatives a `aeat_fields`, XSD/protocol i evidència d'enviament.
 4. **PENDENT DECISIÓ:** correccions sense variació d'import; el builder continua rebutjant total zero fins que el criteri fiscal ho defineixi.
 5. **IMPLEMENTAT:** emissió R + `factura_rectificacio` + estat original + audit terminal comparteixen la transacció d'`InvoiceService`.
@@ -80,8 +82,8 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 - **Codi SIF de rectificació manual:** IMPLEMENTAT PARCIALMENT.
 - **Pantalla final UC-005:** PENDENT.
 - **Fiscalitat local SIF:** IMPLEMENTADA EN MODE FAIL-CLOSED · AEAT específic pendent.
-- **Atomicitat del nucli UC-005:** IMPLEMENTADA EN BRANCA · pendent execució verda i prova de concurrència.
+- **Atomicitat del nucli UC-005:** IMPLEMENTADA I PASSADA A LA SUITE ESPECÍFICA · pendent concurrència/preproducció.
 - **Command backend segur:** IMPLEMENTAT · endpoint intern signat, rols explícits i preview/confirm.
-- **Classificador UC-74:** PENDENT; només hi ha guard d'integració.
+- **Classificador UC-74:** PENDENT com a productor; el consum de decisió persistida + guard ja està implementat.
 - **Proves definides:** SÍ, inclosa suite aïllada UC-005.
-- **Proves executades:** suite global prèvia 918 passats/6 fallats aliens; execució aïllada UC-005 pendent de conclusió CI.
+- **Proves executades:** suite UC-005 verda 34/34 abans del resolver persistit; la nova passada amb `classification_event_uuid` està pendent. La suite global manté fallades alienes documentades.
