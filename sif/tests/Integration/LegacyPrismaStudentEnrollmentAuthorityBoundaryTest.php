@@ -78,6 +78,26 @@ final class LegacyPrismaStudentEnrollmentAuthorityBoundaryTest
         Assert::stringContainsString("if (!\$trobat)\n      \$mostrar = '0|0|0|0';", $source);
     }
 
+    public function testPublicEnrollmentCommandUsesPostAndDoesNotSendClientCourseType(): void
+    {
+        $endpoint = $this->read('codi-drive/web-actual/ajax/enviarInscripcio.php');
+        $js = $this->read('codi-drive/web-actual/js1619773569/mostrarInscripcions.min.js');
+
+        Assert::stringContainsString("REQUEST_METHOD", $endpoint);
+        Assert::stringContainsString("!== 'POST'", $endpoint);
+        Assert::same(false, str_contains($endpoint, '$_GET['));
+
+        $start = strpos($js, 'var sendInscr = $.ajax({');
+        $end = strpos($js, 'sendInscr.done', $start === false ? 0 : $start);
+        Assert::same(true, $start !== false && $end !== false && $end > $start);
+
+        $sendBlock = substr($js, $start, $end - $start);
+        Assert::stringContainsString('method: "POST"', $sendBlock);
+        Assert::same(false, str_contains($sendBlock, 'tipusCurs: tipusCurs'));
+        Assert::stringContainsString('dni: documentacio', $sendBlock);
+        Assert::stringContainsString('email: email', $sendBlock);
+    }
+
     public function testPricePreviewDoesNotMutateEnrollmentPaymentOrFiscalState(): void
     {
         $source = $this->read('codi-drive/web-actual/ajax/calcularPreu.php')
