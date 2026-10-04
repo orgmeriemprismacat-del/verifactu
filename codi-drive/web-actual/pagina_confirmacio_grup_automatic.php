@@ -6,10 +6,81 @@ header('X-Content-Type-Options: nosniff');
 header("Content-Security-Policy: frame-ancestors 'none'");
 header('X-Frame-Options: DENY');
 header('X-Robots-Tag: noindex, nofollow, noarchive');
+
+$uc015ConfirmationCookie = 'uc015_pack_confirmation';
+$uc015ConfirmationCookiePath = '/ajax/mostrar_pagina_confirmacio_pagament_grup_automatic.php';
+
+$setUc015ConfirmationCookie = static function ($token) use (
+    $uc015ConfirmationCookie,
+    $uc015ConfirmationCookiePath
+) {
+    setcookie($uc015ConfirmationCookie, $token, [
+        'expires' => time() + 86400,
+        'path' => $uc015ConfirmationCookiePath,
+        'secure' => true,
+        'httponly' => true,
+        'samesite' => 'Strict',
+    ]);
+};
+
+if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) === 'POST') {
+    $postedToken = trim((string) ($_POST['confirmationToken'] ?? ''));
+    if (strlen($postedToken) <= 2048
+        && preg_match('/^v2\.[A-Za-z0-9_-]+$/D', $postedToken) === 1
+    ) {
+        $setUc015ConfirmationCookie($postedToken);
+    }
+    else {
+        http_response_code(400);
+    }
+}
+else {
+    // Compatibilitat temporal: un client amb JS 7.6 pot haver enviat el token v2
+    // al path. Es captura abans de carregar scripts i es redirigeix a la URL neta.
+    $requestPath = parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+    if (is_string($requestPath)
+        && preg_match(
+            '#^/packs/confirmacio/(v2\.[A-Za-z0-9_-]+)/?$#D',
+            $requestPath,
+            $pathMatch
+        ) === 1
+    ) {
+        $setUc015ConfirmationCookie($pathMatch[1]);
+        header('Location: https://www.prisma.cat/packs/confirmacio/', true, 303);
+        exit;
+    }
+}
 ?>
 <!DOCTYPE HTML PUBLIC "-/W3C/DTD HTML 4.01/EN" "http:/www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http:/ogp.me/ns# fb: http:/ogp.me/ns/fb# video: http:/ogp.me/ns/video#">
 <head>
+	<script>
+	(function uc015FragmentMigration() {
+		if (!window.location.hash || window.location.hash.length <= 1) return;
+		var token = '';
+		try {
+			token = decodeURIComponent(window.location.hash.substring(1));
+		}
+		catch (e) {
+			token = '';
+		}
+		if (!/^v2\.[A-Za-z0-9_-]+$/.test(token)) {
+			window.history.replaceState(null, document.title, window.location.pathname);
+			return;
+		}
+		window.history.replaceState(null, document.title, '/packs/confirmacio/');
+		var form = document.createElement('form');
+		form.method = 'POST';
+		form.action = 'https://www.prisma.cat/packs/confirmacio/';
+		var input = document.createElement('input');
+		input.type = 'hidden';
+		input.name = 'confirmationToken';
+		input.value = token;
+		form.appendChild(input);
+		document.documentElement.appendChild(form);
+		form.submit();
+	})();
+	</script>
 	<meta name="robots" content="noindex,nofollow,noarchive">
 	<script>
   window.dataLayer = window.dataLayer || [];
@@ -95,7 +166,7 @@ header('X-Robots-Tag: noindex, nofollow, noarchive');
       $('head').append(footerCSS);
    </script>
    <link rel='stylesheet' href='https://www.prisma.cat/css1619773569/pagamentGrup.min.css?ver=5.0' />
-   <script async src="https://www.prisma.cat/js1619773569/mostrarConfirmacioPagamentGrupAutomatic.min.js?ver=2.2"></script>
+   <script async src="https://www.prisma.cat/js1619773569/mostrarConfirmacioPagamentGrupAutomatic.min.js?ver=2.3"></script>
    <script async src="https://www.prisma.cat/js1619773569/obrirTancar.min.js"></script>
    <script async src="https://www.prisma.cat/js1619773569/lazysizes.min.js"></script>
    <script async src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
