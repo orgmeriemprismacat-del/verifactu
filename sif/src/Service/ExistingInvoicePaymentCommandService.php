@@ -23,7 +23,11 @@ final class ExistingInvoicePaymentCommandService
 
         $uuidFactura = trim((string) ($selector['uuid_factura'] ?? ''));
         $numVisible = trim((string) ($selector['num_visible'] ?? ''));
-        if (($uuidFactura === '') === ($numVisible === '')) {
+        $legacyFacturaRelacionada = (int) ($selector['legacy_factura_relacionada'] ?? 0);
+        $selectorCount = ($uuidFactura !== '' ? 1 : 0)
+            + ($numVisible !== '' ? 1 : 0)
+            + ($legacyFacturaRelacionada > 0 ? 1 : 0);
+        if ($selectorCount !== 1) {
             throw SifException::validation(
                 'Existing invoice payment requires exactly one invoice selector'
             );
@@ -36,9 +40,25 @@ final class ExistingInvoicePaymentCommandService
             );
         }
 
-        $result = $uuidFactura !== ''
-            ? $this->manualPayments->registerByUuid($sifDb, $uuidFactura, $payment)
-            : $this->manualPayments->registerByNumVisible($sifDb, $numVisible, $payment);
+        if ($uuidFactura !== '') {
+            $result = $this->manualPayments->registerByUuid(
+                $sifDb,
+                $uuidFactura,
+                $payment
+            );
+        } elseif ($numVisible !== '') {
+            $result = $this->manualPayments->registerByNumVisible(
+                $sifDb,
+                $numVisible,
+                $payment
+            );
+        } else {
+            $result = $this->manualPayments->registerByLegacyFacturaRelacionada(
+                $sifDb,
+                $legacyFacturaRelacionada,
+                $payment
+            );
+        }
 
         $result['action'] = 'register_existing_invoice';
         $result['payment_committed'] = true;
