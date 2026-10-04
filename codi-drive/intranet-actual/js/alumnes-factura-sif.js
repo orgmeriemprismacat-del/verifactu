@@ -3,6 +3,48 @@
 
     var endpoint = 'https://intranet.prisma.cat/ajax/alumnes/sifFactures.php';
     var documentEndpoint = 'https://intranet.prisma.cat/ajax/alumnes/sifDocument.php';
+    var rectificationEndpoint = 'https://intranet.prisma.cat/ajax/alumnes/sifRectificarFactura.php';
+    var rectificationConfig = window.sifUc005RectificationConfig || { enabled: false, csrf: '' };
+
+    window.uc005SifRectificationPreview = function (request) {
+        return rectificationRequest('preview', request || {});
+    };
+
+    window.uc005SifRectificationConfirm = function (request) {
+        return rectificationRequest('confirm', request || {});
+    };
+
+    function rectificationRequest(action, request) {
+        if (rectificationConfig.enabled !== true || !/^[a-f0-9]{64}$/i.test(rectificationConfig.csrf || '')) {
+            return $.Deferred().reject({
+                status: 403,
+                responseJSON: { error: 'El flux UC-005 no està habilitat en aquesta pantalla.' }
+            }).promise();
+        }
+
+        var payload = {
+            action: action,
+            uuid_factura: String(request.uuid_factura || ''),
+            correction: request.correction || {},
+            classification_event_uuid: String(request.classification_event_uuid || '')
+        };
+
+        if (action === 'confirm') {
+            payload.expected_fingerprint = String(request.expected_fingerprint || '');
+        }
+
+        return $.ajax({
+            url: rectificationEndpoint,
+            method: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            dataType: 'json',
+            headers: {
+                'X-CSRF-Token': rectificationConfig.csrf,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            data: JSON.stringify(payload)
+        });
+    }
 
     window.uc007SifSearch = function (input) {
         var criteria = {};
@@ -214,7 +256,7 @@
 
         body.append(
             $('<div>').addClass('alert alert-info').text(
-                'Consulta SIF en mode només lectura. Les correccions, anul·lacions i documents es gestionen en fluxos separats.'
+                'La factura SIF és immutable. No s’edita directament; una correcció fiscal només es pot executar amb una decisió UC-74 aprovada i el flux UC-005 preview/confirm.'
             )
         );
 
@@ -274,9 +316,233 @@
         ]);
 
         appendDocumentsTable(body, view.documents || []);
+        appendRectificationPanel(body, view);
 
         $('#modalConsultaInformacio .modal-body').empty().append(body);
         $('#modalConsultaInformacio .editar-apartat').remove();
+    }
+
+    function appendRectificationPanel(parent, view) {
+        if (rectificationConfig.enabled !== true) {
+            return;
+        }
+
+        var invoice = view.invoice || {};
+        var decision = view.fiscal_correction_decision || null;
+        var wrapper = $('<div>').addClass('mb-4 uc005-rectification-panel');
+        wrapper.append($('<h6>').text('Rectificació fiscal · UC-005'));
+
+        if (!decision) {
+            wrapper.append(
+                $('<div>').addClass('alert alert-warning mb-0').text(
+                    'Pendent de classificació fiscal UC-74. No es pot previsualitzar ni emetre cap rectificativa.'
+                )
+            );
+            parent.append(wrapper);
+            return;
+        }
+
+        var classification = decision.classification || {};
+        wrapper.append(section('Decisió fiscal aprovada', [
+            ['Via', classification.decision],
+            ['Tipus fiscal', classification.invoice_type],
+            ['Mode', classification.rectification_mode],
+            ['Motiu fiscal', classification.reason_code || decision.reason_code],
+            ['Política', classification.policy_version],
+            ['Event UC-74', decision.event_uuid]
+        ]));
+
+        if (decision.eligible_for_uc005 !== true) {
+            wrapper.append(
+                $('<div>').addClass('alert alert-secondary mb-0').text(
+                    'La decisió fiscal vigent no deriva a UC-005. No s’emet cap factura rectificativa des d’aquesta pantalla.'
+                )
+            );
+            parent.append(wrapper);
+            return;
+        }
+
+        if (decision.executed === true) {
+            var execution = decision.execution || {};
+            var executedMessage = 'Aquesta decisió UC-74 ja s’ha executat.';
+            if (execution.uuid_factura_rectificativa) {
+                executedMessage += ' Rectificativa: ' + String(execution.uuid_factura_rectificativa) + '.';
+            }
+            wrapper.append(
+                $('<div>').addClass('alert alert-success mb-0').text(executedMessage)
+            );
+            parent.append(wrapper);
+            return;
+        }
+
+        if (decision.ready_for_uc005_ui !== true || !decision.correction) {
+            wrapper.append(
+                $('<div>').addClass('alert alert-warning mb-0').text(
+                    'La decisió UC-74 no conté el snapshot executable de la correcció. Cal reclassificar el cas abans de continuar.'
+                )
+            );
+            parent.append(wrapper);
+            return;
+        }
+
+        var correction = decision.correction;
+        var fiscal = correction.fiscal || {};
+        var correctedBilling = correction.billing || {};
+
+        wrapper.append(section('Correcció aprovada', [
+            ['Motiu operatiu', correction.reason],
+            ['Mode', correction.mode],
+            ['Import', correction.amount],
+            ['Concepte', correction.concept],
+            ['Detall', correction.detail],
+            ['Referència', correction.reference]
+        ]));
+
+        if (Object.keys(fiscal).length > 0) {
+            wrapper.append(section('Snapshot fiscal aprovat', [
+                ['Base', fiscal.import_base],
+                ['Base imposable', fiscal.taxable_base],
+                ['Règim IVA', fiscal.iva_regim],
+                ['IVA %', fiscal.iva_pct],
+                ['IVA', fiscal.iva_import],
+                ['Total', fiscal.total],
+                ['Causa exempció', fiscal.exemption_reason]
+            ]));
+        }
+
+        if (Object.keys(correctedBilling).length > 0) {
+            wrapper.append(section('Receptor fiscal corregit', [
+                ['Nom / raó', correctedBilling.name],
+                ['NIF / CIF', correctedBilling.nif],
+                ['Adreça', correctedBilling.address],
+                ['CP', correctedBilling.cp],
+                ['Població', correctedBilling.city],
+                ['Província', correctedBilling.province],
+                ['País', correctedBilling.country],
+                ['Email', correctedBilling.email]
+            ]));
+        }
+
+        var actions = $('<div>').addClass('d-flex align-items-center flex-wrap');
+        var previewButton = $('<button>')
+            .attr('type', 'button')
+            .addClass('btn btn-warning btn-sm mr-2 uc005-preview-rectification')
+            .text('Previsualitzar rectificativa');
+        var resultBox = $('<div>').addClass('mt-3 uc005-rectification-result');
+
+        previewButton.on('click', function () {
+            previewButton.prop('disabled', true);
+
+            window.uc005SifRectificationPreview({
+                uuid_factura: invoice.uuid_factura,
+                correction: correction,
+                classification_event_uuid: decision.event_uuid
+            }).done(function (response) {
+                if (!response || response.ok !== true) {
+                    resultBox.empty().append(
+                        $('<div>').addClass('alert alert-danger').text(
+                            (response && response.error) || 'No s’ha pogut previsualitzar la rectificativa.'
+                        )
+                    );
+                    return;
+                }
+
+                var preview = $('<div>').addClass('border rounded p-3');
+                preview.append($('<strong>').text('Preview validat pel SIF'));
+                preview.append(section('Resultat previst', [
+                    ['Factura original', response.num_visible_rectificada],
+                    ['Tipus', (response.classification || {}).invoice_type],
+                    ['Mode', (response.classification || {}).rectification_mode],
+                    ['Total rectificativa', (response.totals || {}).total],
+                    ['Fingerprint', response.fingerprint]
+                ]));
+
+                var confirmButton = $('<button>')
+                    .attr('type', 'button')
+                    .addClass('btn btn-danger btn-sm uc005-confirm-rectification')
+                    .text('Confirmar i emetre rectificativa');
+
+                confirmButton.on('click', function () {
+                    if (!window.confirm(
+                        'Confirmes l’emissió de la factura rectificativa? La factura original no es modificarà.'
+                    )) {
+                        return;
+                    }
+
+                    confirmButton.prop('disabled', true);
+                    window.uc005SifRectificationConfirm({
+                        uuid_factura: invoice.uuid_factura,
+                        correction: correction,
+                        classification_event_uuid: decision.event_uuid,
+                        expected_fingerprint: response.fingerprint
+                    }).done(function (confirmed) {
+                        if (!confirmed || confirmed.ok !== true) {
+                            resultBox.empty().append(
+                                $('<div>').addClass('alert alert-danger').text(
+                                    (confirmed && confirmed.error) || 'No s’ha pogut emetre la rectificativa.'
+                                )
+                            );
+                            return;
+                        }
+
+                        var success = $('<div>').addClass('alert alert-success');
+                        success.append(
+                            $('<div>').text(
+                                'Rectificativa emesa: ' + String(confirmed.num_visible || confirmed.uuid_factura || '')
+                            )
+                        );
+
+                        var refreshButton = $('<button>')
+                            .attr('type', 'button')
+                            .addClass('btn btn-sm btn-outline-success mt-2')
+                            .text('Actualitzar factura original')
+                            .on('click', function () {
+                                viewSifInvoice(String(invoice.uuid_factura || ''));
+                            });
+
+                        success.append(refreshButton);
+                        resultBox.empty().append(success);
+                    }).fail(function (jqXHR) {
+                        confirmButton.prop('disabled', false);
+                        resultBox.empty().append(
+                            $('<div>').addClass('alert alert-danger').text(
+                                rectificationError(jqXHR, 'No s’ha pogut emetre la rectificativa.')
+                            )
+                        );
+                    });
+                });
+
+                preview.append(confirmButton);
+                resultBox.empty().append(preview);
+            }).fail(function (jqXHR) {
+                resultBox.empty().append(
+                    $('<div>').addClass('alert alert-danger').text(
+                        rectificationError(jqXHR, 'No s’ha pogut previsualitzar la rectificativa.')
+                    )
+                );
+            }).always(function () {
+                previewButton.prop('disabled', false);
+            });
+        });
+
+        actions.append(previewButton);
+        wrapper.append(actions).append(resultBox);
+        parent.append(wrapper);
+    }
+
+    function rectificationError(jqXHR, fallback) {
+        if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
+            return String(jqXHR.responseJSON.error);
+        }
+
+        if (jqXHR && jqXHR.status === 403) {
+            return 'No tens autorització per executar aquesta rectificació.';
+        }
+        if (jqXHR && jqXHR.status === 409) {
+            return 'La factura o la decisió fiscal han canviat. Cal tornar a classificar/previsualitzar.';
+        }
+
+        return fallback;
     }
 
     function section(title, rows) {

@@ -35,7 +35,7 @@ final class InvoiceService
         $this->commercialOperations ??= new CommercialOperationRepository();
     }
 
-    public function issueInvoice(array $payload): array
+    public function issueInvoice(array $payload, ?callable $beforeCommit = null): array
     {
         $payload = $this->validator->validate($payload);
 
@@ -52,7 +52,7 @@ final class InvoiceService
         }
 
         try {
-            return $this->createOrReuseInvoice($payload);
+            return $this->createOrReuseInvoice($payload, $beforeCommit);
         } catch (\PDOException $exception) {
             if (!$this->isDuplicateKeyException($exception)) {
                 throw $exception;
@@ -64,16 +64,19 @@ final class InvoiceService
                 );
             }
 
-            return $this->reuseInvoiceAfterDuplicateKey($payload);
+            return $this->reuseInvoiceAfterDuplicateKey($payload, $beforeCommit);
         }
     }
 
-    private function createOrReuseInvoice(array $payload): array
+    private function createOrReuseInvoice(array $payload, ?callable $beforeCommit = null): array
     {
-        return $this->transactions->run(function (\PDO $db) use ($payload): array {
+        return $this->transactions->run(function (\PDO $db) use ($payload, $beforeCommit): array {
             $existing = $this->invoices->findByIdempotencyKey($db, $payload['idempotency_key'], true);
             if ($existing !== null) {
-                return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
+                $result = $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
+                $this->runBeforeCommit($beforeCommit, $db, $result);
+
+                return $result;
             }
 
             $year = (int) ($payload['year'] ?? date('Y'));
@@ -106,10 +109,19 @@ final class InvoiceService
 
             $result = $this->withStatusProjection($db, $result);
 
-            return $this->appendIssueAudit($db, $payload, $result, false);
+            $result = $this->appendIssueAudit($db, $payload, $result, false);
+            $this->runBeforeCommit($beforeCommit, $db, $result);
+
+            return $result;
         });
     }
 
+    private function runBeforeCommit(?callable $beforeCommit, \PDO $db, array $result): void
+    {
+        if ($beforeCommit !== null) {
+            $beforeCommit($db, $result);
+        }
+    }
 
     private function linkCommercialOperationIfPresent(
         \PDO $db,
@@ -192,9 +204,9 @@ final class InvoiceService
         return $movementDate;
     }
 
-    private function reuseInvoiceAfterDuplicateKey(array $payload): array
+    private function reuseInvoiceAfterDuplicateKey(array $payload, ?callable $beforeCommit = null): array
     {
-        return $this->transactions->run(function (\PDO $db) use ($payload): array {
+        return $this->transactions->run(function (\PDO $db) use ($payload, $beforeCommit): array {
             $existing = $this->invoices->findByIdempotencyKey($db, $payload['idempotency_key'], true);
 
             if ($existing === null) {
@@ -203,7 +215,10 @@ final class InvoiceService
                 );
             }
 
-            return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
+            $result = $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
+            $this->runBeforeCommit($beforeCommit, $db, $result);
+
+            return $result;
         });
     }
 

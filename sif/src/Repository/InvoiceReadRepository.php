@@ -90,6 +90,45 @@ final class InvoiceReadRepository
         return $row ?: null;
     }
 
+    public function latestFiscalCorrectionDecision(\PDO $db, string $uuidFactura): ?array
+    {
+        $stmt = $db->prepare(
+            "SELECT UUID_EVENT, RESULT, REASON_CODE, CHANGESET_JSON, OCCURRED_AT, RECORDED_AT
+             FROM sif_audit_event
+             WHERE ACTION = 'FISCAL_CORRECTION_CLASSIFIED'
+               AND RESULT = 'SUCCEEDED'
+               AND RESOURCE_TYPE = 'FACTURA'
+               AND RESOURCE_ID = ?
+             ORDER BY RECORDED_AT DESC, ID DESC
+             LIMIT 1"
+        );
+        $stmt->execute([$uuidFactura]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
+    public function findRectificationExecutionByDecisionEvent(
+        \PDO $db,
+        string $decisionEventUuid
+    ): ?array {
+        $stmt = $db->prepare(
+            "SELECT UUID_EVENT, RESULT, RESOURCE_ID, CHANGESET_JSON, OCCURRED_AT, RECORDED_AT
+             FROM sif_audit_event
+             WHERE ACTION = 'RECTIFICATION_CONFIRM'
+               AND RESULT IN ('SUCCEEDED', 'REUSED')
+               AND JSON_UNQUOTE(
+                    JSON_EXTRACT(CHANGESET_JSON, '$.classification.decision_event_uuid')
+               ) = ?
+             ORDER BY RECORDED_AT DESC, ID DESC
+             LIMIT 1"
+        );
+        $stmt->execute([strtolower(trim($decisionEventUuid))]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
     public function findDocumentMetadata(\PDO $db, string $uuidFactura): array
     {
         $stmt = $db->prepare(

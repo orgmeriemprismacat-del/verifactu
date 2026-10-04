@@ -8,6 +8,15 @@ if (!$configOk) {
 	<?php
 }
 else {
+    $sifInvoiceQueryUiEnabled = getenv('SIF_INVOICE_QUERY_UI_ENABLED') === '1';
+    $sifUc005RectificationUiEnabled = $sifInvoiceQueryUiEnabled
+        && getenv('SIF_UC005_RECTIFICATION_UI_ENABLED') === '1';
+    $sifUc005Csrf = '';
+
+    if ($sifUc005RectificationUiEnabled) {
+        require_once __DIR__ . '/SifRectificationAccess.php';
+        $sifUc005Csrf = SifRectificationAccess::csrfToken();
+    }
 ?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb# video: http://ogp.me/ns/video#">
@@ -42,7 +51,15 @@ else {
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/modals.min.css?ver=1.0"/>
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/alumnes-factura.css?ver=1.0"/>
 		<script src="https://intranet.prisma.cat/js/general.js?ver=1.0"></script>
-<?php if (getenv('SIF_INVOICE_QUERY_UI_ENABLED') === '1') { ?>
+<?php if ($sifInvoiceQueryUiEnabled) { ?>
+<?php if ($sifUc005RectificationUiEnabled) { ?>
+        <script>
+            window.sifUc005RectificationConfig = <?php echo json_encode([
+                'enabled' => true,
+                'csrf' => $sifUc005Csrf,
+            ], JSON_UNESCAPED_SLASHES); ?>;
+        </script>
+<?php } ?>
 		<script src="https://intranet.prisma.cat/js/alumnes-factura-sif.js?ver=1.0"></script>
 <?php } ?>
 		<script src="https://intranet.prisma.cat/js/alumnes-factura.js?ver=1.0"></script>

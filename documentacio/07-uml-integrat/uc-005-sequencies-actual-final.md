@@ -1,0 +1,198 @@
+# UC-005 · Diagrames de seqüència ACTUAL / FINAL
+
+**Tall:** 2026-10-03 · branca `audit/uc-005-2026-10-03`
+
+## 1. ACTUAL — consulta SIF intranet
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant B as alumnes-factura-sif.js
+participant P as Proxy consulta intranet
+participant Q as SIF query read-only
+O->>B: Cercar / obrir factura
+B->>P: POST search/view
+P->>Q: petició interna signada
+Q-->>P: factura + línies + pagaments + rectificacions
+P-->>B: JSON
+B-->>O: modal SIF només lectura
+```
+
+## 2. ACTUAL — backend UC-005 preview
+
+```mermaid
+sequenceDiagram
+autonumber
+actor C as Caller intern
+participant API as POST /api/factures/rectify.php
+participant H as InternalApiAuthenticator
+participant R as InternalRectificationScopeResolver
+participant CMD as RectificationCommandService
+participant R74 as FiscalCorrectionDecisionResolver
+participant G as FiscalCorrectionDecisionGuard
+participant B as ManualRectificationPayloadBuilder
+participant A as SifAuditEventRepository
+participant DB as SIF DB
+C->>API: action=preview + correction + classification_event_uuid
+API->>H: HMAC + timestamp + request_id + replay
+H->>DB: claim internal_api_request
+H-->>API: actor autenticat
+API->>R: resolve(actor)
+R-->>API: scope preview/issue + rol autoritzat
+API->>CMD: preview(...)
+CMD->>G: exigir source_uc=UC-74 + RECTIFICATION + mode coherent
+G-->>CMD: decisió normalitzada
+CMD->>B: construir payload R fail-closed
+B-->>CMD: billing + totals + lines
+CMD->>CMD: fingerprint snapshot fiscal immutable
+CMD->>A: RECTIFICATION_PREVIEW/SUCCEEDED
+A->>DB: INSERT sif_audit_event
+CMD-->>C: preview + fingerprint
+```
+
+## 3. ACTUAL — confirmació UC-005 atòmica
+
+```mermaid
+sequenceDiagram
+autonumber
+actor C as Caller intern
+participant CMD as RectificationCommandService
+participant M as ManualRectificationService
+participant I as InvoiceService
+participant R as ManualPaymentInvoiceRepository
+participant RR as RectificationRepository
+participant OA as OperationalEventRepository
+participant SA as SifAuditEventRepository
+participant DB as SIF DB
+C->>CMD: confirm(expected_fingerprint)
+CMD->>CMD: recomputar fingerprint previ
+CMD->>SA: RECTIFICATION_CONFIRM/REQUESTED
+SA->>DB: INSERT audit requested
+CMD->>M: issueByUuid(..., beforeCommit)
+M->>I: issueInvoice(payload, beforeCommit)
+I->>DB: BEGIN
+I->>DB: crear/reutilitzar R + línies + registre + cua + rels
+M->>R: findByUuid(original, FOR UPDATE)
+R->>DB: SELECT original FOR UPDATE
+M->>M: revalidar snapshot original
+M->>RR: linkRectification()
+RR->>DB: INSERT/REUSE factura_rectificacio
+M->>RR: markOriginalRectified()
+RR->>DB: UPDATE original=RECTIFIED
+M->>CMD: callback abans del COMMIT
+CMD->>CMD: reconstruir payload i fingerprint sobre original locked
+CMD->>OA: COMMITTED o REUSED
+OA->>DB: INSERT operational_event
+CMD->>SA: SUCCEEDED o REUSED
+SA->>DB: INSERT sif_audit_event
+I->>DB: COMMIT
+CMD-->>C: UUID R + estat + audit ids
+Note over I,SA: Qualsevol error en vincle, lock, fingerprint o audit terminal provoca ROLLBACK de la R.
+```
+
+## 4. ACTUAL — reintent idempotent
+
+```mermaid
+sequenceDiagram
+autonumber
+actor C as Caller intern
+participant CMD as RectificationCommandService
+participant I as InvoiceService
+participant DB as SIF DB
+C->>CMD: nou preview equivalent
+CMD->>CMD: fingerprint sobre camps fiscals immutables
+CMD-->>C: mateix fingerprint encara que original sigui RECTIFIED
+C->>CMD: confirm
+CMD->>I: issueInvoice mateixa idempotency key
+I->>DB: lock factura R existent + assert payload hash
+I-->>CMD: idempotency_reused=true
+CMD->>DB: revalidar/vincular idempotentment + audit REUSED
+CMD-->>C: mateix UUID R
+```
+
+## 5. FINAL — intranet segura
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant UI as alumnes-factura-sif.js
+participant Q as SIF query
+participant PX as Proxy intranet UC-005
+participant AUTH as Sessió + permís + same-origin + CSRF
+participant API as SIF rectify.php
+participant R74 as FiscalCorrectionDecisionResolver
+participant CMD as RectificationCommandService
+participant DB as SIF DB
+participant CL as UC-74 producer [PENDENT]
+
+Note over CL,DB: UC-74 crea abans un event immutable FISCAL_CORRECTION_CLASSIFIED
+CL->>DB: classification + correction_fingerprint + correction snapshot
+
+O->>UI: obrir factura SIF
+UI->>Q: view(uuid)
+Q->>DB: factura + darrera decisió UC-74 aprovada
+DB-->>Q: read model complet
+Q-->>UI: fiscal_correction_decision
+alt sense decisió executable
+  UI-->>O: pendent classificació fiscal; cap acció UC-005
+else RECTIFICATION + correction snapshot
+  UI-->>O: mostrar decisió/correcció read-only
+  O->>UI: previsualitzar
+  UI->>PX: preview + event_uuid + correction + CSRF
+  PX->>AUTH: validar sessió/permís/origen/CSRF
+  AUTH-->>PX: OK
+  PX->>API: POST intern HMAC preview
+  API->>R74: resoldre event i fingerprint
+  R74->>DB: validar event mateixa factura + correction_fingerprint
+  R74-->>API: classificació fiable R1-R5 + S/I
+  API->>CMD: preview
+  CMD-->>PX: totals/billing/lines + fingerprint
+  PX-->>UI: preview
+  O->>UI: confirmar
+  UI->>PX: confirm mateixa correction + event_uuid + fingerprint
+  PX->>API: POST intern HMAC confirm
+  API->>R74: revalidar evidència
+  API->>CMD: confirm
+  CMD->>DB: COMMIT R + vincle + audit
+  CMD-->>PX: CREATED/REUSED
+  PX-->>UI: resultat final
+end
+```
+
+**Estat del canal:** consumidor UI/proxy implementat; el productor UC-74 que crea l'event i el snapshot `correction` continua pendent.
+
+## 6. AEAT rectificativa — frontera parcial
+
+```mermaid
+sequenceDiagram
+autonumber
+participant U74 as UC-74 fiscal
+participant MAP as AeatRectificationMapper [PARCIAL/FAIL-CLOSED]
+participant OR as factura_registres original
+participant RF as RecordFactory
+participant X as XmlCodec
+U74->>MAP: R1-R5 + S/I + desglose corregit
+MAP->>OR: carregar PAYLOAD_JSON.aeat original congelat
+OR-->>MAP: identitat i snapshot fiscal original
+MAP->>MAP: FacturasRectificadas
+alt TipoRectificativa=S
+ MAP->>MAP: ImporteRectificacion obligatori
+else TipoRectificativa=I
+ MAP->>MAP: sense ImporteRectificacion
+end
+MAP->>RF: freeze RegistroAlta rectificatiu
+RF->>RF: validar semàntica R1-R5 / S-I
+RF->>X: validar XSD local oficial
+X-->>MAP: snapshot AEAT immutable
+```
+
+**Estat:** `RecordFactory` valida S/I i `AeatRectificationMapper` ja construeix identitat rectificada, S/I, `FacturasRectificadas`, `ImporteRectificacion` per substitució i un `Desglose` derivat del snapshot original quan hi ha un únic perfil fiscal compatible. Falla tancat en perfils no acreditats.
+
+## 7. Garanties i pendents
+
+- **Implementat:** HMAC/replay, rol server-side, preview/confirm, fingerprint doble, `FOR UPDATE`, idempotència, audit terminal dins del COMMIT.
+- **No confiar en el navegador:** l'endpoint UC-005 no accepta una classificació inline com a autoritat; exigeix `classification_event_uuid` i resol la decisió persistida a `sif_audit_event`.
+- **Implementat al protocol AEAT:** validació local de `TipoRectificativa=S|I`; S exigeix `ImporteRectificacion`, I el rebutja.
+- **Pendent:** productor/classificador UC-74 executable, perfils AEAT complexos, document E2E, concurrència real i preproducció. Proxy sessió/CSRF i panell preview/confirm ja implementats.

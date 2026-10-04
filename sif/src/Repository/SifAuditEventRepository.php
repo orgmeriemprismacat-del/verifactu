@@ -22,7 +22,6 @@ final class SifAuditEventRepository
             'source_environment',
             'source_channel',
             'actor_type',
-            'occurred_at',
         ] as $field) {
             if (!isset($event[$field]) || !is_string($event[$field]) || trim($event[$field]) === '') {
                 throw SifException::validation('Missing SIF audit field: ' . $field);
@@ -30,16 +29,22 @@ final class SifAuditEventRepository
         }
 
         $uuid = $this->uuidGenerator->generate();
-        $changeset = $event['changeset'] ?? null;
-        if ($changeset !== null && !is_array($changeset)) {
-            throw SifException::validation('SIF audit changeset must be an object or array');
+        $occurredAt = isset($event['occurred_at'])
+            ? trim((string) $event['occurred_at'])
+            : (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid')))
+                ->format('Y-m-d H:i:s.u');
+
+        if ($occurredAt === '') {
+            throw SifException::validation('Missing SIF audit field: occurred_at');
         }
-        $changesetJson = $changeset === null
-            ? null
-            : json_encode(
-                $changeset,
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-            );
+
+        $changesetJson = $this->json($event['changeset'] ?? null);
+        $beforeHash = array_key_exists('before_hash', $event)
+            ? $this->nullableHash($event['before_hash'])
+            : $this->snapshotHash($event['before_snapshot'] ?? null);
+        $afterHash = array_key_exists('after_hash', $event)
+            ? $this->nullableHash($event['after_hash'])
+            : $this->snapshotHash($event['after_snapshot'] ?? null);
 
         $db->prepare(
             'INSERT INTO sif_audit_event (
@@ -63,15 +68,38 @@ final class SifAuditEventRepository
             strtoupper(trim($event['actor_type'])),
             $this->nullableString($event['actor_id'] ?? null),
             $this->nullableString($event['actor_role'] ?? null),
-            $this->nullableString($event['reason_code'] ?? null),
-            $this->nullableHash($event['before_hash'] ?? null),
-            $this->nullableHash($event['after_hash'] ?? null),
+            $this->nullableUpper($event['reason_code'] ?? null),
+            $beforeHash,
+            $afterHash,
             $changesetJson,
-            $this->nullableString($event['error_code'] ?? null),
-            trim($event['occurred_at']),
+            $this->nullableUpper($event['error_code'] ?? null),
+            $occurredAt,
         ]);
 
         return $uuid;
+    }
+
+    private function snapshotHash(mixed $snapshot): ?string
+    {
+        $json = $this->json($snapshot);
+
+        return $json === null ? null : hash('sha256', $json);
+    }
+
+    private function json(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (!is_array($value)) {
+            throw SifException::validation('SIF audit snapshots and changesets must be arrays');
+        }
+
+        return json_encode(
+            $value,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR
+        );
     }
 
     private function nullableString(mixed $value): ?string
@@ -85,6 +113,13 @@ final class SifAuditEventRepository
         return $value === '' ? null : $value;
     }
 
+    private function nullableUpper(mixed $value): ?string
+    {
+        $value = $this->nullableString($value);
+
+        return $value === null ? null : strtoupper($value);
+    }
+
     private function nullableHash(mixed $value): ?string
     {
         $value = $this->nullableString($value);
@@ -92,6 +127,6 @@ final class SifAuditEventRepository
             throw SifException::validation('Invalid SIF audit SHA-256 value');
         }
 
-        return $value;
+        return $value === null ? null : strtolower($value);
     }
 }

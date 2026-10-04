@@ -1,0 +1,124 @@
+name: UC-005 rectification checks
+
+on:
+  pull_request:
+    paths:
+      - "sif/src/Service/ManualRectification*.php"
+      - "sif/src/Service/AeatRectificationMapper.php"
+      - "sif/src/Service/InvoiceService.php"
+      - "sif/src/Service/InternalRectificationScopeResolver.php"
+      - "sif/src/Service/FiscalCorrectionDecisionGuard.php"
+      - "sif/src/Service/FiscalCorrectionDecisionResolver.php"
+      - "sif/src/Service/InvoiceQueryService.php"
+      - "sif/src/Service/RectificationDecisionFingerprint.php"
+      - "sif/src/Service/RectificationCommandService.php"
+      - "sif/src/Aeat/RecordFactory.php"
+      - "sif/src/Repository/RectificationRepository.php"
+      - "sif/src/Repository/DocumentJobRepository.php"
+      - "sif/src/Repository/FiscalCorrectionDecisionRepository.php"
+      - "sif/src/Repository/InvoiceReadRepository.php"
+      - "sif/src/Repository/ManualPaymentInvoiceRepository.php"
+      - "sif/src/Repository/SifAuditEventRepository.php"
+      - "sif/src/Repository/OperationalEventRepository.php"
+      - "sif/public/api/factures/rectify.php"
+      - "sif/scripts/preflight-rectification.php"
+      - "codi-drive/intranet-actual/SifInternalApiClient.php"
+      - "codi-drive/intranet-actual/SifRectificationAccess.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifRectificarFactura.php"
+      - "codi-drive/intranet-actual/alumnes-factura.php"
+      - "codi-drive/intranet-actual/js/alumnes-factura-sif.js"
+      - "sif/config/sif.php"
+      - "sif/tests/Integration/ManualRectification*Test.php"
+      - "sif/tests/Support/ConcurrentRectificationWorker.php"
+      - "sif/tests/Integration/ManualRectificationAeatMappingTest.php"
+      - "sif/tests/Integration/RectificationCommandServiceTest.php"
+      - "sif/tests/Integration/RectificationHttpEndpointTest.php"
+      - "sif/tests/Integration/RectificationPreflightScriptTest.php"
+      - "sif/tests/Integration/RectificationIntranetProxyContractTest.php"
+      - "sif/tests/Integration/RectificationDecisionReadModelTest.php"
+      - "sif/tests/Integration/FiscalCorrectionDecisionResolverTest.php"
+      - "sif/tests/Unit/ManualRectificationPayloadBuilderTest.php"
+      - "sif/tests/Unit/FiscalCorrectionDecisionGuardTest.php"
+      - "sif/tests/Unit/InternalRectificationScopeResolverTest.php"
+      - "sif/tests/Unit/AeatRectificationProtocolTest.php"
+      - "sif/tests/run-uc005-tests.php"
+      - "sif/database/migrations/2026_06_02_000001_create_sif_core.sql"
+      - "sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql"
+      - ".github/workflows/uc005-rectification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  uc005:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_test;charset=utf8mb4
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 with SIF extensions
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, openssl, mbstring
+          coverage: none
+
+      - name: UC-005 PHP syntax
+        run: |
+          php -l sif/src/Service/InvoiceService.php
+          php -l sif/src/Service/ManualRectificationPayloadBuilder.php
+          php -l sif/src/Service/ManualRectificationService.php
+          php -l sif/src/Service/AeatRectificationMapper.php
+          php -l sif/src/Service/InternalRectificationScopeResolver.php
+          php -l sif/src/Service/FiscalCorrectionDecisionGuard.php
+          php -l sif/src/Service/FiscalCorrectionDecisionResolver.php
+          php -l sif/src/Service/InvoiceQueryService.php
+          php -l sif/src/Service/RectificationDecisionFingerprint.php
+          php -l sif/src/Service/RectificationCommandService.php
+          php -l sif/src/Aeat/RecordFactory.php
+          php -l sif/src/Repository/SifAuditEventRepository.php
+          php -l sif/src/Repository/DocumentJobRepository.php
+          php -l sif/src/Repository/FiscalCorrectionDecisionRepository.php
+          php -l sif/src/Repository/InvoiceReadRepository.php
+          php -l sif/public/api/factures/rectify.php
+          php -l sif/scripts/preflight-rectification.php
+          php -l codi-drive/intranet-actual/SifInternalApiClient.php
+          php -l codi-drive/intranet-actual/SifRectificationAccess.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/sifRectificarFactura.php
+          php -l codi-drive/intranet-actual/alumnes-factura.php
+          node --check codi-drive/intranet-actual/js/alumnes-factura-sif.js
+          php -l sif/tests/Unit/AeatRectificationProtocolTest.php
+          php -l sif/tests/Integration/RectificationHttpEndpointTest.php
+          php -l sif/tests/Integration/RectificationPreflightScriptTest.php
+          php -l sif/tests/Integration/RectificationIntranetProxyContractTest.php
+          php -l sif/tests/Integration/RectificationDecisionReadModelTest.php
+          php -l sif/tests/Integration/ManualRectificationAeatMappingTest.php
+          php -l sif/tests/Integration/ManualRectificationConcurrencyTest.php
+          php -l sif/tests/Support/ConcurrentRectificationWorker.php
+          php -l sif/tests/Integration/FiscalCorrectionDecisionResolverTest.php
+          php -l sif/tests/run-uc005-tests.php
+
+      - name: UC-005 isolated MySQL suite
+        run: php sif/tests/run-uc005-tests.php

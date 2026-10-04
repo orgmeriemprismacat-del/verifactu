@@ -417,6 +417,32 @@ final class IssueInvoiceTest
         Assert::same('120.00', $link['LINKED_AMOUNT']);
     }
 
+    public function testBeforeCommitHookRollsBackInvoiceGraphOnFailure(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->makeService($db);
+
+        Assert::throws(\RuntimeException::class, function () use ($service): void {
+            $service->issueInvoice(
+                Fixtures::invoicePayload([
+                    'idempotency_key' => 'INVOICE|ATOMIC|ROLLBACK',
+                ]),
+                static function (): void {
+                    throw new \RuntimeException('Injected failure before invoice commit');
+                }
+            );
+        });
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM sif_audit_event')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT LAST_FISCAL_ORDER FROM fiscal_chain_state WHERE ID = 1')->fetchColumn());
+    }
+
     public static function serviceFor(\PDO $db): InvoiceService
     {
         return new InvoiceService(

@@ -37,6 +37,16 @@ return [
             explode(',', getenv('SIF_INVOICE_BEFORE_PAYMENT_WRITE_ROLES') ?: '')
         ))),
     ],
+    'rectification' => [
+        'enabled' => filter_var(
+            getenv('SIF_UC005_RECTIFICATION_ENABLED') ?: '0',
+            FILTER_VALIDATE_BOOL
+        ),
+        'write_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_RECTIFICATION_WRITE_ROLES') ?: '')
+        ))),
+    ],
     'invoice_query' => [
         'full_read_roles' => array_values(array_filter(array_map(
             'trim',
@@ -51,6 +61,7 @@ return [
     'documents' => [
         'root' => getenv('SIF_DOCUMENT_ROOT') ?: '',
         'max_bytes' => (int) (getenv('SIF_DOCUMENT_MAX_BYTES') ?: 20971520),
+        'generator_version' => getenv('SIF_DOCUMENT_GENERATOR_VERSION') ?: 'invoice-documents-v1',
     ],
     'internal_api' => [
         'key_id' => getenv('SIF_INTERNAL_API_KEY_ID') ?: '',
@@ -59,6 +70,7 @@ return [
         'signed_path' => getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php',
         'invoice_issue_signed_path' => getenv('SIF_INTERNAL_INVOICE_ISSUE_SIGNED_PATH') ?: '/api/factures/issue.php',
         'invoice_before_payment_signed_path' => getenv('SIF_INTERNAL_UC004_SIGNED_PATH') ?: '/api/factures/before-payment.php',
+        'rectification_signed_path' => getenv('SIF_INTERNAL_RECTIFICATION_SIGNED_PATH') ?: '/api/factures/rectify.php',
         'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
         'course_change_signed_path' => getenv('SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH') ?: '/api/course-changes/preview.php',
         'aeat_operations_signed_path' => getenv('SIF_INTERNAL_AEAT_OPERATIONS_SIGNED_PATH') ?: '/api/aeat/operations.php',
