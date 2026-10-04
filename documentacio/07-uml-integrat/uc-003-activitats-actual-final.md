@@ -191,4 +191,4 @@ flowchart TD
 **DOCUMENTAT:** 8 superfícies ACTUAL/FINAL.  
 **IMPLEMENTAT:** nucli FINAL i pont de cutover al repositori.  
 **VERIFICAT:** totes les proves `RedsysCallbackWorkerTest`, incloses les noves, passen al workflow SIF #1204; el CI global continua bloquejat per 6 fallades de baseline alienes al patch UC-003.  
-**PENDENT:** CI/preproducció de la ruta CURS amb factura UC-004 prèvia, prova concurrent UC-004↔Redsys, JS candidat, cron/supervisió i retirada final dels callbacks llegats.
+**PENDENT:** CI/preproducció de la ruta CURS amb factura UC-004 prèvia, JS candidat, cron/supervisió i retirada final dels callbacks llegats. La prova concurrent UC-004↔Redsys ja està implementada amb dues connexions MySQL a `READ COMMITTED`, pendent només del resultat CI del head.
