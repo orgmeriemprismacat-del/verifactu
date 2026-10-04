@@ -100,6 +100,46 @@ final class ClaimPaymentServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
     }
 
+    public function testDistinctExternalReceiptsAllowMultiplePartialPaymentsForSameClaimCase(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|MULTI_RECEIPT|INVOICE',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+        $service = $this->service($db);
+
+        $first = $service->registerByUuid($db, $invoice['uuid_factura'], [
+            'amount' => '40.00',
+            'movement_date' => '2026-10-04 02:20:00',
+            'claim_reference' => 'CLAIM-7',
+            'external_receipt_id' => 'BAN-101',
+            'created_by' => 'admin-cobraments',
+        ]);
+        $second = $service->registerByUuid($db, $invoice['uuid_factura'], [
+            'amount' => '30.00',
+            'movement_date' => '2026-10-04 02:25:00',
+            'claim_reference' => 'CLAIM-7',
+            'external_receipt_id' => 'BAN-205',
+            'created_by' => 'admin-cobraments',
+        ]);
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(false, $second['idempotency_reused']);
+        Assert::same('CLAIM|RECEIPT:BAN-101', $first['payment_idempotency_key']);
+        Assert::same('CLAIM|RECEIPT:BAN-205', $second['payment_idempotency_key']);
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same('PARTIAL', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
+
+        $references = $db->query(
+            'SELECT REFERENCIA_BANCARIA FROM payment_transaction ORDER BY DATA_MOVIMENT'
+        )->fetchAll(\PDO::FETCH_COLUMN);
+        Assert::same(['BAN-101', 'BAN-205'], $references);
+    }
+
     public function testRejectsSecondDistinctPaymentWhenClaimReferenceIsReused(): void
     {
         $db = TestDatabase::fresh();
