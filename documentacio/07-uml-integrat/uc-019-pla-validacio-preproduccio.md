@@ -242,3 +242,19 @@ Marcar UC-019 com **CLOSED / VERIFIED_PREPRODUCTION** només quan:
 ## 14. CI actual
 
 A la PR #143, els tests específics UC-019 passen. La suite global queda vermella per 6 errors no relacionats amb UC-019 (5 PACK + 1 RedsysSignatureValidator). Això no invalida el resultat d'aquest cas, però sí impedeix afirmar que la suite global del repositori és verda.
+
+
+## 15. Prova de fallada de notificació
+
+En un entorn controlat, simular una fallada SMTP després que la mutació de BD ja sigui efectiva.
+
+Comprovar:
+
+- l'estat de `TIPUS_DESC / VALID_DESC / A_PAGAR`;
+- l'estat de `usoc_validation_decision`;
+- si secretaria ha rebut el correu;
+- si l'alumne ha rebut el correu;
+- què passa en repetir l'acció amb el mateix `requestId`;
+- que no es generin mutacions econòmiques duplicades.
+
+Fins que el refactor a outbox no existeixi, una notificació parcial o amb resultat ambigu s'ha de considerar **incidència manual**, no èxit silenciós.
