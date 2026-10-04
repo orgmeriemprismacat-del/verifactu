@@ -135,7 +135,7 @@ final class PackEnrollmentIdempotencyBoundaryTest
             $source
         );
         Assert::stringContainsString(
-            "'prisma_pack_req_' . substr(hash('sha256', $requestId), 0, 48)",
+            '\$packRequestLockName = \'prisma_pack_req_\' . substr(hash(\'sha256\', \$requestId), 0, 48);',
             $source
         );
     }
