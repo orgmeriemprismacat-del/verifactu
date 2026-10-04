@@ -9,11 +9,14 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacyPrismaStudentHistoryRepository;
+use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
+use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacyPrismaStudentPriceSnapshotResolver;
 use Prisma\Sif\Service\PrismaStudentCourseCheckoutService;
 use Prisma\Sif\Service\RedsysCoursePaymentIntentService;
 use Prisma\Sif\Service\RedsysDsOrderGenerator;
+use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
 use Prisma\Sif\Service\RedsysPaymentIntentService;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\TestDatabase;
@@ -35,6 +38,7 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
         Assert::same('90.00', $result['amount']);
         Assert::same('INTENT_CREATED', $result['status']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation_line')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
 
@@ -52,6 +56,49 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
         Assert::same('120.00', $snapshot['discount']['base']);
         Assert::same('30.00', $snapshot['discount']['amount']);
         Assert::same(PrismaStudentDiscountPolicy::RULE_VERSION, $snapshot['discount']['rule_version']);
+
+
+        Assert::same($result['uuid_operation'], $snapshot['operation']['uuid']);
+        Assert::same($result['uuid_operation_line'], $snapshot['operation']['line_uuid']);
+
+        $notifications = new RedsysNotificationRepository();
+        $notifications->recordReceived(
+            $db,
+            '720000000001',
+            900,
+            '90.00',
+            '0000',
+            true,
+            ['source' => 'uc001-e2e'],
+            'VALIDATED'
+        );
+
+        $basePayload = (new LegacyCourseInvoicePayloadBuilder())->build($snapshot);
+        $invoicePayload = (new RedsysInvoicePayloadBuilder($notifications))
+            ->buildFromValidatedNotification($db, '720000000001', $basePayload);
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice($invoicePayload);
+
+        Assert::same(
+            $invoice['uuid_factura'],
+            (string) $db->query(
+                'SELECT UUID_FACTURA FROM commercial_operation WHERE UUID_OPERATION = '
+                . $db->quote($result['uuid_operation'])
+            )->fetchColumn()
+        );
+        $materialised = $db->query(
+            'SELECT UUID_LINE, FACTURA_LINE_ID, LINK_TYPE, LINKED_AMOUNT
+             FROM operation_line_invoice_link LIMIT 1'
+        )->fetch(\PDO::FETCH_ASSOC);
+        Assert::same($result['uuid_operation_line'], $materialised['UUID_LINE']);
+        Assert::same('MATERIALISED_AS', $materialised['LINK_TYPE']);
+        Assert::same('90.00', (string) $materialised['LINKED_AMOUNT']);
+        Assert::same(
+            (int) $db->query(
+                'SELECT ID FROM factura_linia WHERE UUID_FACTURA = '
+                . $db->quote($invoice['uuid_factura']) . ' LIMIT 1'
+            )->fetchColumn(),
+            (int) $materialised['FACTURA_LINE_ID']
+        );
     }
 
     public function testPrismaStudentFractionalPaymentFailsClosedUntilFiscalModelExists(): void

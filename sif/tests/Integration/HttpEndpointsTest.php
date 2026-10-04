@@ -11,7 +11,11 @@ final class HttpEndpointsTest
         $source = $this->readEndpoint('api/factures/issue.php');
 
         Assert::stringContainsString('/src/autoload.php', $source);
-        Assert::stringContainsString('JsonResponse::fromInput()', $source);
+        Assert::stringContainsString("file_get_contents('php://input')", $source);
+        Assert::stringContainsString('InternalApiAuthenticator', $source);
+        Assert::stringContainsString('InternalInvoiceIssueScopeResolver', $source);
+        Assert::stringContainsString('InternalInvoiceIssuePayloadPolicy', $source);
+        Assert::stringContainsString('json_decode($rawBody, true)', $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
         Assert::stringContainsString('new InvoiceService(', $source);
         Assert::stringContainsString('new InvoicePayloadValidator()', $source);
