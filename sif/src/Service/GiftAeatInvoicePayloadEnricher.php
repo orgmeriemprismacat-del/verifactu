@@ -65,11 +65,15 @@ final class GiftAeatInvoicePayloadEnricher
             'AEAT gift exemption code'
         ));
 
-        if (preg_match('/^[0-9]{2}$/D', $taxCode) !== 1) {
-            throw SifException::validation('AEAT gift tax code must contain two digits');
+        if (!in_array($taxCode, ['01', '02', '03', '05'], true)) {
+            throw SifException::validation('Invalid AEAT gift tax code');
         }
-        if (preg_match('/^[0-9]{2}$/D', $regimeKey) !== 1) {
-            throw SifException::validation('AEAT gift regime key must contain two digits');
+        if (!in_array(
+            $regimeKey,
+            ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '14', '15', '17', '18', '19', '20', '21'],
+            true
+        )) {
+            throw SifException::validation('Invalid AEAT gift regime key');
         }
         if (!in_array($exemptionCode, ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8'], true)) {
             throw SifException::validation('Invalid AEAT gift exemption code');
