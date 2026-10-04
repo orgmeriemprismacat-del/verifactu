@@ -3,12 +3,19 @@
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\CommercialOperationRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 
 final class RedsysInvoicePayloadBuilder
 {
-    public function __construct(private RedsysNotificationRepository $notifications)
-    {
+    public function __construct(
+        private RedsysNotificationRepository $notifications,
+        private ?RedsysPaymentIntentRepository $intents = null,
+        private ?CommercialOperationRepository $commercialOperations = null
+    ) {
+        $this->intents ??= new RedsysPaymentIntentRepository();
+        $this->commercialOperations ??= new CommercialOperationRepository();
     }
 
     public function buildFromValidatedNotification(\PDO $db, string $dsOrder, array $invoicePayload): array
@@ -22,7 +29,32 @@ final class RedsysInvoicePayloadBuilder
             throw SifException::conflict('Redsys notification is not validated');
         }
 
-        return $this->withRedsysPayment($invoicePayload, $notification);
+        $payload = $this->withRedsysPayment($invoicePayload, $notification);
+
+        return $this->withCommercialOperation($db, $dsOrder, $payload);
+    }
+
+
+    private function withCommercialOperation(\PDO $db, string $dsOrder, array $payload): array
+    {
+        $intent = $this->intents->findByDsOrder($db, $dsOrder);
+        if ($intent === null) {
+            return $payload;
+        }
+
+        $uuidIntent = trim((string) ($intent['UUID_INTENT'] ?? ''));
+        if ($uuidIntent === '') {
+            return $payload;
+        }
+
+        $operation = $this->commercialOperations->findByIntentUuid($db, $uuidIntent);
+        if ($operation === null) {
+            return $payload;
+        }
+
+        $payload['uuid_operation'] = (string) $operation['UUID_OPERATION'];
+
+        return $payload;
     }
 
     private function withRedsysPayment(array $payload, array $notification): array
