@@ -52,6 +52,15 @@ final class SifVersionServiceTest
 
             $preflight = $service->preflight($actor, $uuid);
             Assert::same(true, $preflight['preflight']['ok']);
+            foreach ([
+                'uc010_single_active_unique_index',
+                'uc010_version_status_check',
+                'uc010_activation_status_check',
+                'uc010_trigger_activation_no_update',
+                'uc010_trigger_activation_no_delete',
+            ] as $schemaCheck) {
+                Assert::same(true, $preflight['preflight']['runtime']['schema_checks'][$schemaCheck] ?? false);
+            }
 
             $activationInput = $this->operation('ACT-1', 'APPROVED_RELEASE');
             $activation = $service->activate($actor, $uuid, $activationInput);
