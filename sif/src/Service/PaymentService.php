@@ -17,43 +17,43 @@ final class PaymentService
         $this->idempotency ??= new PayloadIdempotencyValidator();
     }
 
-    public function registerPayment(array $payload): array
+    public function registerPayment(array $payload, ?callable $afterPersist = null): array
     {
         $payload = $this->validator->validate($payload);
 
         try {
-            return $this->createOrReusePayment($payload);
+            return $this->createOrReusePayment($payload, $afterPersist);
         } catch (\PDOException $exception) {
             if (!$this->isDuplicateKeyException($exception)) {
                 throw $exception;
             }
 
-            return $this->reusePaymentAfterDuplicateConstraint($payload, $exception);
+            return $this->reusePaymentAfterDuplicateConstraint($payload, $exception, $afterPersist);
         }
     }
 
-    private function createOrReusePayment(array $payload): array
+    private function createOrReusePayment(array $payload, ?callable $afterPersist): array
     {
-        return $this->transactions->run(function (\PDO $db) use ($payload): array {
+        return $this->transactions->run(function (\PDO $db) use ($payload, $afterPersist): array {
             $existing = $this->payments->findByIdempotencyKey($db, $payload['idempotency_key'], true);
             if ($existing !== null) {
                 $this->assertSamePayload($payload, $existing);
-                return $this->existingResult($existing);
+                return $this->finalizeResult($db, $payload, $this->existingResult($existing), $afterPersist);
             }
 
             $external = $this->payments->findByExternalReceipt($db, $payload, true);
             if ($external !== null) {
                 $this->assertSameEconomicReceipt($db, $payload, $external);
-                return $this->existingResult($external, true);
+                return $this->finalizeResult($db, $payload, $this->existingResult($external, true), $afterPersist);
             }
 
             $created = $this->payments->createPayment($db, $payload);
 
-            return [
+            return $this->finalizeResult($db, $payload, [
                 'ok' => true,
                 'idempotency_reused' => false,
                 'uuid_payment' => $created['uuid_payment'],
-            ];
+            ], $afterPersist);
         });
     }
 
@@ -70,17 +70,30 @@ final class PaymentService
 
             if ($existing !== null) {
                 $this->assertSamePayload($payload, $existing);
-                return $this->existingResult($existing);
+                return $this->finalizeResult($db, $payload, $this->existingResult($existing), $afterPersist);
             }
 
             $external = $this->payments->findByExternalReceipt($db, $payload, true);
             if ($external !== null) {
                 $this->assertSameEconomicReceipt($db, $payload, $external);
-                return $this->existingResult($external, true);
+                return $this->finalizeResult($db, $payload, $this->existingResult($external, true), $afterPersist);
             }
 
             throw $original;
         });
+    }
+
+    private function finalizeResult(
+        \PDO $db,
+        array $payload,
+        array $result,
+        ?callable $afterPersist
+    ): array {
+        if ($afterPersist !== null) {
+            $afterPersist($db, $payload, $result);
+        }
+
+        return $result;
     }
 
     private function assertSamePayload(array $payload, array $existing): void
