@@ -491,3 +491,11 @@ Aquesta separació és obligatòria: **unicitat del número** i **idempotència 
 | --- | --- | --- |
 | UC020-140 | AP-26/AP-37 seguien com pendents malgrat existir exclusivitat d'origen UI i guard servidor AP+promo. | **IMPLEMENTAT BOUNDARY · PENDENT CI HEAD** |
 | UC020-141 | Faltava prova nominal que la tarifa AP es resol de l'edició final abans de persistir. | **TEST CREAT · PENDENT CI HEAD**; lookup curs+any+mes → ID_PREU → tarifa AP. |
+
+
+## 26. TOCTOU i fraccionament AP
+
+| ID | Troballa | Estat |
+| --- | --- | --- |
+| UC020-142 | La revalidació AP servidor podia substituir silenciosament el preu vist al preview si la tarifa havia canviat. | **TANCAT 409 + TEST PENDENT CI** |
+| UC020-143 | El SIF candidat bloquejava AP fraccionat, però el fallback llegat no coneixia `TIPUS_DESC` al gate. | **TANCAT FAIL-CLOSED** a alta, UI, gate i SIF; tests HEAD pendents. |
