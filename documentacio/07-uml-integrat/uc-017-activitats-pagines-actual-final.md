@@ -74,3 +74,22 @@ flowchart TD
 | correu confirmació | substituït en camí final per outbox idempotent |
 
 Falta demostrar aquestes pantalles/entrades en el domini desplegat de preproducció.
+
+## Revalidació de pàgines i desplegament — 2026-10-04
+
+### Pàgina de pagament ACTUAL real
+`pagina_pagament_regal_automatic.php`
+-> `mostrarPagamentRegal.min.js`
+-> `ajax/mostrar_pagina_pagament_regal_automatic.php`
+-> `web-actual/PagamentRegalAutomatic.php`.
+
+### Pàgina de pagament FINAL candidata
+El pas FINAL ha d'acabar a l'overlay `pay-prisma-cat-canvis-verifactu`, on:
+1. la identitat del regal arriba en `giftToken` HMAC;
+2. el pay verifica el token;
+3. crea/reutilitza una intenció REGAL al SIF;
+4. Redsys rep import/ordre autoritatius;
+5. MerchantURL deriva al callback SIF quan el cutover està activat.
+
+**Gate de desplegament:** conservar les dues còpies al repositori no prova quin codi
+executa el domini. Cal evidència del DocumentRoot/routing de test i preproducció.
