@@ -19,7 +19,7 @@
 | T24-12 | actor + correlation + payment_action_event | `ClaimPaymentAuditFlowTest` + contracte API | IMPLEMENTADA, pendent execució HEAD |
 | T24-13 | endpoint intranet: POST/origen/permís mutació | `ClaimPaymentIntranetBoundaryTest` | IMPLEMENTADA, pendent execució HEAD |
 | T24-14 | endpoint intranet: CSRF | `ClaimPaymentIntranetBoundaryTest` | IMPLEMENTADA, pendent execució HEAD |
-| T24-15 | correu post-commit/outbox | llegat SMTP directe | PENDENT |
+| T24-15 | correu post-commit/outbox | requisit de UC-12/UC-43, no del registre econòmic UC-024 | FORA D'ABAST DE TANCAMENT UC-024 |
 | T24-16 | segona quota parcial E2 amb receipt diferent | `ClaimPaymentServiceTest` + builder tipificat | IMPLEMENTADA, pendent execució HEAD |
 | T24-17 | E2E UI → SIF → DB → UI sobre sif_test/sif_pre | no acreditat | PENDENT |
 | T24-18 | concurrència real de dos intents del mateix rebut | idempotència/unique key existent; manca prova concurrent específica | PENDENT |
@@ -44,4 +44,4 @@
 - evidència de deduplicació intercanal;
 - evidència de baseline/projecció legacy i retry `requires_reconciliation`;
 - comprovació que la UI continua OFF sense `SIF_CLAIM_PAYMENT_UI_ENABLED=1`;
-- evidència d'outbox/reintent de comunicació si els correus s’inclouen finalment dins UC-024.
+- les proves d’outbox/reintent de comunicació es conservaran al tancament d’UC-12/UC-43, no són prerequisit d’UC-024.
