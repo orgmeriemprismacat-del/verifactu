@@ -8,9 +8,17 @@ final class GiftReservationBoundaryTest
 {
     public function testPreviewAndSubmitAreServerBound(): void
     {
+        $page = $this->read('codi-drive/web-actual/pagina_regal.php');
         $preview = $this->read('codi-drive/web-actual/ajax/previsualitza_regal.php');
         $submit = $this->read('codi-drive/web-actual/ajax/enviarInscripcioRegal.php');
+        $js = $this->read('codi-drive/web-actual/js1619773569/mostrarRegal.min.js');
 
+        Assert::stringContainsString('uc017_gift_csrf', $page);
+        Assert::stringContainsString('name="uc017-gift-csrf"', $page);
+        Assert::stringContainsString("!== 'POST'", $preview);
+        Assert::stringContainsString("hash_equals(\$sessionCsrf, \$csrf)", $preview);
+        Assert::stringContainsString('method: "POST"', $js);
+        Assert::stringContainsString('csrf: giftCsrf', $js);
         Assert::stringContainsString('uc017_gift_preview', $preview);
         Assert::stringContainsString('random_int(', $preview);
         Assert::stringContainsString('random_bytes(32)', $preview);
@@ -19,6 +27,9 @@ final class GiftReservationBoundaryTest
         Assert::stringContainsString("hash_equals((string) \$preview['csrf'], \$previewToken)", $submit);
         Assert::stringContainsString("\$codiRegal = (string) \$preview['code'];", $submit);
 
+        if (str_contains($preview, '$_GET[')) {
+            Assert::fail('Gift preview endpoint must not place personal content in GET/query string.');
+        }
         if (str_contains($submit, '$_GET[')) {
             Assert::fail('Gift reservation endpoint must not use GET.');
         }
