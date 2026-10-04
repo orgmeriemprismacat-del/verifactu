@@ -39,7 +39,14 @@
       include("./Mail.php");
 
       $codiCurs = trim((string) ($_POST['codiCurs'] ?? ''));
-      $codiRegal = trim((string) ($_POST['codiRegal'] ?? ''));
+      $giftIdInput = filter_var(
+         $_POST['giftId'] ?? null,
+         FILTER_VALIDATE_INT,
+         ['options' => ['min_range' => 1]]
+      );
+      if ($giftIdInput === false) {
+         throw new RuntimeException('INVALID_GIFT_ID');
+      }
       $titolPag = trim((string) ($_POST['titol'] ?? ''));
       $nomTitularPag = trim((string) ($_POST['nom-titular'] ?? ''));
       $dniTitularPag = trim((string) ($_POST['dni'] ?? ''));
@@ -62,7 +69,7 @@
       $trans = "0";
 
       try {
-         $intent = (new SifRedsysGiftIntentClient())->create($codiRegal, $terminal);
+         $intent = (new SifRedsysGiftIntentClient())->create((int) $giftIdInput, $terminal);
       } catch (Throwable $exception) {
          http_response_code(503);
          exit('No podem preparar el pagament del regal en aquest moment. Torna-ho a provar més tard o contacta amb secretaria.');
@@ -70,6 +77,9 @@
 
       $order = (string) $intent['ds_order'];
       $giftId = (int) $intent['gift_id'];
+      if ($giftId !== (int) $giftIdInput) {
+         throw new RuntimeException('SIF_GIFT_ID_MISMATCH');
+      }
       $importPag = (string) $intent['amount'];
       if (!preg_match('/^\d{1,10}\.\d{2}$/D', $importPag)) {
          throw new RuntimeException('INVALID_SIF_GIFT_AMOUNT');
