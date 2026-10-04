@@ -68,7 +68,9 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString("['aeat']['reconcile_roles']", $api);
         Assert::stringContainsString('AeatReviewReconciliationService', $api);
         Assert::stringContainsString('AeatEvidenceReconciliationService', $api);
-        Assert::stringContainsString('$canReconcile', $api);
+        Assert::stringContainsString('$hasReadRole', $api);
+        Assert::stringContainsString('$hasReconcileRole', $api);
+        Assert::stringContainsString('$canReconcile = $hasReadRole && $hasReconcileRole;', $api);
         Assert::stringContainsString("'reconcile' => $canReconcile", $api);
         Assert::stringContainsString('AeatPreflight', $api);
         Assert::stringContainsString("'evidence_directory' => getenv('SIF_AEAT_EVIDENCE_DIR')", $config);
