@@ -44,7 +44,7 @@
 - `REFUND_EXIT`: inscripció → exterior, lligat a `payment_transaction.REFUND`;
 - `COMPENSATION_ALLOCATION`: saldo/COMPENSATION → factura/línia/inscripció;
 - `INTERNAL_TRANSFER`: **IMPLEMENTAT com a primitiva** amb builder, servei transaccional, repo, CLI i proves; el coordinator de canvi de curs encara no el crida;
-- `REVERSAL`: admès per esquema; la política completa de reversió continua pendent.
+- `REVERSAL`: **IMPLEMENTAT de forma restringida per `INTERNAL_TRANSFER`**; només reverteix un traspàs, exigeix que el destí encara conservi prou saldo i no toca refund/saldo/compensació.
 
 Els camps conceptuals de la taula ampliada que **no** existeixen físicament (per exemple `ORIGIN_TYPE`, `TARGET_TYPE`, `ACTOR_ID`) continuen sent disseny; la implementació actual usa `ID_INSC_ORIGEN`, `ID_INSC_DESTI`, `UUID_PAYMENT`, `UUID_CREDIT`, factura/línia, operació i correlació.
 **Una fila representa un canvi d'atribució de fons identificable**: origen → destí, import positiu, tipus, responsable i referències. La mateixa operació es pot repartir en **diverses files** si afecta diverses inscripcions o destins. Per al traspàs A → B, es registra **una fila amb A com a origen i B com a destí** (no dos cobraments).
@@ -61,7 +61,7 @@ Els camps conceptuals de la taula ampliada que **no** existeixen físicament (pe
 | `UUID_OPERATIONAL_EVENT`, `UUID_CHANGE`, `UUID_CANCELLATION` | Correlació amb el canvi de curs, baixa o altre event que justifica l'operació. Aquests enllaços poden requerir backfill quan un event es confirma en fases diferents. |
 | `UUID_FACTURA_ORIGEN`, `UUID_FACTURA_DESTI` | Referències als documents afectats **sense presumir** que un traspàs intern modifica automàticament una factura emesa. |
 | `CORRELATION_ID`, `REASON_CODE`, `ACTOR_ID`, `OCCURRED_AT`, `RECORDED_AT` | Motiu, actor, cronologia i recorregut d'auditoria sense dependre d'una observació lliure del llegat. |
-| `UUID_REVERSAL_OF` | Correcció per una **nova fila inversa** (origen/destí intercanviats); no sobreescriure ni esborrar el moviment anterior. |
+| `UUID_REVERSAL_OF` | En la implementació física és `REVERSES_UUID_MOVEMENT`: una nova fila `REVERSAL` neutralitza un `INTERNAL_TRANSFER` anterior sense UPDATE destructiu. La reversió genèrica d'altres tipus no està implementada. |
 
 **Integritat obligatòria per dissenyar:** un origen/destí intern ha de tenir el seu identificador; `AMOUNT > 0`; origen i destí no poden ser la mateixa inscripció i compte; no es pot traspassar més import del que està disponible en l'atribució d'origen; `RECEIPT_ALLOCATION` i `REFUND_EXIT` han de referenciar un moviment real confirmat; `CREDIT_CREATE` i `COMPENSATION_ALLOCATION` mantenen reconciliació amb `credit_balance`; `CREDIT_APPLY` és el nom conceptual antic del segon; cap reintent no pot crear una fila addicional equivalent.
 
