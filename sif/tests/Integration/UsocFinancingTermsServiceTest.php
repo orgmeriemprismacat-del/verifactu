@@ -96,6 +96,33 @@ final class UsocFinancingTermsServiceTest
         );
     }
 
+    public function testRejectsReusingTermsAfterLegacyCourseChanges(): void
+    {
+        $db = TestDatabase::fresh();
+        $legacy = $this->legacyDb(4, 1, '75.00');
+        $service = $this->service();
+
+        $service->prepare(
+            $db, $legacy, 'req-usoc-terms-course-a', 880, 980,
+            '75.00', '25.00', 'secretaria-test', ['ADMIN']
+        );
+
+        $legacy->exec("UPDATE inscripcions SET CURS = 'XYZ', MES = '11' WHERE ID = 880");
+
+        $exception = Assert::throws(SifException::class, function () use ($db, $legacy, $service): void {
+            $service->prepare(
+                $db, $legacy, 'req-usoc-terms-course-b', 880, 980,
+                '75.00', '25.00', 'secretaria-test', ['ADMIN']
+            );
+        }, 409);
+
+        Assert::same(
+            'USOC financing terms belong to a different legacy course state',
+            $exception->getMessage()
+        );
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM usoc_financing_terms')->fetchColumn());
+    }
+
     public function testRejectsStudentAmountDifferentFromLegacyAPagar(): void
     {
         $db = TestDatabase::fresh();
