@@ -36,8 +36,8 @@
 
 ## 1.1. Assets executables revalidats 2026-10-03
 
-- `/alumnes/factura/` ha de carregar **només** `js/alumnes-factura.js?ver=1.3` per UC-007.
-- `/alumnes/mostrar-alumne/` ha de carregar `js/alumnes-mostrar-alumne.js?ver=1.9`; no usar el minificat 1.6 obsolet ni el mòdul SIF duplicat.
+- `/alumnes/factura/` ha de carregar **només** `js/alumnes-factura.js?ver=1.4` per UC-007.
+- `/alumnes/mostrar-alumne/` ha de carregar `js/alumnes-mostrar-alumne.js?ver=2.0`; no usar el minificat 1.6 obsolet ni el mòdul SIF duplicat.
 - Després de publicar, verificar a Network que el navegador rep les versions noves i no una còpia de cache.
 
 ## 2. Migració necessària abans d'activar
