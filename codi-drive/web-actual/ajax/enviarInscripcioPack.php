@@ -12,6 +12,7 @@ include("../Curs.php");
 include("../Template.php");
 include("../MailSMTPComvive.php");
 include("../MailSMTP.php");
+require_once __DIR__ . '/../inc/PackConfirmationToken.php';
 
 function uc015PackRequestPayload(array $request) {
 	$fields = [
@@ -43,28 +44,7 @@ function uc015PackRequestHash(array $request) {
 }
 
 function uc015PackConfirmationHash($idInscripcio, $keyEncr) {
-	$idInscripcio = (int) $idInscripcio;
-	if ($idInscripcio <= 0) {
-		throw new Exception('ID d\'inscripció invàlid');
-	}
-
-	$cipher = 'AES-128-CBC';
-	$ivlen = openssl_cipher_iv_length($cipher);
-	$iv = random_bytes($ivlen);
-	$ciphertextRaw = openssl_encrypt(
-		(string) $idInscripcio,
-		$cipher,
-		$keyEncr,
-		OPENSSL_RAW_DATA,
-		$iv
-	);
-	if ($ciphertextRaw === false) {
-		throw new Exception('No es pot generar la confirmació de la inscripció');
-	}
-
-	$hmac = hash_hmac('sha256', $ciphertextRaw, $keyEncr, true);
-
-	return base64_encode($iv.$hmac.$ciphertextRaw);
+	return PackConfirmationToken::encode($idInscripcio, $keyEncr);
 }
 
 header('Cache-Control: no-store, max-age=0');
