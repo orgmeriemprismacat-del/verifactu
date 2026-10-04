@@ -211,6 +211,30 @@ final class FiscalQueueProcessor
             $stmt->execute([$lockedBefore]);
             $stale = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
+            if ($this->attempts !== null) {
+                $attempt = $db->prepare(
+                    'SELECT UUID_ATTEMPT, STATUS
+                     FROM aeat_submission_attempt
+                     WHERE FISCAL_QUEUE_ID = ?
+                     ORDER BY ATTEMPT_NO DESC, ID DESC
+                     LIMIT 1
+                     FOR UPDATE'
+                );
+                foreach ($stale as $item) {
+                    $attempt->execute([(int) $item['ID']]);
+                    $latest = $attempt->fetch(\PDO::FETCH_ASSOC);
+                    if (is_array($latest)
+                        && strtoupper((string) $latest['STATUS']) === 'STARTED'
+                    ) {
+                        $this->attempts->markStartedUncertain(
+                            $db,
+                            (string) $latest['UUID_ATTEMPT'],
+                            'Stale PROCESSING recovered to REVIEW; remote delivery outcome is uncertain'
+                        );
+                    }
+                }
+            }
+
             $recovered = $this->queue->recoverStaleLocks($db, $lockedBefore);
             foreach ($stale as $item) {
                 (new IncidentRepository())->openDetailed($db, [
