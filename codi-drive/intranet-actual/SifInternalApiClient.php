@@ -41,11 +41,17 @@ class SifInternalApiClient
         $this->paymentSignedPath = trim((string) ($paymentSignedPath ?? getenv('SIF_INTERNAL_PAYMENT_SIGNED_PATH') ?: '/api/payments/register.php'));
         $this->timeout = max(1, min(30, $timeout));
 
-        if ($this->url === '' || $this->keyId === '' || $this->secret === '') {
+        if (
+            ($this->url === '' && $this->courseChangeUrl === '' && $this->paymentUrl === '')
+            || $this->keyId === ''
+            || $this->secret === ''
+        ) {
             throw new RuntimeException('SIF internal API is not configured');
         }
 
-        $this->assertSecureUrl($this->url);
+        if ($this->url !== '') {
+            $this->assertSecureUrl($this->url);
+        }
         if ($this->courseChangeUrl !== '') {
             $this->assertSecureUrl($this->courseChangeUrl);
         }
@@ -143,6 +149,10 @@ class SifInternalApiClient
 
     private function request(string $actorId, array $roles, array $payload): array
     {
+        if ($this->url === '') {
+            throw new RuntimeException('SIF invoice query API is not configured');
+        }
+
         return $this->requestTo($this->url, $this->signedPath, $actorId, $roles, $payload);
     }
 
