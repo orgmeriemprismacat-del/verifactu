@@ -146,6 +146,10 @@ class GroupParticipantRemovalPreviewService {
  <<PHP implementat>>
  +preview(db,uuidFactura,idInsc) array
 }
+class GroupParticipantRemovalDecisionService {
+ <<PHP implementat: planificació>>
+ +plan(preview,decision) array
+}
 GroupParticipantRemovalCoordinator --> OperationalEventRepository : event previst
 GroupParticipantRemovalCoordinator --> ManualRectificationService : correcció fiscal classificada
 GroupParticipantRemovalCoordinator --> ManualRefundService : retorn real
@@ -153,6 +157,7 @@ GroupParticipantRemovalCoordinator --> CreditBalanceService : saldo aprovat
 GroupParticipantRemovalCoordinator --> EnrollmentFundMovementRepository : trams per inscripció
 GroupParticipantRemovalCoordinator --> GroupParticipantRemovalPreviewService : previsualització segura
 GroupParticipantRemovalPreviewService --> EnrollmentFundMovementRepository : saldo i moviments
+GroupParticipantRemovalCoordinator --> GroupParticipantRemovalDecisionService : pla validat
 ```
 
 ## 4. Seqüència objectiu — baixa individual d'un grup facturat
@@ -240,3 +245,11 @@ La part de **localització i quantificació individual** ja està implementada. 
 `LINIA_TOTAL`, fons atribuïts nets, pendent, màxim retornable abans de política, receptor i moviments de ledger.
 
 El coordinador de confirmació continua intencionadament no implementat perquè una baixa pot canviar el tram comercial dels restants i aquesta política no està aprovada. Cap servei nou modifica la factura original ni crea un REFUND fictici.
+
+
+## 7. Planificador de decisió
+
+`GroupParticipantRemovalDecisionService` transforma la previsualització i una decisió explícita en accions tipificades:
+`ACADEMIC_REMOVAL`, `RECTIFICATION`, `REFUND`, `CREDIT` i, si escau, `REPRICE_REMAINING_GROUP`.
+
+No executa cap moviment. Rebutja plans on la disposició econòmica supera els fons atribuïts o on falta informació obligatòria del refund/saldo. Això permet construir el futur coordinador sense acoblar la decisió fiscal a l'efecte bancari.
