@@ -16,6 +16,7 @@ on:
       - 'sif/tests/Integration/ManualTransferIntranetAdapterTest.php'
       - 'sif/tests/Integration/ManualTransferNotificationServiceTest.php'
       - 'sif/tests/Integration/ManualTransferPreproductionPreflightTest.php'
+      - 'sif/tests/Integration/ManualTransferIntranetPreflightTest.php'
       - 'sif/scripts/preflight-uc022-manual-transfer.php'
       - 'sif/scripts/verify-uc022-preproduction.php'
       - 'codi-drive/intranet-nova-canvis-verifactu/**'
@@ -68,6 +69,7 @@ jobs:
           php -l sif/tests/Integration/ManualTransferIntranetAdapterTest.php
           php -l sif/tests/Integration/ManualTransferNotificationServiceTest.php
           php -l sif/tests/Integration/ManualTransferPreproductionPreflightTest.php
+          php -l sif/tests/Integration/ManualTransferIntranetPreflightTest.php
           php -l sif/scripts/preflight-uc022-manual-transfer.php
           php -l sif/scripts/verify-uc022-preproduction.php
           php -l codi-drive/intranet-nova-canvis-verifactu/SifPaymentSessionGuard.php
@@ -75,6 +77,7 @@ jobs:
           php -l codi-drive/intranet-nova-canvis-verifactu/SifManualTransferGateway.php
           php -l codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/obtenirTokenPagamentSif.php
           php -l codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/registrarTransferenciaSif.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/scripts/preflight-uc022-intranet.php
           php -l sif/tests/run-uc022-tests.php
 
       - name: Run UC-022 tests
