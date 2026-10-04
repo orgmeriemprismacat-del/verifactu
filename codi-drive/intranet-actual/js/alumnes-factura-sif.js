@@ -3,6 +3,48 @@
 
     var endpoint = 'https://intranet.prisma.cat/ajax/alumnes/sifFactures.php';
     var documentEndpoint = 'https://intranet.prisma.cat/ajax/alumnes/sifDocument.php';
+    var rectificationEndpoint = 'https://intranet.prisma.cat/ajax/alumnes/sifRectificarFactura.php';
+    var rectificationConfig = window.sifUc005RectificationConfig || { enabled: false, csrf: '' };
+
+    window.uc005SifRectificationPreview = function (request) {
+        return rectificationRequest('preview', request || {});
+    };
+
+    window.uc005SifRectificationConfirm = function (request) {
+        return rectificationRequest('confirm', request || {});
+    };
+
+    function rectificationRequest(action, request) {
+        if (rectificationConfig.enabled !== true || !/^[a-f0-9]{64}$/i.test(rectificationConfig.csrf || '')) {
+            return $.Deferred().reject({
+                status: 403,
+                responseJSON: { error: 'El flux UC-005 no està habilitat en aquesta pantalla.' }
+            }).promise();
+        }
+
+        var payload = {
+            action: action,
+            uuid_factura: String(request.uuid_factura || ''),
+            correction: request.correction || {},
+            classification_event_uuid: String(request.classification_event_uuid || '')
+        };
+
+        if (action === 'confirm') {
+            payload.expected_fingerprint = String(request.expected_fingerprint || '');
+        }
+
+        return $.ajax({
+            url: rectificationEndpoint,
+            method: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            dataType: 'json',
+            headers: {
+                'X-CSRF-Token': rectificationConfig.csrf,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            data: JSON.stringify(payload)
+        });
+    }
 
     window.uc007SifSearch = function (input) {
         var criteria = {};
