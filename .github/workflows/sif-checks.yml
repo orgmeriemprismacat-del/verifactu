@@ -10,6 +10,12 @@ on:
       - "codi-drive/intranet-actual/js/sif-registres-aeat.js"
       - "codi-drive/intranet-actual/css/sif-registres-aeat.css"
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
+      - "codi-drive/intranet-actual/SifInternalClaimPaymentClient.php"
+      - "codi-drive/intranet-actual/ajax/facturacio/registerClaimPaymentSif.php"
+      - "codi-drive/intranet-actual/facturacio-primera-reclamacio-pagament.php"
+      - "codi-drive/intranet-actual/facturacio-recordatori-pagament-final.php"
+      - "codi-drive/intranet-actual/facturacio-reclamacio-final.php"
+      - "codi-drive/intranet-actual/facturacio-control-morosos.php"
       - "codi-drive/intranet-actual/alumnes-usoc-financament.php"
       - "codi-drive/intranet-actual/ajax/alumnes/usocFinancament.php"
       - "codi-drive/intranet-actual/ajax/mostrarSideBarMenu.php"
@@ -117,6 +123,15 @@ jobs:
         run: |
           node --check codi-drive/intranet-actual/js/alumnes-usoc-financament.js
           node --check codi-drive/intranet-actual/js/alumnes-validar-descomptes.js
+
+      - name: PHP syntax UC-024 claim payment intranet
+        run: |
+          php -l codi-drive/intranet-actual/SifInternalClaimPaymentClient.php
+          php -l codi-drive/intranet-actual/ajax/facturacio/registerClaimPaymentSif.php
+          php -l codi-drive/intranet-actual/facturacio-primera-reclamacio-pagament.php
+          php -l codi-drive/intranet-actual/facturacio-recordatori-pagament-final.php
+          php -l codi-drive/intranet-actual/facturacio-reclamacio-final.php
+          php -l codi-drive/intranet-actual/facturacio-control-morosos.php
 
       - name: PHP and JavaScript syntax UC-015 PACK web
         run: |
