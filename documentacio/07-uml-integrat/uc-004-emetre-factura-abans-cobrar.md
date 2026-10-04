@@ -153,7 +153,7 @@ La correlació operacional és estable i derivada de la clau idempotent sense co
 
 ## 7. Document fiscal per UUID
 
-**PENDENT al tronc actual.** La pantalla segura ja ha deixat d'usar el PDF temporal llegat com a resultat de l'emissió, però el `main` no conté encara el circuit UC-004 de job/worker/snapshot/storage per UUID. Aquest codi existia al PR #134, que no està fusionat i no tenia tots els checks globals verds.
+**PARCIAL al tronc actual.** La pantalla segura ja ha deixat d'usar el PDF temporal llegat com a resultat de l'emissió. El `main` **sí conté** l'esquema `document_job`, `factura_documents`, el servei de lectura/descàrrega privada signada i el storage lector de UC-080. El que no conté encara el runtime UC-004 és el producer/queue post-COMMIT, el snapshot verificat, el worker/lease/retry, l'escriptura immutable de bytes i un renderer fiscal concret. El PR #134 conté una implementació candidata d'aquest pipeline; el check específic UC-004 va passar, però el PR no és un tall globalment verificat.
 
 El FINAL ha de garantir job idempotent per UUID+versió, snapshot fiscal immutable, storage privat verificat, estat `READY/PENDING/ERROR`, QR/XML/PDF versionats i reintent post-COMMIT sense reemetre la factura.
 
@@ -188,7 +188,7 @@ No es torna a executar UC-004 i no es crea un segon registre fiscal `ALTA`.
 | Cobertura UC-004 | implementada |
 | Auditoria operacional | implementada i atòmica (`ISSUE_INVOICE` + `sif_audit_event`) |
 | Mutador llegat | retirat amb 410 |
-| Document job/worker/storage | **pendent al main** |
+| Infraestructura documental | **PARCIAL** · `document_job` + `factura_documents` + descàrrega privada al main; producer/worker/storage-writer UC-004 pendents |
 | Renderer PDF/QR/XML | pendent |
 | Cobertura transversal | pendent |
 | Cobrament posterior E2E | pendent |
