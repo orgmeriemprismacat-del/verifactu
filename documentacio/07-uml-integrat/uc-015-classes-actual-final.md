@@ -1,6 +1,6 @@
 # UC-015 · Classes ACTUAL / FINAL — Comprar pack
 
-**Data d'auditoria:** 2026-09-29 · **Revalidació final:** 2026-10-02  
+**Data d'auditoria:** 2026-09-29 · **Revalidació final:** 2026-10-04  
 **Abast:** ecommerce PrisMa, pay.prisma.cat, Redsys i SIF.  
 **Criteri:** separar estrictament classes i responsabilitats observades al codi actual de les responsabilitats objectiu.
 
@@ -215,8 +215,8 @@ RedsysLegacySyncingProcessor --> LegacySyncService
 
 - **Documentat:** sí.
 - **Implementat:** sí, inclosa frontera pública configurable, ordre comercial v1, retirada del callback productiu, fiscal/econòmic, ledger, outbox enqueue i sync legacy.
-- **Verificat per inspecció/proves automatitzades escrites:** sí; la CI del HEAD final és la porta de merge.
-- **Pendent d'acceptació operativa:** evidència navegador/Redsys sobre preproducció. **Dependència externa:** lliurament/retries de notificacions sota UC-58.
+- **Verificat:** sí per inspecció i proves; el PR #149 acredita `SIF checks` + `SIF PHP MySQL tests` en verd i **971 passed / 0 failed** després d'alinear els boundaries PACK/Redsys. El gate selectiu UC-015 és la porta de regressió futura.
+- **Pendent d'acceptació operativa:** evidència navegador/Redsys sobre preproducció i transport/cutover real de l'outbox PACK. `NotificationOutboxDeliveryService` ja aporta el gate genèric claim/complete; el worker/transport SMTP productiu no queda acreditat aquí.
 
 
 ## 6. Revalidació 2026-10-02
@@ -225,3 +225,13 @@ RedsysLegacySyncingProcessor --> LegacySyncService
 - El flux fiscal/econòmic PACK no ha canviat des de la fusió específica `41d6968...`; els canvis posteriors de `RedsysPaymentIntentService` afecten la validació de `CURS`, i el canvi del worker afegeix notificació de curs sense alterar la injecció PACK.
 - La classe/servei `AcademicEnrollmentSyncService` **no forma part** del UC-015 executable. La sincronització correcta és `RedsysLegacySyncingProcessor` → `LegacySyncService`.
 - L'alta pública ha quedat endurida a POST-only amb `PublicWebMutationAuthorization`, `WEB_ALLOWED_ORIGINS`, `X-Requested-With`, `Sec-Fetch-Site` i idempotència server-side `REQUEST_ID` + payload hash. Continua sent un formulari anònim; l'E2E/preproducció és acceptació d'entorn, no un gap de codi.
+
+
+## 7. Reconciliació 2026-10-04
+
+- No falta cap diagrama de classes ACTUAL/FINAL d'UC-015.
+- Les classes representades coincideixen amb el codi executable: `PublicWebMutationAuthorization`, alta PACK legacy endurida, `PackPaymentGate`, client/intenció SIF, `RedsysPackInvoiceService`, ledger, outbox i `RedsysLegacySyncingProcessor -> LegacySyncService`.
+- `AcademicEnrollmentSyncService` continua explícitament fora d'aquest flux.
+- El PR #149 només corregeix proves desfasades; no introdueix una arquitectura productiva diferent.
+- Per a notificacions, el model ACTUAL incorpora ara el gate genèric `NotificationOutboxDeliveryService`; l'adaptador/worker de transport operatiu continua fora del tancament de codi UC-015.
+- Vegeu [inventari PHP/JS 04/10](uc-015-inventari-codi-php-js-actual-final-2026-10-04.md) i [reconciliació main 04/10](uc-015-reconciliacio-main-2026-10-04.md).
