@@ -152,6 +152,7 @@ Això implica:
 | GAP09-25 | panell fiscal carregava jQuery sense SRI i un kit Font Awesome dinàmic | supply-chain browser | **TANCAT EN CODI**: jQuery 3.7.1 amb SRI/crossorigin/referrerpolicy; kit eliminat; icones locals Material Icons; contract test |
 | GAP09-26 | hash de `response.xml` només residia al mateix bundle de filesystem | integritat/evidència | **TANCAT EN CODI**: `EVIDENCE_RESPONSE_SHA256` + `EVIDENCE_HTTP_STATUS` ancorats a MySQL abans de consolidar; `reconcile_evidence` exigeix coincidència DB↔bundle i HTTP 200 |
 | GAP09-27 | `AeatSubmissionAttemptRepository::complete()` podia acceptar un terminal sense exigir explícitament evidència ancorada si s'injectava un transport alternatiu | defensa en profunditat/fiscal | **TANCAT EN CODI**: terminal exigeix `EVIDENCE_ID` preassignat + `EVIDENCE_RESPONSE_SHA256` + HTTP 200 abans de `STARTED → terminal`; test negatiu deixa `REVIEW/UNCERTAIN` i cap segon transport |
+| GAP09-28 | un terminal podia comprovar només l'existència d'una àncora però no exigir que el hash/status de la resposta a persistir coincidissin amb ella | integritat/ledger | **TANCAT EN CODI**: `complete()` compara exactament `response_sha256` i `evidence_http_status` amb l'àncora DB; hash diferent manté l'intent `STARTED` i no consolida |
 
 ## 7. Traçabilitat requisit → implementació → prova
 
@@ -172,6 +173,7 @@ Això implica:
 | evidència no reutilitzable | `aeat_submission_attempt.EVIDENCE_ID UNIQUE` | migració `2026_10_04_000033` |
 | àncora independent de resposta | `EVIDENCE_RESPONSE_SHA256` + `EVIDENCE_HTTP_STATUS` a BD | migració `2026_10_04_000034` + tests evidence |
 | terminal només amb evidència ancorada | `AeatSubmissionAttemptRepository::complete()` fail-closed | `AeatWorkflowTest::testTerminalResultWithoutEvidenceAnchorMovesToReviewWithoutResend` |
+| terminal igual a l'àncora | `assertTerminalEvidenceAnchored()` compara SHA-256 + HTTP | `AeatWorkflowTest::testAttemptRepositoryRejectsTerminalResponseThatDoesNotMatchAnchoredHash` |
 | actor/rol de mutació | `operational_event.ACTOR_ID` + `ACTOR_ROLE` | tests de les dues reconciliacions |
 | browser dependency integrity | jQuery SRI + sense FontAwesome kit | `AeatIntranetUiContractTest` |
 | boundary browser segur | bridge + client server-side | `AeatIntranetUiContractTest` (branca) |
