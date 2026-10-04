@@ -223,3 +223,29 @@ Es mantenen:
 El codi candidat redueix els bloquejos de programació, però UC-017 continua
 **NO VERIFICAT / NO TANCAT** fins que els passos de preproducció tinguin
 evidència conservada i el tall real estigui aprovat.
+
+## 13. Hardening addicional de revalidació — 2026-10-04
+
+### 13.1 Identitat de checkout
+S'afegeix `GiftCheckoutToken` i el secret dedicat:
+
+```text
+UC017_GIFT_CHECKOUT_HMAC_SECRET=<secret aleatori >= 32 bytes>
+```
+
+El valor no s'ha de versionar ni copiar a evidències. El formulari no usa
+`giftId/codiRegal/email/import` com a identitat econòmica mutable.
+
+### 13.2 Idempotència entre ordres Redsys
+`RedsysGiftPaymentIntentService` serialitza per `giftId`, reutilitza l'intent pendent
+i bloqueja una nova creació quan ja existeix notificació `VALIDATED`.
+`RedsysInvoicePayloadBuilder` conserva `LEGACY|REGAL|ID:<giftId>` per a REGAL.
+
+Això afegeix defensa en profunditat: dues ordres diferents no poden materialitzar dos
+registres econòmics SIF del mateix regal.
+
+### 13.3 Frontera de desplegament
+La implementació hardenitzada és overlay de `pay-prisma-cat-canvis-verifactu`.
+`web-actual` continua sent evidència del flux llegat. La preproducció ha d'acreditar
+explícitament el routing/DocumentRoot que connecta la UI actual amb el checkout `pay`.
+Sense aquesta prova el cas continua NO-GO.
