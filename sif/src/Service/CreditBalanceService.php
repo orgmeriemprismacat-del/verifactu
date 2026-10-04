@@ -242,12 +242,26 @@ final class CreditBalanceService
 
             if ($existing !== null) {
                 $this->assertSamePaymentPayload($payload, $existing);
+                $this->ensureCompensationFundAllocation(
+                    $db,
+                    $payload,
+                    (string) $existing['UUID_PAYMENT'],
+                    $credit,
+                    $invoice
+                );
 
                 return $this->existingPaymentResult($existing, $credit, $invoice);
             }
 
             $this->assertCreditCanBeApplied($db, $credit, $invoice, $payload['amount']);
             $payment = $this->payments->createPayment($db, $payload);
+            $this->ensureCompensationFundAllocation(
+                $db,
+                $payload,
+                (string) $payment['uuid_payment'],
+                $credit,
+                $invoice
+            );
             $updatedCredit = $this->consumeCredit($db, $credit, $payload['amount']);
 
             return [
@@ -278,6 +292,13 @@ final class CreditBalanceService
             }
 
             $this->assertSamePaymentPayload($payload, $existing);
+            $this->ensureCompensationFundAllocation(
+                $db,
+                $payload,
+                (string) $existing['UUID_PAYMENT'],
+                $credit,
+                $invoice
+            );
 
             return $this->existingPaymentResult($existing, $credit, $invoice);
         });
@@ -310,6 +331,53 @@ final class CreditBalanceService
         );
 
         return [$credit, $invoice, $payload];
+    }
+
+    private function ensureCompensationFundAllocation(
+        \PDO $db,
+        array $payload,
+        string $uuidPayment,
+        array $credit,
+        array $invoice
+    ): void {
+        $idInsc = (int) ($payload['target_enrollment_id'] ?? 0);
+        if ($idInsc <= 0) {
+            return;
+        }
+
+        $line = $this->funds->findInvoiceLineForInscription(
+            $db,
+            (string) $invoice['UUID_FACTURA'],
+            $idInsc
+        );
+
+        $key = (string) $payload['idempotency_key'];
+        $correlationId = trim((string) ($payload['correlation_id'] ?? ''));
+        if ($correlationId === '') {
+            $correlationId = 'UC006|COMPENSATION|'
+                . substr(hash('sha256', $key), 0, 32);
+        }
+
+        $this->funds->insertOrReuseCompensationAllocation(
+            $db,
+            [
+                'idempotency_key' => 'FUND|COMPENSATION|'
+                    . hash('sha256', $key)
+                    . '|INSC:' . $idInsc,
+                'order' => max(1, (int) ($line['ORDRE'] ?? 1)),
+                'uuid_payment' => $uuidPayment,
+                'uuid_credit' => (string) $credit['UUID_CREDIT'],
+                'uuid_factura' => (string) $invoice['UUID_FACTURA'],
+                'invoice_line_id' => (int) $line['ID'],
+                'id_insc' => $idInsc,
+                'amount' => $payload['amount'],
+                'currency' => 'EUR',
+                'uuid_operation' => $payload['uuid_operation'] ?? null,
+                'correlation_id' => $correlationId,
+                'notes' => $payload['notes']
+                    ?? 'UC-006 credit compensation allocated to enrollment',
+            ]
+        );
     }
 
     private function assertCreditCanBeApplied(\PDO $db, array $credit, array $invoice, string $amount): void
