@@ -37,6 +37,10 @@ final class VersionPanelUiContractTest
         }
         Assert::stringContainsString('X-CSRF-Token', $app);
         Assert::stringContainsString('assertCsrf', $actions);
+        Assert::stringContainsString("Cache-Control: private, no-store", $actions);
+        Assert::stringContainsString("header('Allow: POST')", $actions);
+        Assert::stringContainsString('$exception instanceof SifException', $actions);
+        Assert::stringContainsString('Internal SIF version governance error', $actions);
         Assert::stringContainsString('window.confirm', $app);
         Assert::stringContainsString('dataset.operationId', $app);
     }
