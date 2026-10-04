@@ -175,19 +175,23 @@ A `main`, `PaymentService` ja comparava payload per hash v1/v2. La branca comple
 
 ---
 
-### F-002-12 · ALTA · `payment_action_event` no està connectat al registre genèric
+### F-002-12 · ALTA · `payment_action_event` del command UC-002
 
-Existeixen:
-- `PaymentActionGateway`;
-- `PaymentActionEventWriter`;
-- `PaymentActionEventRepository`.
+**Situació inicial:** `PaymentActionGateway` i `PaymentActionEventRepository` existien, però el registre de pagament no els utilitzava i `TransactionRunner` no permetia participació en una transacció externa.
 
-Però `register.php -> PaymentService` no usa el gateway.
+**Acció implementada:**
+- `TransactionRunner` només obre/commit/rollback si és propietari de la transacció;
+- `register_existing_invoice` s'executa dins `PaymentActionGateway`;
+- `REQUEST_ID` és la petició interna HMAC;
+- `CORRELATION_ID` i `PAYMENT_IDEMPOTENCY_KEY` són la clau estable `INTRANET|UC002|REQ:<uuid>`;
+- l'event terminal i el `CHARGE` comparteixen transacció;
+- el retry equivalent produeix `REUSED`, no un segon moviment.
 
-**Nota tècnica:** no s'ha connectat mecànicament en aquesta auditoria perquè `PaymentActionGateway` i `PaymentService` utilitzen `TransactionRunner` i el runner actual sempre fa `beginTransaction()`; embolcallar un servei dins l'altre sobre la mateixa PDO implicaria transacció imbricada no suportada.
+**Verificació definida:** `ExistingInvoicePaymentAuditFlowTest` comprova amb MySQL real `REQUESTED→SUCCEEDED`, després `REQUESTED→REUSED`, i un únic `payment_transaction`.
 
-**Estat:** **PENDENT / BLOQUEJANT**.  
-**Solució FINAL:** un únic owner transaccional o un service intern que accepti transacció existent.
+**Estat:** **IMPLEMENTAT / CI I E2E PENDENTS**.
+
+**Límit:** el mode low-level `action=''` es conserva per compatibilitat de callers interns i no forma part del command autoritatiu UC-002.
 
 ---
 
@@ -251,7 +255,7 @@ Al tall:
 | R-11 | no alterar import fiscal per cobrament legacy | Intranet query | LegacyExistingInvoiceTest | IMPLEMENTAT branca |
 | R-12 | fraccions acumulatives | Intranet | LegacyExistingInvoiceTest | IMPLEMENTAT branca |
 | R-13 | recalcular estat cobrament | repository + calculator | integration/unit | IMPLEMENTAT |
-| R-14 | audit event d'alta | PaymentActionGateway | — | PENDENT |
+| R-14 | audit event del command | PaymentActionGateway + payment_action_event | ExistingInvoicePaymentAuditFlowTest | IMPLEMENTAT / CI PENDENT |
 | R-15 | imputació per ID_INSC | fund movement infra | fluxos específics | PARCIAL |
 | R-16 | evidència externa | — genèric | — | PENDENT |
 | R-17 | intranet -> SIF | client HMAC + proxy + command | bridge boundary + command tests | IMPLEMENTAT FLAGGED |
@@ -344,7 +348,7 @@ Es pot declarar **“nucli SIF implementat + fronteres corregides + documentaci�
 3. executar E2E: parcial, complet, retry, pèrdua de resposta, conflicte de payload i sobrepagament;
 4. verificar una factura multiinscripció i la projecció absoluta al llegat;
 5. conservar UUID/request-id i evidència SQL abans/després;
-6. redissenyar l'owner transaccional per connectar `PaymentActionGateway`;
+6. verificar journal i rollback del `PaymentActionGateway` en l'entorn de prova;
 7. decidir/afegir `enrollment_fund_movement` genèric;
 8. moure correus a post-commit/outbox;
 9. només després valorar activació en producció.
