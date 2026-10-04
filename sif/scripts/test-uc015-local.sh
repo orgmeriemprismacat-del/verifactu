@@ -85,7 +85,7 @@ fi
   echo "  RedsysPackWorkerEndToEndTest::testPackWorkerReplayKeepsFiscalEconomicAndOutboxEffectsIdempotent"
   echo "  PackEnrollmentTransportBoundaryTest::testPackEnrollmentMutationUsesPostAndDoesNotReadGetParameters"
   echo "  PackPaymentPrivacyBoundaryTest::testPackRedsysPayloadUsesNameNotDniAndOmitsEmailFromReturnUrls"
-  echo "  PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesTreatEmailAsOptionalEscapedHint"
+  echo "  PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesDoNotExposeEmailInReturnUrlsOrViews"
   echo "  PublicWebMutationAuthorizationTest::testAllowsConfiguredSameOriginAjaxRequest"
   echo "  PublicWebMutationAuthorizationTest::testRejectsCrossOriginRequest"
   echo "  PublicWebMutationAuthorizationTest::testRejectsNonAjaxRequest"
