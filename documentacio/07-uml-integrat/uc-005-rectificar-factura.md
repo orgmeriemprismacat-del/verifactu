@@ -456,7 +456,7 @@ S'ha afegit `ManualRectificationServiceTest::testPersistsCatalanAliasesInRectifi
 
 [Catàleg UC-05](../04-estat-final/33-casos-us-sif.md) · [Fitxa base UC-05](../06-fitxes-funcionals/uc-005.md) · [ManualRectificationService](../../sif/src/Service/ManualRectificationService.php) · [ManualRectificationPayloadBuilder](../../sif/src/Service/ManualRectificationPayloadBuilder.php) · [RectificationRepository](../../sif/src/Repository/RectificationRepository.php) · [InvoiceService](../../sif/src/Service/InvoiceService.php) · [ManualRectificationServiceTest](../../sif/tests/Integration/ManualRectificationServiceTest.php) · [Diagrames generals](../04-estat-final/31-diagrames-classes-sif.md) · [Seqüències existents](../04-estat-final/32-diagrames-sequencia-sif.md).
 
-**Límit:** la suite global anterior va arribar a 918 passats i 6 errors aliens a UC-005; la suite UC-005 aïllada actual continua en cua. La prova multiprocés de concurrència està implementada però encara no executada; tampoc hi ha evidència de preproducció ni enviament AEAT rectificatiu.
+**Límit:** la suite global anterior va arribar a 918 passats i 6 errors aliens a UC-005; la suite UC-005 aïllada actual continua en cua. El preflight de preproducció ja existeix, però encara no hi ha evidència d'haver-lo executat sobre `sif_pre`. La prova multiprocés de concurrència està implementada però encara no executada; tampoc hi ha evidència de preproducció ni enviament AEAT rectificatiu.
 
 
 ## 7. Artefactes detallats afegits el 2026-10-03
@@ -490,6 +490,6 @@ Aquesta secció preval sobre els diagrames històrics d'aquest document quan hi 
 2. **Parcial:** `AeatRectificationMapper` recupera el snapshot original i genera `FacturasRectificadas`, S/I, `ImporteRectificacion` quan S i un `Desglose` per un únic perfil compatible. Pendents múltiples desglossaments, recàrrec, ISP/no-subjecció i canvis de perfil.
 3. Proxy intranet amb sessió/permís/same-origin/CSRF i modal preview/confirm.
 4. Casos de correcció sense variació monetària: el builder manté bloqueig de total zero fins que el criteri fiscal ho defineixi.
-5. Execució verda de la suite MySQL UC-005, prova de concurrència real, **worker/renderitzat documental** (els jobs ja s'encuen), preproducció i evidència AEAT.
+5. Execució verda de la suite MySQL UC-005, prova de concurrència real, **worker/renderitzat documental** (els jobs ja s'encuen), execució del `preflight-rectification.php` sobre `sif_pre`, prova E2E i evidència AEAT.
 
 Vegeu també [contrast AEAT de rectificatives](uc-005-aeat-rectificatives-contrast-2026-10-03.md).
