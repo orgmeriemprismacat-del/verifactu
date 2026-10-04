@@ -24,6 +24,10 @@ try {
     $factRel = (string) ($request['factRel'] ?? '');
     $factNum = (string) ($request['factNum'] ?? '');
 
+    if (strlen($dni) > 64 || strlen($email) > 190 || strlen($factRel) > 40 || strlen($factNum) > 40) {
+        throw new InvalidArgumentException('Criteri de cerca massa llarg', 422);
+    }
+
     echo $intranet->buscarUsuaris_Factures($dni, $email, $factRel, $factNum);
 } catch (Throwable $exception) {
     $code = (int) $exception->getCode();
