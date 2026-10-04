@@ -161,6 +161,80 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
     }
 
+    public function testUc004RollsBackWhenSameInscriptionAlreadyHasIssuedRedsysInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $redsysPayload = Fixtures::invoicePayload([
+            'idempotency_key' => 'REDSYS|CURS|IDPAG:902|ORDER:UC004RACE902',
+            'source_channel' => 'REDSYS',
+            'relations' => [[
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 902,
+                'relation_type' => 'ORIGIN',
+                'idpag' => 902,
+                'ds_order' => 'UC004RACE902',
+                'visible_alumne' => 1,
+            ]],
+            'lines' => [[
+                'concept' => 'Curs ja cobrat per Redsys',
+                'detail' => 'Origen 902',
+                'quantity' => '1.00',
+                'unit_price' => '120.00',
+                'base' => '120.00',
+                'import_base' => '120.00',
+                'discount_amount' => '0.00',
+                'taxable_base' => '120.00',
+                'iva_regim' => 'EXEMPT',
+                'iva_pct' => '0.00',
+                'iva_import' => '0.00',
+                'total' => '120.00',
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 902,
+            ]],
+        ]);
+        IssueInvoiceTest::serviceFor($db)->issueInvoice($redsysPayload);
+
+        $service = new InvoiceBeforePaymentService(
+            new InvoiceBeforePaymentPayloadBuilder(),
+            IssueInvoiceTest::serviceFor($db)
+        );
+
+        Assert::throws(SifException::class, function () use ($service): void {
+            $service->issueBeforePayment(Fixtures::invoicePayload([
+                'idempotency_key' => 'INTRANET|FACTURA_ABANS_COBRAR|REF:AFTER-REDSYS-902',
+                'relations' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 902,
+                    'factura_relacionada' => 902,
+                ]],
+                'lines' => [[
+                    'concept' => 'Factura incompatible',
+                    'detail' => 'No ha de confirmar-se',
+                    'quantity' => '1.00',
+                    'unit_price' => '120.00',
+                    'base' => '120.00',
+                    'import_base' => '120.00',
+                    'discount_amount' => '0.00',
+                    'taxable_base' => '120.00',
+                    'iva_regim' => 'EXEMPT',
+                    'iva_pct' => '0.00',
+                    'iva_import' => '0.00',
+                    'total' => '120.00',
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 902,
+                ]],
+            ]));
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
+        Assert::same(0, (int) $db->query(
+            'SELECT COUNT(*) FROM invoice_before_payment_coverage WHERE SOURCE_ID = 902'
+        )->fetchColumn());
+    }
+
     public function testDifferentIdempotencyKeyCannotCoverSameInscriptionTwice(): void
     {
         $db = TestDatabase::fresh();
