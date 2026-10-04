@@ -195,3 +195,37 @@ E->>I: executar mutació amb valors servidor
 ```
 
 **Límit pendent:** aquesta frontera ja elimina l'autoritat monetària del navegador per AP i evita seleccionar una tarifa d'un altre curs/edició, però l'elegibilitat P06 continua amb la regla legacy pròpia i encara no reutilitza `PrismaStudentDiscountPolicy`.
+
+
+## 8. Seqüència FINAL de reintent — 04/10/2026
+
+```mermaid
+sequenceDiagram
+autonumber
+participant C as Canal pagament
+participant S as PrismaStudentCourseCheckoutService
+participant O as CommercialOperationRepository
+participant P as CommercialOperationPartyRepository
+participant L as CommercialOperationLineRepository
+participant I as RedsysPaymentIntentRepository
+
+C->>S: repetir checkout matrícula + DS_ORDER
+S->>O: findByIdempotencyKey(FOR UPDATE)
+O-->>S: operació existent
+S->>S: validar NET_AMOUNT + PRICE_SNAPSHOT_JSON
+S->>P: findByOperationAndRole(PARTICIPANT, FOR UPDATE)
+P-->>S: participant existent
+S->>S: validar PARTY_KEY/NIF/nom/producte/edició/import
+S->>L: findByOperationAndOrder(1, FOR UPDATE)
+L-->>S: línia existent
+S->>S: validar producte/participant/net/rule version
+S->>I: findByUuid(UUID_INTENT, FOR UPDATE)
+I-->>S: DS_ORDER congelat
+alt qualsevol divergència
+  S-->>C: 409 + rollback
+else coherent
+  S-->>C: reutilització idempotent
+end
+```
+
+Aquest delta és **IMPLEMENTAT** al HEAD 04/10 i **PENDENT_CI_HEAD**. Preserva l'exclusió de matrícula actual, `evaluation_at=DATA_INSC` i `CLASSIFICATION=BILLABLE`.
