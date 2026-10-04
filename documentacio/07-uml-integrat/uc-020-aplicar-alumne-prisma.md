@@ -748,3 +748,12 @@ L'auditoria UC-020 queda **tancada**. El runtime AP de targeta és server-author
 - S'han implementat els helpers que el path amb `SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1` cridava sense definició.
 - `LegacyPrismaStudentCourseChangeBoundaryTest` cobreix helpers, origen BD, selector AP i ordre de sobreescriptura; **pendent de CI** al nou head.
 - La convergència total no es declara tancada: l'elegibilitat P06 continua sent la variant legacy pagament/regal i no incorpora `GENERAT=1`; AP-73/migració de policy roman oberta.
+
+
+## 26. Revalidació exhaustiva 04/10/2026
+
+La cobertura requerida continua completa i queda indexada a [uc-020-revalidacio-2026-10-04.md](uc-020-revalidacio-2026-10-04.md).
+
+**Delta executable:** el reintent de `PrismaStudentCourseCheckoutService` revalida ara participant i línia comercial abans de reutilitzar l'operació. `CommercialOperationLineRepository` elimina l'últim SQL inline rellevant d'aquesta línia del checkout. La integració s'ha fet selectivament: no s'ha adoptat el PR #158 sencer perquè aquell tall reintroduïa comportaments ja descartats a #112.
+
+**Estat:** DOCUMENTAT + IMPLEMENTAT; verificació estàtica completada. CI del HEAD i E2E real/preproducció continuen PENDENTS.
