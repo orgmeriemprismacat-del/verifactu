@@ -14,7 +14,7 @@
 | P04 | Control morosos | Llegat, reclamacions mensuals; no registra CHARGE SIF |
 | P05 | CLI preview claim payment | SIF executable, no muta |
 | P06 | CLI process claim payment | SIF executable, muta en no-producció |
-| P07 | Endpoint intranet autoritatiu UC-024 | No localitzat; FINAL |
+| P07 | Bridge + API interna UC-024 | Implementat en branca; feature flag OFF per defecte; preproducció pendent |
 
 ## 1. P01 — Primera reclamació
 
@@ -133,16 +133,17 @@ stop
 @enduml
 ```
 
-## 7. P07 — FINAL intranet canònica
+## 7. P07 — BRANCA IMPLEMENTADA / intranet canònica
 
 ```plantuml
 @startuml
-title P07 FINAL — registrar cobrament reclamat
+title P07 BRANCA — registrar cobrament reclamat
 start
-:Obrir expedient de reclamació;
-:Backend valida sessió, rol, permís i CSRF;
-:Rellegir factura, ledger i saldo;
-:Introduir/seleccionar identificador extern de l'ingrés;
+:Clicar Registrar cobrament si feature flag activa;
+:Bridge valida sessió, Same-Origin/AJAX, permís i CSRF;
+:Derivar claim_case_id i actor server-side;
+:API HMAC resol factura + IDPAG des de fact_rels;
+:Introduir identificador extern tipificat de l'ingrés;
 :Resolver deduplicació intercanal;
 if (Ingrés ja registrat?) then (sí)
  :Vincular UUID_PAYMENT existent a l'expedient;
@@ -154,11 +155,15 @@ else (no)
   stop
  endif
 endif
-:Reconciliar deute de l'expedient;
-:Persistir actor/correlació/resultat;
-:Commit;
-:Encolar comunicació si correspon;
-:Retornar estat tipificat;
+:Persistir actor/correlació/resultat LINK_CLAIM_PAYMENT;
+:Commit SIF;
+:Projectar net de factura al legacy amb guard de baseline/delta;
+:Auditar SYNC_LEGACY;
+:Retornar estat tipificat o requires_reconciliation;
+note right
+  Outbox de correus encara no forma part
+  de la nova mutació econòmica.
+end note;
 stop
 @enduml
 ```
@@ -167,10 +172,10 @@ stop
 
 | Superfície | Consulta | Mutació llegada | SIF payment | Autorització mutació acreditada | Correu outbox |
 | --- | --- | --- | --- | --- | --- |
-| P01 | Sí | Sí | No | No | No |
-| P02 | Sí | Sí | No | No | No |
-| P03 | Sí | Sí | No | No | No |
-| P04 | Sí | Sí | No | No | No |
+| P01 | Sí | Sí | Sí amb feature flag | Sí al bridge | No |
+| P02 | Sí | Sí | Sí amb feature flag | Sí al bridge | No |
+| P03 | Sí | Sí | Sí amb feature flag | Sí al bridge | No |
+| P04 | Sí | Sí | Sí amb feature flag | Sí al bridge | No |
 | P05 | Sí | No | No | CLI/no-prod | N/A |
 | P06 | Sí | Sí | Sí | CLI/no-prod | N/A |
-| P07 FINAL | Sí | Sí | Sí | Exigit | Exigit |
+| P07 BRANCA | Sí | Sí | Sí | Implementat | No; correu llegat separat |
