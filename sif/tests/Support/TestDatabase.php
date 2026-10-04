@@ -43,6 +43,16 @@ final class TestDatabase
             $db->exec('SET FOREIGN_KEY_CHECKS = 1');
         }
 
+        // UC-010 migration baseline contains a singleton coordination row.
+        // TRUNCATE removes it without firing DELETE triggers, so restore the
+        // same post-migration invariant before any service/preflight test.
+        if (array_key_exists('sif_version_state', $runner->expectedSchema())) {
+            $db->exec(
+                'INSERT IGNORE INTO sif_version_state (ID, ACTIVE_UUID_VERSION, LOCK_VERSION)
+                 VALUES (1, NULL, 0)'
+            );
+        }
+
         $runner->seed($db);
         return $db;
     }

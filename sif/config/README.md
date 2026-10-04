@@ -123,3 +123,49 @@ El checkout PACK és fail-closed i no reutilitza imports, titular, correu ni end
 - Default UC-015: `https://www.prisma.cat;https://prisma.cat`.
 - `enviarInscripcioPack.php` exigeix POST, `X-Requested-With: XMLHttpRequest`, allowlist d'origen/referer i conserva també la comprovació `Sec-Fetch-Site` com a defensa addicional.
 - Aquest control redueix CSRF cross-site i peticions directes no-AJAX; no substitueix rate limiting o controls anti-bot.
+
+
+## Governança de versió i declaració — UC-010
+
+UC-010 és **fail-closed**. Cap versió queda activable fins que el runtime observat, els rols, el manifest i l'emmagatzematge privat de declaracions estiguin configurats explícitament.
+
+### Variables de runtime
+
+- `SIF_VERSION_READ_ROLES`: rols que poden consultar runtime, candidates, declaracions i historial.
+- `SIF_VERSION_MANAGE_ROLES`: rols que poden registrar candidates, vincular declaracions i registrar activacions. No hi ha rols permissius per defecte.
+- `SIF_RUNTIME_GIT_REVISION`: SHA-1 de 40 caràcters del commit executable desplegat.
+- `SIF_RELEASE_MANIFEST_PATH`: manifest JSON **fora de tot l'arbre `sif/` del release**, no només fora del webroot. Això evita que el manifest s'inclogui a si mateix o quedi publicable accidentalment.
+- `SIF_DECLARATION_ROOT`: directori privat dels documents de declaració responsable.
+- `SIF_VERSION_ACTIVATION_ENABLED=1`: gate explícit; per defecte 0.
+- `SIF_VERSION_REQUIRE_BACKUP_EVIDENCE`: per defecte 1.
+- `SIF_PANEL_VERSIONS_PATH`: path signat del panell; default `/sif/versions/`.
+- `SIF_PANEL_VERSION_SESSION_TTL`: TTL absolut de la sessió del panell; default `1800` segons i límit intern 300–28800.
+- A la intranet, `SIF_PANEL_VERSIONS_URL` defineix la URL HTTPS del panell. Ha d'estar sota `prisma.cat`, sense query/fragment/credencials, i el seu path ha de coincidir exactament amb `SIF_PANEL_VERSIONS_PATH`.
+
+### Contracte i límits
+
+1. `build-release-manifest.php` genera un inventari determinista dels roots governats (`src`, `public`, `config`, `scripts`, `database/migrations`), rebutja symlinks i una destinació situada dins del release, i escriu `files` + `artifact_hash` autoconsistent.
+2. `RuntimeVersionInspector` torna a verificar inventari/bytes/`artifact_hash`, calcula `ARTIFACT_HASH` i `CONFIG_HASH`, valida el ledger de migracions i taules/columnes, i comprova explícitament els guards crítics UC-010: índex ACTIVE únic, CHECKs i triggers. **No** equival a una auditoria exhaustiva de tots els índexs/tipus/defaults/constraints de totes les taules SIF.
+3. `registerCurrentRuntime` no accepta hashes del navegador i els replays es resolen per payload semàntic abans de tornar a inspeccionar el runtime.
+4. Una declaració només es vincula si el fitxer existeix sota `SIF_DECLARATION_ROOT`; el SHA-256 es calcula sobre els bytes.
+5. Només una candidata `DRAFT` pot activar-se. L'activació no desplega: registra un runtime que ja coincideix amb la candidata i serialitza la decisió. La BD reforça l'invariant amb un únic `ACTIVE`, singleton `ID=1` i journal d'activació immutable.
+6. Si `SIF_VERSION_REQUIRE_BACKUP_EVIDENCE=1`, UC-010 valida l'evidència persistent disponible (entorn, estat i integritat). **UC-85 encara no està implementat/tancat**, de manera que aquesta fila no substitueix una prova completa de backup/restauració fins que UC-85 defineixi i verifiqui el seu contracte executable.
+7. Cap activació UC-010 modifica factures, registres fiscals, pagaments ni cues històriques.
+
+El fingerprint de configuració persisteix només el SHA-256 final, no la configuració canònica. Els valors sensibles (`password`, `secret`, tokens i claus equivalents) es redaccionen a `__SECRET_SET__` / `__SECRET_EMPTY__`: la rotació d'un secret configurat no canvia `CONFIG_HASH`, mentre que perdre/configurar un secret sí. Els canvis funcionals no secrets continuen canviant el fingerprint.
+
+
+### Evidència UC-010 post-activació
+
+- `php sif/scripts/verify-version-governance-evidence.php UUID_VERSION`: verificació read-only de la versió activa, singleton, journal, declaració física, runtime, backup gate i traces audit/operational.
+- En `SIF_ENV=production` queda bloquejada per defecte; només es pot habilitar explícitament amb `SIF_UC010_EVIDENCE_ALLOW_PRODUCTION=1`.
+- La sortida sempre inclou `production_authorized=false`: l'evidència tècnica no substitueix una decisió de go-live.
+
+
+### Migracions UC-010
+
+1. `2026_10_03_000001_add_uc010_version_governance.sql`: idempotència, singleton i journal.
+2. `2026_10_04_000001_harden_uc010_version_governance.sql`: ACTIVE únic, CHECKs i journal no-update/no-delete.
+3. `2026_10_04_000002_harden_uc010_singleton_state.sql`: backfill segur d'una ACTIVE preexistent, CHECK `ID=1` i singleton no-delete.
+
+Les migracions són additives; una migració aplicada no s'ha de modificar.

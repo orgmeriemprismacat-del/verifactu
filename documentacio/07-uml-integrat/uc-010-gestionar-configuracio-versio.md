@@ -1,168 +1,243 @@
-# UC-10 · Gestionar configuració i versió del SIF
+# UC-010 · Gestionar configuració i versió del SIF
 
-**Objectiu:** controlar quina versió del SIF, configuració, esquema de BD i declaració responsable corresponen a cada activació, i impedir un canvi de configuració fiscal sense autorització, evidència i reversibilitat. **Estat:** hi ha definicions SQL de `sif_version`, `sif_declaration` i `backup_restore_evidence`, i documentació del panell. **No s'ha identificat** en `sif/src` una classe `SifVersionService` o un panell executable que governi l'activació d'una versió i validi tots els requisits.
+**Estat:** `IMPLEMENTAT_EN_BRANCA_RECONCILIADA · CI/ENTORN PENDENT`  
+**Auditoria:** 2026-10-04 · antecedent PR #139 no mergejat
 
-## 1. Fitxa funcional específica
+## 1. Objectiu
 
-| Element | Regla/documentació |
+UC-010 governa la correspondència entre:
+
+- release observat;
+- configuració efectiva;
+- esquema de BD;
+- declaració responsable;
+- evidència de recuperació;
+- estat actiu registrat.
+
+L'activació **no desplega**: només registra com a activa una candidata que ja coincideix amb el runtime verificat.
+
+## 2. Inventari documental
+
+| Artefacte | Enllaç |
 | --- | --- |
-| Actors | Responsable tècnica o administrador SIF; aprovació legal/direcció quan pertoqui a la declaració responsable. Un auditor només lectura pot consultar l'evidència, no canviar versió. |
-| Versió definida a BD | `sif_version`: `UUID_VERSION`, `VERSION_CODE` únic, `GIT_REVISION` SHA-1 de 40 caràcters, `ARTIFACT_HASH`, `CONFIG_HASH`, `DATABASE_VERSION`, `STATUS=DRAFT` per defecte, creador i data d'activació. **La fila no prova que el binari desplegat coincideixi amb el hash registrat.** |
-| Declaració vinculada | `sif_declaration`: `UUID_DECLARATION`, `UUID_VERSION` (FK), `DECLARATION_VERSION`, `DOCUMENT_HASH`, `STORAGE_KEY`, `APPROVED_BY`, `APPROVED_AT` i `STATUS=ACTIVE` per defecte. El document real ha de custodiar-se i verificar el hash. |
-| Evidència de seguretat/recuperació | `backup_restore_evidence`: tipus i entorn, `BACKUP_REFERENCE`, hash, integritat, RPO/RTO declarats quan s'han mesurat, actor, correlació i dates. L'existència de la taula no implica backup o restauració executats. |
-| Configuració sensible | Dades d'emissor, sèries, mode de SIF, endpoints, certificat i claus, retries, rutes de documents i rols; el panell és disseny. **No registrar secrets en clar en `CONFIG_HASH`, log o evidència.** |
-| Resultat objectiu | Versió candidata/activa vinculada a commit i artefacte desplegat, configuració i esquema comprovats, aprovació/document custodiat i evidències verificables; historial d'activacions i incidències. |
+| Fitxa funcional | [UC-010](../06-fitxes-funcionals/uc-010.md) |
+| Auditoria detallada | [Auditoria 2026-10-04](uc-010-auditoria-detallada-2026-10-04.md) |
+| Classes ACTUAL/FINAL | [Classes](uc-010-classes-actual-final.md) |
+| Seqüències ACTUAL/FINAL | [Seqüències](uc-010-sequencies-actual-final.md) |
+| Activitats per pàgina/apartat | [Activitats](uc-010-activitats-pagines-actual-final.md) |
+| Configuració | [sif/config/README.md](../../sif/config/README.md) |
+| Migració base | [2026_10_03 UC-010](../../sif/database/migrations/2026_10_03_000001_add_uc010_version_governance.sql) |
+| Hardening BD | [2026_10_04 000001](../../sif/database/migrations/2026_10_04_000001_harden_uc010_version_governance.sql) |
+| Hardening singleton | [2026_10_04 000002](../../sif/database/migrations/2026_10_04_000002_harden_uc010_singleton_state.sql) |
 
-### 1.1. Flux objectiu d'alta i activació
-
-1. La responsable prepara una candidata amb commit exacte, artefacte compilat/desplegable, hash del paquet, configuració sanejada i versió de BD; conserva l'anterior versió activa.
-2. Un servei d'administració **pendent** valida que no hi hagi un codi de versió duplicat, que els hashes siguin de la longitud/format esperats i que el paquet real coincideixi amb `ARTIFACT_HASH`. Un `GIT_REVISION` registrat **no acredita** per si sol què està executant el servidor.
-3. Es fan les proves i el preflight que pertoquin, es guarda resultat amb evidència i correlació, s'associa la declaració responsable real i la seva aprovació a la mateixa `UUID_VERSION`. No interpretar el `STATUS=ACTIVE` per defecte de `sif_declaration` com a prova d'aprovació efectiva.
-4. La decisió d'activació exigeix autorització, comprovació de disponibilitat de certificat/rutes/configuració, compatibilitat de migracions i, quan sigui obligatori pel procediment aprovat, backup/restauració amb referència i integritat. Les condicions exactes de `go/no-go` són les del pla de governança, no les deduïdes d'un sol camp SQL.
-5. S'executa el desplegament amb control de concurrència de versió; **si l'execució falla, no marcar `ACTIVATED_AT` o estat `ACTIVE` per una mera intenció de publicar**. El servei de versions i el desplegament real encara s'han de vincular.
-6. Després de l'activació, es comprova de nou commit/artefacte/configuració/esquema en l'entorn real i es registra l'event immutable de canvi amb actor, data, versió anterior i nova; les incidències de desplegament es gestionen per UC-08.
-7. Canvis posteriors de certificat, endpoint, sèrie o emissor requereixen nova decisió traçada i una comprovació d'impacte fiscal; **un canvi de configuració no reescriu factures emeses ni recalcula els seus registres fiscals**.
-
-### 1.2. Variants i riscos
-
-| Situació | Resposta |
-| --- | --- |
-| Mateix `VERSION_CODE`, hash diferent | Bloquejar o registrar una nova versió; no substituir silenciosament l'artefacte registrat a la mateixa identitat. |
-| Declaració sense fitxer íntegre | No donar l'evidència per completa pel sol `STORAGE_KEY`; verificar bytes/hash i aprovació, mantenir versió en estat no activable segons procediment. |
-| Migració de BD pendent o esquema incompatible | No activar fingint que el nou PHP i l'antiga BD són compatibles; registrar blocker i pla d'aplicació/reversió. |
-| Backup no executat | La fila definida a SQL no substitueix prova real; no inventar `RPO_MINUTES` o `RTO_MINUTES`. |
-| Certificat de proves usat en procés productiu | Verificar endpoint/entorn i capacitat del transport; el `SoapTransport` consultat està restringit a proves, no acreditar disponibilitat de producció. |
-| Intent de canviar una sèrie després d'emetre | Classificar canvi i preservar sèries/numeració i cadena anteriors; no reasignar un número fiscal existent. |
-| Activació concurrent de dues candidates | Serialitzar/validar una sola versió activa segons contracte acordat; és **lògica pendent**, no garantia del valor `STATUS` SQL. |
-
-**Proves pendents:** activació i rollback, document/artefacte amb hash incorrecte, revisió de permisos, configuració segura, migració fallida, versions concurrents, evidència de declaració, recuperació i correspondència entre fila `sif_version` i servidor en execució.
-
-## 2. Diagrama UML de casos d'ús
+## 3. Casos d'ús interns
 
 ```plantuml
 @startuml
 left to right direction
 actor "Responsable tècnica" as T
-actor "Direcció/aprovació" as D
-actor "Auditor només lectura" as A
-rectangle "SIF · governança de versions" {
- usecase "UC-10\nGestionar configuració i versió" as Main
- usecase "Registrar candidata i hashes" as Candidate
- usecase "Vincular declaració i evidències" as Declaration
- usecase "Validar desplegament/backup" as Preflight
- usecase "Activar versió amb autorització" as Activate
- usecase "Consultar historial de versions" as History
+actor "Auditor" as A
+actor "Aprovador autoritzat" as D
+
+rectangle "UC-010 · Governança versió" {
+  usecase "Consultar runtime observat" as Runtime
+  usecase "Registrar candidata des del runtime" as Candidate
+  usecase "Vincular declaració física aprovada" as Declaration
+  usecase "Executar preflight" as Preflight
+  usecase "Registrar activació serialitzada" as Activate
+  usecase "Consultar historial" as History
 }
-T --> Main
-D --> Declaration
+
+A --> Runtime
 A --> History
-Main ..> Candidate : <<include>>
-Main ..> Declaration : <<include>> (quan correspon)
-Main ..> Preflight : <<include>>
-Main ..> Activate : <<include>> (després de validar)
+T --> Runtime
+T --> Candidate
+T --> Preflight
+T --> Activate
+D --> Declaration
+Candidate ..> Runtime : <<include>>
+Preflight ..> Runtime : <<include>>
+Preflight ..> Declaration : <<include>>
+Activate ..> Preflight : <<include>>
+Activate ..> History : <<include>>
 @enduml
 ```
 
-### Vista de casos d’ús per a GitHub (Mermaid)
+## 4. Arquitectura FINAL resumida
 
 ```mermaid
 flowchart LR
-  actor_0["Responsable tècnica"]
-  actor_1["Direcció/aprovació"]
-  actor_2["Auditor només lectura"]
-  subgraph SIF_BOX["SIF · governança de versions"]
-    uc_0(["UC-10<br/>Gestionar configuració i versió"])
-    uc_1(["Registrar candidata i hashes"])
-    uc_2(["Vincular declaració i evidències"])
-    uc_3(["Validar desplegament/backup"])
-    uc_4(["Activar versió amb autorització"])
-    uc_5(["Consultar historial de versions"])
-  end
-  actor_0 --> uc_0
-  actor_1 --> uc_2
-  actor_2 --> uc_5
-  uc_0 -.->|include| uc_1
-  uc_0 -.->|include| uc_2
-  uc_0 -.->|include| uc_3
-  uc_0 -.->|include| uc_4
+I[Intranet PrisMa] -->|launch HMAC| P[/sif/versions/]
+P --> A[actions.php]
+A --> S[SifVersionService]
+S --> R[RuntimeVersionInspector]
+R --> M[ReleaseManifestVerifier]
+R --> C[RuntimeConfigFingerprint]
+R --> MR[MigrationRunner]
+S --> V[(sif_version)]
+S --> D[(sif_declaration)]
+S --> ST[(sif_version_state)]
+S --> AJ[(sif_version_activation)]
+S --> B[(backup_restore_evidence)]
+S --> AU[(sif_audit_event)]
+S --> OP[(operational_event)]
+EV[SifVersionEvidenceVerifier] --> R
+EV --> V
+EV --> ST
+EV --> AJ
+EV --> D
+EV --> B
 ```
 
-## 3. Classes: persistència SQL existent, serveis de gestió pendents
+## 5. Contracte de candidata
+
+La UI només aporta `VERSION_CODE` i metadades d'operació. El backend registra:
+
+- `GIT_REVISION` observada/configurada;
+- `ARTIFACT_HASH` calculat del manifest verificat;
+- `CONFIG_HASH` calculat de la configuració carregada, amb valors secrets substituïts per marcadors de presència;
+- `DATABASE_VERSION` derivada de les migracions.
+
+Si el manifest o l'esquema no són íntegres, no es crea candidata. El manifest ha de contenir exactament els fitxers governats, un `artifact_hash` autoconsistent i cap symlink.
+
+## 6. Contracte de declaració
+
+La declaració:
+
+- ha d'existir a storage privat;
+- no pot sortir del root per traversal;
+- es hasheja des dels bytes;
+- queda `APPROVED` explícitament;
+- es torna a verificar en preflight;
+- només es pot vincular mentre la candidata és `DRAFT`.
+
+La fila SQL no substitueix el document.
+
+## 7. Contracte d'activació
 
 ```mermaid
-classDiagram
-direction LR
-class SifVersionManager {
- <<DISSENY: no implementada>>
- +registerCandidate(input) version
- +activate(uuidVersion,approval) result
- +verifyDeployment(uuidVersion) result
-}
-class SifVersionRepository {
- <<DISSENY: taula SQL definida, writer no acreditat>>
- +findActive(db) version
- +insert(db,version) result
- +changeStatus(db,uuid,status) result
-}
-class SifDeclarationRepository {
- <<DISSENY: taula SQL definida, writer no acreditat>>
- +append(db,declaration) result
- +findByVersion(db,uuid) result
-}
-class BackupRestoreEvidenceRepository {
- <<DISSENY: taula SQL definida, writer no acreditat>>
- +append(db,evidence) result
-}
-class ConfigIntegrityVerifier {
- <<DISSENY: no implementada>>
- +compareActualWithRegistered(version) checks
-}
-SifVersionManager --> SifVersionRepository : candidata/activació
-SifVersionManager --> SifDeclarationRepository : aprovació
-SifVersionManager --> BackupRestoreEvidenceRepository : comprovació de recuperació
-SifVersionManager --> ConfigIntegrityVerifier : commit, hashes i esquema reals
+stateDiagram-v2
+[*] --> DRAFT
+DRAFT --> ACTIVE: preflight GO + lock + journal
+ACTIVE --> SUPERSEDED: una nova candidata és activada
+SUPERSEDED --> [*]
+
+note right of ACTIVE
+ACTIVE només és vàlid quan
+sif_version_state apunta
+a la mateixa UUID
+end note
 ```
 
-Cap de les classes del diagrama és afirmada com a **implementada**: les taules `sif_version` i `sif_declaration` per si soles no les creen.
+No es permet deduir exclusivitat del text `STATUS`: el singleton i el lock són part de l'invariant. A més, la BD imposa un únic `ACTIVE` amb guard generat/índex únic, `CHECK` d'estats, singleton `ID=1` i journal d'activació no actualitzable/esborrable.
 
-## 4. Seqüència objectiu — activació amb verificacions
+## 8. Matriu de comprovacions
 
-```mermaid
-sequenceDiagram
-autonumber
-actor T as Responsable tècnica
-participant UI as Panell versions [pendent]
-participant M as SifVersionManager [DISSENY]
-participant R as SifVersionRepository [DISSENY]
-participant D as SifDeclarationRepository [DISSENY]
-participant E as BackupRestoreEvidenceRepository [DISSENY]
-participant V as ConfigIntegrityVerifier [DISSENY]
-participant Env as Servidor/BD reals
-T->>UI: Registrar versió candidata, commit, hashes i esquema
-UI->>M: registerCandidate(input)
-M->>R: insert(DRAFT)
-M->>D: Vincular declaració real i aprovació si escau
-M->>E: Consultar proves de backup/restauració del desplegament
-T->>UI: Confirmar activació amb permís i correlació
-UI->>M: activate(uuidVersion,approval)
-M->>V: Comprovar integritat, permisos, proves i migracions
-V->>Env: Llegir artefacte, configuració i versió BD
-alt Comprovació incompleta o fallida
- Env-->>V: Discrepància
- V-->>M: BLOCKED
- M-->>UI: No activar, registrar incidència
-else Candidata validada
- V-->>M: OK amb evidència
- M->>Env: Desplegar/activar de forma controlada
- Env-->>M: Confirmació observable d'entorn actiu
- M->>R: Actualitzar versió activa i historial
- M-->>UI: Versió activa verificada
-end
-Note over M,Env: Seqüència OBJECTIU, no és un servei de desplegament executable acreditat
-```
+| Check | Font |
+| --- | --- |
+| Activation gate | `SIF_VERSION_ACTIVATION_ENABLED` |
+| Git | `SIF_RUNTIME_GIT_REVISION` vs candidata |
+| Bytes | release manifest extern al release vs inventari exacte de fitxers governats; extres/symlinks bloquegen |
+| Artifact | hash canònic del mapa path→SHA256 |
+| Config | fingerprint runtime funcional; secrets només `SET/EMPTY` |
+| DB | `MigrationRunner::inspect()` + checks UC-010 específics d’índex únic, CHECKs i triggers; no equival a auditar tots els constraints del SIF |
+| Declaració | fila APPROVED + hash de bytes |
+| Backup | fila UC-85 del mateix entorn, si obligatori; UC-85 encara no acredita un flux complet implementat |
+| Concurrència | `sif_version_state FOR UPDATE` + unicitat ACTIVE a BD |
+| Replay | `PayloadIdempotencyValidator`: trace metadata exclosa; `reason_code` semàntic |
 
-## 5. Traçabilitat
+## 9. Pàgines
 
-[UC-10 original](../06-fitxes-funcionals/uc-010.md) · [Disseny del panell](../04-estat-final/25-panell-sif-pay-prisma.md) · [UC-34 dashboard](uc-034-consultar-dashboard-sif.md) · [UC-08 incidències](uc-008-gestionar-incidencia-sif.md) · [Migració versions, declaracions i evidències](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql) · [Documentació de governança](../05-governanca-operacio/) · [UC-09 remissió AEAT](uc-009-remetre-registre-aeat.md).
+### Intranet
 
-**Pendent:** implementació de serveis/panell, control d'accés, proves d'activació, aprovacions reals i evidència de l'entorn; sense cap modificació de configuració productiva.
+`codi-drive/intranet-actual/sif-verifactu.php` afegeix únicament l'accés al panell. No escriu versions.
+
+### SIF
+
+`sif/public/sif/versions/index.php` mostra:
+
+1. runtime;
+2. candidata;
+3. llistat;
+4. detall;
+5. declaració;
+6. historial;
+7. preflight;
+8. activació.
+
+`actions.php` aplica la seguretat backend i delega al servei. Les respostes són DTOs explícits: no s’exposen idempotency keys/hashes, guard columns ni `RUNTIME_EVIDENCE_JSON`.
+
+## 10. Límits deliberats
+
+UC-010 no:
+
+- puja el release;
+- reinicia PHP/worker;
+- modifica DNS/FTP;
+- restaura BD;
+- signa automàticament una declaració;
+- canvia una factura;
+- repeteix una operació bancària/fiscal.
+
+El desplegament i la recuperació són processos externs/altres UC; UC-010 n'acredita el resultat abans de registrar ACTIVE.
+
+## 11. Relació amb UC-38 / UC-46 / UC-60 / UC-83 / UC-85
+
+- **UC-38:** aporta/configura emissor, certificat, endpoints i secrets.
+- **UC-46:** utilitza el gate UC-010 per l'acta/decisió de tall.
+- **UC-60:** consumeix estat read-only.
+- **UC-83:** alta candidata/declaració ha de reutilitzar `SifVersionService`.
+- **UC-85:** produeix evidència de backup/restauració.
+
+No crear writers paral·lels.
+
+## 12. Estat
+
+### DOCUMENTAT
+
+Complet a nivell de branca.
+
+### IMPLEMENTAT
+
+Circuit PHP/JS/SQL/CLI reconciliat sobre el `main` actual a `audit/uc-010-reconciliacio-2026-10-04`. No es reutilitza la versió antiga del repositori d'auditoria de PR #139.
+
+### VERIFICAT
+
+Els tests UC-010 del PR #139 van passar; la suite global antiga tenia sis fallades alienes a UC-010. Cal reexecutar CI sobre la branca reconciliada per verificar el resultat final.
+
+### PENDENT D'ENTORN
+
+Variables, storage privat, manifest real, migracions i E2E en `sif_test*`/preproducció.
+
+**Cap GO tècnic de preproducció implica `production_authorized=true`.**
+
+
+## 13. Correccions de l'auditoria 2026-10-04
+
+- només una candidata `DRAFT` és activable; `ACTIVE` o `SUPERSEDED` amb una key nova són conflicte;
+- el singleton es bloqueja abans de la comprovació idempotent autoritativa dins la transacció;
+- el manifest de release ha d'estar fora de tot l'arbre `sif/`, evitant autoreferència;
+- la UI conserva l'idempotency key davant fallades de xarxa/5xx i mostra errors de mutació;
+- l'activació requereix confirmació explícita al navegador;
+- la branca reutilitza `SifAuditEventRepository` del `main` actual;
+- la verificació d'esquema es descriu amb el seu abast real;
+- l'evidència UC-85 es manté com a dependència pendent, no com a garantia completa.
+
+
+## 14. Enduriments addicionals de la continuació
+
+- declaracions noves queden prohibides després que la versió deixi de ser `DRAFT`;
+- el manifest no només verifica hashes: detecta fitxers governats inesperats i symlinks;
+- el builder i el verifier comparteixen la mateixa llista de roots governats;
+- el preflight minimitza la projecció d'evidència UC-85 i no envia `EVIDENCE_JSON`, referències privades o executor al navegador.
+
+
+## 15. Hardening reconciliat addicional
+
+- `CONFIG_HASH`: secrets substituïts per `__SECRET_SET__|__SECRET_EMPTY__`; rotació de secret no canvia la versió.
+- Persistència: un sol `ACTIVE` a BD, CHECKs d'estat, journal d'activació immutable i singleton `ID=1` no eliminable.
+- Preflight: comprova també la coherència singleton ↔ ACTIVE i la presència dels guards físics UC-010.
+- API: projeccions DTO; dades d'idempotència i evidence JSON queden internes.
+- Launch: URL HTTPS sota `prisma.cat`, path exacte, UUIDv4 i anti-replay persistent.
+- Manifest: `artifact_hash` declarat ha de concordar amb el mapa canònic.
+- Evidència post-activació: CLI read-only amb `production_authorized=false`.

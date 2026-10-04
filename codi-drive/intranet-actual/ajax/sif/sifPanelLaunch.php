@@ -62,7 +62,27 @@ try {
         throw new RuntimeException('Authenticated actor has no usable identity or roles');
     }
 
-    $launch = (new SifPanelLaunchToken())->create($actorId, $roles);
+    $panel = strtolower(trim((string) ($payload['panel'] ?? 'incidents')));
+    if (!in_array($panel, ['incidents', 'versions'], true)) {
+        http_response_code(422);
+        echo json_encode(['ok' => false, 'error' => 'Invalid SIF panel target']);
+        return;
+    }
+
+    if ($panel === 'versions') {
+        $versionsUrl = trim((string) (getenv('SIF_PANEL_VERSIONS_URL') ?: ''));
+        $versionsPath = trim((string) (getenv('SIF_PANEL_VERSIONS_PATH') ?: '/sif/versions/'));
+        if ($versionsUrl === '') {
+            throw new RuntimeException('SIF versions panel URL is not configured');
+        }
+
+        $launch = (new SifPanelLaunchToken(
+            $versionsUrl,
+            $versionsPath
+        ))->create($actorId, $roles);
+    } else {
+        $launch = (new SifPanelLaunchToken())->create($actorId, $roles);
+    }
     echo json_encode(['ok' => true] + $launch, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $exception) {
     http_response_code(500);

@@ -109,7 +109,7 @@ Les associacions discontínues amb AEAT indiquen funcionalitat prevista, no disp
 | UC-07 | Consultar factura, estat i document | `[DISSENY]` | model de pantalles i permisos; panell complet no detectat |
 | UC-08 | Gestionar incidència | `[PARCIAL]` | `IncidentRepository`; workflow de panell pendent |
 | UC-09 | Remetre registre a AEAT | `[DISSENY]` | `fiscal_queue` existent; client/certificat/respostes pendents |
-| UC-10 | Gestionar configuració i versió | `[DISSENY]` | documentació de governança i panell previst |
+| UC-10 | Gestionar configuració i versió | `[IMPLEMENTAT EN BRANCA · CI/E2E PENDENT]` | governança executable, panell, manifest/config/BD, declaració, preflight i journal d'activació; producció no autoritzada |
 | UC-11 | Importar factura històrica | `[BASE]` | `HistoricalInvoiceMigrationService` i repositori propi |
 | UC-12 | Gestionar el cicle de morositat i reclamació | `[PARCIAL]` | pantalles legacy i decisió funcional; correus/outbox pendents |
 | UC-13 | Orquestrar la doble facturació USOC | `[PARCIAL]` | `RedsysUsocInvoiceService` i `UsocEntityInvoiceService`; dades fiscals reals pendents |

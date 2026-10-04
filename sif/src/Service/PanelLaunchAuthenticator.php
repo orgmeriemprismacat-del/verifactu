@@ -42,7 +42,10 @@ final class PanelLaunchAuthenticator
         if (abs(time() - $requestedAtUnix) > $this->maxClockSkewSeconds) {
             throw SifException::unauthorized('Expired SIF panel launch');
         }
-        if (preg_match('/^[0-9a-f-]{36}$/D', $requestId) !== 1) {
+        if (preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D',
+            $requestId
+        ) !== 1) {
             throw SifException::unauthorized('Invalid SIF panel launch request id');
         }
         if ($actorId === '' || mb_strlen($actorId, 'UTF-8') > 120) {

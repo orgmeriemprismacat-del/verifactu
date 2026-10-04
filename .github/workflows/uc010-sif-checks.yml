@@ -1,0 +1,149 @@
+name: UC-010 SIF version governance checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "sif/config/**"
+      - "sif/database/migrations/**"
+      - "sif/public/sif/versions/**"
+      - "sif/scripts/build-release-manifest.php"
+      - "sif/scripts/preflight-version-governance.php"
+      - "sif/scripts/verify-version-governance-evidence.php"
+      - "sif/src/Database/MigrationRunner.php"
+      - "sif/src/Http/VersionPanelSession.php"
+      - "sif/src/Repository/BackupRestoreEvidenceRepository.php"
+      - "sif/src/Repository/InternalApiRequestRepository.php"
+      - "sif/src/Repository/OperationalEventRepository.php"
+      - "sif/src/Repository/SifAuditEventRepository.php"
+      - "sif/src/Repository/SifDeclarationRepository.php"
+      - "sif/src/Repository/SifVersionActivationRepository.php"
+      - "sif/src/Repository/SifVersionRepository.php"
+      - "sif/src/Service/PanelLaunchAuthenticator.php"
+      - "sif/src/Service/ReleaseManifestVerifier.php"
+      - "sif/src/Service/RuntimeConfigFingerprint.php"
+      - "sif/src/Service/RuntimeVersionInspector.php"
+      - "sif/src/Service/SifVersionService.php"
+      - "sif/src/Service/SifVersionEvidenceVerifier.php"
+      - "sif/tests/Integration/SifVersionServiceTest.php"
+      - "sif/tests/Integration/PanelLaunchSecurityTest.php"
+      - "sif/tests/Integration/VersionPanelUiContractTest.php"
+      - "sif/tests/Unit/ReleaseManifestVerifierTest.php"
+      - "sif/tests/Unit/RuntimeConfigFingerprintTest.php"
+      - "sif/tests/Unit/VersionPanelSessionTest.php"
+      - "sif/tests/run-uc010-tests.php"
+      - "codi-drive/intranet-actual/SifPanelLaunchToken.php"
+      - "codi-drive/intranet-actual/ajax/sif/sifPanelLaunch.php"
+      - "codi-drive/intranet-actual/js/sif-verifactu.js"
+      - "codi-drive/intranet-actual/sif-verifactu.php"
+      - "documentacio/06-fitxes-funcionals/uc-010.md"
+      - "documentacio/07-uml-integrat/uc-010-*"
+      - ".github/workflows/uc010-sif-checks.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "sif/config/**"
+      - "sif/database/migrations/**"
+      - "sif/public/sif/versions/**"
+      - "sif/scripts/build-release-manifest.php"
+      - "sif/scripts/preflight-version-governance.php"
+      - "sif/scripts/verify-version-governance-evidence.php"
+      - "sif/src/Database/MigrationRunner.php"
+      - "sif/src/Http/VersionPanelSession.php"
+      - "sif/src/Repository/BackupRestoreEvidenceRepository.php"
+      - "sif/src/Repository/InternalApiRequestRepository.php"
+      - "sif/src/Repository/OperationalEventRepository.php"
+      - "sif/src/Repository/SifAuditEventRepository.php"
+      - "sif/src/Repository/SifDeclarationRepository.php"
+      - "sif/src/Repository/SifVersionActivationRepository.php"
+      - "sif/src/Repository/SifVersionRepository.php"
+      - "sif/src/Service/PanelLaunchAuthenticator.php"
+      - "sif/src/Service/ReleaseManifestVerifier.php"
+      - "sif/src/Service/RuntimeConfigFingerprint.php"
+      - "sif/src/Service/RuntimeVersionInspector.php"
+      - "sif/src/Service/SifVersionService.php"
+      - "sif/src/Service/SifVersionEvidenceVerifier.php"
+      - "sif/tests/Integration/SifVersionServiceTest.php"
+      - "sif/tests/Integration/PanelLaunchSecurityTest.php"
+      - "sif/tests/Integration/VersionPanelUiContractTest.php"
+      - "sif/tests/Unit/ReleaseManifestVerifierTest.php"
+      - "sif/tests/Unit/RuntimeConfigFingerprintTest.php"
+      - "sif/tests/Unit/VersionPanelSessionTest.php"
+      - "sif/tests/run-uc010-tests.php"
+      - "codi-drive/intranet-actual/SifPanelLaunchToken.php"
+      - "codi-drive/intranet-actual/ajax/sif/sifPanelLaunch.php"
+      - "codi-drive/intranet-actual/js/sif-verifactu.js"
+      - "codi-drive/intranet-actual/sif-verifactu.php"
+      - "documentacio/06-fitxes-funcionals/uc-010.md"
+      - "documentacio/07-uml-integrat/uc-010-*"
+      - ".github/workflows/uc010-sif-checks.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: uc010-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  uc010-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_test;charset=utf8mb4
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+      SIF_LEGACY_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_legacy_test;charset=utf8mb4
+      SIF_LEGACY_DB_USER: root
+      SIF_LEGACY_DB_PASSWORD: root
+      SIF_NOVICE_PROMO_WRAP_KEY_HEX: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+      SIF_NOVICE_PROMO_KEY_VERSION: test-v1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 amb extensions SIF
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, openssl, mbstring
+          coverage: none
+
+      - name: Preparar BD legacy de proves
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot \
+            -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+      - name: Sintaxi PHP UC-010
+        run: |
+          find sif -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l codi-drive/intranet-actual/SifPanelLaunchToken.php
+          php -l codi-drive/intranet-actual/ajax/sif/sifPanelLaunch.php
+          php -l codi-drive/intranet-actual/sif-verifactu.php
+
+      - name: Sintaxi JavaScript UC-010
+        run: |
+          node --check sif/public/sif/versions/app.js
+          node --check codi-drive/intranet-actual/js/sif-verifactu.js
+
+      - name: Executar suite selectiva UC-010
+        run: php sif/tests/run-uc010-tests.php
