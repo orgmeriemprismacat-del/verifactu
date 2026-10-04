@@ -28,6 +28,10 @@ final class ClaimPaymentInternalApiContractTest
         Assert::stringContainsString('registerByNumVisibleInTransaction', $api);
         Assert::stringContainsString("$paymentInput['created_by'] = (string) ($actor['actor_id']", $api);
         Assert::stringContainsString('Provide exactly one claim payment invoice selector', $api);
+        Assert::stringContainsString('source_inscription_id', $api);
+        Assert::stringContainsString('ClaimPaymentInvoiceLinkRepository', $api);
+        Assert::stringContainsString('assertUuidMatches', $api);
+        Assert::stringContainsString('assertNumVisibleMatches', $api);
         Assert::stringContainsString('claim_case_id', $api);
         Assert::stringContainsString('external_receipt_id', $api);
         Assert::stringContainsString("unset(\$paymentInput[\$legacyReferenceField])", $api);
@@ -39,6 +43,7 @@ final class ClaimPaymentInternalApiContractTest
         Assert::stringContainsString('/api/claim-payments/register.php', $client);
         Assert::stringContainsString('registerByUuid', $client);
         Assert::stringContainsString('registerByNumVisible', $client);
+        Assert::stringContainsString("'source_inscription_id' => \$sourceInscriptionId", $client);
         Assert::stringContainsString("'claim_case_id' => trim(\$claimCaseId)", $client);
         Assert::stringContainsString("'external_receipt_id' => trim(\$externalReceiptId)", $client);
 
