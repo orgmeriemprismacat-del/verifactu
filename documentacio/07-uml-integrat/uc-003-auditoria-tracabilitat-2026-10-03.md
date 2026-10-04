@@ -124,7 +124,7 @@ Si falla, el cas es tracta com conflicte funcional i deriva a `INCIDENT`.
 ### UC03-FIX-03 — factura UC-004 prèvia + cobrament Redsys
 
 **Problema:** una clau idempotent Redsys no reutilitza una factura UC-004 emesa amb una altra clau.  
-**Correcció:** nou `RedsysCoveredInvoicePaymentService`, precondició transaccional de `PaymentService`, guard específic de `InvoiceService` i lock compartit per origen a `fact_rels`. El ledger CURS accepta ara pagaments parcials contra una factura completa existent, mantenint una sola factura fiscal.
+**Correcció:** nou `RedsysCoveredInvoicePaymentService`, precondició transaccional de `PaymentService`, guard específic de `InvoiceService` i lock compartit per origen a `fact_rels`. El ledger CURS accepta ara pagaments parcials contra una factura completa existent, mantenint una sola factura fiscal. L'estat de factura parcial canònic és `PARTIAL`; `PARTIALLY_PAID` queda restringit a la projecció de sincronització llegada.
 
 ## 6. Proves
 
