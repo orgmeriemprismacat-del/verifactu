@@ -144,3 +144,11 @@ El control legacy de morosos permet una nova reclamació quan han passat **30 di
 - un retry amb la mateixa clau idempotent continua reutilitzant el resultat;
 - un intent de seguiment final abans de 30 dies retorna conflicte `409`;
 - aquesta regla no activa cap scheduler: l'automatització temporal general continua bloquejada fins que UC-096 tingui venciment/pròrroga autoritatius.
+
+
+## Reconciliació final del cutover legacy
+
+- Les quatre pantalles carreguen el bridge SIF, però els seus JavaScript continuen cridant els POST legacy; per tant, el cutover **no està fet**.
+- `P-MOR-04` continua acoblat en el llegat a baixa acadèmica/Moodle; no es pot substituir directament per `FINAL_CLAIM` sense separar primer la baixa.
+- S'ha corregit a `Intranet.php` la projecció `reclamat` del recordatori final: `$reclamatM` ara s'inicialitza a partir del valor existent abans de `updClaimRecPag`.
+- Qualsevol pagament confirmat, també parcial, cancel·la avisos `PENDING` per evitar lliuraments amb saldo obsolet.
