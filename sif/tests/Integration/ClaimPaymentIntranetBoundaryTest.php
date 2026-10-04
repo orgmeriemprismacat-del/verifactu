@@ -15,8 +15,14 @@ final class ClaimPaymentIntranetBoundaryTest
         $client = file_get_contents(
             $root . '/codi-drive/intranet-actual/SifInternalClaimPaymentClient.php'
         );
+        $ui = file_get_contents(
+            $root . '/codi-drive/intranet-actual/js/claim-payment-sif.js'
+        );
+        $intranet = file_get_contents(
+            $root . '/codi-drive/intranet-actual/Intranet.php'
+        );
 
-        if ($bridge === false || $client === false) {
+        if ($bridge === false || $client === false || $ui === false || $intranet === false) {
             Assert::fail('Could not read UC-024 intranet bridge files');
         }
 
@@ -50,6 +56,31 @@ final class ClaimPaymentIntranetBoundaryTest
         if (str_contains($bridge, 'SIF_INTERNAL_API_SECRET')) {
             Assert::fail('UC-024 browser bridge must not handle SIF signing secrets');
         }
+
+        Assert::stringContainsString("registerByInscription", $bridge);
+        Assert::stringContainsString("data-id-insc", $intranet);
+        if (substr_count($intranet, "data-id-insc=") < 6) {
+            Assert::fail('All audited UC-024 claim tables must expose their inscription id');
+        }
+
+        Assert::stringContainsString("registerClaimPaymentSif.php", $ui);
+        Assert::stringContainsString("csrf-token-claim-payment", $ui);
+        Assert::stringContainsString("externalReceiptId", $ui);
+        Assert::stringContainsString("'X-Requested-With': 'XMLHttpRequest'", $ui);
+        Assert::stringContainsString("credentials: 'same-origin'", $ui);
+
+        foreach ([
+            'uuidFactura',
+            'numVisible',
+            'claimCaseId',
+            'actorId',
+            'SIF_INTERNAL_API_SECRET',
+            'SIF_INTERNAL_API_KEY_ID',
+        ] as $forbiddenBrowserField) {
+            if (str_contains($ui, $forbiddenBrowserField)) {
+                Assert::fail('UC-024 browser UI must not control ' . $forbiddenBrowserField);
+            }
+        }
     }
 
     public function testAllClaimPagesExposeClaimPaymentCsrfToken(): void
@@ -69,6 +100,8 @@ final class ClaimPaymentIntranetBoundaryTest
             Assert::stringContainsString("csrf_claim_payment", $page);
             Assert::stringContainsString('csrf-token-claim-payment', $page);
             Assert::stringContainsString('random_bytes(32)', $page);
+            Assert::stringContainsString('SIF_CLAIM_PAYMENT_UI_ENABLED', $page);
+            Assert::stringContainsString('js/claim-payment-sif.js', $page);
         }
     }
 }
