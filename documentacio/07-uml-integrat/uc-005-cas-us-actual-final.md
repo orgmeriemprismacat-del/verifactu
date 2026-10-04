@@ -24,10 +24,11 @@ flowchart LR
   TX --> DB[(SIF)]
   TX --> AUD[sif_audit_event + operational_event]
 
-  UI -. adaptador encara pendent .-> API
+  UI --> PX[Proxy UC-005 sessió+CSRF]
+  PX --> API
 ```
 
-L'ACTUAL de la branca ja disposa d'un **backend UC-005 específic** i fail-closed, però la pantalla intranet encara no el consumeix. La consulta SIF de `/alumnes/factura/` continua read-only; les mutacions llegades protegides no equivalen al command UC-005.
+L'ACTUAL de la branca ja disposa de **backend i consumidor intranet UC-005** fail-closed. La consulta SIF continua immutable/read-only, però el detall pot mostrar la decisió UC-74 vigent i executar preview/confirm sobre el snapshot `correction` aprovat; les mutacions llegades protegides continuen sense equivaldre al command UC-005.
 
 ## FINAL
 
@@ -58,6 +59,6 @@ flowchart LR
 - Una rectificativa no equival a una devolució monetària.
 - Una baixa o canvi de curs pot provocar UC-005, però també UC-28/29/71/72 segons la decisió econòmica.
 - El FINAL no permet editar in-place una factura emesa.
-- La figura fiscal s'ha de decidir abans d'emetre la sèrie R; el guard backend ja ho exigeix, però el classificador UC-74 general encara s'ha d'implementar.
-- El backend intern no substitueix la protecció web: el proxy intranet FINAL ha de validar sessió, permís i CSRF abans de signar la petició SIF.
+- La figura fiscal s'ha de decidir abans d'emetre la sèrie R; el consumidor UC-005 ja exigeix event UC-74 + fingerprint + snapshot executable, però el productor/classificador UC-74 general encara s'ha d'implementar.
+- La protecció web ja està implementada al proxy intranet: sessió, permís d'edició, same-origin, CSRF i posterior HMAC cap al SIF.
 - Un reintent equivalent ha de reutilitzar la mateixa R i quedar auditat com `REUSED`.
