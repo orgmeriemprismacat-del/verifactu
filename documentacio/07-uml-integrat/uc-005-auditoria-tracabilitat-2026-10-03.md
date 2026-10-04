@@ -73,7 +73,7 @@ Els endpoints `guardarDadesFactura_Factures.php` i `anularFactura_Factures.php` 
 
 El backend ja recupera el snapshot `factura_registres.PAYLOAD_JSON.aeat`, valida emissor i identitat, pren R1-R5 de la decisió UC-74 persistida, genera S/I, `FacturasRectificadas`, `ImporteRectificacion` per S i un `Desglose` derivat del perfil original. El mapper rebutja explícitament escenaris que encara no pot demostrar. Encara no es pot declarar flux productiu fins superar CI, preproducció i els perfils fiscals pendents.
 
-### UC005-F09 — P1 · adaptador intranet pendent
+### UC005-F09 — PARCIAL IMPLEMENTAT · proxy intranet segur / UX fiscal pendent
 
 Existeix `POST /api/factures/rectify.php` com endpoint intern signat amb HMAC, replay guard i rol específic. La pantalla `/alumnes/factura/` encara no disposa del proxy servidor amb sessió/permís/CSRF ni del modal preview/confirm que consumeixi el command.
 
@@ -95,4 +95,4 @@ UC-005 només es pot marcar tancat quan:
 **DOCUMENTAT:** sí, paquet estructural complet.  
 **IMPLEMENTAT:** nucli rectificatiu, atomicitat, aliases, fiscalitat fail-closed, SUBSTITUCIO amb receptor, command intern signat, preview/confirm, guard UC-74, auditoria i suite UC-005 aïllada.  
 **VERIFICAT:** revisió estàtica, suite específica UC-005 verda 34/34 abans del reforç de decisió persistida, incloent atomicitat, fiscalitat local, command, permisos i protocol AEAT.  
-**PENDENT:** revalidació CI de la nova capa `classification_event_uuid`, classificador/productor UC-74 executable, mapping AEAT E2E de rectificatives, proxy/UI intranet, concurrència E2E i preproducció.
+**PENDENT:** revalidació CI, productor/classificador UC-74 executable, perfils AEAT complexos, modal/formulari final de la intranet, concurrència E2E i preproducció. El proxy/CSRF/HMAC i contracte JS preview/confirm ja estan implementats.
