@@ -6,7 +6,7 @@
 
 | Camp | Especificació de l'operació |
 | --- | --- |
-| Actor principal | Operador intern autenticat. Backend i proxy exigeixen HMAC/replay guard, rol explícit, sessió, same-origin i CSRF. El formulari/modal fiscal final continua pendent del productor UC-74. |
+| Actor principal | Operador intern autenticat. Backend i proxy exigeixen HMAC/replay guard, rol explícit, sessió, same-origin i CSRF. El panell consumidor UC-005 ja existeix; el que continua pendent és el productor/classificador UC-74 que crea la decisió executable. |
 | Disparador | Una factura emesa requereix una rectificació per un motiu justificat i classificat. |
 | Precondicions implementades | Identificació de la factura original per `UUID_FACTURA` o `NUM_VISIBLE`; existència de l'original; import, motiu i mode vàlids. |
 | Entrades específiques | `amount`/`import`, motiu i mode; bloc `fiscal` explícit quan l'original és subjecte a IVA; bloc `billing` només en `SUBSTITUCIO`; classificació upstream `source_uc=UC-74`, `decision=RECTIFICATION`, `reason_code`, `policy_version` i mode coherent; `expected_fingerprint` en confirmar. |
@@ -456,7 +456,7 @@ S'ha afegit `ManualRectificationServiceTest::testPersistsCatalanAliasesInRectifi
 
 [Catàleg UC-05](../04-estat-final/33-casos-us-sif.md) · [Fitxa base UC-05](../06-fitxes-funcionals/uc-005.md) · [ManualRectificationService](../../sif/src/Service/ManualRectificationService.php) · [ManualRectificationPayloadBuilder](../../sif/src/Service/ManualRectificationPayloadBuilder.php) · [RectificationRepository](../../sif/src/Repository/RectificationRepository.php) · [InvoiceService](../../sif/src/Service/InvoiceService.php) · [ManualRectificationServiceTest](../../sif/tests/Integration/ManualRectificationServiceTest.php) · [Diagrames generals](../04-estat-final/31-diagrames-classes-sif.md) · [Seqüències existents](../04-estat-final/32-diagrames-sequencia-sif.md).
 
-**Límit:** la suite global anterior va arribar a 918 passats i 6 errors aliens a UC-005; la suite UC-005 aïllada actual continua en cua. No hi ha encara evidència de concurrència, preproducció ni enviament AEAT rectificatiu.
+**Límit:** la suite global anterior va arribar a 918 passats i 6 errors aliens a UC-005; la suite UC-005 aïllada actual continua en cua. La prova multiprocés de concurrència està implementada però encara no executada; tampoc hi ha evidència de preproducció ni enviament AEAT rectificatiu.
 
 
 ## 7. Artefactes detallats afegits el 2026-10-03
