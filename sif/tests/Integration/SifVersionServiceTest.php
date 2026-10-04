@@ -57,6 +57,9 @@ final class SifVersionServiceTest
 
             $preflight = $service->preflight($actor, $uuid);
             Assert::same(true, $preflight['preflight']['ok']);
+            Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $preflight['preflight']['version']));
+            Assert::same(false, array_key_exists('ACTIVE_UNIQUE_GUARD', $preflight['preflight']['version']));
+            Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $preflight['preflight']['declaration']));
             foreach ([
                 'uc010_single_active_unique_index',
                 'uc010_version_status_check',
