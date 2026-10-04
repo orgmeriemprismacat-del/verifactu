@@ -70,9 +70,15 @@ try {
     }
 
     if ($panel === 'versions') {
+        $versionsUrl = trim((string) (getenv('SIF_PANEL_VERSIONS_URL') ?: ''));
+        $versionsPath = trim((string) (getenv('SIF_PANEL_VERSIONS_PATH') ?: '/sif/versions/'));
+        if ($versionsUrl === '') {
+            throw new RuntimeException('SIF versions panel URL is not configured');
+        }
+
         $launch = (new SifPanelLaunchToken(
-            getenv('SIF_PANEL_VERSIONS_URL') ?: 'https://pay.prisma.cat/sif/versions/',
-            getenv('SIF_PANEL_VERSIONS_PATH') ?: '/sif/versions/'
+            $versionsUrl,
+            $versionsPath
         ))->create($actorId, $roles);
     } else {
         $launch = (new SifPanelLaunchToken())->create($actorId, $roles);
