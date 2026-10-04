@@ -52,4 +52,28 @@ final class CommercialOperationPartyRepository
 
         return $row ?: null;
     }
+
+    public function findByOperationAndRole(
+        \PDO $db,
+        string $uuidOperation,
+        string $partyRole,
+        bool $forUpdate = false
+    ): ?array {
+        $sql = 'SELECT * FROM commercial_operation_party
+                WHERE UUID_OPERATION = ? AND PARTY_ROLE = ?
+                ORDER BY PARTY_KEY
+                LIMIT 2';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$uuidOperation, $partyRole]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        if (count($rows) > 1) {
+            throw new \RuntimeException('Commercial operation has multiple parties for the same role');
+        }
+
+        return $rows[0] ?? null;
+    }
 }
