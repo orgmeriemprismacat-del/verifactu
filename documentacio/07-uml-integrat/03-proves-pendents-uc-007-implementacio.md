@@ -97,7 +97,7 @@ Aquests checks són **estàtics**. La marca `[x]` no acredita navegador, BD, sto
 - [ ] AL-17 llegat: 2+ pàgines, fletxes esquerra/dreta funcionals.
 - [ ] AL-18 llegat: download POST inicia un únic PDF sense `ReferenceError`.
 - [ ] Confirmar que no es carrega cap `alumnes-*-sif.js` duplicat a Network/DevTools.
-- [ ] Confirmar cache-busting dels assets 1.2/1.8 en preproducció.
+- [ ] Confirmar cache-busting dels assets 1.3/1.9 en preproducció.
 
 ### Evidència CI del PR #135
 
