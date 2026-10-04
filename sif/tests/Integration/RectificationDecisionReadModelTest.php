@@ -52,6 +52,7 @@ final class RectificationDecisionReadModelTest
                     'rectification_mode' => 'DIFERENCIES',
                 ],
                 'correction_fingerprint' => $fingerprint,
+                'correction' => $correction,
             ],
         ]);
 
@@ -66,9 +67,12 @@ final class RectificationDecisionReadModelTest
         Assert::same(true, is_array($decision));
         Assert::same(strtolower($eventUuid), $decision['event_uuid']);
         Assert::same(true, $decision['eligible_for_uc005']);
+        Assert::same(true, $decision['ready_for_uc005_ui']);
         Assert::same('R1', $decision['classification']['invoice_type']);
         Assert::same('DIFERENCIES', $decision['classification']['rectification_mode']);
         Assert::same($fingerprint, $decision['correction_fingerprint']);
+        Assert::same('-40.00', $decision['correction']['amount']);
+        Assert::same('DIFERENCIES', $decision['correction']['mode']);
         Assert::same(false, array_key_exists('actor_id', $decision));
         Assert::same(false, array_key_exists('actor_role', $decision));
     }
