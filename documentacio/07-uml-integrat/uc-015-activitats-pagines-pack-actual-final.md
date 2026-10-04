@@ -142,6 +142,56 @@ G --> H[Checkout crea intenció Redsys SIF]
 
 **Revalidació 02/10:** les N insercions es fan dins una única transacció legacy. Una fallada intermèdia provoca rollback; abans del commit s'exigeix `suma(A_PAGAR)=preu PACK` i restant zero en cèntims. El `REQUEST_ID` queda congelat com `RID/RH1`, de manera que un reintent equivalent no entra en aquest bloc sinó que retorna el resultat existent. `PackEnrollmentAtomicityBoundaryTest` i `PackEnrollmentIdempotencyBoundaryTest` blinden els dos contractes.
 
+## PK-A04b · Confirmació d'alta i continuació al pagament
+
+### ACTUAL observat a `main@6c8137f...` abans de la correcció
+
+```mermaid
+flowchart TD
+A[Alta commitada] --> B[Token legacy IV + HMAC ciphertext + ciphertext]
+B --> C[JS posa token al path /packs/confirmacio/TOKEN]
+C --> D[pagina_confirmacio_grup_automatic.php]
+D --> E[Analytics pot veure page_location amb token]
+D --> F[JS envia keyEncr per GET]
+F --> G[AJAX extreu token de REQUEST_URI amb substr màgic]
+G --> H[Desxifra AES-CBC amb IV]
+H --> I[HMAC només sobre ciphertext]
+I --> J{HMAC coincideix?}
+J -- sí --> K[PagamentGrupAutomatic / dades i continuació pagament]
+J -- no --> L[Error 1501]
+```
+
+**Troballa SEC-015-01:** l'HMAC no autenticava l'IV i el desxifrat s'executava abans de validar la MAC. En CBC, una alteració de l'IV podia modificar el primer bloc del plaintext sense canviar l'HMAC. A més, el token quedava al path/access logs i el consumidor depenia d'un `substr(...,-16)` lligat al cache-buster de jQuery.
+
+### FINAL implementat al PR #171
+
+```mermaid
+flowchart TD
+A[Alta commitada] --> B[PackConfirmationToken::encode]
+B --> C[AES-256-CBC amb clau derivada]
+C --> D[HMAC SHA-256 amb clau MAC separada sobre domini + IV + ciphertext]
+D --> E[Payload ID_INSC + issued_at · TTL 24h]
+E --> F[Token v2 Base64URL]
+F --> G[JS redirigeix /packs/confirmacio/#TOKEN]
+G --> H[Pàgina no-store / no-referrer / noindex]
+H --> I[Analytics sense page_view automàtic]
+I --> J[JS llegeix fragment i envia encodeURIComponent keyEncr]
+J --> K[AJAX usa $_GET keyEncr]
+K --> L[PackConfirmationToken::decode]
+L --> M{MAC vàlida i token vigent?}
+M -- no --> N[HTTP 400 + error 1501]
+M -- sí --> O[Desxifrar i validar ID_INSC]
+O --> P[PagamentGrupAutomatic::mostrarPaginaConfirmacio]
+```
+
+Controls addicionals:
+- el fragment `#TOKEN` no arriba al servidor ni als access logs en clients actualitzats;
+- es manté temporalment fallback de lectura d'un token **v2** al path per absorbir JS antic durant el desplegament;
+- els tokens legacy no versionats fallen tancat;
+- `.htaccess` admet `/packs/confirmacio/` sense token al path;
+- el correu de l'alta ja conté el canal `/pagaments/...` separat, de manera que la caducitat de 24 h del token de confirmació no bloqueja pagaments posteriors;
+- `PackConfirmationTokenTest` i `PackConfirmationTokenBoundaryTest` blinden integritat, TTL, URL segura i ordre MAC→decrypt.
+
 ## PK-A05 · Intenció de pagament
 
 ### ACTUAL
