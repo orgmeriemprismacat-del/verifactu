@@ -12,11 +12,23 @@ final class ClientCertificate
     public function inspect(?int $now = null): array
     {
         $now ??= time();
+        if (is_link($this->path)) {
+            throw new \RuntimeException('Client certificate path must not be a symbolic link.');
+        }
+
         $path = realpath($this->path);
         $repo = realpath(dirname(__DIR__, 3));
         if ($path === false || !is_file($path) || !is_readable($path)
             || ($repo !== false && $this->inside($path, $repo))) {
             throw new \RuntimeException('Client certificate must be readable outside the repository/webroot.');
+        }
+        if (PHP_OS_FAMILY !== 'Windows') {
+            $permissions = fileperms($path);
+            if ($permissions === false || (($permissions & 0x0007) !== 0)) {
+                throw new \RuntimeException(
+                    'Client certificate must not be accessible to other OS users.'
+                );
+            }
         }
         $parts = [];
         if (!@openssl_pkcs12_read((string) file_get_contents($path), $parts, $this->password)) {
