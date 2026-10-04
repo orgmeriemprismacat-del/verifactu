@@ -41,11 +41,11 @@
 | sif_audit_event | sí | sí | governance test | CI pendent |
 | Emissor/fiscalitat ampliada | sí | sí si font ho aporta | tests | implementat |
 | Metadata document | sí | sí | integration | implementat |
-| Verificar bytes originals | sí | no | absència de writer/storage | pendent |
-| Inventari complet lot | sí | no | — | pendent |
+| Verificar bytes originals | sí | sí amb STORAGE_REF/PrivateDocumentStore | custody + access tests nous | CI/sif_pre pendent |
+| Inventari complet lot | sí | sí read-only | inventory tests + agrupació any/sèrie | execució real pendent |
 | Multiemissor | sí | no | UNIQUE globals | bloquejant |
 | Canal productiu | sí | no | scripts rebutgen production | bloquejant |
-| Cut-over llegat | sí | guard existent | revisió codi | prova sif_pre pendent |
+| Cut-over llegat | sí | sí, guard existent + tests | 409/503 + ordre endpoints | prova sif_pre pendent |
 
 ## 3. Persistència
 
@@ -96,15 +96,16 @@ No hi ha JS executor. `alumnes-factura-sif.js` és consulta/cut-over.
 ## 6. Bloquejants reals
 
 1. **Multiemissor:** `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` no inclouen emissor.
-2. **Custòdia:** metadata de document no equival a bytes originals verificats.
-3. **Lot:** no hi ha extractor/inventari/reconciliació completa.
-4. **Producció:** no hi ha canal productiu autoritzat.
-5. **Cut-over:** manca prova integrada a `sif_pre`.
-6. **Política fiscal històrica:** decidir sèrie↔tipus i tolerància totals↔línies.
+2. **Evidència real:** inventari, custòdia i cut-over estan implementats però encara s'han d'executar i conservar com a evidència a `sif_pre`.
+3. **Producció:** no hi ha canal productiu autoritzat.
+4. **Política fiscal històrica:** decidir sèrie↔tipus i tolerància totals↔línies.
 
 ## 7. Estat global
 
 - **Documentació:** COMPLETA per l'abast auditat.
 - **Import unitari no-production:** IMPLEMENTAT.
 - **Preflight/auditoria:** IMPLEMENTATS, CI MySQL pendent.
+- **Inventari/reconciliació:** IMPLEMENTAT read-only, evidència de lot real pendent.
+- **Custòdia privada:** IMPLEMENTADA no-production, evidència sif_pre pendent.
+- **Cut-over:** COBERT PER TESTS, prova d'entorn pendent.
 - **Migració massiva productiva:** NO TANCADA.
