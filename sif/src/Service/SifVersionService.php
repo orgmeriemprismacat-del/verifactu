@@ -132,6 +132,21 @@ final class SifVersionService
         $declarationVersion = trim((string) ($input['declaration_version'] ?? ''));
         $storageKey = trim((string) ($input['storage_key'] ?? ''));
 
+        $existingReplay = $this->declarations->findByIdempotencyKey(
+            $this->db,
+            $operation['idempotency_key']
+        );
+        if ($existingReplay !== null) {
+            $this->assertDeclarationReplay(
+                $existingReplay,
+                $uuidVersion,
+                $declarationVersion,
+                $storageKey,
+                $actorId
+            );
+            return ['ok' => true, 'reused' => true, 'declaration' => $existingReplay];
+        }
+
         $version = $this->versions->findByUuid($this->db, $uuidVersion);
         if ($version === null) {
             throw SifException::notFound('SIF version not found');
@@ -158,6 +173,23 @@ final class SifVersionService
             if ($lockedVersion === null) {
                 throw SifException::notFound('SIF version not found');
             }
+
+            $existingReplay = $this->declarations->findByIdempotencyKey(
+                $db,
+                $operation['idempotency_key'],
+                true
+            );
+            if ($existingReplay !== null) {
+                $this->assertDeclarationReplay(
+                    $existingReplay,
+                    $uuidVersion,
+                    $declarationVersion,
+                    $storageKey,
+                    $actorId
+                );
+                return ['ok' => true, 'reused' => true, 'declaration' => $existingReplay];
+            }
+
             if (strtoupper((string) ($lockedVersion['STATUS'] ?? '')) !== 'DRAFT') {
                 throw SifException::conflict('Declarations can only be attached to a DRAFT SIF version');
             }
@@ -521,6 +553,28 @@ final class SifVersionService
             'request_id' => $requestId,
             'reason_code' => $reason,
         ];
+    }
+
+    private function assertDeclarationReplay(
+        array $existing,
+        string $uuidVersion,
+        string $declarationVersion,
+        string $storageKey,
+        string $actorId
+    ): void {
+        $expected = [
+            'UUID_VERSION' => strtolower(trim($uuidVersion)),
+            'DECLARATION_VERSION' => trim($declarationVersion),
+            'STORAGE_KEY' => trim($storageKey),
+            'APPROVED_BY' => trim($actorId),
+            'STATUS' => 'APPROVED',
+        ];
+
+        foreach ($expected as $column => $value) {
+            if ((string) ($existing[$column] ?? '') !== $value) {
+                throw SifException::conflict('Declaration idempotency key already exists with different payload');
+            }
+        }
     }
 
     private function assertActivationReplay(
