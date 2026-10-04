@@ -26,7 +26,9 @@ L'activació **no desplega**: només registra com a activa una candidata que ja 
 | Seqüències ACTUAL/FINAL | [Seqüències](uc-010-sequencies-actual-final.md) |
 | Activitats per pàgina/apartat | [Activitats](uc-010-activitats-pagines-actual-final.md) |
 | Configuració | [sif/config/README.md](../../sif/config/README.md) |
-| Migració | [2026_10_03 UC-010](../../sif/database/migrations/2026_10_03_000001_add_uc010_version_governance.sql) |
+| Migració base | [2026_10_03 UC-010](../../sif/database/migrations/2026_10_03_000001_add_uc010_version_governance.sql) |
+| Hardening BD | [2026_10_04 000001](../../sif/database/migrations/2026_10_04_000001_harden_uc010_version_governance.sql) |
+| Hardening singleton | [2026_10_04 000002](../../sif/database/migrations/2026_10_04_000002_harden_uc010_singleton_state.sql) |
 
 ## 3. Casos d'ús interns
 
@@ -79,6 +81,12 @@ S --> AJ[(sif_version_activation)]
 S --> B[(backup_restore_evidence)]
 S --> AU[(sif_audit_event)]
 S --> OP[(operational_event)]
+EV[SifVersionEvidenceVerifier] --> R
+EV --> V
+EV --> ST
+EV --> AJ
+EV --> D
+EV --> B
 ```
 
 ## 5. Contracte de candidata
@@ -87,10 +95,10 @@ La UI només aporta `VERSION_CODE` i metadades d'operació. El backend registra:
 
 - `GIT_REVISION` observada/configurada;
 - `ARTIFACT_HASH` calculat del manifest verificat;
-- `CONFIG_HASH` calculat de la configuració carregada;
+- `CONFIG_HASH` calculat de la configuració carregada, amb valors secrets substituïts per marcadors de presència;
 - `DATABASE_VERSION` derivada de les migracions.
 
-Si el manifest o l'esquema no són íntegres, no es crea candidata.
+Si el manifest o l'esquema no són íntegres, no es crea candidata. El manifest ha de contenir exactament els fitxers governats, un `artifact_hash` autoconsistent i cap symlink.
 
 ## 6. Contracte de declaració
 
@@ -121,7 +129,7 @@ a la mateixa UUID
 end note
 ```
 
-No es permet deduir exclusivitat del text `STATUS`: el singleton i el lock són part de l'invariant.
+No es permet deduir exclusivitat del text `STATUS`: el singleton i el lock són part de l'invariant. A més, la BD imposa un únic `ACTIVE` amb guard generat/índex únic, `CHECK` d'estats, singleton `ID=1` i journal d'activació no actualitzable/esborrable.
 
 ## 8. Matriu de comprovacions
 
@@ -131,12 +139,12 @@ No es permet deduir exclusivitat del text `STATUS`: el singleton i el lock són 
 | Git | `SIF_RUNTIME_GIT_REVISION` vs candidata |
 | Bytes | release manifest extern al release vs inventari exacte de fitxers governats; extres/symlinks bloquegen |
 | Artifact | hash canònic del mapa path→SHA256 |
-| Config | fingerprint runtime |
-| DB | `MigrationRunner::inspect()` · ledger + taules/columnes declarades, no tots els constraints |
+| Config | fingerprint runtime funcional; secrets només `SET/EMPTY` |
+| DB | `MigrationRunner::inspect()` + checks UC-010 específics d’índex únic, CHECKs i triggers; no equival a auditar tots els constraints del SIF |
 | Declaració | fila APPROVED + hash de bytes |
 | Backup | fila UC-85 del mateix entorn, si obligatori; UC-85 encara no acredita un flux complet implementat |
-| Concurrència | `sif_version_state FOR UPDATE` |
-| Replay | idempotency keys + payload hashes |
+| Concurrència | `sif_version_state FOR UPDATE` + unicitat ACTIVE a BD |
+| Replay | `PayloadIdempotencyValidator`: trace metadata exclosa; `reason_code` semàntic |
 
 ## 9. Pàgines
 
@@ -157,7 +165,7 @@ No es permet deduir exclusivitat del text `STATUS`: el singleton i el lock són 
 7. preflight;
 8. activació.
 
-`actions.php` aplica la seguretat backend i delega al servei.
+`actions.php` aplica la seguretat backend i delega al servei. Les respostes són DTOs explícits: no s’exposen idempotency keys/hashes, guard columns ni `RUNTIME_EVIDENCE_JSON`.
 
 ## 10. Límits deliberats
 
@@ -222,3 +230,14 @@ Variables, storage privat, manifest real, migracions i E2E en `sif_test*`/prepro
 - el manifest no només verifica hashes: detecta fitxers governats inesperats i symlinks;
 - el builder i el verifier comparteixen la mateixa llista de roots governats;
 - el preflight minimitza la projecció d'evidència UC-85 i no envia `EVIDENCE_JSON`, referències privades o executor al navegador.
+
+
+## 15. Hardening reconciliat addicional
+
+- `CONFIG_HASH`: secrets substituïts per `__SECRET_SET__|__SECRET_EMPTY__`; rotació de secret no canvia la versió.
+- Persistència: un sol `ACTIVE` a BD, CHECKs d'estat, journal d'activació immutable i singleton `ID=1` no eliminable.
+- Preflight: comprova també la coherència singleton ↔ ACTIVE i la presència dels guards físics UC-010.
+- API: projeccions DTO; dades d'idempotència i evidence JSON queden internes.
+- Launch: URL HTTPS sota `prisma.cat`, path exacte, UUIDv4 i anti-replay persistent.
+- Manifest: `artifact_hash` declarat ha de concordar amb el mapa canònic.
+- Evidència post-activació: CLI read-only amb `production_authorized=false`.
