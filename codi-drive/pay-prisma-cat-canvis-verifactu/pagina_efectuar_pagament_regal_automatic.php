@@ -38,16 +38,8 @@
       include("./inc/apiRedsys.php");
       include("./Mail.php");
 
-      $codiCurs = trim((string) ($_POST['codiCurs'] ?? ''));
-      $giftIdInput = filter_var(
-         $_POST['giftId'] ?? null,
-         FILTER_VALIDATE_INT,
-         ['options' => ['min_range' => 1]]
-      );
-      if ($giftIdInput === false) {
-         throw new RuntimeException('INVALID_GIFT_ID');
-      }
-      $titolPag = trim((string) ($_POST['titol'] ?? ''));
+      require_once __DIR__ . '/GiftCheckoutToken.php';
+      $giftIdInput = GiftCheckoutToken::verify((string) ($_POST['giftToken'] ?? ''));
       $nomTitularPag = trim((string) ($_POST['nom-titular'] ?? ''));
       $dniTitularPag = trim((string) ($_POST['dni'] ?? ''));
 
