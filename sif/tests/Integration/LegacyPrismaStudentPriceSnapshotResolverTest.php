@@ -23,6 +23,67 @@ final class LegacyPrismaStudentPriceSnapshotResolverTest
         Assert::same(5, $result['price_source']['id_preu']);
     }
 
+    public function testReconstructsHourScopedLegacyDiscountStoredInCursColumn(): void
+    {
+        $db = $this->fixture();
+        $db->exec('DELETE FROM descomptes');
+        $db->exec(
+            "INSERT INTO descomptes
+             (ID_PREU, TIPUS, DATAI, DATAF, CURS, HORES, MES, PREU)
+             VALUES (5, 1, '2026-01-01', '2026-12-31', '30', 'IGNORED', '10', 90.00)"
+        );
+
+        $result = (new LegacyPrismaStudentPriceSnapshotResolver())->resolve($db, $this->context());
+
+        Assert::same('120.00', $result['gross_amount']);
+        Assert::same('30.00', $result['discount_amount']);
+        Assert::same('90.00', $result['net_amount']);
+    }
+
+    public function testRejectsMissingHistoricalPrismaStudentTariff(): void
+    {
+        $db = $this->fixture();
+        $db->exec('DELETE FROM descomptes');
+
+        Assert::throws(SifException::class, function () use ($db): void {
+            (new LegacyPrismaStudentPriceSnapshotResolver())->resolve($db, $this->context());
+        }, 409);
+    }
+
+    public function testIgnoresFuturePrismaStudentTariffAtEnrollmentTime(): void
+    {
+        $db = $this->fixture();
+        $db->exec(
+            "INSERT INTO descomptes
+             (ID_PREU, TIPUS, DATAI, DATAF, CURS, HORES, MES, PREU)
+             VALUES (5, 1, '2026-10-01 00:00:00', '2026-12-31', 'ABC', '30', '10', 80.00)"
+        );
+
+        $result = (new LegacyPrismaStudentPriceSnapshotResolver())->resolve($db, $this->context());
+
+        Assert::same('120.00', $result['gross_amount']);
+        Assert::same('30.00', $result['discount_amount']);
+        Assert::same('90.00', $result['net_amount']);
+        Assert::same('2026-09-30 10:00:00', $result['price_source']['evaluated_at']);
+    }
+
+    public function testUsesUniqueCourseAndEditionScopedTariff(): void
+    {
+        $db = $this->fixture();
+        $db->exec('DELETE FROM descomptes');
+        $db->exec(
+            "INSERT INTO descomptes
+             (ID_PREU, TIPUS, DATAI, DATAF, CURS, HORES, MES, PREU)
+             VALUES (5, 1, '2026-01-01', '2026-12-31', 'ABC', 'IGNORED', '10', 90.00)"
+        );
+
+        $result = (new LegacyPrismaStudentPriceSnapshotResolver())->resolve($db, $this->context());
+
+        Assert::same('120.00', $result['gross_amount']);
+        Assert::same('30.00', $result['discount_amount']);
+        Assert::same('90.00', $result['net_amount']);
+    }
+
     public function testRejectsHistoricalTariffThatDoesNotMatchPersistedEnrollment(): void
     {
         $db = $this->fixture();

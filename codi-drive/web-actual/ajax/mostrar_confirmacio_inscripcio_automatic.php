@@ -3,13 +3,12 @@
 include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
+include("../inc/LegacyPaymentToken.php");
 include("../Text.php");
 include("../Numero.php");
 include("../PagamentCursAutomatic.php");
 
 try {
-	$encr = substr(explode("?", $_SERVER["REQUEST_URI"])[1], "8", "-16");
-
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
 
@@ -23,44 +22,34 @@ try {
 	$stmt->fetch();
 	$connexio->closeStmt();
 
-	$cipher = "AES-128-CBC";
 	$mostrar = '';
+	$originalId = LegacyPaymentToken::decode((string) ($_GET['keyEncr'] ?? ''), (string) $keyEncr);
 
-	$c = base64_decode($encr);
-   $cipher="AES-128-CBC";
-   $ivlen = openssl_cipher_iv_length($cipher);
-   $iv = substr($c, 0, $ivlen);
-   $hmac = substr($c, $ivlen, $sha2len=32);
-   $ciphertext_raw = substr($c, $ivlen+$sha2len);
-   $original_id = openssl_decrypt($ciphertext_raw, $cipher, $keyEncr, $options=OPENSSL_RAW_DATA, $iv);
-   $calcmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, $as_binary=true);
-   if (hash_equals($hmac, $calcmac)) {
-		$cnsInsc = "SELECT IDPAG FROM inscripcions WHERE ID=?";
-		$stmt=$connexio->prepare($cnsInsc);
-		$stmt->bind_param("d", $original_id);
-		$stmt->execute();
-		$stmt->store_result();
-		if ( $stmt->num_rows() > 0 ) {
-			$stmt->bind_result($idPag);
-			$stmt->fetch();
-			$pagamentInscripcio= new PagamentCursAutomatic($idPag);
-			$mostrar = $pagamentInscripcio->mostrarPaginaConfirmacio();
-		}
-		$connexio->closeStmt();
-   }
-	else {
-		$mostrar = missatgeError('1401');
+	$cnsInsc = "SELECT IDPAG FROM inscripcions WHERE ID=?";
+	$stmt=$connexio->prepare($cnsInsc);
+	$stmt->bind_param("d", $originalId);
+	$stmt->execute();
+	$stmt->store_result();
+	if ( $stmt->num_rows() > 0 ) {
+		$stmt->bind_result($idPag);
+		$stmt->fetch();
+		$pagamentInscripcio= new PagamentCursAutomatic($idPag);
+		$mostrar = $pagamentInscripcio->mostrarPaginaConfirmacio();
 	}
+	$connexio->closeStmt();
 
 	$connexio->desconectarBD();
-
 	echo $mostrar;
 }
-catch(Exception $e) {
+catch(Throwable $e) {
+	if (isset($connexio) && is_object($connexio)) {
+		try { $connexio->desconectarBD(); } catch (Throwable $ignored) {}
+	}
+
 	if ($e->getCode()==404)
-      echo mostrarPagina404();
-   else
-      echo missatgeError($e->getCode());
+		echo mostrarPagina404();
+	else
+		echo missatgeError('1401');
 }
 
 ?>

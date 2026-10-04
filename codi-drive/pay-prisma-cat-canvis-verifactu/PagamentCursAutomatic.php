@@ -330,7 +330,8 @@ class PagamentCursAutomatic {
           }
           else {
             $mostrar .= $this->__mostrarPagamentTargeta(1);
-            $mostrar .= $this->__mostrarPagamentTransferencia(1);
+            if ( $this->validDesc == 1 && !($this->tipusDesc == 1 && $this->obtenirFraccionat()) )
+               $mostrar .= $this->__mostrarPagamentTransferencia(1);
             }
          $mostrar .= $this->__modalError();
          $mostrar .= $this->__modalSuccess();
@@ -453,7 +454,7 @@ class PagamentCursAutomatic {
    private function __mostrarPagamentTargeta($tipus) {
       $aPagar = $this->obtenirPreuAPagar()->obtenirNumero();
       $preuPagat = $this->obtenirPreuPagat()->obtenirNumero();
-      if ( $this->validDesc == 1 ) {
+      if ( $this->validDesc == 1 && !($this->tipusDesc == 1 && $this->obtenirFraccionat()) ) {
       $mostrar = "<div class='form-dades'>";
       if ($tipus==2) {
          $mostrar .= "<p>Per tal de poder realitzar el <span class='font-weight-bold'>";

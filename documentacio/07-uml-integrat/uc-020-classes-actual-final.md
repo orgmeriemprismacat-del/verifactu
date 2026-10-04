@@ -1,7 +1,7 @@
 # UC-020 — Diagrames de classes ACTUAL i FINAL
 
 **Data d'auditoria:** 30/09/2026  
-**Abast:** aplicació del descompte «Alumne PrisMa» en alta web, preparació de pagament i futura facturació SIF.  
+**Abast:** aplicació del descompte «Alumne PrisMa» en alta web, preparació de pagament i facturació SIF posterior. Revalidat contra `main` el 03/10/2026.  
 **Regla d'evidència:** ACTUAL = executable llegat inspeccionat. FINAL = codi existent a la branca quan s'indica `IMPLEMENTAT`; `PENDENT` quan encara falta integració runtime.
 
 ## 1. Classes/components ACTUALS
@@ -35,10 +35,11 @@ class BuscarAlumnePrisMaPHP {
 }
 
 class EnviarInscripcioPHP {
-  <<PHP legacy>>
-  +rep tipusDescompte
-  +rep preuCar
-  +rep preuDescompte
+  <<PHP legacy hardenitzat>>
+  +rep valors comercials proposats pel client
+  +revalida AP server-side si TIPUS_DESC=1
+  +deriva TIPUS_CURS de servidor
+  +substitueix preu AP per tarifa servidor
   +insereix inscripcio
 }
 
@@ -62,15 +63,15 @@ MostrarInscripcionsJS --> EnviarInscripcioPHP : confirma valors client
 EnviarInscripcioPHP --> InscripcionsLegacy : INSERT
 ```
 
-### Riscos ACTUALS
+### Riscos ACTUALS revalidats
 
-- el navegador manté import i tipus de descompte com a globals;
-- la confirmació envia aquests imports al backend;
-- la consulta antiga conté la branca SQL `FACTURA_RELACIONADA != NULL`;
-- la consulta redueix l'evidència a un booleà i perd la inscripció que acredita el dret;
-- preview i confirmació no comparteixen una oferta servidor immutable.
+- el navegador manté import i tipus de descompte com a globals i encara els envia al backend;
+- per a `TIPUS_DESC=1`, `enviarInscripcio.php` ja no els tracta com a autoritat: rellegeix historial, `TIPUS_CURS`, tarifa base i tarifa AP, i conserva el preu servidor fins a l'INSERT;
+- la drecera de `FACTURA_RELACIONADA != NULL` era una fotografia històrica i s'ha eliminat del preview amb UC020-98;
+- el preview continua reduint l'evidència a un booleà i no conserva la inscripció concreta que acredita el dret;
+- preview i confirmació continuen sense compartir una oferta servidor immutable/`offer_id`; aquesta és una migració transversal pendent.
 
-## 2. Classes FINAL — implementades en aquesta branca i pendents
+## 2. Classes FINAL — estat executable a la branca de tancament
 
 ```mermaid
 classDiagram
@@ -78,27 +79,27 @@ direction LR
 
 class PrismaStudentDiscountPolicy {
   <<IMPLEMENTAT>>
-  +RULE_VERSION ALUMNE_PRISMA_LEGACY_V1
+  +RULE_VERSION ALUMNE_PRISMA_WEB_LEGACY_V2
   +evaluate(history) array
 }
 
 class LegacyPrismaStudentHistoryRepository {
   <<IMPLEMENTAT>>
-  +findByDocument(db,document) array
+  +findByDocument(db,document,excludeEnrollmentId,evaluationAt) array
 }
 
 class DiscountDecisionService {
-  <<PENDENT>>
+  <<PENDENT TRANSVERSAL>>
   +evaluate(type,context) DiscountDecision
 }
 
 class DiscountValidationRepository {
-  <<PENDENT runtime>>
+  <<IMPLEMENTAT>>
   +append(decision) uuid
 }
 
 class CommercialOperationRepository {
-  <<PENDENT runtime>>
+  <<IMPLEMENTAT>>
   +stage(operation) uuid
   +attachIntent(operation,intent)
 }
@@ -117,6 +118,13 @@ class RedsysPaymentIntentRepository {
   <<IMPLEMENTAT>>
   +findByDsOrder(db,dsOrder,forUpdate) array
   +insert(db,intent) array
+}
+
+class PaymentLinkService {
+  <<IMPLEMENTAT INFRA>>
+  +issue(input) array
+  +resolve(token,accessedAt) array
+  -assertPayableOperation(operation) void
 }
 
 class RedsysCourseInvoiceService {
@@ -138,6 +146,7 @@ LegacyPrismaStudentHistoryRepository --> PrismaStudentDiscountPolicy : fets lega
 PrismaStudentDiscountPolicy --> DiscountDecisionService : decisio normalitzada
 DiscountDecisionService --> DiscountValidationRepository : regla/evidencia
 DiscountDecisionService --> CommercialOperationRepository : oferta comercial
+CommercialOperationRepository --> PaymentLinkService : BILLABLE + estat pagable
 CommercialOperationRepository --> RedsysPaymentIntentService : snapshot pagable
 RedsysPaymentIntentService --> CourseIntentSnapshotValidator : SOURCE_TYPE=CURS
 RedsysPaymentIntentService --> RedsysPaymentIntentRepository : persistencia
@@ -150,17 +159,18 @@ RedsysCourseInvoiceService --> InvoiceService : factura + cobrament
 | Component | Responsabilitat | Estat |
 | --- | --- | --- |
 | `LegacyPrismaStudentHistoryRepository` | Recuperar fets d'historial sense decidir la política | IMPLEMENTAT |
-| `PrismaStudentDiscountPolicy` | Reproduir explícitament la regla web legacy sota versió `ALUMNE_PRISMA_LEGACY_V1` | IMPLEMENTAT |
-| `DiscountDecisionService` | Motor comú de decisió per UC-020/020a/020b/020c/020d | PENDENT |
-| `discount_validation` | Persistència de regla/evidència | DDL EXISTENT, writer PENDENT |
-| `commercial_operation` | Oferta comercial immutable | DDL EXISTENT, writer PENDENT |
+| `PrismaStudentDiscountPolicy` | Reproduir explícitament la regla web legacy sota versió `ALUMNE_PRISMA_WEB_LEGACY_V2` | IMPLEMENTAT |
+| `DiscountDecisionService` | Motor comú transversal per UC-020/020a/020b/020c/020d | PENDENT TRANSVERSAL; UC-020 ja usa `PrismaStudentDiscountPolicy` |
+| `discount_validation` | Persistència de regla/evidència | IMPLEMENTAT via `DiscountValidationRepository` / `CommercialOfferService` / checkout AP |
+| `commercial_operation` | Oferta comercial immutable; AP usa `CLASSIFICATION=BILLABLE` i `STATUS=READY_FOR_PAYMENT` abans de crear la intenció | IMPLEMENTAT via `CommercialOperationRepository` / `CommercialOfferService` / checkout AP |
 | `CourseIntentSnapshotValidator` | Blindar coherència CURS abans del TPV | IMPLEMENTAT |
 | `RedsysPaymentIntentService` | Crear/reutilitzar intenció | IMPLEMENTAT |
+| `PaymentLinkService` | Emetre/resoldre token opac i bloquejar operacions no `BILLABLE` o fora de `READY_FOR_PAYMENT/PAYMENT_PENDING` | IMPLEMENTAT INFRA; ADOPCIÓ CANÒNICA UC-020 PENDENT |
 | `LegacyCourseInvoicePayloadBuilder` | Transformar snapshot en payload fiscal | IMPLEMENTAT |
 
 ## 4. Límits de la policy legacy
 
-La policy implementada **no declara resoltes** les decisions de negoci sobre pagament parcial, `GENERAT=1`, factura abans de cobrar o autoacreditació de la mateixa inscripció. Les reprodueix sota una versió explícita de compatibilitat. Quan negoci ratifiqui una regla diferent s'ha de publicar una nova `RULE_VERSION`.
+La policy implementada materialitza les decisions UC20-DEC-001…006 sota la versió explícita de compatibilitat `ALUMNE_PRISMA_WEB_LEGACY_V2`: pagament positiu acredita, `GENERAT=1` acredita, factura només emesa/no cobrada no acredita i la matrícula actual no s'autoacredita. Qualsevol canvi futur s'ha de publicar amb una nova `RULE_VERSION`.
 
 ## 5. Traçabilitat
 
@@ -169,3 +179,84 @@ La policy implementada **no declara resoltes** les decisions de negoci sobre pag
 - [Seqüències ACTUAL/FINAL](uc-020-sequencies-actual-final.md)
 - [Activitats ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md)
 - [Auditoria i traçabilitat](uc-020-auditoria-tracabilitat-2026-09-29.md)
+- [Evidència CI 03/10/2026](uc-020-evidencia-ci-2026-10-03.md)
+
+## 6. Reconciliació 02/10/2026
+
+- `PrismaStudentCourseCheckoutService` és codi SIF implementat i és consumit pel **pont candidat** via `course-intent`; el desplegament del pont a `pay.prisma.cat` no està acreditat pel repositori.
+- Aquesta revisió fa que l'orquestrador reutilitzi `CommercialOperationRepository` i `DiscountValidationRepository` dins de la seva transacció.
+- `DiscountDecisionService` continua sent una abstracció transversal possible; no bloqueja UC-020 perquè la policy específica ja existeix i està versionada.
+- `PaymentLinkService` és infraestructura implementada però encara no és la ruta canònica del pagament AP actiu.
+
+
+## 7. Reconciliació final de classes — 02/10/2026
+
+- `CommercialOperationPartyRepository` torna a formar part del checkout UC-020.
+- `CommercialOperationRepository` concentra també l'actualització d'estat.
+- `RedsysPaymentIntentRepository` resol intencions per UUID per validar reintents.
+- `LegacyPrismaStudentHistoryRepository` aplica exclusió de matrícula actual i tall temporal.
+- `PrismaStudentCourseCheckoutService` conserva `OperationalEventRepository` de #112 i elimina SQL directe que ja havia estat encapsulat a #110.
+
+
+## 8. Revalidació de classes — 03/10/2026
+
+No apareix cap classe UC-020 principal absent. El `main` nou amplia sobretot el tall Redsys compartit (cutover, callback, worker, factura, sincronització llegada i notificació), sense canviar la responsabilitat de `PrismaStudentDiscountPolicy`, `LegacyPrismaStudentHistoryRepository`, `LegacyPrismaStudentPriceSnapshotResolver` ni `PrismaStudentCourseCheckoutService`.
+
+La nova prova `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest` protegeix la frontera llegada d'alta: després de fixar `$preuDescompte = (float) $preuApServidor`, cap reassignació des del valor client pot aparèixer abans de l'INSERT, i `TIPUS_CURS` ha de provenir de `informacio` abans del branch que pot forçar preu zero.
+
+
+## 9. Reconciliació de model comercial — continuació 03/10/2026
+
+El checkout AP crea `commercial_operation.CLASSIFICATION=BILLABLE` i `STATUS=READY_FOR_PAYMENT`, i després passa a `INTENT_CREATED` en vincular la intenció. `PaymentLinkService` valida també classificació i estat comercial a emissió i resolució. Això implementa el guard de pagabilitat de la infraestructura; la substitució efectiva de les rutes llegades P03/P04 pel `payment_link` continua pendent.
+
+
+## 10. Revalidació FINAL de classes — 04/10/2026
+
+La revisió de PR #158 ha detectat una millora útil però no integrable en bloc. El FINAL canònic manté els guards de #112 i afegeix repositoris/validacions de reintent:
+
+```mermaid
+classDiagram
+direction LR
+class PrismaStudentCourseCheckoutService {
+  <<IMPLEMENTAT>>
+  +stageAndCreateIntent(...)
+  -ensureParticipant(...)
+  -ensureOperationLine(...)
+}
+class LegacyPrismaStudentHistoryRepository {
+  <<IMPLEMENTAT>>
+  +findByDocument(db,document,excludeEnrollmentId,evaluationAt)
+}
+class CommercialOperationRepository {
+  <<IMPLEMENTAT>>
+}
+class CommercialOperationPartyRepository {
+  <<IMPLEMENTAT>>
+  +findByOperationAndRole(...)
+  +insert(...)
+}
+class CommercialOperationLineRepository {
+  <<IMPLEMENTAT 04/10>>
+  +findByOperationAndOrder(...)
+  +insert(...)
+}
+class DiscountValidationRepository {
+  <<IMPLEMENTAT>>
+}
+class RedsysPaymentIntentRepository {
+  <<IMPLEMENTAT>>
+}
+PrismaStudentCourseCheckoutService --> LegacyPrismaStudentHistoryRepository
+PrismaStudentCourseCheckoutService --> CommercialOperationRepository
+PrismaStudentCourseCheckoutService --> CommercialOperationPartyRepository
+PrismaStudentCourseCheckoutService --> CommercialOperationLineRepository
+PrismaStudentCourseCheckoutService --> DiscountValidationRepository
+PrismaStudentCourseCheckoutService --> RedsysPaymentIntentRepository
+```
+
+**Invariant nou:** una operació idempotent UC-020 no es pot reutilitzar si el participant congelat divergeix. També es rebutgen múltiples participants amb rol `PARTICIPANT` o línies duplicades amb el mateix `ORDRE` dins d'aquest flux.
+
+
+## 11. Límits de desplegament — 04/10/2026
+
+Les classes SIF FINAL existeixen i el pont candidat les orquestra, però `web-actual` encara no conté `SifRedsysCourseIntentClient`. Per tant, **IMPLEMENTAT** descriu codi disponible al SIF/pont; no equival a **DESPLEGAT**.

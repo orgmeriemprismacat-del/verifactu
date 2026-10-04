@@ -57,6 +57,7 @@ final class PaymentLinkService
             if ($operation === null) {
                 throw SifException::notFound('Commercial operation not found for payment link');
             }
+            $this->assertPayableOperation($operation);
 
             $operationExpiry = $operation['EXPIRES_AT'] ?? null;
             if (
@@ -145,6 +146,7 @@ final class PaymentLinkService
             if ($operation === null) {
                 throw SifException::notFound('Commercial operation for payment link not found');
             }
+            $this->assertPayableOperation($operation);
 
             $operationExpiry = $operation['EXPIRES_AT'] ?? null;
             if (
@@ -233,6 +235,19 @@ final class PaymentLinkService
                 'idempotency_reused' => false,
             ];
         });
+    }
+
+    private function assertPayableOperation(array $operation): void
+    {
+        $classification = strtoupper(trim((string) ($operation['CLASSIFICATION'] ?? '')));
+        $status = strtoupper(trim((string) ($operation['STATUS'] ?? '')));
+
+        if ($classification !== 'BILLABLE') {
+            throw SifException::conflict('Payment link commercial operation is not billable');
+        }
+        if (!in_array($status, ['READY_FOR_PAYMENT', 'PAYMENT_PENDING'], true)) {
+            throw SifException::conflict('Payment link commercial operation is not payable');
+        }
     }
 
     private function amount(mixed $value): string

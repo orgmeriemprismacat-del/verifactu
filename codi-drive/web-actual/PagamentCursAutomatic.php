@@ -299,7 +299,8 @@ class PagamentCursAutomatic {
          }
          else {
             $vistaPag .= $this->__mostrarPagamentTargeta(1);
-            $vistaPag .= $this->__mostrarPagamentTransferencia(1);
+            if ( $this->validDesc == 1 && !($this->tipusDesc == 1 && $this->obtenirFraccionat()) )
+               $vistaPag .= $this->__mostrarPagamentTransferencia(1);
          }
          $vistaPag .= $this->__modalError();
          $vistaPag .= $this->__modalSuccess();
@@ -436,7 +437,7 @@ class PagamentCursAutomatic {
       $templates = new Template();
       $urlEfectPagament = "https://www.prisma.cat/efectPagAuto/";
 
-      if ( $this->validDesc == 1 ) {
+      if ( $this->validDesc == 1 && !($this->tipusDesc == 1 && $this->obtenirFraccionat()) ) {
          $inputNom = $templates->getTemplate_Web_Formulari_Nom();
          $names_template = array("[NOM_LABEL]", "[ID_INPUT]", "[ID_SPAN_ERRONI]");
          $names_function   = array("Nom i cognoms del titular de la targeta", 'nom-titular');

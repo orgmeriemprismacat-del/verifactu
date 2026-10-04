@@ -89,6 +89,31 @@ final class RedsysCallbackTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM errors_verifactu')->fetchColumn());
     }
 
+    public function testUnknownOrderIsRejectedBeforeNotificationAndJob(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->callbackService();
+
+        $payload = [
+            'ds_order' => 'UNKNOWN000001',
+            'amount' => '80.00',
+            'response_code' => '0000',
+            'currency' => 'EUR',
+            'currency_code' => '978',
+            'terminal' => '1',
+            'signature_version' => 'HMAC_SHA512_V2',
+            'payload_hash' => str_repeat('8', 64),
+        ];
+
+        Assert::throws(SifException::class, static function () use ($db, $service, $payload): void {
+            $service->receiveCallback($db, $payload, true);
+        }, 422);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_notifications')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_callback_queue')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     public function testMismatchedAmountRollsBackNotificationAndJob(): void
     {
         $db = TestDatabase::fresh();

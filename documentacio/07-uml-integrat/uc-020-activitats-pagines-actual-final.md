@@ -1,10 +1,10 @@
 # UC-020 — Diagrames d'activitat ACTUAL i FINAL per pàgina i apartat
 
-**Revisió:** 29/09/2026  
+**Revisió:** 03/10/2026  
 **Cas:** UC-20 · Aplicar Alumne PrisMa  
 **Objectiu:** cobrir totes les superfícies on la regla Alumne PrisMa es consulta, aplica, reutilitza o condiciona un pagament.  
 **Etiqueta ACTUAL:** lectura estàtica del repositori; no prova de desplegament.  
-**Etiqueta FINAL:** contracte objectiu; no implica implementació.
+**Etiqueta FINAL:** contracte objectiu; quan una peça ja és executable s'indica explícitament com a implementada/revalidada.
 
 ## 0. Índex de pàgines i apartats
 
@@ -197,6 +197,18 @@ endif
 :Enviar tipusDescompte=tipusPreuAplicat;
 :Enviar preuDescompte=preuInscripcio;
 :Enviar promocions globals;
+if (tipusDescompte == 1?) then (Sí)
+ :Servidor revalida historial AP;
+ :Servidor deriva TIPUS_CURS de `informacio`;
+ :Servidor rellegeix tarifa base/AP vigent;
+ :Rebutja tarifa ambigua o AP + promoció;
+ :Sobreescriu import client amb tarifa servidor;
+:Conservar tarifa servidor fins a l'INSERT;
+note right
+  UC020-94 (03/10): corregit un overwrite tardà
+  que tornava a carregar preuDescompte del client.
+end note
+endif
 :INSERT inscripcions;
 stop
 @enduml
@@ -287,14 +299,18 @@ start
 :Cridar PaymentLinkService::resolve(token);
 :Validar hash, ACTIVE i expiració;
 :Recuperar commercial_operation;
+if (CLASSIFICATION != BILLABLE?) then (Sí)
+ :Bloquejar amb conflicte comercial;
+ stop
+endif
+if (STATUS no és READY_FOR_PAYMENT/PAYMENT_PENDING?) then (Sí)
+ :Bloquejar; no retornar autorització de cobrament;
+ stop
+endif
 :Recuperar discount_validation vigent;
 :Recuperar ledger de pagaments/factura;
 :Calcular total, cobrat i pendent;
-if (Oferta PAYABLE i link ACTIVE?) then (Sí)
- :Mostrar mètodes autoritzats;
-else (No)
- :Mostrar PENDING/REVOKED/REQUIRES_ADJUSTMENT;
-endif
+:Mostrar només mètodes autoritzats;
 stop
 @enduml
 ```
@@ -367,25 +383,28 @@ title P04 | FINAL | autorització única de cobrament
 start
 :Cridar PaymentLinkService::resolve(token);
 :Recuperar UUID_OPERATION i EXPECTED_AMOUNT;
-:Comprovar ACTIVE, expiry i vigència de l'operació;
-:Calcular saldo des del ledger;
-if (Operació PAYABLE?) then (Sí)
- :Habilitar només mètodes autoritzats;
- :Crear/reutilitzar intenció Redsys des de snapshot;
-note right
-  PENDENT en aquesta branca: adaptador
-  payment_link/commercial_operation -> RedsysPaymentIntentService
-end note
-else (No)
+:Comprovar token ACTIVE, expiry i vigència;
+:Exigir CLASSIFICATION=BILLABLE;
+:Exigir STATUS READY_FOR_PAYMENT o PAYMENT_PENDING;
+if (El servei rebutja?) then (Sí)
  :No mostrar instruccions executables;
+ stop
 endif
+:Calcular saldo des del ledger;
+:Habilitar només mètodes autoritzats;
+:Crear/reutilitzar intenció Redsys des de snapshot;
+note right
+  Guard payment_link IMPLEMENTAT.
+  Pont candidat targeta AP via course-intent IMPLEMENTAT; desplegament/cutover NO VERIFICATS.
+  Wiring de P03/P04 al payment_link encara PENDENT.
+end note
 stop
 @enduml
 ```
 
 ## 5. P05 · Intranet «Validar descomptes»
 
-**Aquest flux comparteix pàgina i decisions amb UC-116.** UC-020 només desenvolupa la branca de tarifa alternativa Alumne PrisMa i les seves conseqüències.
+**Aquest flux comparteix pàgina i decisions amb UC-116.** UC-020 només desenvolupa la branca de tarifa alternativa Alumne PrisMa i les seves conseqüències. La comanda actual ha estat revalidada el 03/10/2026 com POST + sessió + permís + CSRF + `requestId`.
 
 ### 5.1. P05-A — ACTUAL · cua de pendents
 
@@ -402,20 +421,28 @@ stop
 @enduml
 ```
 
-### 5.2. P05-B — ACTUAL · comanda
+### 5.2. P05-B — ACTUAL · comanda reconciliada 02/10
 
 ```plantuml
 @startuml
-title P05-B | ACTUAL | resolució per GET
+title P05-B | ACTUAL | resolució protegida
 start
 :Secretaria prem ENVIA;
-:JS envia GET idInsc/verificat;
-:Endpoint session_start i unserialize;
-note right
-  No inclou comprovarSessio.php.
-  No s'ha localitzat CSRF explícit.
-end note
+:JS genera requestId;
+:JS envia POST idInsc/verificat/CSRF/requestId;
+:Endpoint valida sessió i objectes;
+:Validar CSRF amb hash_equals;
+:Validar permís de /alumnes/validar-descomptes/;
+:Validar idInsc, verificat i requestId;
+if (requestId ja vist a sessió?) then (Sí)
+ :Reutilitzar resultat idempotent;
+ stop
+endif
 :Delegar a Intranet::sendMsgValidatCurosDescomptes();
+if (USOC?) then (Sí)
+ :begin/complete decisió SIF;
+endif
+:Guardar resultat per requestId;
 stop
 @enduml
 ```
@@ -455,7 +482,7 @@ else (No)
  :TIPUS_DESC=0;
  :A_PAGAR=preu ordinari;
 endif
-:UPDATE per ID sense estat/versió esperada;
+:UPDATE per ID sense lock persistent de versió/estat esperat;
 :Preparar correus;
 stop
 @enduml
@@ -538,7 +565,7 @@ stop
 @enduml
 ```
 
-### 6.2. P06-B — ACTUAL · prioritat de preu
+### 6.2. P06-B — ACTUAL / HARDENED AP · prioritat de preu
 
 ```plantuml
 @startuml
@@ -552,10 +579,16 @@ elseif (Descompte documental validat?) then (Sí)
 elseif (Carnet Jove?) then (Sí)
  :Buscar TIPUS=2 per ID_PREU;
 elseif (esExalumne?) then (Sí)
- :Buscar TIPUS=1 per ID_PREU;
+ :Endpoint rellegeix TIPUS_DESC/VALID_DESC de BD;
+ :Resoldre tarifa AP servidor per ID_PREU;
+ :Filtrar CURS=codi/hores/TOTS i MES=edició/TOTS;
+ :Exigir vigència i exactament una tarifa;
+ :Validar 0 < preu AP < preu base;
+ :Sobreescriure A_PAGAR/PAGAT/PENDENT client;
  note right
-  Aquesta consulta no incorpora
-  CURS ni MES.
+  Hardening UC-020/P06 03/10:
+  el selector antic només ID_PREU+TIPUS
+  queda bypassat per a AP abans de mutar.
  end note
 else
  :Buscar preu ordinari;
@@ -571,10 +604,12 @@ stop
 @startuml
 title P06 | FINAL | reavaluació versionada en canvi de curs
 start
-:Carregar operació/inscripció origen;
+:Carregar inscripció origen des de BD;
+:Rellegir TIPUS_DESC/VALID_DESC i imports;
 :Definir evaluation_at segons regla ratificada;
-:Executar la mateixa PrismaStudentDiscountPolicy;
+:Executar/migrar a la mateixa PrismaStudentDiscountPolicy;
 :Identificar nova edició i tarifa exacta;
+:Per AP, imposar tarifa servidor abans del preview/mutació;
 :Resoldre compatibilitat amb descompte preexistent;
 if (Factura/cobrament ja existent?) then (Sí)
  :Classificar ajust i preservar històric;
@@ -586,12 +621,13 @@ stop
 @enduml
 ```
 
-### 4.5. Estat d'implementació del FINAL
+### 6.4. Estat d'implementació del FINAL
 
-- `CommercialOfferService::createOrReuse()`: **implementat en aquesta branca**; encara no cridat pel web/intranet llegat.
-- `PaymentLinkService::issue()/resolve()/revoke()`: **implementat en aquesta branca**; encara no substitueix les rutes llegades `/confirmacio/` i `/pagament/`.
-- Política `PrismaStudentDiscountPolicy`: **pendent de decisions de negoci i implementació**.
-- Adaptador `UUID_OPERATION/payment_link → RedsysPaymentIntentService`: **pendent**.
+- `CommercialOfferService::createOrReuse()`: **implementat**; l'alta AP llegada encara no crea `offer_id`, però `enviarInscripcio.php` ja revalida AP al servidor abans de persistir.
+- `PaymentLinkService::issue()/resolve()/revoke()`: **implementat**; encara no és la ruta canònica d'aquest checkout AP.
+- Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA_COMPATIBILITAT** com `ALUMNE_PRISMA_WEB_LEGACY_V2`; decisions UC20-DEC-001…006 tancades a la fitxa v1.7.
+- Connexió AP de pagament → `RedsysPaymentIntentService`: **IMPLEMENTADA AL PONT CANDIDAT** via `SifRedsysCourseIntentClient` / `course-intent` / `PrismaStudentCourseCheckoutService`. `web-actual` continua amb Redsys directe; desplegament/cutover i `payment_link` canònic resten pendents.
+- Autoritat AP de P06: **IMPLEMENTADA_PENDENT_CI**; hidden inputs de tipus/estat/import no governen el canvi AP. La policy d'elegibilitat comuna continua pendent.
 
 ## 7. Matriu ACTUAL → FINAL
 
@@ -603,18 +639,18 @@ stop
 | P03 confirmació | `VALID_DESC` + camps llegats | estat d'operació + ledger |
 | P04 targeta | `VALID_DESC==1` | `PAYABLE` + link actiu |
 | P04 transferència | comprovació diferent de targeta | mateixa autorització que qualsevol cobrament |
-| P05 resolució | GET, sessió, estat llegat | POST/comanda, permís, CSRF, idempotència, versió |
+| P05 resolució | POST + sessió + permís + CSRF + requestId idempotent | control persistent d'estat/versió i outbox com a evolució |
 | P05 alternativa AP | `TIPUS_DESC=1, VALID_DESC=2` | decisió original REJECTED + decisió AP ACCEPTED |
 | P06 canvi curs | política històrica específica | mateixa política versionada amb `evaluation_at` explícit |
 
-## 8. Decisions pendents que afecten els diagrames FINAL
+## 8. Decisions canòniques que afecten els diagrames FINAL
 
-1. `GENERAT=1` és antecedent admès?
-2. Factura emesa sense cobrament acredita AP?
-3. La inscripció actual pot autoacreditar el dret?
-4. Quin `evaluation_at` s'utilitza en alta i canvi de curs?
-5. Prioritat/compatibilitat AP vs promocions/descomptes/packs.
-6. Vigència temporal de l'oferta abans de confirmar/cobrar.
+1. `GENERAT=1`: **sí**, compatibilitat executable.
+2. Factura emesa sense cobrament: **no**, per si sola no acredita AP.
+3. Inscripció actual: **no**, s'exclou de l'historial; tampoc compta historial posterior a `DATA_INSC`.
+4. `evaluation_at`: en matrícula llegada és `DATA_INSC`; l'historial posterior no acredita retroactivament.
+5. AP + promoció: no acumulable en aquest tall i falla tancat; altres famílies continuen com a migració transversal.
+6. Snapshot AP: congelat mentre la matrícula sigui pagable; expiració de `payment_link` separada.
 
 ## 9. Relacions amb altres casos
 
@@ -635,3 +671,111 @@ Aquest dossier cobreix totes les superfícies identificades del UC-020. Si apare
 - o reconstrueix el descompte per facturar,
 
 s'ha d'afegir com a pàgina/apartat nou i vincular-lo a la matriu d'auditoria.
+
+
+## 11. Reconciliació de tancament — 02/10/2026
+
+Per UC-020, P02 continua sent llegat en transport i UX, però ja no és autoritatiu monetàriament quan aplica AP: la persistència torna a calcular elegibilitat i preu. P05 també queda reclassificat: les notes històriques de GET/sense CSRF són superades pel codi actual POST/CSRF/permís/requestId.
+
+
+## 12. Revalidació transversal — 03/10/2026
+
+- **P01:** documentació pública localitzada; continua existint diferència entre text comercial ampli i criteri executable versionat.
+- **P02:** preview JS continua subjecte a concurrència, però l'alta AP revalida historial/tarifa al servidor i, després d'UC020-94, el preu servidor arriba intacte a `A_PAGAR`.
+- **P03/P04:** el canal de targeta actiu obté la intenció SIF i usa l'import retornat pel servidor; `payment_link` i transferència continuen pendents d'unificació.
+- **P05:** resolució revalidada com POST + sessió + permís + CSRF + `requestId`; queda deute de concurrència/idempotència persistent a BD.
+- **P06:** la frontera monetària AP ja està endurida: tipus/estat es rellegeixen de BD i la tarifa destí és server-authoritative amb curs/hores/mes/vigència/unicitat. Continua com a migració transversal la convergència de l'elegibilitat a la mateixa policy versionada i la creació d'oferta SIF nativa.
+- **Callback/factura:** el `main` actual incorpora proves E2E simulades de callback → worker → pagament/factura/sync/outbox. No substitueixen el gate real de preproducció.
+
+
+### Reconciliació P03/P04 — continuació 03/10/2026
+
+La infraestructura `PaymentLinkService` ja no es limita a token/expiració/import: abans d'emetre o resoldre exigeix `commercial_operation.CLASSIFICATION=BILLABLE` i `STATUS=READY_FOR_PAYMENT|PAYMENT_PENDING`. Això tanca la mancança de guard d'AP-50/AP-54 a la capa SIF. Les pantalles ACTUALS continuen sent les rutes llegades descrites a P03/P04; la seva substitució pel flux canònic continua pendent.
+
+
+### 6.5. Revalidació P06 — continuació 03/10/2026
+
+- L'endpoint `realitzarCanviCurs_CanviCurs.php` és POST + sessió + same-origin + permís + CSRF.
+- Les funcions de suport de preview que abans es cridaven sense definició (`loadLegacyCourseChangeSource`, `normalizeLegacyCourseChangeMoney`) existeixen ara al mateix endpoint.
+- `TIPUS_DESC` i `VALID_DESC` ja no es llegeixen dels hidden inputs: es rellegeixen de la inscripció origen.
+- Si `TIPUS_DESC=1`, `A_PAGAR` del navegador no és autoritat: la tarifa destí es resol per `ID_PREU + curs/hores + mes + vigència` i exigeix una única fila coherent amb la tarifa base.
+- També es rellegeix el pagament origen i es recalcula el pendent abans del preview SIF i abans de `realitzarCanviCurs_modalCanviCurs()`.
+- El preview SIF continua permetent ajustos manuals per als altres casos només amb `manual_price_reason`; AP no entra en aquest bypass perquè el preu proposat ja s'ha substituït pel servidor.
+- **Pendent transversal:** la política d'elegibilitat llegada de P06 encara no compta `GENERAT=1`; per tant AP-73 (mateixa policy web/intranet) continua obert.
+
+
+## 13. Revalidació P01–P06 — 04/10/2026
+
+| Superfície | ACTUAL revalidat | FINAL revalidat | Estat |
+| --- | --- | --- | --- |
+| P01 | contingut públic, sense mutació | dades comercials derivades de font comuna | DOCUMENTAT; migració transversal pendent |
+| P02 | AJAX preview + globals JS; confirmació AP hardenitzada a servidor | oferta immutable `offer_id` | HARDENING AP IMPLEMENTAT; FINAL canònic pendent |
+| P03 | confirmació per matrícula/token llegat | `payment_link` + operació pagable | INFRA IMPLEMENTADA; wiring pendent |
+| P04 | intenció CURS/AP activa i autoritativa | mateix snapshot + reintent immutable | IMPLEMENTAT; E2E real pendent |
+| P05 | POST + permís + CSRF + requestId de sessió | idempotència/versionat persistent | SEGURETAT ACTUAL IMPLEMENTADA; multioperador pendent |
+| P06 | AP rellegit/recalculat a servidor | policy v2 comuna + impacte fiscal/econòmic | HARDENING AP IMPLEMENTAT; AP-73 pendent |
+
+### 13.1. P04 — reintent immutable
+
+1. recuperar operació per clau idempotent amb lock;
+2. contrastar import i snapshot;
+3. recuperar un únic participant i contrastar identitat/producte/import;
+4. recuperar una única línia `ORDRE=1` i contrastar producte/participant/import/regla;
+5. contrastar la intenció/DS_ORDER ja vinculada;
+6. davant qualsevol divergència: 409 + rollback;
+7. només si tot coincideix: reutilització idempotent.
+
+No s'ha detectat cap pàgina/apartat P01–P06 sense secció ACTUAL/FINAL al document.
+
+
+### 13.2. P02 — hardening de concurrència i command POST
+
+**ACTUAL hardenitzat 04/10:**
+
+1. qualsevol `calcularPreu()` incrementa una versió monotònica;
+2. callbacks de versions anteriors retornen sense mutar globals comercials;
+3. també el `setTimeout` de render diferit comprova la versió;
+4. mentre la versió vigent és pendent, el submit queda bloquejat;
+5. promoció vàlida i AP no poden quedar simultàniament com a origen de la UI;
+6. fallback de promoció invàlida neteja la marca promocional abans de tornar a AP;
+7. la comprovació de curs ja realitzat és una única cadena, sense AJAX duplicat ni handlers acumulats;
+8. `enviarInscripcio.php` rep la comanda per POST; `tipusCurs` no viatja com a dada autoritativa.
+
+**FINAL pendent:** substituir globals + POST llegat per `offer_id`/snapshot SIF immutable i contracte estructurat.
+
+
+### 13.3. P03/P04 — ACTUAL, pont candidat i deploy
+
+| Capa | P03/P04 | Estat |
+| --- | --- | --- |
+| `web-actual` | confirmació/pagament llegat; `pagina_efectuar_pagament_automatic.php` genera Redsys directament | ACTUAL/FALLBACK INSPECCIONAT |
+| `pay-prisma-cat-canvis-verifactu` | crea intenció SIF i usa `DS_ORDER`/import retornats | PONT CANDIDAT IMPLEMENTAT |
+| `sif/` | valida snapshot, policy AP, operació, intenció, callback/worker | IMPLEMENTAT SIF |
+| entorn real | quina còpia està desplegada i flags efectius | PENDENT EVIDÈNCIA |
+
+No es pot marcar P04 com `VERIFICAT_RUNTIME_SIF` fins que hi hagi evidència de deploy/cutover.
+
+
+### 13.4. P05→P04 — promoció a AP pagable
+
+Quan Secretaria denega el dret documental:
+
+1. marcar denegació original;
+2. reavaluar AP v2 excloent matrícula actual i historial posterior;
+3. resoldre tarifa AP exacta;
+4. si AP elegible: `TIPUS_DESC=1`, `VALID_DESC=1`, `A_PAGAR=tarifa AP`;
+5. P03/P04 poden mostrar mètodes de pagament;
+6. si no és AP: conservar estat no pagable/ordinari segons decisió.
+
+**Transferència:** és informativa/offline, però ara només es mostra quan `VALID_DESC=1`, igual que la targeta.
+
+
+### 13.5. P02 — error de càlcul fail-closed
+
+- iniciar càlcul → `pending=true`, `valid=false`;
+- callback vigent correcte → `pending=false`, `valid=true`;
+- callback antic → ignorat;
+- error del càlcul vigent → `pending=false`, `valid=false`;
+- submit amb `pending=true` o `valid=false` → bloquejat.
+
+Això tanca AP-30 a la frontera UI sense dependre d'un preu anterior.

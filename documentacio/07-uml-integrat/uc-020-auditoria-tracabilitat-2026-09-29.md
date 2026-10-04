@@ -3,7 +3,7 @@
 **Data d'auditoria base:** 29/09/2026  
 **Integració documental revisada:** 30/09/2026  
 **Abast:** síntesi de troballes contrastades durant l'auditoria del UC-020 i destinació documental/implementació.  
-**Mètode:** lectura estàtica del repositori. Les proves proposades no s'han executat en aquesta auditoria.
+**Mètode:** auditoria base per lectura estàtica; les seccions de reconciliació posteriors incorporen evidència de CI i estat runtime integrat.
 
 > Els identificadors de troballa mantenen la numeració de l'auditoria conversacional. Aquesta consolidació recull les troballes UC020-16…UC020-73 que afecten directament la versió 1.2 de la fitxa i els UML nous.
 
@@ -24,7 +24,7 @@
 | UC020-26 | Generació llegada d'IDPAG requereix contrast d'atomicitat/concurrència. | RISC DEDUÏT | Cas pagament |
 | UC020-27 | Inscripció/càlcul llegats transporten dades personals per GET. | VERIFICAT | Seguretat/privacitat |
 | UC020-28 | Contracte textual d'errors de preu i validació comercial no independent. | VERIFICAT | P02 |
-| UC020-29 | Preparació llegada del pagament usa import enviat pel navegador en el circuit inspeccionat. | VERIFICAT | Cas pagament |
+| UC020-29 | La preparació llegada del pagament usa un gate servidor, però `web-actual` encara genera Redsys directament. El pont candidat sí és server-authoritative via `course-intent`; el seu desplegament no està acreditat. | ACTUAL_FALLBACK_ENDURIT / PONT_CANDIDAT_IMPLEMENTAT / DEPLOY_PENDENT | Cas pagament |
 | UC020-30 | Circuit llegat i callback SIF nou tenen garanties diferents; no s'han de confondre. | VERIFICAT | Dependència Redsys |
 | UC020-31 | La fitxa anterior era massa genèrica i marcava requisits finals com si descrivissin el cas concret. | CORREGIT DOC | Fitxa v1.2 |
 | UC020-32 | Absència de descomptes + Carnet Jove pot entrar en branques amb arrays/índexs no inicialitzats. | VERIFICAT CODI | Errors/proves |
@@ -43,16 +43,16 @@
 | UC020-45 | El token tècnic de pagament es genera abans de saber si un dret documental serà aprovat. | VERIFICAT | P02/P04 |
 | UC020-46 | El correu inicial pendent no envia el link de pagament. | VERIFICAT POSITIU | UC-116/P05 |
 | UC020-47 | La incoherència principal apareix al correu posterior a la resolució/denegació. | VERIFICAT | P05→P04 |
-| UC020-48 | No s'ha localitzat runtime PHP per `commercial_operation`/`discount_validation`/`payment_link`. | VERIFICAT REPO | FINAL |
+| UC020-48 | No s'havia localitzat runtime PHP per `commercial_operation`/`discount_validation`/`payment_link` en el tall base. | HISTÒRIC_SUPERAT · vegeu §7–§12 | FINAL |
 | UC020-49 | Tests comercials actuals verifiquen sobretot esquema; no UC-20 E2E. | VERIFICAT | Proves |
 | UC020-50 | `payment_link` DDL ja modela import esperat, estat, expiració, revocació i substitució. | VERIFICAT DDL | FINAL |
-| UC020-51 | `redsys_payment_intent` no conté UUID_OPERATION; l'enllaç runtime no està acreditat. | VERIFICAT | FINAL |
+| UC020-51 | `redsys_payment_intent` no conté UUID_OPERATION; en el tall base l'enllaç runtime no estava acreditat. | HISTÒRIC_SUPERAT · vincle via `commercial_operation.UUID_INTENT` | FINAL |
 | UC020-52 | Token llegat pot continuar íntegre encara que l'oferta comercial hagi canviat. | VERIFICAT CONCEPTUAL | P04/FINAL |
 | UC020-53 | `commercial_operation.PRICE_SNAPSHOT_JSON` permet congelar el passat sense recalcular tarifa actual. | VERIFICAT DDL | FINAL |
 | UC020-54 | `GENERAT=1` pot fer elegible web i no intranet. | VERIFICAT | Decisió negoci |
 | UC020-55 | Canvi de curs implementa elegibilitat històrica relativa a DATA_INSC original. | VERIFICAT | P06 |
 | UC020-56 | La frase pública és més ampla que la regla implementada. | VERIFICAT | P01 |
-| UC020-57 | `FACTURA_RELACIONADA != NULL` no és una prova SQL efectiva de no-nul·litat. | VERIFICAT | Regla pendent |
+| UC020-57 | `FACTURA_RELACIONADA != NULL` no és una prova SQL efectiva de no-nul·litat. La branca s'ha eliminat del preview amb UC020-98 i no forma part de la policy v2. | HISTÒRIC_RESOLT_UC020-98 | Policy/preview |
 | UC020-58 | Web, denegació i canvi de curs seleccionen tarifa AP amb filtres diferents. | VERIFICAT | P02/P05/P06 |
 | UC020-59 | Denegació pot veure tarifa futura perquè falta límit DATAI. | VERIFICAT | P05 |
 | UC020-60 | Elegible AP sense tarifa no queda tipificat de manera segura. | VERIFICAT | FINAL ELIGIBLE_NO_PRICE |
@@ -64,9 +64,9 @@
 | UC020-66 | `preuInscripcio<=0` no és una precondició independent de confirmació. | VERIFICAT CODI | P02 |
 | UC020-67 | Promoció modifica import però no garanteix canvi de `tipusPreuAplicat`. | VERIFICAT CODI | P02 |
 | UC020-68 | AP/promoció poden deixar globals provinents de decisions diferents. | RISC DEDUÏT | P02/tests |
-| UC020-69 | Resolució intranet usa GET amb efectes persistents. | VERIFICAT | P05 |
-| UC020-70 | No s'ha localitzat protecció CSRF explícita per aquesta comanda. | VERIFICAT REPO | P05/seguretat |
-| UC020-71 | Endpoint de comanda no inclou `comprovarSessio.php`; confia en objectes de sessió existents. | VERIFICAT | P05 |
+| UC020-69 | Resolució intranet usava GET amb efectes persistents en el tall base. | HISTÒRIC_SUPERAT 02/10 · ara POST | P05 |
+| UC020-70 | No s'havia localitzat protecció CSRF explícita en el tall base. | HISTÒRIC_SUPERAT 02/10 · CSRF validat | P05/seguretat |
+| UC020-71 | El tall base no acreditava una protecció completa de comanda. | HISTÒRIC_SUPERAT 02/10 · sessió/objectes + permís específic revalidats | P05 |
 | UC020-72 | UPDATE no exigeix estat/versió esperada. | VERIFICAT | P05 |
 | UC020-73 | UI de resolució interpreta èxit per absència del text «error». | VERIFICAT | P05 |
 
@@ -199,12 +199,12 @@ Aquesta secció no reescriu les troballes històriques UC020-16…UC020-73; regi
 
 Aquests tests estan **creats però no es declaren verificats** fins que s'executi la suite sobre `sif_test*` i es conservi l'evidència.
 
-### 7.3. Buits que continuen oberts
+### 7.3. Buits oberts a 30/09/2026 — fotografia històrica, supersedida per §11 i §12
 
-1. `PrismaStudentDiscountPolicy` ja existeix sota `ALUMNE_PRISMA_LEGACY_V1`; continuen pendents de ratificació `UC20-DEC-001…006` i qualsevol canvi requerirà una nova versió.
-2. Adaptador web/intranet llegat → `CommercialOfferService` / `PrismaStudentCourseCheckoutService`.
+1. **SUPERAT EL 02/10/2026.** `PrismaStudentDiscountPolicy` existeix sota `ALUMNE_PRISMA_WEB_LEGACY_V2`; les decisions `UC20-DEC-001…006` van quedar tancades posteriorment i qualsevol canvi futur requerirà una nova versió.
+2. Alta/preview web i resolució intranet → oferta servidor canònica (`CommercialOfferService` o equivalent); el **pont candidat** de targeta deriva a `PrismaStudentCourseCheckoutService` via `course-intent`, però desplegament no verificat.
 3. Substitució de les rutes llegades de confirmació/pagament per `PaymentLinkService` i/o operació servidor autoritativa.
-4. El nucli `PrismaStudentCourseCheckoutService → RedsysPaymentIntentService → commercial_operation.UUID_INTENT` està implementat; resta integrar-lo al canal real i coordinar-lo amb `payment_link`.
+4. El nucli `PrismaStudentCourseCheckoutService → RedsysPaymentIntentService → commercial_operation.UUID_INTENT` està implementat **i integrat al pont candidat de targeta**; resta acreditar deploy/cutover i coordinar-lo amb `payment_link`/oferta d'alta.
 5. Política completa de múltiples intents Redsys sobre una mateixa operació i substitució/revocació de links.
 6. E2E historial → oferta/operació AP → intent → callback → factura i evidència de preproducció.
 
@@ -215,7 +215,7 @@ Aquests tests estan **creats però no es declaren verificats** fins que s'execut
 
 | Peça | Estat | Finalitat |
 | --- | --- | --- |
-| `PrismaStudentDiscountPolicy` | IMPLEMENTAT_COMPATIBILITAT | Reprodueix la regla web sota `ALUMNE_PRISMA_LEGACY_V1` i retorna evidència concreta sense tancar decisions futures. |
+| `PrismaStudentDiscountPolicy` | IMPLEMENTAT_COMPATIBILITAT | Reprodueix la regla web sota `ALUMNE_PRISMA_WEB_LEGACY_V2` i retorna evidència concreta sense tancar decisions futures. |
 | `LegacyPrismaStudentHistoryRepository` | IMPLEMENTAT | Recupera fets d'historial per document sense decidir elegibilitat. |
 | `CourseIntentSnapshotValidator` | IMPLEMENTAT | Valida source, inscripció, IDPAG, import i coherència del descompte per intencions CURS. |
 | `LegacyPrismaStudentPriceSnapshotResolver` | IMPLEMENTAT | Obté snapshot de preu autoritatiu des de dades llegades. |
@@ -233,17 +233,269 @@ Aquesta capa és **complementària**, no substitutiva, de la infraestructura com
 | UC020-76 | `IDPAG` no es contrastava amb el snapshot. | **CORREGIT CODI**. |
 | UC020-77 | `EXPECTED_AMOUNT` no es contrastava amb l'import de pagament. | **CORREGIT CODI**. |
 | UC020-78 | Snapshot de descompte podia arribar sense origen/mode coherent. | **CORREGIT per al contracte CURS nou**; es mantenen fallbacks històrics on pertoqui. |
-| UC020-79 | Política AP no encapsulada ni versionada. | **PARCIALMENT TANCAT** amb policy + historial; negoci futur pendent. |
-| UC020-80 | Manca orquestrador server-side d'operació/validació. | **IMPLEMENTAT_NUCLI** a `PrismaStudentCourseCheckoutService`; adaptador web pendent. |
+| UC020-79 | Política AP no encapsulada ni versionada. | **TANCAT per AP v2** amb policy + historial; qualsevol canvi futur requereix nova RULE_VERSION. |
+| UC020-80 | Manca orquestrador server-side d'operació/validació. | **IMPLEMENTAT SIF + PONT CANDIDAT** a `PrismaStudentCourseCheckoutService` via `/api/redsys/course-intent.php`; deploy/cutover i alta/preview/intranet canònics pendents. |
 | UC020-81 | Manca vincle runtime `UUID_OPERATION ↔ UUID_INTENT`. | **IMPLEMENTAT_NUCLI**; integració de canal i política de múltiples intents pendents. |
 | UC020-82 | Invariant transversal factura vs cobrament. | **PENDENT TRANSVERSAL**; considerar fraccionaments. |
+| UC020-83 | El primer resolver històric AP filtrava `HORES` com a columna separada i no replicava el selector web `(CURS=codi OR CURS=hores OR TOTS)`. | **CORREGIT CODI + TEST**; el pagament AP reconstrueix ara amb la semàntica llegada coneguda i continua fallant tancat davant múltiples coincidències. |
 
-### 8.3. Decisions que continuen pendents
+### 8.3. Decisions que eren pendents en aquest tall — fotografia històrica
 
-La implementació no modifica silenciosament la política de negoci. Es mantenen pendents, entre altres, pagament parcial com a prova, `GENERAT=1`, factura abans de cobrar, autoacreditació de la matrícula actual, prioritat amb altres descomptes i vigència temporal de l'oferta.
+A 30/09/2026 aquestes decisions encara estaven obertes. **Estat posterior:** `GENERAT=1`, factura abans de cobrar, autoacreditació, instant d'avaluació, no-acumulació AP+promoció i vigència del snapshot van quedar tancats a `UC20-DEC-001…006`; vegeu §11.2. El pagament AP fraccionat continua fail-closed fins a disposar d'un model fiscal explícit.
 
 ## 9. Evidència històrica del PR #54 i revalidació requerida
 
-El tall original del PR #54 havia passat els tres workflows i la suite MySQL amb **716 passed / 0 failed**. Aquesta evidència és històrica del commit anterior a l'actualització amb `main`.
+El tall original del PR #54 havia passat la suite MySQL amb **716 passed / 0 failed**. Després, el merge del runtime UC-020 al `main` (`a66b0afa19d61778dbb1fcd094fef9f954806f1e`) va executar `SIF PHP MySQL tests` run **#367** amb **727 passed / 0 failed**. Això acredita la integració del nucli i els tests específics existents, però no substitueix l'E2E navegador → callback → factura ni la preproducció.
 
-Després d'integrar el `main` actual, el criteri per autoritzar el merge és tornar a executar els workflows sobre el nou HEAD i exigir-los verds. L'E2E navegador → oferta/operació server-side → Redsys → factura i la preproducció continuen fora de l'abast d'aquesta evidència.
+## 10. Reconciliació post-merge — 02/10/2026
+
+### 10.1. Canal actiu acreditat
+
+El codi actual acredita la cadena:
+
+`pagina_efectuar_pagament_automatic.php`
+→ `SifRedsysCourseIntentClient`
+→ `POST /api/redsys/course-intent.php`
+→ `RedsysCoursePaymentIntentService`
+→ (si `TIPUS_DESC=1`) `LegacyPrismaStudentPriceSnapshotResolver`
+→ `PrismaStudentCourseCheckoutService`
+→ `RedsysPaymentIntentService`.
+
+Això demostra que l'adaptador existeix al **pont candidat**, però no permet afirmar que descrigui el runtime desplegat. La reconciliació del 04/10 separa explícitament aquestes capes.
+
+### 10.2. Autoritat monetària
+
+Per al pagament AP actiu:
+
+- SIF rellegeix matrícula i saldo;
+- la tarifa AP històrica es reconstrueix a `DATA_INSC` replicant la selecció llegada `CURS=codi | hores | TOTS` i `MES=edicio`;
+- es rebutja una tarifa absent, ambigua o que no reprodueixi `A_PAGAR`;
+- el snapshot fixa base/descompte/net;
+- `CourseIntentSnapshotValidator` contrasta source, IDPAG i import;
+- el **pont candidat** de `pay.prisma.cat` utilitza l'`amount` retornat per la intenció SIF per a Redsys; desplegament no verificat.
+
+Continua obert el problema d'autoritat al **moment d'alta/preview** del llegat, abans que existeixi aquesta matrícula persistida.
+
+### 10.3. Deute arquitectònic reduït en aquest tall
+
+`PrismaStudentCourseCheckoutService` reutilitza ara `CommercialOperationRepository` i `DiscountValidationRepository` dins de la mateixa transacció que crea la intenció. No es delega directament a `CommercialOfferService` perquè aquest servei té el seu propi `TransactionRunner`; fer-ho així trencaria l'atomicitat operació/validació/intenció.
+
+Continuen directes només les operacions específiques encara sense repository dedicat en aquest flux (p. ex. `commercial_operation_party` i transició d'estat), candidats a una refactorització posterior no bloquejant.
+
+## 11. Passada final de tancament — 02/10/2026
+
+### 11.1. Noves troballes i resolució
+
+| ID | Troballa | Resolució |
+| --- | --- | --- |
+| UC020-84 | P05 encara es documentava com GET/sense CSRF, però el runtime havia evolucionat. | **TANCAT DOCUMENTACIÓ**: POST, sessió, permís, CSRF i `requestId` idempotent confirmats i UML reconciliat. |
+| UC020-85 | L'orquestrador AP podia incloure matrícula actual i historial posterior. | **TANCAT CODI + TEST**: exclou `ID` actual i filtra `DATA_INSC <= evaluation_at`. |
+| UC020-86 | La policy interpretava factura relacionada no nul·la com a elegible, però el SQL públic executable `!= NULL` no ho feia. | **TANCAT CODI + TEST**: `ALUMNE_PRISMA_WEB_LEGACY_V2`; factura només emesa no acredita. |
+| UC020-87 | `enviarInscripcio.php` persistia AP i `A_PAGAR` provinents del navegador. | **TANCAT PER AP**: revalidació servidor d'historial i tarifes abans de l'INSERT. |
+| UC020-88 | Promoció podia coexistir amb un estat client AP. | **TANCAT FAIL-CLOSED**: AP + promoció retorna 409. |
+| UC020-89 | `calcularPreu.php` podia usar la llista de descomptes sense inicialitzar. | **TANCAT CODI**: inicialització i fallback segur. |
+| UC020-90 | #112 havia preservat `operational_event` però reintroduït SQL directe ja encapsulat a #110. | **TANCAT CODI**: repositoris de party/intenció/estat recuperats. |
+| UC020-91 | L'alta llegada completa continua sent GET amb PII i descomptes no-AP fora d'oferta SIF nativa. | **TRANSFERIT TRANSVERSAL**: hardening general de l'alta; ja no permet manipular AP després d'UC020-87. |
+| UC020-92 | `payment_link` encara no és l'entrada canònica del checkout AP. | **PENDENT MIGRACIÓ/DEPLOY**: el pont candidat és server-authoritative via `course-intent`, però `web-actual` no i el deploy no està acreditat. |
+
+### 11.2. Decisions UC20-DEC-001…006
+
+Totes sis queden tancades a la fitxa v1.7 i materialitzades on afecten el runtime: `GENERAT=1` sí; factura només emesa no; no autoacreditació; `evaluation_at=DATA_INSC` per matrícula llegada; AP no acumulable amb promocions; snapshot AP persistit vàlid mentre la matrícula sigui pagable, amb caducitat del link separada.
+
+### 11.3. Estat final de l'auditoria
+
+**AUDIT_CLOSED** a 02/10/2026.
+
+El tancament acredita exhaustivitat documental/codi per UC-020 i resolució o transferència explícita de totes les troballes. No substitueix el gate de desplegament: cal conservar una execució E2E navegador → callback Redsys → pagament → factura sobre entorn controlat abans de considerar el rollout productiu verificat.
+### 11.4. Reconciliació de la branca alternativa PR #97
+
+| ID | Troballa | Resolució |
+| --- | --- | --- |
+| UC020-93 | El PR #97 centralitza operació/participant/validació a `CommercialOfferService`, però `TransactionRunner::run()` sempre obre i commiteja una transacció pròpia. En aquell tall, l'oferta es confirma abans de crear la intenció i el vincle/estat es confirma en una transacció posterior. | **NO PORTAR AS-IS / TRANSFERIT REFACTOR**. #112 es manté canònic perquè conserva l'atomicitat operació → validació → intenció → vincle. Si es vol eliminar el writer específic d'UC-020, primer cal fer `CommercialOfferService` transaction-aware o introduir una unit of work compartida i revalidar concurrència/idempotència. |
+
+Això no deixa una incògnita oberta d'UC-020: deixa una decisió arquitectònica explícita. El codi de #97 és una referència útil per al refactor, però no és segur fusionar-lo sobre el runtime final només per reduir duplicació.
+
+## 12. Reauditoria sobre main — 03/10/2026
+
+### 12.1. Inventari i cobertura
+
+La reauditoria confirma que UC-020 disposa de totes les peces documentals exigides: fitxa funcional, UML integrat, classes ACTUAL/FINAL, seqüències ACTUAL/FINAL, activitats ACTUAL/FINAL per P01…P06, aquesta traçabilitat i la matriu AP-01…AP-84. No s'ha detectat cap categoria documental principal absent.
+
+### 12.2. Troballes noves
+
+| ID | Troballa | Estat 03/10/2026 |
+| --- | --- | --- |
+| UC020-94 | `enviarInscripcio.php` revalidava historial/tarifa AP al servidor, però després tornava a carregar `$preuDescompte` des del valor client abans de l'INSERT. | **TANCAT CODI + TEST**. Eliminada la reassignació tardana; `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest` impedeix regressió. |
+| UC020-95 | El `main` ha avançat 9 commits des de la base de #112, principalment en Redsys CURS/PACK, cutover, callback, worker, factura, sync i proves. | **REVALIDAT COMPATIBLE**. No altera la frontera AP: `RedsysCoursePaymentIntentService` continua derivant TIPUS_DESC=1 al checkout AP autoritatiu i el callback consumeix la intenció congelada. |
+| UC020-96 | La documentació mantenia simultàniament estats antics “PENDENT_NEGOCI”, GET/sense CSRF i les decisions posteriors tancades. | **TANCAT DOCUMENTACIÓ**. Fitxa v1.6 i UML marquen explícitament fotografies històriques vs estat vigent. |
+| UC020-97 | `tipusCurs` arribava del navegador i podia activar el branch `S` que força `A_PAGAR=0`, fins i tot després de revalidar AP. | **TANCAT CODI + TEST**. `TIPUS_CURS` es deriva de `informacio` al servidor i la prova de frontera impedeix recuperar l'autoritat client. |
+| UC020-98 | El preview AP conservava una branca `FACTURA_RELACIONADA != NULL` morta però semànticament contrària a la policy v2. | **TANCAT CODI + TEST**. Eliminada la branca; el preview declara i executa els mateixos criteris d'elegibilitat v2 rellevants. |
+
+### 12.3. Verificació
+
+**Verificat per inspecció de codi:** policy v2, exclusió de matrícula actual, tall temporal d'historial, resolver històric fail-closed, alta AP revalidada, checkout AP server-authoritative, intenció/callback congelats, intranet POST+CSRF+permís+requestId.
+
+**Verificat per proves automatitzades existents:** policy, resolver, checkout AP, intent AP, callback/curs E2E simulat, idempotència i diverses fronteres de cutover. Al commit `9a70516`, les proves específiques UC-020 observades són PASS; la suite compartida acaba amb 924 passades i 6 fallades no UC-020. Vegeu `uc-020-evidencia-ci-2026-10-03.md`.
+
+**Pendent de verificació de rollout:** navegador real → pàgina de pagament → Redsys/callback → worker → factura en entorn controlat/preproducció; configuració efectiva de flags de cutover; migració canònica a `payment_link` i unificació de transferència.
+
+### 12.4. Resultat
+
+`AUDIT_CLOSED_REVALIDATED_2026-10-03`. UC020-94 i UC020-97 eren fronteres d'autoritat client que impedien considerar l'alta AP completament server-authoritative; UC020-98 era una divergència latent de preview. Totes tres queden corregides abans de la revalidació final.
+
+
+## 13. Revalidació addicional — 03/10/2026
+
+| ID | Troballa | Estat | Evidència/destí |
+| --- | --- | --- | --- |
+| UC020-99 | La fitxa conservava una afirmació de CI corresponent a un head anterior. Al head `9a70516`, la suite global és vermella, però les proves UC-020 observades passen. | CORREGIT_DOC + VERIFICAT_CI_ESPECIFIC | [Evidència CI](uc-020-evidencia-ci-2026-10-03.md) |
+| UC020-100 | Els diagrames de classes i seqüència etiquetats com ACTUAL encara descrivien parcialment el comportament pre-hardening (client com autoritat i branca de factura no cobrada). | CORREGIT_DOC | classes/seqüències ACTUAL reescrites segons runtime 03/10 |
+
+**Conclusió de verificació:** el perímetre UC-020 té evidència CI positiva al commit `9a70516`. La suite compartida continua amb 6 fallades no atribuïdes a UC-020, de manera que l'auditoria funcional pot romandre tancada però el verd global del PR no està acreditat.
+
+
+## 14. Revalidació Redsys compartida — 03/10/2026
+
+| ID | Troballa | Estat | Evidència/destí |
+| --- | --- | --- | --- |
+| UC020-101 | `RedsysSignatureValidatorTest::testValidNotificationDecodesAndNormalizesSignedPayload` esperava un SHA-256 corresponent al fixture antic sense `Ds_TransactionType`. El runtime calculava correctament el hash sobre els `Ds_MerchantParameters` actuals i la signatura era acceptada. | TEST OBSOLET CORREGIT · CI NOU EN CUA | Commit `635ffb484730424ff39c6ad09c714bb318be4f77`; l'assert compara ara `hash('sha256', $merchantParameters)` amb `payload_hash`. |
+| UC020-102 | El catàleg de configuració SIF no documentava el tall Redsys CURS/UC-020 ni els flags de cutover/drain tot i existir al preflight/runtime. | TANCAT DOCUMENTACIÓ | `sif/config/README.md` incorpora variables reals, contracte HMAC_SHA512_V2 i gate de preproducció. |
+
+**Contrast extern:** la documentació oficial Redsys vigent indica `HMAC_SHA512_V2` com a versió estàndard de signatura i especifica que la verificació ha de signar el valor de `Ds_MerchantParameters` tal com arriba, sense descodificar-lo abans del HMAC. La implementació SIF i l'helper llegat V2 segueixen aquest patró.
+
+
+## 15. Ampliació de proves AP — 03/10/2026
+
+| ID | Troballa/acció | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-103 | AP-01 i AP-10 no tenien test nominal propi per historial buit i historial mixt D/M + antecedent admissible. | TEST CREAT · PENDENT CI | `PrismaStudentDiscountPolicyTest` ampliat a `8b81276`. |
+| UC020-104 | AP-11/AP-17/AP-18/AP-70/AP-71 depenien de deducció del resolver però faltaven escenaris explícits de tarifa absent/futura. | TESTS CREATS · PENDENT CI | `LegacyPrismaStudentPriceSnapshotResolverTest` ampliat a `d7c13ec`. |
+| UC020-105 | Els guards de tarifa absent/futura no estaven demostrats al tall integrat `RedsysCoursePaymentIntentService → PrismaStudentCourseCheckoutService`. | TESTS INTEGRATS CREATS · PENDENT CI | `RedsysCoursePaymentIntentPrismaStudentTest` ampliat a `027787d`; comprova zero operacions/intencions si manca tarifa i ús del snapshot històric quan existeix una tarifa futura. |
+
+Aquesta ampliació no canvia la policy de negoci; converteix comportaments ja implementats en proves nominals i traçables.
+
+
+## 16. Evidència P05 — permisos i CSRF
+
+| ID | Troballa/acció | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-106 | AP-23/AP-82 encara figuraven pendents tot i existir un test del mateix endpoint que exigeix POST, sessió/permís i CSRF. | RECLASSIFICAT VERIFICAT_CI_FRONTERA | `LegacyUsocDiscountValidationSecurityTest` PASS al head `0c1825c`. |
+| UC020-107 | El contracte de decisió USOC de P05 persisteix REQUESTED abans de la mutació llegada i COMMITTED abans de memoitzar èxit. | VERIFICAT_CI_CONTRACTE | `UsocValidationDecisionBoundaryContractTest` 2/2 PASS al head `0c1825c`. |
+| UC020-108 | `requestId` de la comanda llegada continua memoitzat per sessió; això no és una clau persistent transversal entre sessions/operadors. | PENDENT TRANSVERSAL | AP-80/AP-81 continuen oberts per versió/idempotència persistent multioperador. |
+
+
+## 17. Guards Redsys i autoritat monetària — 03/10/2026
+
+| ID | Troballa/acció | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-109 | AP-24/AP-41 continuaven pendents malgrat existir guard que exigeix origen del descompte CURS. | VERIFICAT_CI | `RedsysPaymentIntentTest::testRejectsCourseDiscountSnapshotWithoutOrigin` PASS a `0c1825c`. |
+| UC020-110 | AP-33 ja tenia prova d'import callback diferent de la intenció; faltava ordre desconeguda nominal. | PARCIAL VERIFICAT + TEST NOU PENDENT CI | Import mismatch PASS a `0c1825c`; ordre desconeguda afegida a `RedsysCallbackTest`. |
+| UC020-111 | AP-34 tenia frontera unsigned PASS però faltava prova directa de signatura V2 incorrecta. | PARCIAL VERIFICAT + TEST NOU PENDENT CI | `testInvalidSha512V2SignatureIsRejected` afegida. |
+| UC020-112 | AP-35 ja queda protegit per vincle únic operació→intenció: una segona DS_ORDER incompatible retorna 409. | VERIFICAT_CI | `PrismaStudentCourseCheckoutServiceTest::testRetryWithAnotherDsOrderCannotReplaceLinkedIntent` PASS a `0c1825c`. |
+| UC020-113 | AP-32 necessitava prova nominal de manipulació d'import abans de crear intenció AP. | TEST NOU PENDENT CI | `testPrismaStudentCheckoutRejectsClientRequestedAmountBelowAuthoritativePendingBalance`; zero operació/validació/intenció. |
+| UC020-114 | El fraccionament AP no està modelat fiscalment encara. | PENDENT IMPLEMENTACIÓ · FAIL-CLOSED VERIFICAT | El checkout rebutja fraccionament/reanudació AP abans de crear estat comercial. |
+
+
+## 18. Preview, payment_link i snapshot comercial — 03/10/2026
+
+| ID | Troballa/acció | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-115 | `PrismaStudentCourseCheckoutService` usava `READY_FOR_PAYMENT` com a CLASSIFICATION i STATUS simultàniament, contrari al diccionari canònic. | TANCAT CODI + TEST PENDENT CI | CLASSIFICATION corregida a `BILLABLE`; STATUS conserva `READY_FOR_PAYMENT`; test AP exigeix després `BILLABLE/INTENT_CREATED`. |
+| UC020-116 | `PaymentLinkService::resolve` validava link/import/expiració però no l'estat/classificació comercial actual. | TANCAT CODI + TEST PENDENT CI | Gate nou `BILLABLE + READY_FOR_PAYMENT/PAYMENT_PENDING` a `issue/resolve`; cobreix AP-50/AP-54. |
+| UC020-117 | No hi havia prova nominal de token `payment_link` manipulat. | TEST NOU PENDENT CI | El servei busca només SHA-256 del token; token alterat retorna 404. |
+| UC020-118 | AP-36 continuava pendent tot i que `calcularPreu.php` ja té fallback segur sense candidats. | TEST NOU PENDENT CI | Prova de `$descomptes=[]`, límit `pos<i` i resposta `0|0|0|0`. |
+| UC020-119 | Faltava evidència explícita que el preview AP no muta estat comercial/econòmic/fiscal. | TEST NOU PENDENT CI | Prova read-only sobre `calcularPreu.php` i `buscarAlumnePrisMa.php`. |
+| UC020-120 | La immutabilitat del `PRICE_SNAPSHOT_JSON` estava implementada per comparació canònica però sense test nominal propi. | TEST INTEGRACIÓ NOU · PENDENT CI | `PrismaStudentCommercialSnapshotImmutabilityTest` creat a `fbfda4c`; segon snapshot incompatible ha de retornar 409 i conservar snapshot/intenció originals. |
+
+
+## 19. P06 · canvi de curs — continuació 03/10/2026
+
+| ID | Troballa/acció | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-121 | Amb `SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1`, l'endpoint cridava `loadLegacyCourseChangeSource()` i `normalizeLegacyCourseChangeMoney()` sense definició local ni include que les aportés. | TANCAT CODI + TEST PENDENT CI | Helpers implementats a `realitzarCanviCurs_CanviCurs.php`; `LegacyPrismaStudentCourseChangeBoundaryTest`. |
+| UC020-122 | P06 rebia `TIPUS_DESC`, `VALID_DESC`, `A_PAGAR`, `PAGAT` i `PENDENT` des del navegador. | TANCAT PER AP | Tipus/estat es rellegeixen sempre de BD; per AP, tarifa/pagat/pendent es recalculen al servidor abans de preview i mutació. |
+| UC020-123 | La branca AP de `buscarPreuAPagar_modalCanviCurs` seleccionava `TIPUS=1` només per `ID_PREU`, sense curs/hores/mes ni unicitat. | TANCAT PER BYPASS AP AUTORITATIU | Nou resolver P06 filtra `ID_PREU + CURS/HORES + MES + vigència`, exigeix una fila i valida contra preu base. |
+| UC020-124 | L'elegibilitat llegada de canvi de curs exclou ID actual i historial posterior, però no compta `GENERAT=1`, a diferència de `ALUMNE_PRISMA_WEB_LEGACY_V2`. | PENDENT MIGRACIÓ POLICY | AP-73 continua obert; no s'ha canviat semàntica de negoci de P06 sense migració explícita. |
+
+
+## 20. Revalidació exhaustiva — 04/10/2026
+
+| ID | Troballa | Estat | Evidència/destí |
+| --- | --- | --- | --- |
+| UC020-125 | Participant no revalidat explícitament en reintents d'una operació ja existent. | TANCAT CODI · TESTS NOUS · PENDENT CI HEAD | `CommercialOperationPartyRepository::findByOperationAndRole`, `ensureParticipant()`, tests de nom i clau canònica alterats. |
+| UC020-126 | SQL directe de `commercial_operation_line` dins l'orquestrador. | TANCAT REFACTOR · PENDENT CI HEAD | `CommercialOperationLineRepository`. |
+| UC020-127 | #158 conté millores però també regressions respecte #112. | TANCAT DECISIÓ | integració selectiva; es preserven exclusió matrícula actual, `DATA_INSC` i `BILLABLE`. |
+| UC020-128 | HEAD nou sense resultat CI encara. | PENDENT VERIFICACIÓ | workflows creats i en cua el 04/10. |
+
+### 20.1. Estat per eix
+
+- **DOCUMENTAT:** complet per a l'abast UC-020 requerit.
+- **IMPLEMENTAT:** hardening AP i guards de reintent codificats a PR #112.
+- **VERIFICAT:** evidència CI històrica només per commits citats + inspecció estàtica del HEAD.
+- **PENDENT:** CI del HEAD, E2E real/preproducció, cutover/drain, `offer_id/payment_link`, transferència, idempotència persistent P05, POST/CSRF general de l'alta, fraccionament AP i policy P06 comuna.
+
+Document de tall: [revalidació 04/10](uc-020-revalidacio-2026-10-04.md).
+
+
+## 21. P02 · concurrència, precheck i POST — 04/10/2026
+
+| ID | Troballa | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-129 | Resposta AJAX antiga podia sobreescriure globals després d'un DNI/edició/check més nou. | TANCAT CODI · PENDENT CI HEAD | `uc020PriceRequestVersion` + stale guard + test de frontera. |
+| UC020-130 | Promo vàlida podia conservar `tipusPreuAplicat=1`; fallback invàlid podia conservar marker promocional antic. | TANCAT CODI · PENDENT CI HEAD | origen exclusiu AP/promo + neteja fallback. |
+| UC020-131 | `comprovaSiHaRealitzatElCurs()` duplicava la cadena AJAX, tenia branca inassolible i `msg` inexistent. | TANCAT CODI · PENDENT CI HEAD | flux únic + `click.uc020`. |
+| UC020-132 | Alta pública amb PII i import per GET. | TANCAT GET/PII · PENDENT CI HEAD | endpoint POST-only, 0 referències `$_GET`, caller POST. |
+
+AP-74…AP-79 queden implementats a la frontera UI/server llegada. `offer_id` continua sent el FINAL arquitectònic i no és necessari per considerar corregida la cursa concreta.
+
+
+## 22. UC020-133 · runtime actual vs pont candidat
+
+| Evidència | Classificació |
+| --- | --- |
+| `codi-drive/README.md` anomena `web-actual` font actual | ACTUAL |
+| el mateix README anomena `pay-prisma-cat-canvis-verifactu` candidata | PONT CANDIDAT |
+| `web-actual/pagina_efectuar_pagament_automatic.php` no usa client SIF | ACTUAL/FALLBACK |
+| candidata pay usa `SifRedsysCourseIntentClient` i `course-intent` | IMPLEMENTAT CANDIDAT |
+| `sif/public/api/redsys/course-intent.php` i checkout AP | IMPLEMENTAT SIF |
+| SHA/release real desplegada a `pay.prisma.cat` | NO ACREDITADA |
+| cutover/drain real | NO ACREDITAT |
+
+**Conclusió:** UC020-133 corregeix una sobreafirmació documental; no és una regressió del nucli SIF.
+
+
+## 23. P05→P04 · estat pagable i transferència
+
+| ID | Troballa | Estat |
+| --- | --- | --- |
+| UC020-134 | AP alternatiu després de denegació conservava `VALID_DESC=2` tot i tenir `TIPUS_DESC=1` i tarifa AP. | **TANCAT CODI + TEST PENDENT CI**: fixa `VALID_DESC=1` després de revalidar AP. |
+| UC020-135 | Transferència visible a la vista principal encara amb descompte no pagable. | **TANCAT WEB + PONT CANDIDAT + TEST PENDENT CI**: requereix `VALID_DESC=1`. |
+
+El moviment bancari posterior no es modela aquí: registrar/conciliar transferència continua sent responsabilitat d'UC-022.
+
+
+## 24. P03/P04 token i allocator d'alta
+
+| ID | Troballa | Estat |
+| --- | --- | --- |
+| UC020-136 | Token P03/P04 depenia de parseig manual de `REQUEST_URI`, cache-buster i desxifrava abans de comprovar MAC. | **TANCAT CODI + TEST PENDENT CI**: `LegacyPaymentToken`, base64 estricte, MAC abans de decrypt, identificador positiu. |
+| UC020-137 | AP-29 figurava com no implementat tot i existir allocator serialitzat `IDPAG`. | **RECLASSIFICAT**: `GET_LOCK/RELEASE_LOCK` + test existent. |
+| UC020-138 | El lock d'IDPAG no evita una doble matrícula semàntica. | **PENDENT TRANSVERSAL UC-107**: AP-28 continua obert. |
+
+Aquesta separació és obligatòria: **unicitat del número** i **idempotència de la matrícula** són problemes diferents.
+
+
+## 25. Promocions i canvi d'edició
+
+| ID | Troballa/reclassificació | Estat |
+| --- | --- | --- |
+| UC020-140 | AP-26/AP-37 seguien com pendents malgrat existir exclusivitat d'origen UI i guard servidor AP+promo. | **IMPLEMENTAT BOUNDARY · PENDENT CI HEAD** |
+| UC020-141 | Faltava prova nominal que la tarifa AP es resol de l'edició final abans de persistir. | **TEST CREAT · PENDENT CI HEAD**; lookup curs+any+mes → ID_PREU → tarifa AP. |
+
+
+## 26. TOCTOU i fraccionament AP
+
+| ID | Troballa | Estat |
+| --- | --- | --- |
+| UC020-142 | La revalidació AP servidor podia substituir silenciosament el preu vist al preview si la tarifa havia canviat. | **TANCAT 409 + TEST PENDENT CI** |
+| UC020-143 | El SIF candidat bloquejava AP fraccionat, però el fallback llegat no coneixia `TIPUS_DESC` al gate. | **TANCAT FAIL-CLOSED** a alta, UI, gate i SIF; tests HEAD pendents. |

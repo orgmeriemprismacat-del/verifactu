@@ -41,10 +41,70 @@ final class PaymentLinkServiceTest
         $resolved = $service->resolve('opaque-test-token', '2026-10-01 12:00:00');
         Assert::same($operation['uuid_operation'], $resolved['uuid_operation']);
         Assert::same('90.00', $resolved['expected_amount']);
-        Assert::same('OFFERED', $resolved['operation_status']);
+        Assert::same('READY_FOR_PAYMENT', $resolved['operation_status']);
 
         $accessed = (string) $db->query('SELECT LAST_ACCESSED_AT FROM payment_link')->fetchColumn();
         Assert::same('2026-10-01 12:00:00', $accessed);
+    }
+
+    public function testRejectsIssuingLinkForNonPayableOperation(): void
+    {
+        $db = TestDatabase::fresh();
+        $operation = $this->createOperation($db);
+        $db->prepare('UPDATE commercial_operation SET STATUS = ? WHERE UUID_OPERATION = ?')
+            ->execute(['PENDING_VALIDATION', $operation['uuid_operation']]);
+
+        $service = $this->service($db, 'blocked-token');
+
+        Assert::throws(SifException::class, static function () use ($service, $operation): void {
+            $service->issue([
+                'uuid_operation' => $operation['uuid_operation'],
+                'expected_amount' => '90.00',
+                'currency' => 'EUR',
+                'expires_at' => '2026-10-05 20:00:00',
+            ]);
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_link')->fetchColumn());
+    }
+
+    public function testActiveTokenStopsResolvingWhenOperationBecomesNonPayable(): void
+    {
+        $db = TestDatabase::fresh();
+        $operation = $this->createOperation($db);
+        $service = $this->service($db, 'state-change-token');
+
+        $service->issue([
+            'uuid_operation' => $operation['uuid_operation'],
+            'expected_amount' => '90.00',
+            'currency' => 'EUR',
+            'expires_at' => '2026-10-05 20:00:00',
+        ]);
+
+        $db->prepare('UPDATE commercial_operation SET STATUS = ? WHERE UUID_OPERATION = ?')
+            ->execute(['CANCELLED', $operation['uuid_operation']]);
+
+        Assert::throws(SifException::class, static function () use ($service): void {
+            $service->resolve('state-change-token', '2026-10-01 12:00:00');
+        }, 409);
+    }
+
+    public function testManipulatedOpaqueTokenCannotResolveAnotherPaymentLink(): void
+    {
+        $db = TestDatabase::fresh();
+        $operation = $this->createOperation($db);
+        $service = $this->service($db, 'opaque-original-token');
+
+        $service->issue([
+            'uuid_operation' => $operation['uuid_operation'],
+            'expected_amount' => '90.00',
+            'currency' => 'EUR',
+            'expires_at' => '2026-10-05 20:00:00',
+        ]);
+
+        Assert::throws(SifException::class, static function () use ($service): void {
+            $service->resolve('opaque-original-token-tampered', '2026-10-01 12:00:00');
+        }, 404);
     }
 
     public function testRejectsLinkAmountAboveCommercialNetAmount(): void
@@ -173,9 +233,9 @@ final class PaymentLinkServiceTest
             'product_type' => 'CURS',
             'product_code' => 'CURS-TEST',
             'product_edition' => '2026-10',
-            'classification' => 'SALE',
+            'classification' => 'BILLABLE',
             'classification_reason' => 'COURSE_ENROLLMENT',
-            'status' => 'OFFERED',
+            'status' => 'READY_FOR_PAYMENT',
             'currency' => 'EUR',
             'gross_amount' => '120.00',
             'discount_amount' => '30.00',
