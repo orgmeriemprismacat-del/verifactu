@@ -123,10 +123,11 @@ try {
         new ClaimPaymentPayloadBuilder(),
         $paymentService
     );
+    $paymentAudit = new PaymentActionEventRepository(new UuidGenerator());
     $gateway = new PaymentActionGateway(
         $db,
         new TransactionRunner($db),
-        new PaymentActionEventRepository(new UuidGenerator())
+        $paymentAudit
     );
 
     $requestId = (string) ($actor['request_id'] ?? '');
@@ -254,6 +255,32 @@ try {
         throw SifException::conflict('Missing claim payment legacy sync context');
     }
 
+    $legacyAuditBase = [
+        'uuid_payment' => (string) ($result['uuid_payment'] ?? ''),
+        'payment_idempotency_key' => (string) ($result['payment_idempotency_key'] ?? ''),
+        'request_id' => $requestId,
+        'correlation_id' => $requestId,
+        'action' => 'SYNC_LEGACY',
+        'source_environment' => claimPaymentAuditEnvironment((string) ($config['env'] ?? 'local')),
+        'source_channel' => 'LEGACY_SYNC',
+        'actor_type' => 'HUMAN',
+        'actor_id' => (string) ($actor['actor_id'] ?? ''),
+        'actor_role' => $actorRole,
+        'reason_code' => 'CLAIM_PAYMENT_LEGACY_PROJECTION',
+        'changeset' => [
+            'idpag' => (int) ($legacySyncContext['idpag'] ?? 0),
+            'id_insc' => (int) ($legacySyncContext['id_insc'] ?? 0),
+            'uuid_factura' => (string) ($legacySyncContext['uuid_factura'] ?? ''),
+            'num_visible' => (string) ($legacySyncContext['num_visible'] ?? ''),
+        ],
+        'occurred_at' => (new DateTimeImmutable('now', new DateTimeZone('Europe/Madrid')))
+            ->format('Y-m-d H:i:s.u'),
+    ];
+    $paymentAudit->append($db, $legacyAuditBase + [
+        'result' => 'REQUESTED',
+        'is_terminal' => false,
+    ]);
+
     $legacyDb = ConnectionFactory::makeLegacy($config);
     $legacyDb->beginTransaction();
     try {
@@ -266,10 +293,25 @@ try {
             (string) ($legacySyncContext['num_visible'] ?? '')
         );
         $legacyDb->commit();
+
+        $paymentAudit->append($db, $legacyAuditBase + [
+            'result' => 'SUCCEEDED',
+            'is_terminal' => true,
+            'changeset' => array_merge(
+                (array) ($legacyAuditBase['changeset'] ?? []),
+                ['legacy_sync_result' => $legacySync]
+            ),
+        ]);
     } catch (Throwable $legacyException) {
         if ($legacyDb->inTransaction()) {
             $legacyDb->rollBack();
         }
+
+        $paymentAudit->append($db, $legacyAuditBase + [
+            'result' => 'FAILED',
+            'is_terminal' => true,
+            'error_code' => claimPaymentErrorCode($legacyException),
+        ]);
         throw $legacyException;
     }
 
@@ -356,4 +398,13 @@ function claimPaymentExternalReceiptType(mixed $value): string
     }
 
     return $type;
+}
+
+
+function claimPaymentErrorCode(Throwable $exception): string
+{
+    $short = (new ReflectionClass($exception))->getShortName();
+    $normalized = strtoupper((string) preg_replace('/[^A-Z0-9_]+/i', '_', $short));
+
+    return $normalized !== '' ? substr($normalized, 0, 80) : 'LEGACY_SYNC_ERROR';
 }
