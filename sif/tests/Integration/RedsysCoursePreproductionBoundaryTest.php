@@ -170,7 +170,7 @@ final class RedsysCoursePreproductionBoundaryTest
         Assert::stringContainsString("=> 'DRAIN'", $source);
         Assert::stringContainsString("=> 'CUTOVER_CONFIRMED'", $source);
         Assert::stringContainsString("=> 'INVALID'", $source);
-        Assert::stringContainsString("'cutover_phase_valid' => $cutoverPhase !== 'INVALID'", $source);
+        Assert::stringContainsString("'cutover_phase_valid' => \$cutoverPhase !== 'INVALID'", $source);
 
         if (str_contains($source, "'legacy_drain_confirmed_if_cutover'")) {
             Assert::fail('DRAIN cutover=1/drain=0 is a valid phase and must not be rejected by preflight.');
