@@ -9,6 +9,7 @@ use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
+use Prisma\Sif\Repository\EnrollmentPaymentFlowLockRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
@@ -75,7 +76,11 @@ try {
         new FiscalSequenceRepository(),
         new InvoiceRepository(new UuidGenerator(), new HashCalculator()),
         new PaymentPayloadValidator(),
-        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator()),
+        null,
+        null,
+        null,
+        new EnrollmentPaymentFlowLockRepository()
     );
     $service = new RedsysCourseInvoiceService(
         $notifications,
