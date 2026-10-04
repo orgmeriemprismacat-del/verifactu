@@ -258,3 +258,48 @@ Comprovar:
 - que no es generin mutacions econòmiques duplicades.
 
 Fins que el refactor a outbox no existeixi, una notificació parcial o amb resultat ambigu s'ha de considerar **incidència manual**, no èxit silenciós.
+
+
+## 16. Frontera checkout genèric / USOC_ALUMNE
+
+### 16.1. Inscripció USOC pendent
+
+Preparar `TIPUS_DESC=4, VALID_DESC=0` i intentar crear intenció via
+`/api/redsys/course-intent.php`.
+
+Esperat:
+
+- HTTP/conflicte funcional;
+- cap fila nova a `redsys_payment_intent`;
+- cap callback ni factura.
+
+### 16.2. Inscripció USOC validada pel ramal genèric
+
+Preparar `TIPUS_DESC=4, VALID_DESC=1` i intentar el mateix endpoint.
+
+Esperat:
+
+- bloqueig explícit indicant que cal `USOC_ALUMNE`;
+- cap intenció `SOURCE_TYPE=CURS`;
+- cap efecte fiscal/econòmic.
+
+### 16.3. Intenció dedicada USOC_ALUMNE
+
+Amb imports autoritatius:
+
+- `A_PAGAR = student_amount = expected_amount`;
+- `entity_amount > 0`;
+- `ID_INSC/source_id` coherent;
+- `IDPAG` coherent;
+- marcadors 4/1.
+
+Esperat:
+
+1. intenció `USOC_ALUMNE` creada;
+2. callback amb import diferent → rebutjat abans de cua;
+3. callback correcte → `VALIDATED` i job;
+4. worker → una factura alumne, un CHARGE alumne;
+5. `usoc_financing_case.STUDENT_PAYMENT_STATUS=PAID`;
+6. `ENTITY_PAYMENT_STATUS=PENDING`;
+7. `STATUS=PENDING_ENTITY_INVOICE`;
+8. cap factura/cobrament de l'entitat fins UC-019b.
