@@ -31,8 +31,7 @@ final class GeneratedInvoiceLegacyPaymentSyncServiceTest
         Assert::same(true, $legacy->memberPayments[10]['paid']);
         Assert::same('20.00', $legacy->memberPayments[20]['payment']);
         Assert::same(false, $legacy->memberPayments[20]['paid']);
-        Assert::same('A2026/100', $legacy->invoiceNumber);
-        Assert::same('TRANSFERENCIA', $legacy->invoiceMethod);
+        Assert::same(false, $legacy->invoiceMutationAttempted);
         Assert::same(true, $legacy->committed);
     }
 
@@ -81,8 +80,7 @@ final class GeneratedInvoiceLegacySyncSifStatement extends \PDOStatement
 final class GeneratedInvoiceLegacySyncLegacyPdo extends \PDO
 {
     public array $memberPayments = [];
-    public ?string $invoiceNumber = null;
-    public ?string $invoiceMethod = null;
+    public bool $invoiceMutationAttempted = false;
     public bool $committed = false;
     private bool $active = false;
     private int $prepareCount = 0;
@@ -181,8 +179,7 @@ final class GeneratedInvoiceLegacyInvoiceUpdateStatement extends \PDOStatement
 
     public function execute(?array $params = null): bool
     {
-        $this->db->invoiceMethod = (string) ($params[1] ?? '');
-        $this->db->invoiceNumber = (string) ($params[2] ?? '');
+        $this->db->invoiceMutationAttempted = true;
         $this->rows = 1;
 
         return true;
