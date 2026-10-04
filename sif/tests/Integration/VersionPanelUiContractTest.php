@@ -45,6 +45,23 @@ final class VersionPanelUiContractTest
         Assert::stringContainsString('dataset.operationId', $app);
     }
 
+    public function testEvidenceCliIsReadOnlyAndProductionGuarded(): void
+    {
+        $script = $this->read('scripts/verify-version-governance-evidence.php');
+        $verifier = $this->read('src/Service/SifVersionEvidenceVerifier.php');
+
+        Assert::stringContainsString('SIF_UC010_EVIDENCE_ALLOW_PRODUCTION', $script);
+        Assert::stringContainsString("'production_authorized' => false", $script);
+        Assert::stringContainsString("'production_authorized' => false", $verifier);
+        Assert::stringContainsString("SELECT COUNT(*) FROM sif_version WHERE STATUS = 'ACTIVE'", $verifier);
+
+        foreach (['INSERT INTO', 'UPDATE sif_version', 'DELETE FROM'] as $forbidden) {
+            if (str_contains($verifier, $forbidden)) {
+                Assert::fail('UC-010 evidence verifier must remain read-only: ' . $forbidden);
+            }
+        }
+    }
+
     public function testIntranetLaunchIsAllowlistedForVersions(): void
     {
         $page = $this->read('../codi-drive/intranet-actual/sif-verifactu.php');
