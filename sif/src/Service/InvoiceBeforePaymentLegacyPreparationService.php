@@ -12,7 +12,8 @@ final class InvoiceBeforePaymentLegacyPreparationService
         private InvoiceBeforePaymentBillingPartyRepository $billing,
         private InvoiceBeforePaymentServerPayloadAssembler $assembler,
         private InvoiceBeforePaymentPayloadBuilder $beforePaymentBuilder,
-        private PayloadIdempotencyValidator $fingerprints
+        private PayloadIdempotencyValidator $fingerprints,
+        private ?InvoiceBeforePaymentAeatInputPolicy $aeatPolicy = null
     ) {
     }
 
@@ -26,6 +27,9 @@ final class InvoiceBeforePaymentLegacyPreparationService
         $selection = $this->selection->loadByIds($legacyWebDb, $inscriptionIds);
         $billing = $this->billing->loadByEntityId($legacyIntranetDb, $entityId);
         $input = $this->assembler->buildInput($selection, $billing, $context);
+        if ($this->aeatPolicy !== null) {
+            $input = $this->aeatPolicy->prepare($input);
+        }
         $payload = $this->beforePaymentBuilder->build($input);
 
         return [
