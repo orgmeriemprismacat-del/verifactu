@@ -84,6 +84,21 @@ final class Uc007IntranetBoundaryTest
         }
     }
 
+    public function testLegacyInvoiceDownloadUsesPrivateTemporaryStorage(): void
+    {
+        $wrapper = $this->readIntranet('ajax/alumnes/descarregaFactura.php');
+
+        Assert::stringContainsString("getenv('SIF_LEGACY_INVOICE_TEMP_ROOT')", $wrapper);
+        Assert::stringContainsString("sys_get_temp_dir()", $wrapper);
+        Assert::stringContainsString("mkdir($configuredTempRoot, 0700, true)", $wrapper);
+        Assert::stringContainsString("realpath($configuredTempRoot)", $wrapper);
+        Assert::stringContainsString("unlink($generated)", $wrapper);
+
+        if (str_contains($wrapper, '$tempRoot = realpath(__DIR__);')) {
+            Assert::fail('UC-007 legacy PDF must not be generated inside the public AJAX directory.');
+        }
+    }
+
     public function testLegacyInvoiceDownloadUsesBinaryPdfContractOnBothPages(): void
     {
         $wrapper = $this->readIntranet('ajax/alumnes/descarregaFactura.php');
