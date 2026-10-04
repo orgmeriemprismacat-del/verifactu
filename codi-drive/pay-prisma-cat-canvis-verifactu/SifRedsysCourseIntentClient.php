@@ -20,6 +20,14 @@ final class SifRedsysCourseIntentClient
         if (!str_starts_with($baseUrl, 'https://')) {
             throw new RuntimeException('SIF internal API must use HTTPS');
         }
+        $expectedHost = strtolower(trim((string) getenv('SIF_REDSYS_EXPECTED_PAY_HOST')));
+        if ($expectedHost === '') {
+            throw new RuntimeException('SIF expected pay host is not configured');
+        }
+        $baseHost = strtolower((string) parse_url($baseUrl, PHP_URL_HOST));
+        if ($baseHost === '' || !hash_equals($expectedHost, $baseHost)) {
+            throw new RuntimeException('SIF internal API host mismatch');
+        }
 
         $body = json_encode([
             'idpag' => $idPag,

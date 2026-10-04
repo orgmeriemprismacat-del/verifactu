@@ -183,6 +183,7 @@ function runJsonScript(array $command, string $cwd): array
 function sanitizeEvidence(array $value): array
 {
     $forbiddenKeys = [
+        'error',
         'secret',
         'password',
         'signature',
