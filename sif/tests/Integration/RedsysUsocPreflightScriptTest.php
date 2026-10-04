@@ -23,6 +23,7 @@ final class RedsysUsocPreflightScriptTest
         Assert::stringContainsString('factura_linia_table', $source);
         Assert::stringContainsString('fact_rels_table', $source);
         Assert::stringContainsString('usoc_financing_case_table', $source);
+        Assert::stringContainsString('usoc_financing_terms_table', $source);
         Assert::stringContainsString('payment_transaction_table', $source);
         Assert::stringContainsString('payment_allocation_table', $source);
         Assert::stringContainsString('redsys_notifications_table', $source);
