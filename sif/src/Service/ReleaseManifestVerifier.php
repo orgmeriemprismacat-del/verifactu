@@ -42,10 +42,7 @@ final class ReleaseManifestVerifier
             throw SifException::validation('Release manifest artifact hash is missing or invalid');
         }
 
-        ksort($files, SORT_STRING);
-        $verified = [];
-        $mismatches = [];
-
+        $normalizedFiles = [];
         foreach ($files as $relative => $expectedHash) {
             $relative = str_replace('\\', '/', trim((string) $relative));
             $expectedHash = strtolower(trim((string) $expectedHash));
@@ -53,11 +50,24 @@ final class ReleaseManifestVerifier
             if ($relative === ''
                 || str_starts_with($relative, '/')
                 || str_contains('/' . $relative . '/', '/../')
+                || !$this->isGovernedRelativePath($relative)
                 || preg_match('/^[0-9a-f]{64}$/D', $expectedHash) !== 1
             ) {
                 throw SifException::validation('Invalid release manifest entry');
             }
+            if (array_key_exists($relative, $normalizedFiles)) {
+                throw SifException::validation('Duplicate normalized release manifest path');
+            }
 
+            $normalizedFiles[$relative] = $expectedHash;
+        }
+
+        ksort($normalizedFiles, SORT_STRING);
+        $files = $normalizedFiles;
+        $verified = [];
+        $mismatches = [];
+
+        foreach ($files as $relative => $expectedHash) {
             $rawPath = $baseDir . '/' . $relative;
             if (is_link($rawPath)) {
                 $mismatches[$relative] = 'SYMLINK_NOT_ALLOWED';
@@ -101,6 +111,17 @@ final class ReleaseManifestVerifier
             'verified_count' => count($verified),
             'mismatches' => $mismatches,
         ];
+    }
+
+    private function isGovernedRelativePath(string $relative): bool
+    {
+        foreach (self::GOVERNED_ROOTS as $root) {
+            if ($relative === $root || str_starts_with($relative, $root . '/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function currentGovernedFiles(string $baseDir): array
