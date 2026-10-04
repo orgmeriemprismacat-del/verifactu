@@ -57,8 +57,8 @@
 
 | ID | Nivell | Escenari | Resultat esperat | Estat |
 | --- | --- | --- | --- | --- |
-| AP-26 | INT | Aplicar codi promocional després d'haver calculat AP. | Tipus/origen registrat coincideix amb l'import final realment aplicat. | PENDENT_EXECUCIO |
-| AP-27 | INT | Canviar d'edició amb tarifes diferents. | L'oferta usa la tarifa exacta de l'edició final. | PENDENT_EXECUCIO |
+| AP-26 | INT | Aplicar codi promocional després d'haver calculat AP. | Tipus/origen registrat coincideix amb l'import final realment aplicat. | IMPLEMENTAT_UI_ORIGIN_EXCLUSIVE + SERVER_AP_PROMO_CONFLICT · TESTS_PENDENT_CI_HEAD |
+| AP-27 | INT | Canviar d'edició amb tarifes diferents. | L'alta AP resol `ID_PREU` i tarifa des de curs/any/mes finals abans de l'INSERT. | IMPLEMENTAT_SERVER_EDITION_AUTHORITY · TEST_NOU_PENDENT_CI |
 | AP-28 | CONC | Dues confirmacions simultànies de la mateixa inscripció. | No duplicar inscripció ni operació comercial. | PENDENT_EXECUCIO |
 | AP-29 | CONC | Dues altes simultànies requereixen nou `IDPAG`. | Identificadors inequívocs; cap col·lisió de l'allocator. | IMPLEMENTAT_GET_LOCK · TEST_EXISTENT_LEGACY_IDPAG · PENDENT_CI_HEAD |
 | AP-30 | INT | Error tècnic durant el càlcul de preu. | Cap confirmació amb oferta indeterminada; el darrer càlcul ha de quedar invàlid. | IMPLEMENTAT_UI_FAIL_CLOSED · TEST_NOU_PENDENT_CI |
@@ -73,10 +73,10 @@
 | ID | Nivell | Escenari | Resultat esperat | Estat |
 | --- | --- | --- | --- | --- |
 | AP-36 | INT | Cap tarifa disponible i Carnet Jove marcat. | Resposta controlada; cap accés a arrays/índexs inexistents. | TEST_NOU_PENDENT_CI_SAFE_PREVIEW |
-| AP-37 | INT | Persona AP aplica després un codi promocional. | Origen comercial, import cobrat i origen fiscal continuen alineats. | PENDENT_EXECUCIO |
+| AP-37 | INT | Persona AP aplica després un codi promocional. | Origen comercial queda exclusiu; combinació AP+promo contradictòria falla tancada. | IMPLEMENTAT_BOUNDARY · TESTS_PENDENT_CI_HEAD |
 | AP-38 | INT | Simple consulta/previsualització de preu. | No crear factura, cobrament ni UUID fiscal. | TEST_NOU_PENDENT_CI_READ_ONLY_PREVIEW |
 | AP-39 | INT | L'únic antecedent possible és la mateixa inscripció. | No autoacreditar AP. | COBERT_INTEGRACIO_CHECKOUT |
-| AP-40 | INT | Oferta AP d'una edició s'intenta usar en una altra. | Revalidació o conflicte segons política; mai trasllat silenciós. | PENDENT_EXECUCIO |
+| AP-40 | INT | Oferta AP d'una edició s'intenta usar en una altra. | El servidor torna a resoldre curs/edició/ID_PREU/tarifa AP abans de persistir. | IMPLEMENTAT_SERVER_REVALIDATION · TEST_NOU_PENDENT_CI |
 | AP-41 | INT | Snapshot amb imports vàlids però origen comercial incorrecte. | Detectar contradicció abans de crear intenció o factura. | VERIFICAT_CI_INTENT_ORIGIN_GUARD_0c1825c |
 | AP-42 | INT | La tarifa canvia després d'haver congelat una oferta AP. | El snapshot comercial congelat no es reescriu; la migració completa de la intranet a oferta SIF continua pendent. | PENDENT_EXECUCIO_TRANSVERSAL |
 | AP-43 | E2E | Denegació documental + persona AP, sense pagaments previs. | Mateixa inscripció, tarifa AP i `VALID_DESC=1`; pagament habilitat. | IMPLEMENTAT_P05_BOUNDARY · TEST_NOU_PENDENT_CI · E2E_PENDENT |
