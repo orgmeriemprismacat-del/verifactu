@@ -75,6 +75,11 @@ final class Uc002SifPaymentRenderer
         $invoice = $this->invoice($preview);
         $billing = is_array($invoice['billing'] ?? null) ? $invoice['billing'] : [];
 
+        $buttons = ($invoice['can_register_payment'] ?? false) === true
+            ? '<button id="torna-pagament" type="button" class="btn btn-secondary mr-2">Tornar</button>'
+                . '<button id="confirmar-pagament" type="button" class="btn btn-success">Confirmar pagament</button>'
+            : '<button id="torna-pagament" type="button" class="btn btn-secondary">Tornar</button>';
+
         return '<div class="d-flex flex-column align-items-center w-100">'
             . '<p class="titol-apartat">Confirmació de cobrament SIF</p>'
             . '<div class="apartat w-100">'
@@ -86,10 +91,7 @@ final class Uc002SifPaymentRenderer
             . '<p><strong>Pendent:</strong> ' . $this->e($this->money($invoice['pending_amount'] ?? null)) . ' €</p>'
             . '<p><strong>Estat:</strong> ' . $this->e($invoice['estat_cobrament'] ?? '') . '</p>'
             . '</div>'
-            . '<div class="d-flex justify-content-center mt-3">'
-            . '<button id="torna-pagament" type="button" class="btn btn-secondary mr-2">Tornar</button>'
-            . '<button id="confirmar-pagament" type="button" class="btn btn-success">Confirmar pagament</button>'
-            . '</div></div>';
+            . '<div class="d-flex justify-content-center mt-3">' . $buttons . '</div></div>';
     }
 
     public function renderError(string $message): string
