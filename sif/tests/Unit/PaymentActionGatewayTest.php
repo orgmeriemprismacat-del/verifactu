@@ -64,6 +64,24 @@ final class PaymentActionGatewayTest
         Assert::same('REUSED', $writer->events[1]['result']);
     }
 
+    public function testRejectedPreconditionWritesRequestedAndRejected(): void
+    {
+        $db = new PaymentActionGatewaySpyPdo();
+        $writer = new PaymentActionGatewaySpyWriter();
+        $gateway = new PaymentActionGateway($db, new TransactionRunner($db), $writer);
+        $event = $this->event();
+        $event['action'] = 'VALIDATION_REJECTED';
+
+        $gateway->reject($event, new \InvalidArgumentException('invalid payload'));
+
+        Assert::same([], $db->calls);
+        Assert::same('REQUESTED', $writer->events[0]['result']);
+        Assert::same(false, $writer->events[0]['is_terminal']);
+        Assert::same('REJECTED', $writer->events[1]['result']);
+        Assert::same(true, $writer->events[1]['is_terminal']);
+        Assert::same('INVALIDARGUMENTEXCEPTION', $writer->events[1]['error_code']);
+    }
+
     public function testOperationFailureWritesFailedEventAndRethrows(): void
     {
         $db = new PaymentActionGatewaySpyPdo();
