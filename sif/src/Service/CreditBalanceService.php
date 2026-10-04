@@ -56,6 +56,101 @@ final class CreditBalanceService
         }
     }
 
+    public function createCreditInTransaction(\PDO $db, array $input): array
+    {
+        if (!$db->inTransaction()) {
+            throw new \RuntimeException(
+                'createCreditInTransaction requires an active transaction'
+            );
+        }
+
+        $payload = $this->builder->forCreditBalance($input);
+        $key = trim((string) ($payload['idempotency_key'] ?? ''));
+        $sourceEnrollmentId = (int) ($payload['source_enrollment_id'] ?? 0);
+
+        if ($sourceEnrollmentId > 0 && $key === '') {
+            throw SifException::validation(
+                'Credit balance from enrollment funds requires idempotency_key'
+            );
+        }
+
+        if ($key === '') {
+            $created = $this->credits->createCredit($db, $payload);
+            $this->ensureCreditFundExit(
+                $db,
+                $payload,
+                (string) $created['uuid_credit']
+            );
+
+            return [
+                'ok' => true,
+                'idempotency_reused' => false,
+                'uuid_credit' => $created['uuid_credit'],
+                'import_disponible' => $created['import_disponible'],
+                'estat' => $created['estat'],
+                'credit_idempotency_key' => null,
+            ];
+        }
+
+        $payload['idempotency_key'] = $key;
+        $existing = $this->credits->findByIdempotencyKey($db, $key, true);
+        if ($existing !== null) {
+            $this->assertSameCreditPayload($payload, $existing);
+            $this->ensureCreditFundExit(
+                $db,
+                $payload,
+                (string) $existing['UUID_CREDIT']
+            );
+            $result = $this->existingCreditResult($existing, true);
+            $result['credit_idempotency_key'] = $key;
+
+            return $result;
+        }
+
+        $payload['idempotency_payload_hash'] = $this->idempotency->calculateHash(
+            $this->creditIdempotencyPayload($payload)
+        );
+
+        try {
+            $created = $this->credits->createCredit($db, $payload);
+        } catch (\PDOException $exception) {
+            if (!$this->isDuplicateKeyException($exception)) {
+                throw $exception;
+            }
+
+            $existing = $this->credits->findByIdempotencyKey($db, $key, true);
+            if ($existing === null) {
+                throw $exception;
+            }
+
+            $this->assertSameCreditPayload($payload, $existing);
+            $this->ensureCreditFundExit(
+                $db,
+                $payload,
+                (string) $existing['UUID_CREDIT']
+            );
+            $result = $this->existingCreditResult($existing, true);
+            $result['credit_idempotency_key'] = $key;
+
+            return $result;
+        }
+
+        $this->ensureCreditFundExit(
+            $db,
+            $payload,
+            (string) $created['uuid_credit']
+        );
+
+        return [
+            'ok' => true,
+            'idempotency_reused' => false,
+            'uuid_credit' => $created['uuid_credit'],
+            'import_disponible' => $created['import_disponible'],
+            'estat' => $created['estat'],
+            'credit_idempotency_key' => $key,
+        ];
+    }
+
     private function createCreditWithoutIdempotency(array $payload): array
     {
         return $this->transactions->run(function (\PDO $db) use ($payload): array {
@@ -232,6 +327,140 @@ final class CreditBalanceService
 
             return $this->reuseCompensationAfterDuplicateKey($uuidCredit, 'num_visible', $numVisible, $input);
         }
+    }
+
+    public function applyCreditByUuidInTransaction(
+        \PDO $db,
+        string $uuidCredit,
+        string $uuidFactura,
+        array $input
+    ): array {
+        return $this->applyCreditInTransaction(
+            $db,
+            $uuidCredit,
+            'uuid',
+            $uuidFactura,
+            $input
+        );
+    }
+
+    public function applyCreditByNumVisibleInTransaction(
+        \PDO $db,
+        string $uuidCredit,
+        string $numVisible,
+        array $input
+    ): array {
+        return $this->applyCreditInTransaction(
+            $db,
+            $uuidCredit,
+            'num_visible',
+            $numVisible,
+            $input
+        );
+    }
+
+    private function applyCreditInTransaction(
+        \PDO $db,
+        string $uuidCredit,
+        string $invoiceSelectorType,
+        string $invoiceSelector,
+        array $input
+    ): array {
+        if (!$db->inTransaction()) {
+            throw new \RuntimeException(
+                'applyCreditInTransaction requires an active transaction'
+            );
+        }
+
+        [$credit, $invoice, $payload] = $this->lockedCompensationContext(
+            $db,
+            $uuidCredit,
+            $invoiceSelectorType,
+            $invoiceSelector,
+            $input
+        );
+
+        $existing = $this->payments->findByIdempotencyKey(
+            $db,
+            $payload['idempotency_key'],
+            true
+        );
+        if ($existing !== null) {
+            $this->assertSamePaymentPayload($payload, $existing);
+            $this->ensureCompensationFundAllocation(
+                $db,
+                $payload,
+                (string) $existing['UUID_PAYMENT'],
+                $credit,
+                $invoice
+            );
+            $result = $this->existingPaymentResult($existing, $credit, $invoice);
+            $result['payment_idempotency_key'] = (string) $existing['IDEMPOTENCY_KEY'];
+
+            return $result;
+        }
+
+        $this->assertCreditCanBeApplied(
+            $db,
+            $credit,
+            $invoice,
+            $payload['amount']
+        );
+
+        try {
+            $payment = $this->payments->createPayment($db, $payload);
+        } catch (\PDOException $exception) {
+            if (!$this->isDuplicateKeyException($exception)) {
+                throw $exception;
+            }
+
+            $existing = $this->payments->findByIdempotencyKey(
+                $db,
+                $payload['idempotency_key'],
+                true
+            );
+            if ($existing === null) {
+                throw $exception;
+            }
+
+            $this->assertSamePaymentPayload($payload, $existing);
+            $this->ensureCompensationFundAllocation(
+                $db,
+                $payload,
+                (string) $existing['UUID_PAYMENT'],
+                $credit,
+                $invoice
+            );
+            $result = $this->existingPaymentResult($existing, $credit, $invoice);
+            $result['payment_idempotency_key'] = (string) $existing['IDEMPOTENCY_KEY'];
+
+            return $result;
+        }
+
+        $this->ensureCompensationFundAllocation(
+            $db,
+            $payload,
+            (string) $payment['uuid_payment'],
+            $credit,
+            $invoice
+        );
+        $updatedCredit = $this->consumeCredit(
+            $db,
+            $credit,
+            $payload['amount']
+        );
+
+        return [
+            'ok' => true,
+            'idempotency_reused' => false,
+            'uuid_payment' => $payment['uuid_payment'],
+            'uuid_credit' => $updatedCredit['UUID_CREDIT'],
+            'uuid_factura' => $invoice['UUID_FACTURA'],
+            'num_visible' => $invoice['NUM_VISIBLE'],
+            'import_disponible' => $updatedCredit['IMPORT_DISPONIBLE'],
+            'credit_estat' => $updatedCredit['ESTAT'],
+            'payment_idempotency_key' => $payload['idempotency_key'],
+        ];
     }
 
     private function applyCredit(string $uuidCredit, string $invoiceSelectorType, string $invoiceSelector, array $input): array
