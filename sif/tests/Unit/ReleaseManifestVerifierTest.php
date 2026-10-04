@@ -62,6 +62,32 @@ final class ReleaseManifestVerifierTest
         }
     }
 
+    public function testManifestRejectsUnexpectedFileAddedAfterBuild(): void
+    {
+        $dir = $this->tempDir();
+        $evidenceDir = $this->tempDir();
+        try {
+            mkdir($dir . '/src', 0700, true);
+            file_put_contents($dir . '/src/a.php', '<?php echo 1;');
+
+            $files = ['src/a.php' => hash_file('sha256', $dir . '/src/a.php')];
+            $manifest = $evidenceDir . '/manifest.json';
+            file_put_contents($manifest, json_encode(['schema' => 1, 'files' => $files], JSON_THROW_ON_ERROR));
+
+            $initial = (new ReleaseManifestVerifier())->verify($dir, $manifest);
+            Assert::same(true, $initial['ok']);
+
+            file_put_contents($dir . '/src/extra.php', '<?php echo "unexpected";');
+
+            $changed = (new ReleaseManifestVerifier())->verify($dir, $manifest);
+            Assert::same(false, $changed['ok']);
+            Assert::same('UNEXPECTED_FILE', $changed['mismatches']['src/extra.php'] ?? null);
+        } finally {
+            $this->removeTree($dir);
+            $this->removeTree($evidenceDir);
+        }
+    }
+
     public function testManifestRejectsTraversal(): void
     {
         $dir = $this->tempDir();
