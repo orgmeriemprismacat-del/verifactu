@@ -25,4 +25,16 @@ final class EnrollmentFundTransferService
             )
         );
     }
+
+    public function reverseTransfer(array $input): array
+    {
+        $payload = $this->builder->buildReversal($input);
+
+        return $this->transactions->run(
+            fn (\PDO $db): array => $this->funds->insertOrReuseInternalTransferReversal(
+                $db,
+                $payload
+            )
+        );
+    }
 }
