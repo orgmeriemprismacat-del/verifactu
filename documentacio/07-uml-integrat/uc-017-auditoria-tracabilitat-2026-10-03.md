@@ -229,3 +229,33 @@ transport d'outbox i aprovar retirada definitiva del fallback.
 
 Per tant, UC-017 **encara no és CLOSED**, però ja no és correcte descriure el seu
 camí FINAL com a “pendent de programar”.
+
+
+## 9. Estat de resolució de troballes — branca candidata 2026-10-04
+
+Aquesta secció és l'estat vigent de les troballes F-017-01..12 després del hardening. La severitat original es conserva com a risc del sistema ACTUAL/llegat; la columna **candidata** indica si el risc queda resolt en el codi proposat.
+
+| Troballa | Candidata | Evidència principal | Pendent real |
+| --- | --- | --- | --- |
+| F-017-01 Numeració fiscal al llegat | **RESOLTA EN CANDIDATA** | checkout crea intenció SIF; callback final és `/api/redsys/callback.php`; factura via `InvoiceService` | activar cutover i demostrar que el callback llegat queda drenat |
+| F-017-02 Escriptura directa de factura | **RESOLTA EN CANDIDATA** | guard `SIF_REDSYS_GIFT_CUTOVER_ENABLED + SIF_REDSYS_GIFT_LEGACY_DRAIN_CONFIRMED` retorna 410 abans de carregar el callback llegat | desplegament i retirada física posterior del fallback |
+| F-017-03 Validació criptogràfica | **RESOLTA EN CANDIDATA** | callback SIF amb `RedsysSignatureValidator`; fallback també usa `hash_equals` i context signat | prova preproducció amb notificació Redsys real/simulada controlada |
+| F-017-04 Secret Redsys hardcoded | **RESOLTA EN CANDIDATA** | bridge usa `REDSYS_MERCHANT_KEY`, `REDSYS_MERCHANT_CODE`, `REDSYS_TERMINAL`, `REDSYS_GATEWAY_URL` | configurar secret store i rotar qualsevol clau històricament exposada |
+| F-017-05 Dades per GET | **RESOLTA EN CANDIDATA** | MerchantURL no porta DNI, import, codi o curs; context mínim via `DS_MERCHANT_MERCHANTDATA` signat | validar URL desplegada |
+| F-017-06 `DS_ORDER=time()` | **RESOLTA EN CANDIDATA** | `RedsysGiftPaymentIntentService + RedsysDsOrderGenerator` | prova de concurrència/col·lisions a entorn |
+| F-017-07 Import de client | **RESOLTA EN CANDIDATA** | intent rellegeix `regal.IMPORT`; checkout substitueix import POST pel retorn SIF; callback compara import | prova E2E |
+| F-017-08 Core SIF específic | **IMPLEMENTAT** | invoice service + intent/status + worker REGAL | desplegament |
+| F-017-09 Dret de regal | **IMPLEMENTAT** | `GiftEntitlementIssuerService`, `GIFT_PURCHASE`, `GIFT`, event `ISSUE` | evidència MySQL/preproducció |
+| F-017-10 Dues transaccions consecutives | **MITIGADA/RECUPERABLE** | worker no marca PROCESSING com PROCESSED fins acabar; error tècnic entra a RETRY; factura/payment/entitlement són idempotents; test de replay | executar recovery E2E real i conservar evidència |
+| F-017-11 Codi al detall fiscal | **RESOLTA EN CANDIDATA** | línia factura usa `Val regal`; test rebutja codi bescanviable al detall | verificar PDF/QR generat |
+| F-017-12 Correus directes | **RESOLTA EN CAMÍ SIF** | `GiftPaymentNotificationService` + `notification_outbox` idempotent; payload sense codi cru | activar consumidor/outbox en preproducció i comprovar destinatari/plantilla |
+
+### 9.1 Estat de tancament resultant
+
+- **Documentat:** COMPLET per a l'abast auditat d'UC-017.
+- **Implementat:** CANDIDAT COMPLET per al tall Redsys/SIF, reserva web, factura/cobrament, entitlement, estat, outbox, projecció llegada, retry i evidència.
+- **Verificat en repositori:** PARCIAL; hi ha proves automàtiques i controls estàtics, però els runners del PR encara no constitueixen evidència fins finalitzar.
+- **Verificat en entorn:** PENDENT.
+- **Producció:** NO TANCADA.
+
+L'únic bloqueig de tancament funcional que queda és d'**entorn i desplegament controlat**, no una absència coneguda de la implementació candidata: executar CI, desplegar a test/preproducció, executar `preflight-redsys-gift.php`, fer una compra controlada, executar `verify-redsys-gift-preproduction.php DS_ORDER`, provar callback duplicat/retry i conservar l'evidència.
