@@ -305,15 +305,19 @@ final class FiscalQueueProcessor
         bool $markAttemptUncertain
     ): array {
         $message = $exception->getMessage();
+        $evidenceId = $exception instanceof AeatDeliveryUncertainException
+            ? $exception->evidenceId()
+            : null;
         $incident = $this->transactions->run(function (\PDO $db) use (
             $item,
             $attemptUuid,
             $message,
             $incidentType,
-            $markAttemptUncertain
+            $markAttemptUncertain,
+            $evidenceId
         ): array {
             if ($attemptUuid !== null && $markAttemptUncertain && $this->attempts !== null) {
-                $this->attempts->fail($db, $attemptUuid, 'UNCERTAIN', $message);
+                $this->attempts->fail($db, $attemptUuid, 'UNCERTAIN', $message, $evidenceId);
             }
             $this->queue->holdForReview($db, $item, $message);
 
