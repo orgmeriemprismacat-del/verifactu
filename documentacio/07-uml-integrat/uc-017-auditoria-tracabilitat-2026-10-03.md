@@ -231,7 +231,7 @@ Per tant, UC-017 **encara no és CLOSED**, però ja no és correcte descriure el
 camí FINAL com a “pendent de programar”.
 
 
-## 9. Estat de resolució de troballes — branca candidata 2026-10-04
+## 10. Estat de resolució de troballes — branca candidata 2026-10-04
 
 Aquesta secció és l'estat vigent de les troballes F-017-01..12 després del hardening. La severitat original es conserva com a risc del sistema ACTUAL/llegat; la columna **candidata** indica si el risc queda resolt en el codi proposat.
 
@@ -249,8 +249,9 @@ Aquesta secció és l'estat vigent de les troballes F-017-01..12 després del ha
 | F-017-10 Dues transaccions consecutives | **MITIGADA/RECUPERABLE** | worker no marca PROCESSING com PROCESSED fins acabar; error tècnic entra a RETRY; factura/payment/entitlement són idempotents; test de replay | executar recovery E2E real i conservar evidència |
 | F-017-11 Codi al detall fiscal | **RESOLTA EN CANDIDATA** | línia factura usa `Val regal`; test rebutja codi bescanviable al detall | verificar PDF/QR generat |
 | F-017-12 Correus directes | **RESOLTA EN CAMÍ SIF** | `GiftPaymentNotificationService` + `notification_outbox` idempotent; payload sense codi cru | activar consumidor/outbox en preproducció i comprovar destinatari/plantilla |
+| F-017-13 Snapshot oficial AEAT absent al builder de regal | **RESOLTA EN CANDIDATA** | `GiftAeatInvoicePayloadEnricher`; builder fail-closed en PREPROD/PRODUCTION; configuració fiscal explícita; prova XSD | validar valors fiscals reals, configurar-los i conservar evidència d'alta oficial en preproducció |
 
-### 9.1 Estat de tancament resultant
+### 10.1 Estat de tancament resultant
 
 - **Documentat:** COMPLET per a l'abast auditat d'UC-017.
 - **Implementat:** CANDIDAT COMPLET per al tall Redsys/SIF, reserva web, factura/cobrament, entitlement, estat, outbox, projecció llegada, retry i evidència.
