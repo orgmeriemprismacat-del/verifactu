@@ -218,6 +218,19 @@ final class AeatSubmissionAttemptRepository
             throw new \InvalidArgumentException('Missing AEAT evidence id.');
         }
 
+        $responseAnchor = strtolower(trim((string) (
+            $response['evidence_response_sha256'] ?? ''
+        )));
+        $responseHttpStatus = $response['evidence_http_status'] ?? null;
+        if (preg_match('/^[a-f0-9]{64}$/D', $responseAnchor) !== 1
+            || !is_int($responseHttpStatus)
+            || $responseHttpStatus !== 200
+        ) {
+            throw new \InvalidArgumentException(
+                'AEAT evidence reconciliation requires a successful database response anchor.'
+            );
+        }
+
         $json = json_encode(
             $response,
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
@@ -237,6 +250,8 @@ final class AeatSubmissionAttemptRepository
             $response['error_message'] ?? null,
             $uuidAttempt,
             $evidenceId,
+            $responseAnchor,
+            $responseHttpStatus,
         ]);
         if ($stmt->rowCount() !== 1) {
             throw new \RuntimeException('AEAT uncertain attempt could not be finalized from evidence.');
