@@ -18,6 +18,41 @@ final class TransactionRunnerTest
         Assert::same(['begin', 'commit'], $db->calls);
     }
 
+    public function testRunParticipatesInExistingTransactionWithoutCommittingIt(): void
+    {
+        $db = new SpyPdo();
+        $db->beginTransaction();
+        $db->calls = [];
+
+        $runner = new TransactionRunner($db);
+        $result = $runner->run(static fn (): string => 'joined');
+
+        Assert::same('joined', $result);
+        Assert::same([], $db->calls);
+        Assert::same(true, $db->inTransaction());
+    }
+
+    public function testRunDoesNotRollbackTransactionOwnedByCaller(): void
+    {
+        $db = new SpyPdo();
+        $db->beginTransaction();
+        $db->calls = [];
+
+        $runner = new TransactionRunner($db);
+
+        try {
+            $runner->run(static function (): void {
+                throw new \RuntimeException('nested boom');
+            });
+            Assert::fail('Expected exception was not thrown');
+        } catch (\RuntimeException $exception) {
+            Assert::same('nested boom', $exception->getMessage());
+        }
+
+        Assert::same([], $db->calls);
+        Assert::same(true, $db->inTransaction());
+    }
+
     public function testRunRollsBackWhenCallbackThrows(): void
     {
         $db = new SpyPdo();
