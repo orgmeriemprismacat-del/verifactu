@@ -103,3 +103,29 @@ end
 ## Estat
 
 ACTUAL implementat al repositori. FINAL és una evolució per completar la prova d'afiliació i la traça de negoci sense convertir una simple marca `TIPUS_DESC/VALID_DESC` en prova suficient.
+
+
+## Invariant de concurrència afegit 2026-10-04
+
+La classe de persistència queda reforçada amb una restricció de BD:
+
+```mermaid
+classDiagram
+    class UsocValidationDecisionRepository {
+      +begin(...)
+      +findRequestedByInscription(idInsc, forUpdate)
+      +markCommitted(...)
+      +markReviewRequired(...)
+    }
+
+    class usoc_validation_decision {
+      ID_INSC
+      STATE
+      ACTIVE_ID_INSC «generated»
+      uq_usoc_validation_active_inscription «unique»
+    }
+
+    UsocValidationDecisionRepository --> usoc_validation_decision
+```
+
+`ACTIVE_ID_INSC = ID_INSC` únicament per `STATE=REQUESTED`; en estats terminals és `NULL`. Això permet conservar l'històric i, simultàniament, impedir dues decisions actives sobre la mateixa inscripció.
