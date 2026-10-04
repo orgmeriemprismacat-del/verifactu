@@ -7,7 +7,7 @@ use Prisma\Sif\Contract\AeatTransport;
 use Prisma\Sif\Exception\AeatDeliveryUncertainException;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\HashCalculator;
-use Prisma\Sif\Repository\{FiscalRecordRepository, ManualPaymentInvoiceRepository};
+use Prisma\Sif\Repository\{AeatSubmissionAttemptRepository, FiscalRecordRepository, ManualPaymentInvoiceRepository};
 use Prisma\Sif\Service\{FiscalRecordService, FiscalRecordPayloadBuilder};
 use Prisma\Sif\Tests\Support\{Assert, Fixtures, AeatFixtures, TestDatabase};
 
@@ -275,6 +275,56 @@ final class AeatWorkflowTest
             1,
             (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_STALE_PROCESSING'")
                 ->fetchColumn()
+        );
+    }
+
+
+    public function testStaleStartedAttemptBecomesUncertainWithSamePreassignedEvidenceId(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-STALE-STARTED-EVIDENCE')
+        );
+
+        $db->exec(
+            "UPDATE fiscal_queue
+             SET STATUS = 'PROCESSING', ATTEMPTS = 1,
+                 LOCKED_AT = DATE_SUB(NOW(), INTERVAL 30 MINUTE)"
+        );
+        $queue = $db->query('SELECT * FROM fiscal_queue LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+        $payload = json_decode((string) $queue['PAYLOAD_JSON'], true);
+        $context = (new AeatSubmissionAttemptRepository())->begin($db, $queue, $payload);
+
+        $transport = new class implements AeatTransport {
+            public int $calls = 0;
+
+            public function send(array $payload): array
+            {
+                $this->calls++;
+                throw new \RuntimeException('Transport must not run during stale recovery review.');
+            }
+        };
+
+        $worker = new SerialWorker($db, $transport);
+        $result = $worker->runOnce(true);
+
+        Assert::same('HEAD_REQUIRES_REVIEW', $result['reason']);
+        Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same(
+            'UNCERTAIN',
+            $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            $context['evidence_id'],
+            $db->query('SELECT EVIDENCE_ID FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(0, $transport->calls);
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE TIPUS_INCIDENCIA = 'AEAT_STALE_PROCESSING'"
+            )->fetchColumn()
         );
     }
 
