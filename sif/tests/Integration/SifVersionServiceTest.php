@@ -33,6 +33,9 @@ final class SifVersionServiceTest
             $created = $service->registerCurrentRuntime($actor, $registerInput);
             Assert::same(false, $created['reused']);
             Assert::same('DRAFT', $created['version']['STATUS']);
+            Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $created['version']));
+            Assert::same(false, array_key_exists('IDEMPOTENCY_PAYLOAD_HASH', $created['version']));
+            Assert::same(false, array_key_exists('ACTIVE_UNIQUE_GUARD', $created['version']));
             $uuid = $created['version']['UUID_VERSION'];
 
             $replayed = $service->registerCurrentRuntime($actor, $registerInput);
@@ -46,6 +49,8 @@ final class SifVersionServiceTest
             $declaration = $service->attachDeclaration($actor, $uuid, $declarationInput);
             Assert::same(false, $declaration['reused']);
             Assert::same('APPROVED', $declaration['declaration']['STATUS']);
+            Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $declaration['declaration']));
+            Assert::same(false, array_key_exists('IDEMPOTENCY_PAYLOAD_HASH', $declaration['declaration']));
 
             $declarationReplay = $service->attachDeclaration($actor, $uuid, $declarationInput);
             Assert::same(true, $declarationReplay['reused']);
@@ -65,12 +70,25 @@ final class SifVersionServiceTest
             $activationInput = $this->operation('ACT-1', 'APPROVED_RELEASE');
             $activation = $service->activate($actor, $uuid, $activationInput);
             Assert::same(false, $activation['reused']);
+            Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $activation['activation']));
+            Assert::same(false, array_key_exists('IDEMPOTENCY_PAYLOAD_HASH', $activation['activation']));
+            Assert::same(false, array_key_exists('RUNTIME_EVIDENCE_JSON', $activation['activation']));
 
             $view = $service->view($actor, $uuid);
             Assert::same('ACTIVE', $view['version']['STATUS']);
             Assert::same(1, count($view['activations']));
+            Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $view['version']));
+            Assert::same(false, array_key_exists('ACTIVE_UNIQUE_GUARD', $view['version']));
+            Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $view['declaration']));
+            Assert::same(false, array_key_exists('RUNTIME_EVIDENCE_JSON', $view['activations'][0]));
+            Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $view['activations'][0]));
+
+            $activationEvidenceRaw = $db->prepare(
+                'SELECT RUNTIME_EVIDENCE_JSON FROM sif_version_activation WHERE UUID_ACTIVATION = ?'
+            );
+            $activationEvidenceRaw->execute([$view['activations'][0]['UUID_ACTIVATION']]);
             $activationEvidence = json_decode(
-                (string) $view['activations'][0]['RUNTIME_EVIDENCE_JSON'],
+                (string) $activationEvidenceRaw->fetchColumn(),
                 true,
                 512,
                 JSON_THROW_ON_ERROR
@@ -328,8 +346,15 @@ final class SifVersionServiceTest
                     'backup_evidence_uuid' => $backupUuid,
                 ]
             );
+            Assert::same(false, array_key_exists('RUNTIME_EVIDENCE_JSON', $activation['activation']));
+            Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $activation['activation']));
+
+            $activationEvidenceRaw = $db->prepare(
+                'SELECT RUNTIME_EVIDENCE_JSON FROM sif_version_activation WHERE UUID_ACTIVATION = ?'
+            );
+            $activationEvidenceRaw->execute([$activation['activation']['UUID_ACTIVATION']]);
             $activationEvidence = json_decode(
-                (string) $activation['activation']['RUNTIME_EVIDENCE_JSON'],
+                (string) $activationEvidenceRaw->fetchColumn(),
                 true,
                 512,
                 JSON_THROW_ON_ERROR
