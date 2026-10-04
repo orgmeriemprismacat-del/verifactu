@@ -155,14 +155,17 @@ final class UsocFinancingTermsServiceTest
             'CREATE TABLE inscripcions (
                 ID BIGINT PRIMARY KEY,
                 IDPAG BIGINT NOT NULL,
+                `ANY` INT NOT NULL,
+                MES VARCHAR(10) NOT NULL,
+                CURS VARCHAR(30) NOT NULL,
                 TIPUS_DESC INT NOT NULL,
                 VALID_DESC INT NOT NULL,
                 A_PAGAR DECIMAL(12,2) NOT NULL
             ) ENGINE=InnoDB'
         );
         $stmt = $db->prepare(
-            'INSERT INTO inscripcions (ID, IDPAG, TIPUS_DESC, VALID_DESC, A_PAGAR)
-             VALUES (880, 980, ?, ?, ?)'
+            'INSERT INTO inscripcions (ID, IDPAG, `ANY`, MES, CURS, TIPUS_DESC, VALID_DESC, A_PAGAR)
+             VALUES (880, 980, 2026, \'10\', \'ABC\', ?, ?, ?)'
         );
         $stmt->execute([$tipusDesc, $validDesc, $aPagar]);
 
