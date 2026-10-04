@@ -169,6 +169,35 @@ final class UsocValidationDecisionServiceTest
         Assert::same(false, $retry['should_apply_legacy']);
     }
 
+    public function testDeniedUsocWithUnexpectedLegacyTypeRequiresReview(): void
+    {
+        $db = TestDatabase::fresh();
+        $legacy = $this->legacyDb(4, 0);
+        $service = $this->service();
+
+        $service->begin(
+            $db,
+            $legacy,
+            'req-usoc-denied-unexpected-type',
+            880,
+            2,
+            'secretaria-test',
+            ['ADMIN']
+        );
+
+        $legacy->exec('UPDATE inscripcions SET TIPUS_DESC = 5, VALID_DESC = 2 WHERE ID = 880');
+
+        $result = $service->complete(
+            $db,
+            $legacy,
+            'req-usoc-denied-unexpected-type',
+            'secretaria-test'
+        );
+
+        Assert::same('REVIEW_REQUIRED', $result['state']);
+        Assert::same('LEGACY_NO_LONGER_USOC', $result['review_reason']);
+    }
+
     public function testApprovedUsocStillRequiresLegacyTypeToRemainUsoc(): void
     {
         $db = TestDatabase::fresh();
