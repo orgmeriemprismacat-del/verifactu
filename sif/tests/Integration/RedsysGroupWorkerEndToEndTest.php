@@ -12,6 +12,7 @@ use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 use Prisma\Sif\Service\GroupEnrollmentFundAllocationService;
 use Prisma\Sif\Service\GroupParticipantAdditionPreviewService;
+use Prisma\Sif\Service\GroupParticipantRemovalDecisionService;
 use Prisma\Sif\Service\GroupParticipantRemovalPreviewService;
 use Prisma\Sif\Service\LegacyGroupInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacySyncService;
@@ -103,6 +104,48 @@ final class RedsysGroupWorkerEndToEndTest
         Assert::same(false, $preview['decision']['automatic_commit_allowed']);
         Assert::same(true, $preview['decision']['repricing_policy_required']);
         Assert::same(1, count($preview['fund_movements']));
+
+        $removalPlan = (new GroupParticipantRemovalDecisionService())->plan(
+            $preview,
+            [
+                'repricing_policy' => 'KEEP_EXISTING_MEMBER_PRICES',
+                'fiscal_action' => 'RECTIFY_PARTICIPANT_ONLY',
+                'rectification_amount' => '-120.00',
+                'refund_amount' => '60.00',
+                'refund_reference' => 'RET-GROUP-751',
+                'refund_movement_date' => '2030-10-02 12:00:00',
+                'credit_amount' => '40.00',
+                'credit_holder_type' => 'RESPONSABLE',
+                'credit_holder_name' => 'Responsable Grup',
+                'non_refundable_amount' => '20.00',
+                'operation_reference' => 'UC016B-751',
+            ]
+        );
+        Assert::same(true, $removalPlan['executable']);
+        Assert::same('120.00', $removalPlan['amounts']['funds_attributed']);
+        Assert::same('-120.00', $removalPlan['amounts']['rectification']);
+        Assert::same('60.00', $removalPlan['amounts']['refund']);
+        Assert::same('40.00', $removalPlan['amounts']['credit']);
+        Assert::same('20.00', $removalPlan['amounts']['non_refundable']);
+        Assert::same('0.00', $removalPlan['amounts']['undisposed_attributed_funds']);
+        Assert::same(4, count($removalPlan['actions']));
+
+        Assert::throws(\Prisma\Sif\Exception\SifException::class, function () use ($preview): void {
+            (new GroupParticipantRemovalDecisionService())->plan(
+                $preview,
+                [
+                    'repricing_policy' => 'KEEP_EXISTING_MEMBER_PRICES',
+                    'fiscal_action' => 'RECTIFY_PARTICIPANT_ONLY',
+                    'rectification_amount' => '-120.00',
+                    'refund_amount' => '100.00',
+                    'refund_reference' => 'RET-OVER',
+                    'refund_movement_date' => '2030-10-02',
+                    'credit_amount' => '30.00',
+                    'credit_holder_type' => 'RESPONSABLE',
+                    'credit_holder_name' => 'Responsable Grup',
+                ]
+            );
+        }, 409);
 
         $addition = (new GroupParticipantAdditionPreviewService())->preview(
             $db,
