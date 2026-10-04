@@ -50,6 +50,21 @@ final class HttpEndpointsTest
         }
     }
 
+    public function testInstallmentEndpointBuildsAuditedInternalGateway(): void
+    {
+        $source = $this->readEndpoint('api/payments/installment.php');
+
+        Assert::stringContainsString('InternalApiAuthenticator', $source);
+        Assert::stringContainsString('InternalApiRequestRepository', $source);
+        Assert::stringContainsString('InternalInstallmentPaymentGateway', $source);
+        Assert::stringContainsString('InstallmentPaymentAuditTrail', $source);
+        Assert::stringContainsString('PaymentActionEventRepository', $source);
+        Assert::stringContainsString('OperationalEventRepository', $source);
+        Assert::stringContainsString('SifAuditEventRepository', $source);
+        Assert::stringContainsString('installment_payment_signed_path', $source);
+        Assert::stringContainsString('write_roles', $source);
+    }
+
     public function testRedsysCallbackEndpointBuildsCallbackServiceWithRealSignatureValidator(): void
     {
         $source = $this->readEndpoint('api/redsys/callback.php');
