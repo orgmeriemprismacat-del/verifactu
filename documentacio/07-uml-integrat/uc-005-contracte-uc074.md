@@ -17,7 +17,8 @@ La decisió s'ha de persistir a `sif_audit_event` amb:
 - `RESOURCE_ID = UUID_FACTURA` de l'original;
 - `REASON_CODE` coherent amb la classificació;
 - `CHANGESET_JSON.classification`;
-- `CHANGESET_JSON.correction_fingerprint`.
+- `CHANGESET_JSON.correction_fingerprint`;
+- `CHANGESET_JSON.correction` normalitzat quan la decisió s'ha de consumir des de la UI UC-005.
 
 L'endpoint UC-005 rep només `classification_event_uuid`; no accepta una classificació fiscal inline com a font d'autoritat.
 
@@ -57,6 +58,8 @@ S'exclouen només camps que són server-owned o ignorats pel command UC-005:
 
 La resta de la correcció —import, motiu, mode, fiscalitat, receptor, concepte, detall i referència quan existeixen— queda vinculada a la decisió. Si canvia, `FiscalCorrectionDecisionResolver` retorna conflicte i exigeix una decisió UC-74 nova.
 
+Per al consumidor intranet, `CHANGESET_JSON.correction` conserva el mateix snapshot normalitzat que va originar `correction_fingerprint`. `InvoiceQueryService` només el projecta a usuaris amb vista FULL; la projecció MINIMAL no exposa ni la decisió ni la correcció. La UI no recalcula imports ni permet editar R1–R5: envia exactament aquest snapshot al preview/confirm.
+
 ## 5. Frontera de confiança
 
 El flux autoritzat és:
@@ -68,7 +71,8 @@ UC-74 classifica
   ↓
 sif_audit_event immutable
   ├─ classification
-  └─ correction_fingerprint
+  ├─ correction_fingerprint
+  └─ correction [snapshot executable per UI]
   ↓
 classification_event_uuid
   ↓
@@ -90,6 +94,7 @@ Per tant:
 - el navegador no decideix R1–R5;
 - el navegador no construeix `aeat_fields`;
 - una decisió UC-74 no es pot reutilitzar amb un import o receptor diferent;
+- la UI només és executable si la decisió projectada porta `correction` i `ready_for_uc005_ui=true`;
 - un canvi posterior al preview obliga a repetir preview/decisió quan correspongui;
 - un retry idempotent de la mateixa correcció pot reutilitzar la mateixa evidència.
 
