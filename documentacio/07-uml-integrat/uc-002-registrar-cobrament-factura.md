@@ -1,6 +1,6 @@
 # UC-02 · Registrar un pagament sobre factura existent — fitxa i UML integrats
 
-**Estat reconciliat 2026-10-04:** nucli SIF implementat; idempotència v2 acreditada; invariants monetaris, frontera HTTP SIF i mutació llegada reforçats a `audit/uc-002-reconciliada-2026-10-04`. La pantalla real encara no delega autoritativament al SIF, l'auditoria funcional genèrica i el sync post-commit continuen pendents; per tant UC-002 **no està tancat**. Vegeu [auditoria/traçabilitat](uc-002-auditoria-tracabilitat-2026-10-04.md), [classes](uc-002-classes-actual-final.md), [seqüències](uc-002-sequencies-actual-final.md) i [activitats](uc-002-activitats-pagines-actual-final.md). **Casos relacionats:** UC-01, UC-04, UC-22, UC-23, UC-24, UC-28 i UC-29a.
+**Estat reconciliat 2026-10-04:** nucli SIF implementat; idempotència v2 acreditada; invariants monetaris, frontera HTTP SIF i mutació llegada reforçats a `audit/uc-002-reconciliada-main-2026-10-04`. La pantalla real encara no delega autoritativament al SIF, l'auditoria funcional genèrica i el sync post-commit continuen pendents; per tant UC-002 **no està tancat**. Vegeu [auditoria/traçabilitat](uc-002-auditoria-tracabilitat-2026-10-04.md), [classes](uc-002-classes-actual-final.md), [seqüències](uc-002-sequencies-actual-final.md) i [activitats](uc-002-activitats-pagines-actual-final.md). **Casos relacionats:** UC-01, UC-04, UC-22, UC-23, UC-24, UC-28 i UC-29a.
 
 ## 1. Fitxa de cas d'ús
 
