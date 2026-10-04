@@ -2,6 +2,8 @@
 
 require dirname(__DIR__) . '/src/autoload.php';
 
+use Prisma\Sif\Service\ReleaseManifestVerifier;
+
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "This script can only run from CLI.\n");
     exit(1);
@@ -26,7 +28,7 @@ if ($destinationDir === $baseDir || str_starts_with($destinationDir, $baseDir . 
     exit(1);
 }
 
-$roots = ['src', 'public', 'config', 'scripts', 'database/migrations'];
+$roots = ReleaseManifestVerifier::governedRoots();
 $files = [];
 
 foreach ($roots as $root) {
@@ -39,7 +41,11 @@ foreach ($roots as $root) {
         new RecursiveDirectoryIterator($absolute, FilesystemIterator::SKIP_DOTS)
     );
     foreach ($iterator as $file) {
-        if (!$file->isFile() || $file->isLink()) {
+        if ($file->isLink()) {
+            fwrite(STDERR, "Symlink inside governed release tree is not allowed: " . $file->getPathname() . "\n");
+            exit(1);
+        }
+        if (!$file->isFile()) {
             continue;
         }
         $path = $file->getRealPath();
