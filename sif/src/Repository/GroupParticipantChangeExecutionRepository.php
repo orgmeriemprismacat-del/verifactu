@@ -100,6 +100,15 @@ final class GroupParticipantChangeExecutionRepository
             if ((string) $existing['INPUT_HASH'] !== $inputHash) {
                 throw SifException::conflict('Group change step input changed on retry');
             }
+            if ((string) $existing['STATUS'] === 'FAILED') {
+                $db->prepare(
+                    "UPDATE group_participant_change_step
+                     SET STATUS='IN_PROGRESS', ERROR_CODE=NULL, ERROR_MESSAGE=NULL,
+                         STARTED_AT=NOW(6)
+                     WHERE UUID_EXECUTION=? AND STEP_NAME=?"
+                )->execute([$uuidExecution, $stepName]);
+                $existing = $this->findStep($db, $uuidExecution, $stepName, true);
+            }
             return $existing;
         }
 
@@ -164,6 +173,21 @@ final class GroupParticipantChangeExecutionRepository
             substr(trim($message), 0, 500),
             $uuidExecution,
         ]);
+    }
+
+    public function markWaitingExternal(
+        \PDO $db,
+        string $uuidExecution,
+        string $stepName,
+        array $result
+    ): void {
+        $json = json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $db->prepare(
+            "UPDATE group_participant_change_execution
+             SET STATUS='WAITING_EXTERNAL', CURRENT_STEP=?, RESULT_JSON=?,
+                 ERROR_CODE=NULL, ERROR_MESSAGE=NULL
+             WHERE UUID_EXECUTION=?"
+        )->execute([strtoupper(trim($stepName)), $json, $uuidExecution]);
     }
 
     public function completeExecution(\PDO $db, string $uuidExecution, array $result): void
