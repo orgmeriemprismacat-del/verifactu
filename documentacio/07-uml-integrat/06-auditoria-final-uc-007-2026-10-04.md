@@ -169,6 +169,13 @@ El wrapper de F07 feia `chdir(__DIR__)`, de manera que Dompdf escrivia el tempor
 
 **Regressió:** `Uc007IntranetBoundaryTest::testLegacyInvoiceDownloadUsesPrivateTemporaryStorage`.
 
+### UC007-FIND-21 · Col·lisió de temporals en descàrregues concurrents — CORREGIT
+El generador llegat construeix el filename amb timestamp de precisió d'un segon. Dues descàrregues simultànies de la mateixa factura dins del mateix directori temporal podien compartir filename, sobreescriure's o eliminar el fitxer de l'altra petició.
+
+**Correcció:** cada F07 crea un subdirectori privat aleatori de 128 bits sota `SIF_LEGACY_INVOICE_TEMP_ROOT`, mode `0700`; només accepta el PDF que resol dins del subdirectori de la petició i elimina fitxer/directori abans de finalitzar o des de `finally` en cas d'error.
+
+**Regressió:** `Uc007IntranetBoundaryTest::testLegacyInvoiceDownloadIsolatesConcurrentTemporaryFiles`.
+
 ## 5. Estat F01–F07
 
 | Ref | Funció | Documentat | Implementat | Verificat | Pendent |
