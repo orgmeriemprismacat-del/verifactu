@@ -13,8 +13,10 @@ final class Uc002AuthoritativeBridgeBoundaryTest
         $proxy = file_get_contents($root . '/codi-drive/intranet-actual/ajax/alumnes/sifPagamentFactura.php');
         $access = file_get_contents($root . '/codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php');
         $client = file_get_contents($root . '/codi-drive/intranet-actual/SifInternalApiClient.php');
+        $resolver = file_get_contents($root . '/codi-drive/intranet-actual/Uc002LegacyInvoiceSelectorResolver.php');
 
-        if (!is_string($js) || !is_string($proxy) || !is_string($access) || !is_string($client)) {
+        if (!is_string($js) || !is_string($proxy) || !is_string($access)
+            || !is_string($client) || !is_string($resolver)) {
             Assert::fail('Could not load UC-002 authoritative intranet bridge');
         }
 
@@ -23,9 +25,13 @@ final class Uc002AuthoritativeBridgeBoundaryTest
         Assert::stringContainsString('sessionStorage.getItem(storageKey)', $js);
         Assert::stringContainsString('window.crypto.randomUUID', $js);
         Assert::stringContainsString("'X-CSRF-Token': uc002CsrfToken", $js);
+        Assert::stringContainsString('legacy_invoice_number', $js);
+        Assert::same(false, str_contains($js, 'num_visible: String(numFact'));
 
         Assert::stringContainsString('SifExistingInvoicePaymentAccess::assertCsrf', $proxy);
         Assert::stringContainsString("'INTRANET|UC002|REQ:' . $requestId", $proxy);
+        Assert::stringContainsString('Uc002LegacyInvoiceSelectorResolver', $proxy);
+        Assert::stringContainsString("'legacy_factura_relacionada'", $proxy);
         Assert::stringContainsString('registerExistingInvoicePayment', $proxy);
         Assert::stringContainsString("'PENDING_RETRY'", $proxy);
         Assert::stringContainsString("'SYNCED'", $proxy);
@@ -35,6 +41,9 @@ final class Uc002AuthoritativeBridgeBoundaryTest
         Assert::stringContainsString("getenv('SIF_UC002_AUTHORITATIVE')", $access);
         Assert::stringContainsString('SIF_INTERNAL_PAYMENT_URL', $client);
         Assert::stringContainsString('SIF_INTERNAL_PAYMENT_SIGNED_PATH', $client);
+        Assert::stringContainsString('FROM factures', $resolver);
+        Assert::stringContainsString('FACTURA_RELACIONADA', $resolver);
+        Assert::stringContainsString('WHERE NUM = ?', $resolver);
     }
 
     public function testLegacyMutationFailsClosedWhenAuthoritativeModeIsEnabled(): void
