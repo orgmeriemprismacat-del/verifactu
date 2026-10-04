@@ -24,6 +24,7 @@ use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Service\CourseEnrollmentFundAllocationService;
 use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
 use Prisma\Sif\Service\CoursePaymentNotificationService;
+use Prisma\Sif\Service\GiftAeatInvoicePayloadEnricher;
 use Prisma\Sif\Service\GiftPaymentNotificationService;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
@@ -133,7 +134,12 @@ try {
         new RedsysGiftInvoiceService(
             $notifications,
             new LegacyGiftSnapshotRepository(),
-            new LegacyGiftInvoicePayloadBuilder(),
+            new LegacyGiftInvoicePayloadBuilder(
+                new GiftAeatInvoicePayloadEnricher(
+                    (array) ($config['issuer'] ?? []),
+                    (array) ($config['aeat'] ?? [])
+                )
+            ),
             $redsysPayloads,
             $invoiceService,
             null,
