@@ -2,7 +2,7 @@
 
 **Revisió:** 2026-10-04  
 **Base auditada:** `main@6c8137ff1652ac89a1a81ad18cf79fc4689b1757`  
-**Estat:** **PARCIAL AVANÇAT / CODI VERSIONAT**. Pantalla, bridge segur, endpoint SIF, reconstrucció autoritativa, idempotència, cobertura UC-004 i auditoria transaccional estan implementats. Resten `aeat_fields` oficials per entorns qualificats, document SIF per UUID, cobertura transversal, cobrament posterior E2E i evidència de preproducció.
+**Estat:** **PARCIAL MOLT AVANÇAT / CODI VERSIONAT**. Pantalla, bridge segur, endpoint SIF, reconstrucció autoritativa, idempotència, cobertura UC-004, auditoria transaccional i builder AEAT server-side estan implementats. El pipeline documental també està avançat a #166. Resten validar/configurar el mapping fiscal real, completar renderer+wiring documental, cobertura transversal, cobrament posterior E2E i evidència de preproducció.
 
 > Aquesta síntesi no substitueix els fitxers específics de classes, seqüències, activitats i auditoria; els enllaça i fixa el contracte funcional vigent.
 
@@ -217,7 +217,7 @@ Es pot considerar **verificat en CI** només quan els checks del HEAD reconcilia
 
 Es pot considerar **operativament verificat** només després de:
 
-1. assembler `aeat_fields` oficial UC-004 en entorns qualificats;
+1. validar/configurar el mapping fiscal real que alimenta l'assembler AEAT UC-004 ja implementat;
 2. circuit documental SIF per UUID + renderer fiscal concret;
 3. configuració efectiva;
 4. preflight/migracions sobre `sif_test` / preproducció;
