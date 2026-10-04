@@ -127,15 +127,6 @@ DocumentAccessPort --> PrivateDocumentStore
 DocumentAccessPort --> AccessAuditRepository
 ```
 
-## 5. Decisions
-
-- `InvoiceQueryService` mai serveix bytes.
-- `InvoiceDocumentAccessService` mai genera una factura/document fiscal nou.
-- La política de lectura no rep scope fiable del navegador.
-- El fallback llegat no forma part del model FINAL.
-- Els adaptadors externs d'alumne/empresa requereixen política per recurs pròpia; el scope intern “all + projection” és exclusiu d'actors interns autoritzats.
-
-
 ## 3. ACTUAL — frontera intranet/llegat detallada
 
 ```mermaid
@@ -209,3 +200,11 @@ SifLegacyInvoiceMutationGuard --> SifAuthenticatedActor
 | F06 preview | metadata `InvoiceReadRepository` + UC-080 / fallback `Intranet::generaFactura(...,false)` |
 | F07 download | `sifDocument.php`, `InvoiceDocumentAccessService`, `PrivateDocumentStore`, `FiscalDocumentAccessRepository`; fallback `generaFactura(...,true,false)` |
 | AL-16/17/18 | `alumnes-mostrar-alumne.js`, `sifFactures.php`, `SifDocumentBridge`, fallback llegat |
+
+## 5. Decisions
+
+- `InvoiceQueryService` mai serveix bytes.
+- `InvoiceDocumentAccessService` mai genera una factura/document fiscal nou.
+- La política de lectura no rep scope fiable del navegador.
+- El fallback llegat no forma part del model FINAL.
+- Els adaptadors externs d'alumne/empresa requereixen política per recurs pròpia; el scope intern “all + projection” és exclusiu d'actors interns autoritzats.
