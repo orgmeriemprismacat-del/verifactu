@@ -395,7 +395,7 @@ endif
 :Crear/reutilitzar intenció Redsys des de snapshot;
 note right
   Guard payment_link IMPLEMENTAT.
-  Checkout targeta AP via course-intent IMPLEMENTAT.
+  Pont candidat targeta AP via course-intent IMPLEMENTAT; desplegament/cutover NO VERIFICATS.
   Wiring de P03/P04 al payment_link encara PENDENT.
 end note
 stop
@@ -626,7 +626,7 @@ stop
 - `CommercialOfferService::createOrReuse()`: **implementat**; l'alta AP llegada encara no crea `offer_id`, però `enviarInscripcio.php` ja revalida AP al servidor abans de persistir.
 - `PaymentLinkService::issue()/resolve()/revoke()`: **implementat**; encara no és la ruta canònica d'aquest checkout AP.
 - Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA_COMPATIBILITAT** com `ALUMNE_PRISMA_WEB_LEGACY_V2`; decisions UC20-DEC-001…006 tancades a la fitxa v1.7.
-- Connexió AP de pagament → `RedsysPaymentIntentService`: **IMPLEMENTADA** via `SifRedsysCourseIntentClient` / `course-intent` / `PrismaStudentCourseCheckoutService`. La coordinació específica amb `payment_link` continua pendent.
+- Connexió AP de pagament → `RedsysPaymentIntentService`: **IMPLEMENTADA AL PONT CANDIDAT** via `SifRedsysCourseIntentClient` / `course-intent` / `PrismaStudentCourseCheckoutService`. `web-actual` continua amb Redsys directe; desplegament/cutover i `payment_link` canònic resten pendents.
 - Autoritat AP de P06: **IMPLEMENTADA_PENDENT_CI**; hidden inputs de tipus/estat/import no governen el canvi AP. La policy d'elegibilitat comuna continua pendent.
 
 ## 7. Matriu ACTUAL → FINAL
@@ -742,3 +742,15 @@ No s'ha detectat cap pàgina/apartat P01–P06 sense secció ACTUAL/FINAL al doc
 8. `enviarInscripcio.php` rep la comanda per POST; `tipusCurs` no viatja com a dada autoritativa.
 
 **FINAL pendent:** substituir globals + POST llegat per `offer_id`/snapshot SIF immutable i contracte estructurat.
+
+
+### 13.3. P03/P04 — ACTUAL, pont candidat i deploy
+
+| Capa | P03/P04 | Estat |
+| --- | --- | --- |
+| `web-actual` | confirmació/pagament llegat; `pagina_efectuar_pagament_automatic.php` genera Redsys directament | ACTUAL/FALLBACK INSPECCIONAT |
+| `pay-prisma-cat-canvis-verifactu` | crea intenció SIF i usa `DS_ORDER`/import retornats | PONT CANDIDAT IMPLEMENTAT |
+| `sif/` | valida snapshot, policy AP, operació, intenció, callback/worker | IMPLEMENTAT SIF |
+| entorn real | quina còpia està desplegada i flags efectius | PENDENT EVIDÈNCIA |
+
+No es pot marcar P04 com `VERIFICAT_RUNTIME_SIF` fins que hi hagi evidència de deploy/cutover.
