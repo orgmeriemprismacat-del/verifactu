@@ -12,6 +12,7 @@ on:
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
       - "codi-drive/intranet-actual/SifInternalDebtClaimClient.php"
       - "codi-drive/intranet-actual/LegacyDebtClaimContext.php"
+      - "codi-drive/intranet-actual/LegacyDebtClaimProjection.php"
       - "codi-drive/intranet-actual/ajax/facturacio/sifDebtClaim.php"
       - "codi-drive/intranet-actual/js/sif-debt-claim-bridge.js"
       - "codi-drive/intranet-actual/facturacio-recordatori-pagament-final.php"
@@ -109,6 +110,7 @@ jobs:
         run: |
           php -l codi-drive/intranet-actual/SifInternalDebtClaimClient.php
           php -l codi-drive/intranet-actual/LegacyDebtClaimContext.php
+          php -l codi-drive/intranet-actual/LegacyDebtClaimProjection.php
           php -l codi-drive/intranet-actual/ajax/facturacio/sifDebtClaim.php
           php -l codi-drive/intranet-actual/facturacio-recordatori-pagament-final.php
           php -l codi-drive/intranet-actual/facturacio-primera-reclamacio-pagament.php
