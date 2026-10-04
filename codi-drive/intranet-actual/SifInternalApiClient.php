@@ -65,6 +65,7 @@ class SifInternalApiClient
         string $observations = ''
     ): array {
         return $this->request($actorId, $roles, [
+            'contract_version' => 'UC004-V1',
             'action' => 'preview',
             'inscription_ids' => array_values($inscriptionIds),
             'entity_id' => $entityId,
@@ -81,6 +82,7 @@ class SifInternalApiClient
         string $observations = ''
     ): array {
         return $this->request($actorId, $roles, [
+            'contract_version' => 'UC004-V1',
             'action' => 'confirm',
             'inscription_ids' => array_values($inscriptionIds),
             'entity_id' => $entityId,
