@@ -114,18 +114,19 @@ final class InternalInstallmentPaymentGatewayTest
         );
 
         Assert::same(
-            2,
+            3,
             (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn()
         );
         Assert::same(
             'PAYMENT,NONE',
             (string) $db->query(
                 "SELECT GROUP_CONCAT(ECONOMIC_IMPACT ORDER BY ID SEPARATOR ',')
-                 FROM operational_event"
+                 FROM operational_event
+                 WHERE OPERATION_TYPE = 'REGISTER_INSTALLMENT_PAYMENT'"
             )->fetchColumn()
         );
         Assert::same(
-            4,
+            5,
             (int) $db->query('SELECT COUNT(*) FROM sif_audit_event')->fetchColumn()
         );
     }
@@ -170,11 +171,11 @@ final class InternalInstallmentPaymentGatewayTest
             )->fetchColumn()
         );
         Assert::same(
-            1,
+            2,
             (int) $db->query('SELECT COUNT(*) FROM sif_audit_event')->fetchColumn()
         );
         Assert::same(
-            0,
+            1,
             (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn()
         );
     }
