@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Repository;
 
+use Prisma\Sif\Domain\DecimalAmount;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 
@@ -93,7 +94,7 @@ final class EnrollmentFundMovementRepository
         if ($normalized['order'] <= 0
             || $normalized['invoice_line_id'] <= 0
             || $normalized['id_insc'] <= 0
-            || (float) $normalized['amount'] <= 0
+            || DecimalAmount::cents($normalized['amount']) <= 0
         ) {
             throw SifException::validation('Invalid enrollment fund movement values');
         }
@@ -188,7 +189,7 @@ final class EnrollmentFundMovementRepository
             || strlen($normalized['idempotency_key']) > 160
             || $normalized['order'] <= 0
             || $normalized['id_insc'] <= 0
-            || (float) $normalized['amount'] <= 0
+            || DecimalAmount::cents($normalized['amount']) <= 0
             || $normalized['correlation_id'] === ''
             || strlen($normalized['correlation_id']) > 120
             || $normalized['currency'] === ''
@@ -197,11 +198,11 @@ final class EnrollmentFundMovementRepository
         }
 
         $payment = $this->lockPayment($db, $normalized['uuid_payment']);
-        if ((string) $payment['TIPUS_MOVIMENT'] !== 'CHARGE'
+        if (!in_array((string) $payment['TIPUS_MOVIMENT'], ['CHARGE', 'COMPENSATION'], true)
             || (string) $payment['ESTAT'] !== 'CONFIRMED'
         ) {
             throw SifException::conflict(
-                'Compensation allocation requires a confirmed origin charge'
+                'Compensation allocation requires confirmed traceable origin funds'
             );
         }
 
@@ -334,11 +335,11 @@ final class EnrollmentFundMovementRepository
 
     private function money(mixed $value): string
     {
-        if (!is_numeric($value)) {
+        try {
+            return DecimalAmount::normalize($value);
+        } catch (\InvalidArgumentException) {
             throw SifException::validation('Invalid enrollment fund amount');
         }
-
-        return number_format((float) $value, 2, '.', '');
     }
 
     private function optionalString(mixed $value): ?string

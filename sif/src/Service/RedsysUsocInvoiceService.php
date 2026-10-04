@@ -3,6 +3,7 @@
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Domain\DecimalAmount;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
 use Prisma\Sif\Repository\UsocFinancingCaseRepository;
@@ -30,30 +31,33 @@ final class RedsysUsocInvoiceService implements RedsysIntentHandler
 
     public function issueFromIntentSnapshot(\PDO $sifDb, string $dsOrder, array $snapshot): array
     {
-        $entityAmount = $snapshot['usoc']['entity_amount'] ?? null;
-        if ($entityAmount === null || !is_numeric($entityAmount) || (float) $entityAmount <= 0) {
-            throw SifException::validation('Invalid Redsys USOC entity amount snapshot');
-        }
+        $entityAmount = $this->positiveMoney(
+            $snapshot['usoc']['entity_amount'] ?? null,
+            'Invalid Redsys USOC entity amount snapshot'
+        );
 
         $basePayload = $this->legacyPayloads->buildStudentPayload($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
         $result = $this->invoices->issueInvoice($payload);
         $inscriptionId = (int) ($snapshot['inscription']['ID'] ?? 0);
-        $studentAmount = number_format((float) ($payload['payment']['amount'] ?? 0), 2, '.', '');
+        $studentAmount = $this->positiveMoney(
+            $payload['payment']['amount'] ?? null,
+            'Invalid Redsys USOC student amount snapshot'
+        );
         $case = $this->cases->recordStudentInvoice(
             $sifDb,
             $inscriptionId,
             (int) ($payload['payment']['idpag'] ?? 0),
             (string) $result['uuid_factura'],
             $studentAmount,
-            number_format((float) $entityAmount, 2, '.', ''),
+            $entityAmount,
             $dsOrder
         );
         $result['usoc_case'] = $case;
         $result['entity_invoice_pending'] = [
             'source_type' => 'USOC_ENTITAT',
             'requires_explicit_billing' => true,
-            'entity_amount' => number_format((float) $entityAmount, 2, '.', ''),
+            'entity_amount' => $entityAmount,
             'student_invoice_uuid' => $result['uuid_factura'],
             'idpag' => $payload['payment']['idpag'] ?? null,
             'id_insc' => (int) ($snapshot['inscription']['ID'] ?? 0),
@@ -134,24 +138,37 @@ final class RedsysUsocInvoiceService implements RedsysIntentHandler
 
     private function amount(array $notification): string
     {
-        if (!array_key_exists('IMPORT', $notification) || !is_numeric($notification['IMPORT'])) {
+        if (!array_key_exists('IMPORT', $notification)) {
             throw SifException::validation('Invalid Redsys USOC student amount');
         }
 
-        return number_format((float) $notification['IMPORT'], 2, '.', '');
+        return $this->positiveMoney(
+            $notification['IMPORT'],
+            'Invalid Redsys USOC student amount'
+        );
     }
 
     private function usocAmount(mixed $value): string
     {
-        if ($value === null || $value === '' || !is_numeric($value)) {
+        if ($value === null || $value === '') {
             throw SifException::validation('Missing USOC entity amount');
         }
 
-        $amount = (float) $value;
-        if ($amount <= 0.0) {
-            throw SifException::validation('Invalid USOC entity amount');
+        return $this->positiveMoney($value, 'Invalid USOC entity amount');
+    }
+
+    private function positiveMoney(mixed $value, string $message): string
+    {
+        try {
+            $cents = DecimalAmount::cents($value);
+        } catch (\InvalidArgumentException) {
+            throw SifException::validation($message);
         }
 
-        return number_format($amount, 2, '.', '');
+        if ($cents <= 0) {
+            throw SifException::validation($message);
+        }
+
+        return DecimalAmount::format($cents);
     }
 }

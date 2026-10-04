@@ -12,6 +12,11 @@ include ('../../Mail.php');
 include ('../../inc/missatgesError.php');
 include ('../../LegacyInvoiceMutationAuthorization.php');
 include ('../../LegacyUsocLifecycleGuard.php');
+require_once ('../../LegacyUsocCourseChangePricingSourceInterface.php');
+require_once ('../../LegacyUsocCourseChangePricingMysqlSource.php');
+require_once ('../../LegacyUsocCourseChangePricingResolver.php');
+require_once ('../../SifAuthenticatedActor.php');
+require_once ('../../SifInternalUsocClient.php');
 require_once ('../../SifInternalApiClient.php');
 session_start();
 
@@ -61,12 +66,6 @@ try {
 	}
 	$idInsc = (int) $idInscRaw;
 
-	(new LegacyUsocLifecycleGuard())->assertMayUseLegacyMutation(
-		$_SESSION['usuari'],
-		$idInsc,
-		'course_change'
-	);
-
 	$anyC = (string) ($_POST['any'] ?? '');
 	$mesC = (string) ($_POST['mes'] ?? '');
 	$cursC = (string) ($_POST['curs'] ?? '');
@@ -85,6 +84,289 @@ try {
 		http_response_code(422);
 		throw new RuntimeException('Error: cal indicar el motiu del canvi.');
 	}
+
+	$pricingSource = new LegacyUsocCourseChangePricingMysqlSource();
+	$sourceIdentity = $pricingSource->enrollment($idInsc);
+	$isValidatedUsoc =
+		(int) ($sourceIdentity['tipus_desc'] ?? 0) === 4
+		&& (int) ($sourceIdentity['valid_desc'] ?? 0) === 1;
+
+	$normalizeUsocMoney = static function (mixed $value): string {
+		$text = str_replace(',', '.', trim((string) $value));
+		if (preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $text) !== 1) {
+			throw new RuntimeException(
+				'Error: import monetari USOC no vàlid.',
+				409
+			);
+		}
+
+		[$whole, $decimals] = array_pad(explode('.', $text, 2), 2, '');
+		$cents = ((int) $whole * 100)
+			+ (int) substr(str_pad($decimals, 2, '0'), 0, 2);
+
+		return intdiv($cents, 100)
+			. '.'
+			. str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
+	};
+
+	if ($isValidatedUsoc) {
+		if (
+			filter_var(
+				$numeroCanvi,
+				FILTER_VALIDATE_INT,
+				['options' => ['min_range' => 0, 'max_range' => 4]]
+			) === false
+		) {
+			throw new RuntimeException('Error: número de canvi USOC no vàlid.', 422);
+		}
+
+		$pricing = (new LegacyUsocCourseChangePricingResolver($pricingSource))->resolve(
+			$idInsc,
+			$anyC,
+			$mesC,
+			$cursC,
+			(int) $numeroCanvi
+		);
+		[$actorId, $roles] = SifAuthenticatedActor::fromUser($_SESSION['usuari']);
+
+		$semantic = [
+			'id_insc' => $idInsc,
+			'idpag' => (int) $pricing['idpag'],
+			'change_number' => (int) $numeroCanvi,
+			'year' => (string) ($pricing['target']['year'] ?? ''),
+			'month' => (string) ($pricing['target']['month'] ?? ''),
+			'course' => (string) ($pricing['target']['course'] ?? ''),
+			'price_id' => (int) ($pricing['target']['price_id'] ?? 0),
+			'target_standard_course_amount' => (string) ($pricing['target']['target_standard_course_amount'] ?? ''),
+			'target_student_course_amount' => (string) ($pricing['target']['target_student_course_amount'] ?? ''),
+			'management_fee' => (string) ($pricing['target']['management_fee'] ?? ''),
+		];
+		$semanticJson = json_encode(
+			$semantic,
+			JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+		);
+		$requestId = 'uc013-course-change-' . $idInsc . '-'
+			. substr(hash('sha256', $semanticJson), 0, 32);
+
+		$context = $_SESSION['sif_usoc_course_change'] ?? null;
+		if (
+			!is_array($context)
+			|| (string) ($context['request_id'] ?? '') !== $requestId
+			|| (string) ($context['actor_id'] ?? '') !== $actorId
+			|| (int) ($context['source_id_insc'] ?? 0) !== $idInsc
+			|| (int) ($context['source_idpag'] ?? 0) !== (int) $pricing['idpag']
+			|| (int) ($context['destination_id_insc'] ?? 0) <= 0
+			|| (int) ($context['destination_idpag'] ?? 0) <= 0
+			|| (int) ($context['destination_idpag'] ?? 0) === (int) $pricing['idpag']
+			|| preg_match(
+				'/^SIF-USOC-CC:[a-f0-9]{32}$/D',
+				(string) ($context['reservation_marker'] ?? '')
+			) !== 1
+		) {
+			throw new RuntimeException(
+				'Error: cal tornar a confirmar el preview USOC abans d’executar el canvi.',
+				409
+			);
+		}
+
+		$client = new SifInternalUsocClient();
+		$prepareResponse = $client->prepareCourseChange(
+			$actorId,
+			$roles,
+			$idInsc,
+			(int) $pricing['idpag'],
+			$requestId,
+			$pricing['target']
+		);
+		$prepareStatus = (int) ($prepareResponse['_http_status'] ?? 0);
+		unset($prepareResponse['_http_status']);
+		if (
+			$prepareStatus < 200
+			|| $prepareStatus >= 300
+			|| ($prepareResponse['ok'] ?? false) !== true
+			|| !is_array($prepareResponse['preparation'] ?? null)
+		) {
+			throw new RuntimeException(
+				'Error: el checkpoint USOC ja no és executable; torna a revisar el canvi.',
+				409
+			);
+		}
+
+		$preparation = $prepareResponse['preparation'];
+		$preview = $preparation['preview'] ?? null;
+		$target = is_array($preview) ? ($preview['target'] ?? null) : null;
+		$studentFunds = is_array($preview)
+			? ($preview['fund_plan']['payers']['student'] ?? null)
+			: null;
+		if (!is_array($target) || !is_array($studentFunds)) {
+			throw new RuntimeException('Error: checkpoint USOC incomplet.', 409);
+		}
+
+		$expectedStudentTotal = $normalizeUsocMoney(
+			$target['target_student_total'] ?? null
+		);
+		$reservedStudentTotal = $normalizeUsocMoney(
+			$context['target_student_total'] ?? null
+		);
+		if ($expectedStudentTotal !== $reservedStudentTotal) {
+			throw new RuntimeException(
+				'Error: l’import destí ha canviat després de reservar la matrícula.',
+				409
+			);
+		}
+
+		$apagarC = (string) ($target['target_student_course_amount'] ?? '');
+		$despesesC = (string) ($target['management_fee'] ?? '0.00');
+		$pagatC = (string) ($studentFunds['compensate_amount'] ?? '0.00');
+		$pendentC = (string) ($studentFunds['amount_due'] ?? '0.00');
+		$tipusDesc = '4';
+		$validDesc = '1';
+
+		$confirmLegacyHandoff = static function () use (
+			$client,
+			$actorId,
+			$roles,
+			$requestId
+		): array {
+			$response = $client->confirmCourseChangeLegacyHandoff(
+				$actorId,
+				$roles,
+				$requestId
+			);
+			$status = (int) ($response['_http_status'] ?? 0);
+			unset($response['_http_status']);
+			$handoff = $response['handoff'] ?? null;
+
+			if (
+				$status < 200
+				|| $status >= 300
+				|| ($response['ok'] ?? false) !== true
+				|| !is_array($handoff)
+			) {
+				$error = trim((string) ($response['error'] ?? ''));
+				throw new RuntimeException(
+					$error !== ''
+						? 'Error: ' . $error
+						: 'Error: no s’ha pogut verificar el handoff legacy del canvi USOC.',
+					$status >= 400 && $status <= 599 ? $status : 503
+				);
+			}
+
+			return $handoff;
+		};
+
+		$handoff = $confirmLegacyHandoff();
+		if (($handoff['completed'] ?? false) === true) {
+			$context['legacy_completed'] = true;
+			$_SESSION['sif_usoc_course_change'] = $context;
+		}
+		else {
+			if (($handoff['ready_for_legacy'] ?? false) !== true) {
+				throw new RuntimeException(
+					'Error: el checkpoint USOC no permet executar el tram legacy.',
+					409
+				);
+			}
+
+			if ((bool) ($context['legacy_completed'] ?? false)) {
+				throw new RuntimeException(
+					'Error: la sessió indica un handoff legacy complet però la BD no ho confirma.',
+					409
+				);
+			}
+
+			$_SESSION['intranet']->realitzarCanviCurs_modalCanviCurs(
+				$idInsc,
+				$anyC,
+				$mesC,
+				$cursC,
+				$numeroCanvi,
+				$apagarC,
+				$pagatC,
+				$pendentC,
+				$despesesC,
+				$obsCanvi,
+				$motiuCanvi,
+				$enviarCoreu,
+				$tipusDesc,
+				$validDesc,
+				[
+					'destination_id_insc' => (int) $context['destination_id_insc'],
+					'destination_idpag' => (int) $context['destination_idpag'],
+					'reservation_marker' => (string) $context['reservation_marker'],
+				]
+			);
+
+			$createdId = (int) $_SESSION['intranet']->getDarrerIdCanviCurs();
+			if ($createdId !== (int) $context['destination_id_insc']) {
+				throw new RuntimeException(
+					'Error: el legacy no ha completat la matrícula destí reservada.',
+					409
+				);
+			}
+
+			// Guardem primer l'estat de sessió per evitar repetir el tram legacy
+			// si la confirmació remota falla després d'haver mutat correctament la BD.
+			$context['legacy_completed'] = true;
+			$_SESSION['sif_usoc_course_change'] = $context;
+
+			$handoff = $confirmLegacyHandoff();
+			if (($handoff['completed'] ?? false) !== true) {
+				throw new RuntimeException(
+					'Error: la BD legacy no confirma durablement el canvi USOC.',
+					409
+				);
+			}
+		}
+
+		$effectiveAt = trim((string) ($context['effective_at'] ?? ''));
+		if ($effectiveAt === '') {
+			$effectiveAt = trim((string) ($preparation['created_at'] ?? ''));
+		}
+		if ($effectiveAt === '') {
+			throw new RuntimeException('Error: falta la data estable del checkpoint USOC.', 409);
+		}
+
+		$executionResponse = $client->executeCourseChange(
+			$actorId,
+			$roles,
+			$requestId,
+			$idInsc,
+			(int) $pricing['idpag'],
+			(int) $context['destination_id_insc'],
+			['effective_at' => $effectiveAt]
+		);
+		$executionStatus = (int) ($executionResponse['_http_status'] ?? 0);
+		unset($executionResponse['_http_status']);
+		$execution = $executionResponse['execution'] ?? null;
+		if (
+			$executionStatus < 200
+			|| $executionStatus >= 300
+			|| ($executionResponse['ok'] ?? false) !== true
+			|| !is_array($execution)
+			|| (string) ($execution['state'] ?? '') !== 'COMPLETED'
+		) {
+			$error = trim((string) ($executionResponse['error'] ?? ''));
+			throw new RuntimeException(
+				$error !== ''
+					? 'Error: ' . $error
+					: 'Error: el SIF no ha pogut finalitzar el canvi de curs USOC.',
+				$executionStatus >= 400 && $executionStatus <= 599
+					? $executionStatus
+					: 503
+			);
+		}
+
+		unset($_SESSION['sif_usoc_course_change']);
+		echo '<br />UC013_SIF_COMPLETED';
+		return;
+	}
+
+	(new LegacyUsocLifecycleGuard())->assertMayUseLegacyMutation(
+		$_SESSION['usuari'],
+		$idInsc,
+		'course_change'
+	);
 
 	if (getenv('SIF_COURSE_CHANGE_PREVIEW_ENFORCED') === '1') {
 		$actorText = $_SESSION['usuari']->getUsuari();

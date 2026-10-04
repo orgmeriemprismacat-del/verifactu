@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Domain\DecimalAmount;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\UsocFinancingCaseRepository;
 
@@ -85,13 +86,28 @@ final class UsocCaseReconciler
 
         return [
             'status' => strtoupper(trim((string) $row['ESTAT_COBRAMENT'])),
-            'total' => number_format((float) $row['TOTAL'], 2, '.', ''),
+            'total' => $this->money($row['TOTAL']),
         ];
     }
 
     private function sameMoney(string $left, string $right): bool
     {
-        return number_format((float) $left, 2, '.', '') === number_format((float) $right, 2, '.', '');
+        try {
+            return DecimalAmount::normalize($left) === DecimalAmount::normalize($right);
+        } catch (\InvalidArgumentException) {
+            return false;
+        }
+    }
+
+    private function money(mixed $value): string
+    {
+        try {
+            return DecimalAmount::normalize($value);
+        } catch (\InvalidArgumentException) {
+            throw SifException::conflict(
+                'Invalid invoice amount while reconciling USOC financing case'
+            );
+        }
     }
 
     private function caseStatus(string $studentStatus, string $entityStatus): string

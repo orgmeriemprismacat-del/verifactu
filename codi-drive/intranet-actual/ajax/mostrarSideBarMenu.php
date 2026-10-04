@@ -183,15 +183,17 @@ try {
 
 	/* Accés operatiu USOC fora de la taula apartats fins que existeixi
 	 * una migració/seed auditable de la BD intranet. Fail-closed: si no
-	 * hi ha rols configurats, l'enllaç no es mostra. */
+	 * hi ha rols configurats o la UI USOC no està habilitada, l'enllaç
+	 * no es mostra. */
 	$usocMenuRoles = array_values(array_filter(array_map(
-		'trim',
+		static fn($role) => strtoupper(trim((string) $role)),
 		explode(',', getenv('SIF_USOC_MENU_ROLES') ?: '')
 	)));
+	$usocUiEnabled = getenv('SIF_USOC_UI_ENABLED') === '1';
 	$usocAllowed = false;
-	if ($usocMenuRoles !== []) {
+	if ($usocUiEnabled && $usocMenuRoles !== []) {
 		foreach ($rols as $rolUsuari) {
-			if (in_array(trim((string) $rolUsuari), $usocMenuRoles, true)) {
+			if (in_array(strtoupper(trim((string) $rolUsuari)), $usocMenuRoles, true)) {
 				$usocAllowed = true;
 				break;
 			}

@@ -28,10 +28,13 @@ final class UsocIntranetUiContractTest
         Assert::stringContainsString('random_bytes(32)', $page);
         Assert::stringContainsString('Finançament USOC', $page);
         Assert::stringContainsString('SIF_USOC_UI_ENABLED', $page);
+        Assert::stringContainsString("getenv('SIF_USOC_UI_ENABLED') !== '1'", $page);
         Assert::stringContainsString('usoc-emetre-entitat', $page);
         Assert::stringContainsString('usoc-registrar-cobrament', $page);
         Assert::stringContainsString('usoc-lifecycle-plan', $page);
         Assert::stringContainsString('usoc-lifecycle-preview', $page);
+        Assert::stringContainsString('src="/js/alumnes-usoc-financament.js?ver=1.0"', $page);
+        Assert::same(false, str_contains($page, 'https://intranet.prisma.cat/'));
 
         Assert::stringContainsString("method: 'POST'", $js);
         Assert::stringContainsString('csrfToken: csrfToken()', $js);
@@ -58,6 +61,16 @@ final class UsocIntranetUiContractTest
 
         Assert::stringContainsString('SIF_USOC_UI_ENABLED', $modalPage);
         Assert::stringContainsString('alumnes-mostrar-alumne-usoc.js', $modalPage);
+        Assert::stringContainsString('src="/js/alumnes-canvi-curs-sif.js?ver=1.1"', $modalPage);
+        Assert::stringContainsString('src="/js/alumnes-mostrar-alumne-usoc.js?ver=1.0"', $modalPage);
+        Assert::stringContainsString('src="/js/alumnes-usoc-lifecycle-preview.js?ver=1.2"', $modalPage);
+        Assert::same(
+            false,
+            str_contains(
+                $modalPage,
+                'https://intranet.prisma.cat/js/alumnes-usoc-lifecycle-preview.js'
+            )
+        );
         Assert::stringContainsString('shown.bs.modal', $modalJs);
         Assert::stringContainsString('capabilities.manage === true', $modalJs);
         Assert::stringContainsString("cp: value('#uc013-billing-postal-code')", $modalJs);

@@ -101,7 +101,7 @@ end
 
 **U-ORIGEN — deute diferent d'ingrés:** emetre la factura USOC encara pendent no atribueix fons de l'entitat a la inscripció. Cada cobrament parcial de l'entitat es vincula exclusivament a la factura USOC, mentre que el CHARGE inicial Redsys de l'alumne continua pertanyent a la factura alumne. Un canvi/baixa ha de consultar les dues factures i titularitats abans de decidir reassignacions, retorns o saldos.
 
-### 1.4. Proves d'acceptació afegides (no executades)
+### 1.4. Proves d'acceptació i cobertura automatitzada
 
 | ID | Cas | Resultat exigible |
 | --- | --- | --- |
@@ -272,7 +272,7 @@ stateDiagram-v2
 
 **Aquest diagrama és la proposta d'estats de l'expedient**, no una classe o taula de workflow `UsocOrchestrator` identificada en l'actual codi.
 
-### 5.1. Acció independent: reconstruir l'expedient conjunt després de l'emissió de l'alumne — IMPLEMENTAT PARCIALMENT
+### 5.1. Acció independent: reconstruir l'expedient conjunt després de l'emissió de l'alumne — IMPLEMENTAT
 
 **Disparador:** el worker ha confirmat factura/cobrament de l'alumne, però el resultat `entity_invoice_pending` no arriba al panell, s'ha perdut la resposta, o falta la factura de la part entitat. **Actor:** procés de conciliació USOC / gestió autoritzada. **Entrada:** `DS_ORDER`, `UUID_FACTURA_ALUMNE` i `ID_INSC` acreditats, imports i receptor de la intenció congelada, fets fiscals i bancaris SIF actuals. **Postcondició:** expedient reconstruït amb **dues línies de finançament** i estat separat per factura/pagament, amb pas pendent només per la part que falta; **no tornar a cobrar ni emetre la factura alumne** per recuperar les dades de la part entitat.
 
@@ -335,7 +335,7 @@ end
 Note over C,P: Checkpoint i reconciliador implementats. La ruta específica `UsocEntityPaymentService` reconcilia després del cobrament entitat; el registre genèric de pagaments no incorpora aquest hook.
 ```
 
-### 5.2. Acció independent: verificar i tancar l'expedient de finançament sense confondre dos pagadors — IMPLEMENTAT PARCIALMENT
+### 5.2. Acció independent: verificar i tancar l'expedient de finançament sense confondre dos pagadors — IMPLEMENTAT EN RUTA USOC
 
 **Disparador:** gestió vol marcar completat el finançament USOC d'una inscripció. **Precondicions:** factura alumne i factura entitat **diferents**, identitat fiscal/inscripció i import de cadascuna contrastats; assignacions de pagament reals per factura, i qualsevol `REFUND` o compensació posterior classificats per pagador. **Postcondició:** `FINANÇAMENT_CONCILIAT` com a **estat objectiu de l'expedient**, diferent d'estat acadèmic, certificat o acceptació AEAT; si la part entitat només està facturada o pagada parcialment, conservar deute i no declarar el cas complet.
 
@@ -483,7 +483,34 @@ Vegeu [auditoria i matriu UC-013](uc-013-auditoria-tracabilitat-2026-09-29.md).
 
 **Estat després de la revisió:**
 - DOCUMENTAT: ampliat i específic.
-- IMPLEMENTAT: parcial.
-- VERIFICAT: estàticament contra codi.
-- TEST EXECUTAT: sí per nucli USOC i protocol durable; resta navegador/preproducció.
-- P0 estructurals IMPLEMENTATS EN REPOSITORI: identitat inequívoca `ID_INSC`, traça durable de validació `REQUESTED/COMMITTED/REVIEW_REQUIRED`, vinculació factura alumne↔ID_INSC/IDPAG/import, checkpoint financer, emissió entitat protegida, cobrament/reconciliació específica USOC, adaptadors d'intranet i planner lifecycle separat per pagador. Pendents: desplegament/preflight real, navegador/preproducció, execució fiscal específica de canvi/baixa i decisions funcionals.
+- IMPLEMENTAT: nucli USOC, doble pagador, validació durable, baixa i canvi de curs executiu al repositori.
+- VERIFICAT: estàticament contra codi; la revalidació CI del PR reconciliat #152 està en curs.
+- TEST EXECUTAT: existeix cobertura automatitzada del nucli, validació durable, baixa i canvi de curs; resta acreditar el SHA final #152 i navegador/preproducció.
+- P0 estructurals IMPLEMENTATS EN REPOSITORI: identitat inequívoca `ID_INSC`, traça durable `REQUESTED/COMMITTED/REVIEW_REQUIRED`, vinculació factura alumne↔ID_INSC/IDPAG/import, checkpoint financer, emissió/cobrament/reconciliació USOC, lifecycle separat per pagador, executor de baixa i canvi de curs amb pricing server-side, reserva/binding, handoff durable, rectificació/reemissió i compensacions. Pendents: desplegament/preflight real, navegador/preproducció i decisions funcionals/fiscals explícitament fail-closed.
+
+
+## Paquet UML específic del UC-013
+
+Per separar el model integrat dels diagrames de contrast:
+- [Classes ACTUAL/FINAL](uc-013-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-013-sequencies-actual-final.md)
+- [Activitats ACTUAL/FINAL per pàgina i apartat](uc-013-activitats-pagines-actual-final.md)
+- [Auditoria i traçabilitat](uc-013-auditoria-tracabilitat-2026-09-29.md)
+- [Contracte FINAL · canvi de curs USOC](uc-013-canvi-curs-usoc-contracte-final.md)
+
+
+## 8. Revalidació 04/10/2026
+
+La vista ACTUAL/FINAL queda reconciliada amb el codi executable del PR #152 sobre `main@6c8137ff1652ac89a1a81ad18cf79fc4689b1757`. No falta cap dels artefactes UML exigits per aquesta auditoria: casos d'ús integrats, classes ACTUAL/FINAL, seqüències ACTUAL/FINAL i activitats ACTUAL/FINAL per pàgina/apartat. La CI del capçal reconciliat es manté com a verificació pendent mentre GitHub Actions estigui en cua.
+
+
+## 9. Hardening final 04/10/2026
+
+La revalidació final ha afegit quatre garanties transversals que formen part de l'ACTUAL implementat:
+
+1. **Imports exactes:** `DecimalAmount` i parsers legacy estrictes treballen al cèntim; no s'accepten >2 decimals ni arrodoniments silenciosos.
+2. **Metadades coherents:** `usoc.student_amount/entity_amount` han de coincidir amb línies/totals i factura d'entitat.
+3. **Preproducció aïllada:** les superfícies UC-013 carreguen assets same-origin; `intranet-pre` no ha de carregar JS UC-013 de producció.
+4. **Acceptació multi-host:** preflight SIF + preflight runtime intranet + comparador dels dos JSON. El runtime intranet exigeix també `SIF_INTERNAL_USOC_EXPECTED_HOST` i comprova que la URL real apunti a l'host esperat, amb mateix path HMAC/key-id i rols menu compatibles amb rols manage.
+
+Aquests controls estan implementats al repositori. La seva **execució real** i l'E2E navegador continuen pendents de preproducció.

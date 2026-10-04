@@ -10,6 +10,13 @@ on:
       - "codi-drive/intranet-actual/js/sif-registres-aeat.js"
       - "codi-drive/intranet-actual/css/sif-registres-aeat.css"
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangePricingSourceInterface.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangePricingMysqlSource.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangePricingResolver.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationReservationService.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationMysqlStore.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationStoreInterface.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifUsocCourseChangePreview.php"
       - "codi-drive/intranet-actual/alumnes-usoc-financament.php"
       - "codi-drive/intranet-actual/ajax/alumnes/usocFinancament.php"
       - "codi-drive/intranet-actual/ajax/mostrarSideBarMenu.php"
@@ -17,6 +24,8 @@ on:
       - "codi-drive/intranet-actual/alumnes-validar-descomptes.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
       - "codi-drive/intranet-actual/js/alumnes-validar-descomptes.js"
+      - "codi-drive/intranet-actual/js/alumnes-usoc-lifecycle-preview.js"
+      - "codi-drive/intranet-actual/js/alumnes-canvi-curs-sif.js"
       - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
       - "codi-drive/web-actual/EdicioPack.php"
       - "codi-drive/web-actual/Pack.php"
@@ -100,6 +109,13 @@ jobs:
       - name: PHP syntax UC-013 USOC intranet
         run: |
           php -l codi-drive/intranet-actual/SifInternalUsocClient.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangePricingSourceInterface.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangePricingMysqlSource.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangePricingResolver.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationReservationService.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationMysqlStore.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationStoreInterface.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/sifUsocCourseChangePreview.php
           php -l codi-drive/intranet-actual/alumnes-usoc-financament.php
           php -l codi-drive/intranet-actual/ajax/alumnes/usocFinancament.php
           php -l codi-drive/intranet-actual/ajax/mostrarSideBarMenu.php
@@ -117,6 +133,8 @@ jobs:
         run: |
           node --check codi-drive/intranet-actual/js/alumnes-usoc-financament.js
           node --check codi-drive/intranet-actual/js/alumnes-validar-descomptes.js
+          node --check codi-drive/intranet-actual/js/alumnes-canvi-curs-sif.js
+          node --check codi-drive/intranet-actual/js/alumnes-usoc-lifecycle-preview.js
 
       - name: PHP and JavaScript syntax UC-015 PACK web
         run: |

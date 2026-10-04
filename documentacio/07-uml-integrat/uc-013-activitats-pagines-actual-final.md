@@ -1,6 +1,6 @@
 # UC-013 · Diagrames d'activitat ACTUAL / FINAL per pàgina i apartat
 
-**Data d'auditoria:** 29/09/2026  
+**Data d'auditoria:** 04/10/2026  
 **Abast:** RM-037 — pàgina per pàgina i apartat per apartat.  
 **Regla:** ACTUAL = comportament contrastat al codi. FINAL = comportament objectiu del SIF. No confondre cap diagrama FINAL amb implementació ja desplegada.
 
@@ -250,7 +250,7 @@ flowchart TD
 
 ## 10. Factura entitat USOC
 
-### ACTUAL IMPLEMENTAT EN SERVEI, ADAPTADOR NO ACREDITAT
+### ACTUAL IMPLEMENTAT EN SERVEI I ADAPTADOR/UI
 
 ```mermaid
 flowchart TD
@@ -341,10 +341,16 @@ flowchart TD
     Q --> R[Rectificar / refund / diferir per pagador]
     R --> S[COMPLETED + handoff sessió]
     S --> T[Verificar checkpoint i executar baixa legacy]
-    N -- Canvi curs --> U[Execució fiscal de destí pendent]
+    N -- Canvi curs --> U[Pricing server-side + preview]
+    U --> V[prepare REQUESTED + reserva destí]
+    V --> W[bind destí al SIF]
+    W --> X[materialitzar canvi legacy reservat]
+    X --> Y[verificar LEGACY_COMPLETED + source_closed]
+    Y --> Z[rectificar/reemetre + compensar per pagador]
+    Z --> ZA[COMPLETED + follow-up si hi ha excessos]
 ```
 
-**Abast:** el guard evita una modificació silenciosa d'un expedient USOC fiscalitzat. `UsocLifecyclePlanService` genera ara un pla separat per pagador i limita el màxim retornable al `net_paid` real de cada factura. La pantalla USOC permet consultar aquest pla. Encara no executa rectificatives, reassignacions, devolucions o saldos.
+**Abast:** el guard evita una modificació silenciosa d'un expedient USOC fiscalitzat. `UsocLifecyclePlanService` separa els pagadors i el canvi de curs ja disposa de pricing server-side, preview, preparation durable, reserva/binding del destí, handoff legacy verificat i executor SIF. El pendent és operatiu: preproducció/navegador, configuració real i resolució explícita dels excessos/follow-up.
 
 ### FINAL obligatori
 
@@ -375,13 +381,88 @@ flowchart TD
 | Factura entitat | Sí | Sí | Servei + pantalla autònoma + panell contextual implementats; desplegament/configuració pendent |
 | Cobrament entitat | Sí, dues UI + servei + script | Sí | UI autònoma + panell contextual implementats; menú fail-closed implementat; desplegament/configuració pendent |
 | Conciliació | Sí, servei/script | Sí | Implementada a la ruta específica USOC; script manual disponible |
-| Canvi/baixa | Sí | Parcial avançat | **Baixa:** guard + planner + modal de decisió + `UsocCancellationExecutionService` + checkpoint de sessió abans del legacy; servei PROVAT i handoff contract PASS; runs `36943292835` (**839/839**) i `36943206570` (**838/838**). **Canvi de curs:** guard + planner, executor encara pendent |
+| Canvi/baixa | Sí | Sí al repositori | **Baixa:** guard + planner + executor + handoff. **Canvi de curs:** pricing server-side + preview + preparation REQUESTED + reserva/bind destí + mutació legacy reservada + `UsocCourseChangeExecutionService` + rectificació/reemissió + compensacions + `COMPLETED`; resta preproducció/navegador |
+| Preflight multi-host | Scripts implementats | Dos JSON obligatoris abans d'acceptar preproducció | SIF-side + runtime intranet separats; execució real pendent |
 
 ## 15. Pendents de codi derivats dels diagrames
 
 1. Traça persistent SIF de la decisió legacy — IMPLEMENTADA amb `usoc_validation_decision`, protocol REQUESTED/COMMITTED/REVIEW_REQUIRED i reconciliador CLI; resta desplegament/preflight real.
 2. Mantenir el test de regressió de l'allocator IDPAG compartit; implementació actual protegida amb named lock.
 3. Configurar `SIF_USOC_MENU_ROLES` i validar l'accés de menú al desplegament de preproducció.
-4. Validar en preproducció la configuració HMAC, rols i DB legacy amb `preflight-usoc-intranet.php`.
+4. Executar en preproducció `sif/scripts/preflight-usoc-course-change.php` al host SIF i `codi-drive/intranet-actual/preflight-sif-usoc-runtime.php` al host intranet; conservar els dos JSON, SHA i timestamp.
 5. Evidència CI conservada a `documentacio/09-proves-qa/uc-013-evidencia-ci-2026-09-30.md`; run `36660979100` **SUCCESS, 646 passed / 0 failed**, incloent E2E de servei fins a `FINANCING_RECONCILED`. Resta validació navegador/desplegament/preproducció.
 6. Tractament definit per alumne=0/curs gratuït.
+
+
+## Canvi de curs USOC · precisió d'estat
+
+**`UC13-GAP-COURSE-EXEC` — TANCAT EN CODI I RECONCILIAT AL PR #152.**
+
+El flux ja no es limita al bloqueig fail-closed. La ruta implementada és:
+
+1. guard + lifecycle plan;
+2. pricing server-side del curs destí;
+3. preview i `prepare_course_change` → checkpoint `REQUESTED`;
+4. reserva durable de `ID_INSC/IDPAG` destí al legacy;
+5. `bind_course_change_destination` → `DESTINATION_RESERVED`;
+6. `confirm_course_change_legacy_handoff`: si l'origen encara és actiu, autoritza el tram legacy;
+7. mutació legacy exacta sobre la reserva; la sessió marca `legacy_completed` només com a protecció immediata;
+8. reconfirmació server-side de BD legacy → checkpoint SIF durable `LEGACY_COMPLETED`;
+9. `execute_course_change` només si `LEGACY_COMPLETED + source_closed`;
+10. rectificació de factures origen, reemissió destí i compensacions separades per pagador;
+11. reconciliació, esdeveniments i `COMPLETED`.
+
+**Pendent:** validació navegador/preproducció, configuració real, resolució operativa dels excessos i validació fiscal `EXEMPT/E1`. El recovery després de pèrdua de sessió queda cobert per reserva legacy + `LEGACY_COMPLETED` durable.
+
+
+**Contracte FINAL del canvi de curs:** [UC-013 canvi de curs USOC](uc-013-canvi-curs-usoc-contracte-final.md).
+
+
+## Preview USOC server-side · IMPLEMENTAT
+
+Per al canvi de curs amb `TIPUS_DESC=4 / VALID_DESC=1`:
+
+1. el JS genèric de canvi de curs cedeix el control al mòdul USOC;
+2. `sifUsocCourseChangePreview.php` exigeix POST + sessió + same-origin + permís + CSRF;
+3. `LegacyUsocCourseChangePricingResolver` resol els imports al servidor:
+   - preu base destí;
+   - preu USOC destí;
+   - despeses només si `change_number=4`, basades en hores origen;
+4. `SifInternalUsocClient::courseChangePreview()` envia el snapshot per HMAC;
+5. `UsocCourseChangePreviewService` crea target split + fund plan;
+6. la UI mostra alumne/entitat, compensable, pendent i excés;
+7. **no es desencadena el handler legacy de canvi de curs**.
+
+Aquesta activitat és preview executable i fail-closed; encara no és l'executor fiscal/econòmic.
+
+
+## Revalidació 04/10/2026 · cobertura per pàgina
+
+S'ha recontrastat la superfície web, la validació intranet, la pantalla de finançament USOC i el canvi de curs. Les activitats ACTUAL/FINAL d'aquest document tenen correspondència amb PHP/JS real. L'adaptador d'entitat ja no es considera una mancança: existeixen pantalla autònoma, panell contextual, client intern signat i accions de l'API USOC. El pendent és operatiu (preproducció/configuració/evidència), no d'absència d'adaptador.
+
+
+## 16. Activitat operativa · acceptació multi-host
+
+### ACTUAL IMPLEMENTAT EN REPOSITORI
+
+```mermaid
+flowchart TD
+    A[Desplegar SHA auditat a pay-pre] --> B[Executar preflight-usoc-course-change.php]
+    B --> C{SIF / BDs / serveis / HMAC config OK?}
+    C -- No --> X[No acceptar preproducció]
+    C -- Sí --> D[Guardar JSON SIF + SHA + timestamp]
+    D --> E[Desplegar/configurar intranet-pre]
+    E --> F[Executar preflight-sif-usoc-runtime.php]
+    F --> G{HTTPS + URL/path HMAC + secret/key + rols + UI + fitxers OK?}
+    G -- No --> X
+    G -- Sí --> H[Guardar JSON intranet + SHA + timestamp]
+    H --> HC[Comparar JSON SIF + intranet]
+    HC --> HD{Key-id/path iguals i menu roles dins manage roles?}
+    HD -- No --> X
+    HD -- Sí --> I[Executar E2E navegador canvi curs USOC]
+    I --> J{E2E correcte?}
+    J -- No --> X
+    J -- Sí --> K[Acceptació preproducció]
+```
+
+**Pendent:** executar aquesta activitat sobre els hosts reals. Els scripts existeixen; l'evidència runtime encara no.

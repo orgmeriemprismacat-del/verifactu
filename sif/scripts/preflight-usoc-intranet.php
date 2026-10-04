@@ -28,6 +28,7 @@ $checks = [
     'usoc_lifecycle_plan_service' => false,
     'usoc_validation_decision_service' => false,
     'usoc_api_endpoint_file' => false,
+    'intranet_runtime_preflight_file' => false,
 ];
 
 try {
@@ -69,6 +70,9 @@ if ($checks['legacy_database_configured']) {
 $checks['usoc_lifecycle_plan_service'] = class_exists(UsocLifecyclePlanService::class);
 $checks['usoc_validation_decision_service'] = class_exists(UsocValidationDecisionService::class);
 $checks['usoc_api_endpoint_file'] = is_file(dirname(__DIR__) . '/public/api/usoc/manage.php');
+$checks['intranet_runtime_preflight_file'] = is_file(
+    dirname(__DIR__, 2) . '/codi-drive/intranet-actual/preflight-sif-usoc-runtime.php'
+);
 
 $ok = !in_array(false, $checks, true);
 
@@ -77,8 +81,12 @@ echo json_encode([
     'checks' => $checks,
     'database_error' => $databaseError ?? null,
     'legacy_database_error' => $legacyDatabaseError ?? null,
+    'required_external_preflight' => [
+        'codi-drive/intranet-actual/preflight-sif-usoc-runtime.php',
+    ],
     'required_intranet_env' => [
         'SIF_INTERNAL_USOC_URL',
+        'SIF_INTERNAL_USOC_EXPECTED_HOST',
         'SIF_INTERNAL_USOC_SIGNED_PATH',
         'SIF_INTERNAL_API_KEY_ID',
         'SIF_INTERNAL_API_SECRET',

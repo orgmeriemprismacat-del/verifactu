@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Domain\DecimalAmount;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
@@ -105,15 +106,16 @@ final class UsocEntityInvoiceService
 
     private function positiveMoney(mixed $value, string $message): string
     {
-        if (!is_numeric($value)) {
+        try {
+            $cents = DecimalAmount::cents($value);
+        } catch (\InvalidArgumentException) {
             throw SifException::validation($message);
         }
 
-        $amount = (float) $value;
-        if ($amount <= 0.0) {
+        if ($cents <= 0) {
             throw SifException::validation($message);
         }
 
-        return number_format($amount, 2, '.', '');
+        return DecimalAmount::format($cents);
     }
 }

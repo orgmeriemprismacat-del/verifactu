@@ -68,6 +68,22 @@ final class UsocEntityInvoiceServiceTest
         Assert::same('ENTITY_INVOICED', $case['STATUS']);
     }
 
+    public function testRejectsMoreThanTwoEntityDecimalsBeforeLoadingLegacy(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new UsocEntityLegacySpyPdo([]);
+        $service = $this->service($sifDb);
+        $input = $this->entityInput();
+        $input['amount'] = '25.005';
+
+        Assert::throws(SifException::class, function () use ($sifDb, $legacyDb, $service, $input): void {
+            $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
+        }, 422);
+
+        Assert::same([], $legacyDb->preparedSql);
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
     public function testRejectsSameIdempotencyKeyWithDifferentEntityAmount(): void
     {
         $sifDb = TestDatabase::fresh();

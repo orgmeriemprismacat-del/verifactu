@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Repository;
 
+use Prisma\Sif\Domain\DecimalAmount;
 use Prisma\Sif\Exception\SifException;
 
 final class UsocStudentInvoiceLinkRepository
@@ -50,10 +51,15 @@ final class UsocStudentInvoiceLinkRepository
             throw SifException::conflict('USOC student invoice is not a Redsys USOC student invoice');
         }
 
-        if (
-            number_format((float) ($row['TOTAL'] ?? 0), 2, '.', '')
-            !== number_format((float) $studentAmount, 2, '.', '')
-        ) {
+        try {
+            $matches =
+                DecimalAmount::normalize($row['TOTAL'] ?? null)
+                === DecimalAmount::normalize($studentAmount);
+        } catch (\InvalidArgumentException) {
+            $matches = false;
+        }
+
+        if (!$matches) {
             throw SifException::conflict('USOC student invoice amount does not match student amount');
         }
     }
