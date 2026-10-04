@@ -41,6 +41,62 @@ try {
     $allocStmt->execute([$payment['UUID_PAYMENT']]);
     $allocations = $allocStmt->fetchAll(\PDO::FETCH_ASSOC);
 
+    $terminalStmt = $db->prepare(
+        "SELECT CORRELATION_ID
+         FROM payment_action_event
+         WHERE UUID_PAYMENT = ?
+           AND IS_TERMINAL = 1
+         ORDER BY ID DESC
+         LIMIT 1"
+    );
+    $terminalStmt->execute([$payment['UUID_PAYMENT']]);
+    $correlationId = trim((string) ($terminalStmt->fetchColumn() ?: ''));
+
+    $paymentEvents = [];
+    $operationalEvents = [];
+    $auditEvents = [];
+
+    if ($correlationId !== '') {
+        $stmt = $db->prepare(
+            'SELECT UUID_EVENT, UUID_PAYMENT, REQUEST_ID, CORRELATION_ID,
+                    ACTION, RESULT, IS_TERMINAL, ACTOR_ID, ACTOR_ROLE,
+                    REASON_CODE, ERROR_CODE, OCCURRED_AT
+             FROM payment_action_event
+             WHERE CORRELATION_ID = ?
+             ORDER BY ID'
+        );
+        $stmt->execute([$correlationId]);
+        $paymentEvents = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $stmt = $db->prepare(
+            'SELECT UUID_OPERATIONAL_EVENT, OPERATION_TYPE, SOURCE_TYPE, SOURCE_ID,
+                    UUID_FACTURA, UUID_PAYMENT, FISCAL_IMPACT, ECONOMIC_IMPACT,
+                    STATUS, REASON_CODE, ACTOR_ID, ACTOR_ROLE, CORRELATION_ID,
+                    OCCURRED_AT
+             FROM operational_event
+             WHERE CORRELATION_ID = ?
+             ORDER BY ID'
+        );
+        $stmt->execute([$correlationId]);
+        $operationalEvents = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $stmt = $db->prepare(
+            'SELECT UUID_EVENT, REQUEST_ID, CORRELATION_ID, ACTION, RESULT,
+                    RESOURCE_TYPE, RESOURCE_ID, ACTOR_ID, ACTOR_ROLE,
+                    REASON_CODE, ERROR_CODE, OCCURRED_AT
+             FROM sif_audit_event
+             WHERE CORRELATION_ID = ?
+             ORDER BY ID'
+        );
+        $stmt->execute([$correlationId]);
+        $auditEvents = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    $paymentResults = array_map(
+        static fn (array $row): string => (string) ($row['RESULT'] ?? ''),
+        $paymentEvents
+    );
+
     $output = [
         'ok' => true,
         'evidence_type' => 'UC023_INSTALLMENT_PAYMENT',
@@ -58,6 +114,7 @@ try {
             'reference' => $payment['REFERENCIA_BANCARIA'],
             'status' => $payment['ESTAT'],
         ],
+        'correlation_id' => $correlationId !== '' ? $correlationId : null,
         'allocations' => array_map(
             static fn (array $row): array => [
                 'uuid_factura' => $row['UUID_FACTURA'],
@@ -72,9 +129,69 @@ try {
             ],
             $allocations
         ),
+        'payment_action_events' => array_map(
+            static fn (array $row): array => [
+                'uuid_event' => $row['UUID_EVENT'],
+                'uuid_payment' => $row['UUID_PAYMENT'],
+                'request_id' => $row['REQUEST_ID'],
+                'correlation_id' => $row['CORRELATION_ID'],
+                'action' => $row['ACTION'],
+                'result' => $row['RESULT'],
+                'is_terminal' => (int) $row['IS_TERMINAL'] === 1,
+                'actor_id' => $row['ACTOR_ID'],
+                'actor_role' => $row['ACTOR_ROLE'],
+                'reason_code' => $row['REASON_CODE'],
+                'error_code' => $row['ERROR_CODE'],
+                'occurred_at' => $row['OCCURRED_AT'],
+            ],
+            $paymentEvents
+        ),
+        'operational_events' => array_map(
+            static fn (array $row): array => [
+                'uuid_operational_event' => $row['UUID_OPERATIONAL_EVENT'],
+                'operation_type' => $row['OPERATION_TYPE'],
+                'source_type' => $row['SOURCE_TYPE'],
+                'source_id' => $row['SOURCE_ID'],
+                'uuid_factura' => $row['UUID_FACTURA'],
+                'uuid_payment' => $row['UUID_PAYMENT'],
+                'fiscal_impact' => $row['FISCAL_IMPACT'],
+                'economic_impact' => $row['ECONOMIC_IMPACT'],
+                'status' => $row['STATUS'],
+                'reason_code' => $row['REASON_CODE'],
+                'actor_id' => $row['ACTOR_ID'],
+                'actor_role' => $row['ACTOR_ROLE'],
+                'correlation_id' => $row['CORRELATION_ID'],
+                'occurred_at' => $row['OCCURRED_AT'],
+            ],
+            $operationalEvents
+        ),
+        'sif_audit_events' => array_map(
+            static fn (array $row): array => [
+                'uuid_event' => $row['UUID_EVENT'],
+                'request_id' => $row['REQUEST_ID'],
+                'correlation_id' => $row['CORRELATION_ID'],
+                'action' => $row['ACTION'],
+                'result' => $row['RESULT'],
+                'resource_type' => $row['RESOURCE_TYPE'],
+                'resource_id' => $row['RESOURCE_ID'],
+                'actor_id' => $row['ACTOR_ID'],
+                'actor_role' => $row['ACTOR_ROLE'],
+                'reason_code' => $row['REASON_CODE'],
+                'error_code' => $row['ERROR_CODE'],
+                'occurred_at' => $row['OCCURRED_AT'],
+            ],
+            $auditEvents
+        ),
         'checks' => [
             'single_payment_match' => true,
             'has_allocation' => count($allocations) > 0,
+            'has_correlation' => $correlationId !== '',
+            'has_requested_payment_event' => in_array('REQUESTED', $paymentResults, true),
+            'has_terminal_payment_event' =>
+                in_array('SUCCEEDED', $paymentResults, true)
+                || in_array('REUSED', $paymentResults, true),
+            'has_operational_event' => count($operationalEvents) > 0,
+            'has_sif_audit_event' => count($auditEvents) > 0,
             'fiscal_register_count_is_observation_only' => true,
         ],
     ];
