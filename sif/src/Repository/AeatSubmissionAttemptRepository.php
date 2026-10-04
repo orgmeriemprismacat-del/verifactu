@@ -106,6 +106,25 @@ final class AeatSubmissionAttemptRepository
     }
 
 
+
+    public function markStartedUncertain(\PDO $db, string $uuidAttempt, string $detail): void
+    {
+        $stmt = $db->prepare(
+            'UPDATE aeat_submission_attempt
+             SET STATUS = \'UNCERTAIN\', ERROR_DETAIL = ?, FINISHED_AT = NOW(6)
+             WHERE UUID_ATTEMPT = ? AND STATUS = \'STARTED\''
+        );
+        $stmt->execute([
+            mb_substr($detail, 0, 2000, 'UTF-8'),
+            $uuidAttempt,
+        ]);
+        if ($stmt->rowCount() !== 1) {
+            throw new \RuntimeException(
+                'AEAT started attempt could not be moved to uncertain review.'
+            );
+        }
+    }
+
     public function completeUncertainFromEvidence(
         \PDO $db,
         string $uuidAttempt,
