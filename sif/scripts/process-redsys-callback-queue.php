@@ -22,6 +22,7 @@ use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Service\CourseEnrollmentFundAllocationService;
+use Prisma\Sif\Service\GroupEnrollmentFundAllocationService;
 use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
 use Prisma\Sif\Service\CoursePaymentNotificationService;
 use Prisma\Sif\Service\InvoicePayloadValidator;
@@ -128,7 +129,16 @@ try {
                 new EnrollmentFundMovementRepository(new UuidGenerator())
             )
         ),
-        new RedsysGroupInvoiceService($notifications, new LegacyGroupSnapshotRepository(), new LegacyGroupInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
+        new RedsysGroupInvoiceService(
+            $notifications,
+            new LegacyGroupSnapshotRepository(),
+            new LegacyGroupInvoicePayloadBuilder(),
+            $redsysPayloads,
+            $invoiceService,
+            new GroupEnrollmentFundAllocationService(
+                new EnrollmentFundMovementRepository(new UuidGenerator())
+            )
+        ),
         new RedsysGiftInvoiceService($notifications, new LegacyGiftSnapshotRepository(), new LegacyGiftInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
         new RedsysUsocInvoiceService($notifications, new LegacyUsocSnapshotRepository(), new LegacyUsocInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
     ]);
