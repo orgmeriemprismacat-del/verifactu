@@ -112,11 +112,18 @@ final class SifVersionEvidenceVerifier
                 && $this->same($activation['RUNTIME_ARTIFACT_HASH'] ?? null, $version['ARTIFACT_HASH'] ?? null)
                 && $this->same($activation['RUNTIME_CONFIG_HASH'] ?? null, $version['CONFIG_HASH'] ?? null)
                 && $this->same($activation['RUNTIME_DATABASE_VERSION'] ?? null, $version['DATABASE_VERSION'] ?? null),
-            'activation_snapshot_declaration_hash_matches' => is_array($declaration)
-                && $this->same(
-                    $snapshot['declaration']['document_hash'] ?? null,
-                    $declaration['DOCUMENT_HASH'] ?? null
-                ),
+            'activation_snapshot_declaration_matches' => is_array($declaration)
+                && $this->snapshotMatches($snapshot['declaration'] ?? null, [
+                    'uuid_declaration' => $declaration['UUID_DECLARATION'] ?? null,
+                    'declaration_version' => $declaration['DECLARATION_VERSION'] ?? null,
+                    'document_hash' => $declaration['DOCUMENT_HASH'] ?? null,
+                    'approved_by' => $declaration['APPROVED_BY'] ?? null,
+                    'approved_at' => $declaration['APPROVED_AT'] ?? null,
+                ]),
+            'activation_snapshot_backup_matches' => $backupUuid === ''
+                ? (($snapshot['backup'] ?? null) === null)
+                : is_array($backup)
+                    && $this->snapshotMatches($snapshot['backup'] ?? null, $this->backupSummary($backup) ?? []),
             'backup_evidence_required' => !$backupRequired || $backupUuid !== '',
             'backup_evidence_acceptable' => $backupAcceptable,
             'audit_activation_present' => $auditCount > 0,
@@ -173,6 +180,22 @@ final class SifVersionEvidenceVerifier
             ],
             'production_authorized' => false,
         ];
+    }
+
+    private function snapshotMatches(mixed $snapshot, array $current): bool
+    {
+        if (!is_array($snapshot)) {
+            return false;
+        }
+
+        foreach ($current as $key => $value) {
+            $stored = $snapshot[$key] ?? null;
+            if (($stored === null ? null : (string) $stored) !== ($value === null ? null : (string) $value)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function declarationFileMatches(?array $declaration): bool
