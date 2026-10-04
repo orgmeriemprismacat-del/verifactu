@@ -55,6 +55,30 @@ final class LegacyPrismaStudentPriceConcurrencyBoundaryTest
         );
     }
 
+    public function testFailedLatestPriceCalculationKeepsSubmitBlocked(): void
+    {
+        $source = $this->readJs();
+
+        Assert::stringContainsString('uc020PriceCalculationValid = false', $source);
+        Assert::stringContainsString('if (!uc020PriceCalculationValid) {', $source);
+        Assert::stringContainsString(
+            'No hi ha cap càlcul de preu vigent i vàlid',
+            $source
+        );
+        Assert::stringContainsString(
+            'finalitzarCalculPreuUC020(uc020RequestVersion, false);',
+            $source
+        );
+
+        $start = strpos($source, 'function iniciarCalculPreuUC020()');
+        $invalidate = strpos(
+            $source,
+            'uc020PriceCalculationValid = false;',
+            $start === false ? 0 : $start
+        );
+        Assert::same(true, $start !== false && $invalidate !== false && $start < $invalidate);
+    }
+
     public function testValidPromotionSupersedesPrismaStudentOriginInsteadOfCombiningBoth(): void
     {
         $source = $this->readJs();
