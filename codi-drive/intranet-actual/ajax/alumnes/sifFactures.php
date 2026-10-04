@@ -76,6 +76,14 @@ try {
         );
 
         $matchStatus = (int) ($matches['_http_status'] ?? 200);
+        if ($matchStatus < 400 && ($matches['has_more'] ?? false) === true) {
+            http_response_code(422);
+            echo json_encode([
+                'ok' => false,
+                'error' => 'Massa factures coincideixen amb aquesta inscripció; cal revisar-ne les relacions',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
         if ($matchStatus >= 400) {
             $response = $matches;
         } else {
@@ -245,11 +253,15 @@ function mergeInvoiceSearchResponses(array $responses, int $limit): array
 {
     $merged = [];
     $status = 200;
+    $hasMore = false;
 
     foreach ($responses as $response) {
         $responseStatus = (int) ($response['_http_status'] ?? 200);
         if ($responseStatus >= 400) {
             return $response;
+        }
+        if (($response['has_more'] ?? false) === true) {
+            $hasMore = true;
         }
 
         foreach (($response['results'] ?? []) as $invoice) {
@@ -280,12 +292,16 @@ function mergeInvoiceSearchResponses(array $responses, int $limit): array
     });
 
     $limit = max(1, min(100, $limit));
+    if (count($results) > $limit) {
+        $hasMore = true;
+    }
     $results = array_slice($results, 0, $limit);
 
     return [
         'ok' => true,
         'results' => $results,
         'count' => count($results),
+        'has_more' => $hasMore,
         '_http_status' => $status,
     ];
 }
