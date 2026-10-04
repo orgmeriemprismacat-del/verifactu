@@ -79,6 +79,12 @@ jobs:
           php -l sif/src/Service/ManualRefundService.php
           php -l sif/src/Service/CreditBalancePayloadBuilder.php
           php -l sif/src/Service/CreditBalanceService.php
+          php -l sif/scripts/preview-credit-balance.php
+          php -l sif/scripts/process-credit-balance.php
+          php -l sif/scripts/preview-manual-refund.php
+          php -l sif/scripts/process-manual-refund.php
+          php -l sif/scripts/preview-credit-compensation.php
+          php -l sif/scripts/process-credit-compensation.php
           php -l sif/tests/Integration/CreditBalanceServiceTest.php
           php -l sif/tests/Integration/ManualRefundServiceTest.php
           php -l sif/tests/run-uc006-tests.php
