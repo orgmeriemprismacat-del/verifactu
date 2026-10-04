@@ -160,14 +160,23 @@ try {
 
 		$status = (int) ($response['_http_status'] ?? 0);
 		if ($status < 200 || $status >= 300 || ($response['ok'] ?? false) !== true) {
-			$message = trim((string) ($response['error'] ?? ''));
 			$http = $status >= 400 && $status <= 599 ? $status : 502;
+			$remoteMessage = trim((string) ($response['error'] ?? ''));
+
+			if ($http >= 500 || $status === 0) {
+				$message = 'El servei SIF no està disponible temporalment.';
+			}
+			else if (in_array($http, [401, 403], true)) {
+				$message = 'El servei SIF ha rebutjat l’autorització del cobrament.';
+			}
+			else {
+				$message = $remoteMessage !== ''
+					? $remoteMessage
+					: 'No s’ha pogut registrar la fracció.';
+			}
+
 			http_response_code($http);
-			throw new RuntimeException(
-				$message !== ''
-					? 'Error SIF UC-023: ' . $message
-					: 'Error SIF UC-023: no s’ha pogut registrar la fracció.'
-			);
+			throw new RuntimeException('Error SIF UC-023: ' . $message);
 		}
 
 		$uuidPayment = trim((string) ($response['uuid_payment'] ?? ''));
