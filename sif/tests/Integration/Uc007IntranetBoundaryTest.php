@@ -64,6 +64,22 @@ final class Uc007IntranetBoundaryTest
         }
     }
 
+    public function testParticipantIdentitySearchFailsInsteadOfSilentlyTruncatingAtTwoHundred(): void
+    {
+        $bridge = $this->readIntranet('ajax/alumnes/sifFactures.php');
+
+        Assert::stringContainsString('ORDER BY ID DESC LIMIT 201', $bridge);
+        Assert::stringContainsString('if (count($ids) > 200)', $bridge);
+        Assert::stringContainsString(
+            'Massa inscripcions coincideixen amb la identitat; afegeix un filtre més específic',
+            $bridge
+        );
+
+        if (str_contains($bridge, 'ORDER BY ID DESC LIMIT 200')) {
+            Assert::fail('UC-007 participant identity resolution must not silently truncate at 200 rows.');
+        }
+    }
+
     public function testLegacySifGuardIsActiveWheneverUc007BoundaryIsEnabled(): void
     {
         $guard = $this->readIntranet('SifLegacyInvoiceMutationGuard.php');
