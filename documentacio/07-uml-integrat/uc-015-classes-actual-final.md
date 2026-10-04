@@ -115,6 +115,10 @@ class PackPaymentNotificationService {
   +enqueue(db,dsOrder,snapshot,invoiceResult) array
 }
 class NotificationOutboxRepository
+class NotificationOutboxDeliveryService {
+  +claim(db,uuidNotification,channel) array
+  +complete(db,uuidNotification,uuidAttempt,accepted,providerRef,errorCode) array
+}
 
 RedsysCallbackWorker --> RedsysCallbackDispatcher
 RedsysCallbackDispatcher --> RedsysPackInvoiceService
@@ -128,6 +132,7 @@ RedsysPackInvoiceService --> PackEnrollmentFundAllocationService
 PackEnrollmentFundAllocationService --> EnrollmentFundMovementRepository
 RedsysPackInvoiceService --> PackPaymentNotificationService
 PackPaymentNotificationService --> NotificationOutboxRepository
+NotificationOutboxDeliveryService --> NotificationOutboxRepository : claim/complete transversal
 InvoiceService --> InvoiceRepository
 InvoiceService --> PaymentRepository
 ```
@@ -143,6 +148,7 @@ InvoiceService --> PaymentRepository
 - `SifPaymentIntentClient` envia una petició HMAC autenticada a la intenció SIF abans del TPV.
 - `PackEnrollmentFundAllocationService` reparteix un únic `UUID_PAYMENT` a N `ID_INSC` amb moviments idempotents.
 - `PackPaymentNotificationService` registra notificació a outbox al flux asíncron principal.
+- `NotificationOutboxDeliveryService` implementa el gate transversal de claim/complete; no acredita per si sol l'existència d'un worker SMTP productiu PACK.
 
 ## 3. Classes FINAL / contracte tancat
 
@@ -175,6 +181,11 @@ class EnrollmentFundMovementRepository {
 class PackPaymentNotificationService {
   <<IMPLEMENTAT · ENQUEUE>>
 }
+class NotificationOutboxDeliveryService {
+  <<IMPLEMENTAT · GATE TRANSVERSAL>>
+  +claim()
+  +complete()
+}
 class RedsysLegacySyncingProcessor {
   <<IMPLEMENTAT>>
 }
@@ -188,13 +199,14 @@ PackPaymentGate --> SifPaymentIntentClient
 SifPaymentIntentClient --> RedsysPackInvoiceService : intent/callback/worker
 RedsysPackInvoiceService --> EnrollmentFundMovementRepository
 RedsysPackInvoiceService --> PackPaymentNotificationService
+PackPaymentNotificationService --> NotificationOutboxDeliveryService : outbox després de commit
 RedsysPackInvoiceService --> RedsysLegacySyncingProcessor
 RedsysLegacySyncingProcessor --> LegacySyncService
 ```
 
 - **Ordre comercial v1 tancat:** `ORDER BY c.DATAI, p.ID_CURS` i snapshot `PACK_ORDINAL`; una futura posició manual seria una evolució de model, no un gap d'aquest UC.
 - **Callback fiscal legacy productiu:** eliminat físicament; no forma part del FINAL.
-- **Notificació:** UC-015 garanteix l'enqueue idempotent; transport/retry/lliurament és UC-58.
+- **Notificació:** UC-015 garanteix l'enqueue idempotent i el repositori ja disposa del gate transversal `NotificationOutboxDeliveryService`; el transport/worker SMTP real i el cutover continuen com a acceptació operativa/UC-58.
 - **Acceptació runtime:** verificador i plantilla preparats; cal executar-los amb un `DS_ORDER` real a preproducció.
 
 ## 4. Diferències bloquejants ACTUAL → FINAL
