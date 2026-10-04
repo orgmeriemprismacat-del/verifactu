@@ -64,7 +64,7 @@ Quan una peça no aplica, s'ha de justificar explícitament en lloc de crear un 
 | UC-19 | Validar afiliació USOC | [Fitxa i UML](uc-019-validar-afiliacio-usoc.md) | `[DISSENY]` |
 | UC-19a | Facturar part de l'alumne USOC | [Fitxa i UML](uc-019a-facturar-part-alumne-usoc.md) | `[BASE/ASYNC/PARCIAL]` |
 | UC-19b | Facturar diferència a USOC | [Fitxa i UML](uc-019b-facturar-part-entitat-usoc.md) | `[BASE/PARCIAL]` |
-| UC-20 | Aplicar Alumne PrisMa | [Fitxa i UML](uc-020-aplicar-alumne-prisma.md) · [CI](uc-020-evidencia-ci-2026-10-03.md) | `[AUDIT_CLOSED · CI_ESPECIFIC_VERIFICAT · ROLLOUT_PENDENT]` |
+| UC-20 | Aplicar Alumne PrisMa | [Fitxa i UML](uc-020-aplicar-alumne-prisma.md) · [classes A/F](uc-020-classes-actual-final.md) · [seqüències A/F](uc-020-sequencies-actual-final.md) · [activitats P01–P06](uc-020-activitats-pagines-actual-final.md) · [auditoria](uc-020-auditoria-tracabilitat-2026-09-29.md) · [matriu AP](uc-020-matriu-proves-ap-01-84.md) · [CI](uc-020-evidencia-ci-2026-10-03.md) · [revalidació 04/10](uc-020-revalidacio-2026-10-04.md) | `[AUDIT_CLOSED_REVALIDATED_04-10 · HARDENING_RETRY_IMPLEMENTAT · CI_HEAD_PENDENT · ROLLOUT_PENDENT]` |
 | UC-20a | Validar Carnet Jove | [Fitxa i UML](uc-020a-validar-carnet-jove.md) | `[DISSENY]` |
 | UC-20b | Aplicar descompte sensible | [Fitxa i UML](uc-020b-aplicar-descompte-sensible.md) | `[DISSENY]` |
 | UC-20c | Aplicar promoció temporal | [Fitxa i UML](uc-020c-aplicar-promocio-temporal.md) | `[PARCIAL]` |
