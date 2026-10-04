@@ -11,7 +11,11 @@ use Prisma\Sif\Http\JsonResponse;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Repository\SifAuditEventRepository;
+use Prisma\Sif\Repository\PaymentActionEventRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Service\InternalApiAuthenticator;
+use Prisma\Sif\Service\InstallmentPaymentAuditTrail;
 use Prisma\Sif\Service\InternalInstallmentPaymentGateway;
 use Prisma\Sif\Service\ManualInstallmentPaymentPayloadBuilder;
 use Prisma\Sif\Service\ManualInstallmentPaymentService;
@@ -63,11 +67,13 @@ try {
         throw SifException::validation('Unknown installment payment action');
     }
 
+    $uuids = new UuidGenerator();
+
     $payments = new PaymentService(
         new TransactionRunner($db),
         new PaymentPayloadValidator(),
         new PaymentRepository(
-            new UuidGenerator(),
+            $uuids,
             new PaymentStatusCalculator()
         )
     );
@@ -78,7 +84,13 @@ try {
             new ManualInstallmentPaymentPayloadBuilder(),
             $payments
         ),
-        (array) (($config['installment_payment'] ?? [])['write_roles'] ?? [])
+        (array) (($config['installment_payment'] ?? [])['write_roles'] ?? []),
+        new InstallmentPaymentAuditTrail(
+            new PaymentActionEventRepository($uuids),
+            new OperationalEventRepository($uuids),
+            new SifAuditEventRepository($uuids),
+            (string) ($config['env'] ?? 'local')
+        )
     );
 
     JsonResponse::send($gateway->register($db, $actor, $payload));
