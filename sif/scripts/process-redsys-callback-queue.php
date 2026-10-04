@@ -70,17 +70,21 @@ if (($config['env'] ?? 'local') === 'production' && !$allowProduction) {
 $limit = 25;
 $workerId = '';
 $dsOrder = '';
+$dsOrderFilterRequested = false;
 foreach (array_slice($argv, 1) as $argument) {
     if (str_starts_with($argument, '--limit=')) {
         $limit = (int) substr($argument, strlen('--limit='));
     } elseif (str_starts_with($argument, '--worker-id=')) {
         $workerId = trim(substr($argument, strlen('--worker-id=')));
     } elseif (str_starts_with($argument, '--ds-order=')) {
+        $dsOrderFilterRequested = true;
         $dsOrder = trim(substr($argument, strlen('--ds-order=')));
     }
 }
 
-if ($limit < 1 || $limit > 100 || $workerId === '') {
+if ($limit < 1 || $limit > 100 || $workerId === ''
+    || ($dsOrderFilterRequested && $dsOrder === '')
+) {
     fwrite(STDERR, "Usage: php sif/scripts/process-redsys-callback-queue.php --limit=25 --worker-id=pay-prisma-1 [--ds-order=ORDER]\n");
     exit(1);
 }
