@@ -153,7 +153,7 @@ La correlació operacional és estable i derivada de la clau idempotent sense co
 
 ## 7. Document fiscal per UUID
 
-**PARCIAL al tronc actual.** La pantalla segura ja ha deixat d'usar el PDF temporal llegat com a resultat de l'emissió. El `main` **sí conté** l'esquema `document_job`, `factura_documents`, el servei de lectura/descàrrega privada signada i el storage lector de UC-080. El que no conté encara el runtime UC-004 és el producer/queue post-COMMIT, el snapshot verificat, el worker/lease/retry, l'escriptura immutable de bytes i un renderer fiscal concret. El PR #134 conté una implementació candidata d'aquest pipeline; el check específic UC-004 va passar, però el PR no és un tall globalment verificat.
+**PARCIAL MOLT AVANÇAT a #166.** El `main` ja conté l'esquema `document_job`, `factura_documents` i lectura/descàrrega privada signada via UC-080. Aquesta branca afegeix job repository, snapshot fiscal amb verificació de hash, queue service idempotent, processor amb lease/retry/stale, storage writer immutable, tests i builder URL QR AEAT 0.5.0. Res d'això està encara wired automàticament després del COMMIT. Falta un renderer concret, l'entrypoint/supervisió del worker i l'E2E.
 
 El FINAL ha de garantir job idempotent per UUID+versió, snapshot fiscal immutable, storage privat verificat, estat `READY/PENDING/ERROR`, QR/XML/PDF versionats i reintent post-COMMIT sense reemetre la factura.
 
@@ -188,8 +188,8 @@ No es torna a executar UC-004 i no es crea un segon registre fiscal `ALTA`.
 | Cobertura UC-004 | implementada |
 | Auditoria operacional | implementada i atòmica (`ISSUE_INVOICE` + `sif_audit_event`) |
 | Mutador llegat | retirat amb 410 |
-| Infraestructura documental | **PARCIAL** · `document_job` + `factura_documents` + descàrrega privada al main; producer/worker/storage-writer UC-004 pendents |
-| Renderer PDF/QR/XML | pendent |
+| Infraestructura documental | **PARCIAL MOLT AVANÇAT A #166** · schema/download al main + jobs/snapshot/queue/processor/storage/QR a la branca; no wired |
+| Renderer PDF/QR/XML | **pendent el renderer concret**; URL QR AEAT builder versionat |
 | Cobertura transversal | pendent |
 | Cobrament posterior E2E | pendent |
 | Preproducció | pendent d'evidència |
