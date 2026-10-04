@@ -64,6 +64,25 @@ final class Uc007IntranetBoundaryTest
         }
     }
 
+    public function testLegacySearchInitializesStateUsesStableDelimiterAndEscapesTitle(): void
+    {
+        $intranet = $this->readIntranet('Intranet.php');
+
+        Assert::stringContainsString('$existeixCerca = false;', $intranet);
+        Assert::stringContainsString(
+            'if ( count($dniDefinitius) > 0 ) $dniUsuaris .= "|";',
+            $intranet
+        );
+        Assert::stringContainsString(
+            'justify-content-center d-flex\'>".$this->__escapeHtmlValue($cercaPer)."</p>',
+            $intranet
+        );
+
+        if (str_contains($intranet, 'if ( $i > 0 ) $dniUsuaris .= "|";')) {
+            Assert::fail('Legacy UC-007 search must not derive separators from the loop index.');
+        }
+    }
+
     public function testLegacyDownloadDoesNotMutateGeneratedMarker(): void
     {
         $wrapper = $this->readIntranet('ajax/alumnes/descarregaFactura.php');
