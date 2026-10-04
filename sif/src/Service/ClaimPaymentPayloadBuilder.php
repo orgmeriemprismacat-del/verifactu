@@ -16,12 +16,21 @@ final class ClaimPaymentPayloadBuilder
         $amount = $this->amount($this->required($input, ['amount', 'import', 'pagament'], 'payment amount'));
         $movementDate = $this->requiredString($input, ['movement_date', 'data_pag', 'dataPag'], 'movement_date');
         $method = $this->method($this->optionalString($input, ['method'], 'TRANSFERENCIA'));
-        $reference = $this->claimReference($input);
+        $externalReceiptId = $this->optionalString($input, ['external_receipt_id', 'receipt_id']);
+        $reference = $externalReceiptId ?? $this->legacyReference($input);
         $bank = $this->optionalString($input, ['bank', 'banc']);
         $createdBy = $this->optionalString($input, ['created_by', 'user', 'usuari']);
 
         $payload = [
-            'idempotency_key' => $this->idempotencyKey($uuidFactura, $input, $amount, $movementDate, $reference, $createdBy),
+            'idempotency_key' => $this->idempotencyKey(
+                $uuidFactura,
+                $input,
+                $amount,
+                $movementDate,
+                $externalReceiptId,
+                $reference,
+                $createdBy
+            ),
             'movement_type' => 'CHARGE',
             'method' => $method,
             'source_channel' => 'INTRANET',
@@ -48,7 +57,7 @@ final class ClaimPaymentPayloadBuilder
         return $payload;
     }
 
-    private function claimReference(array $input): ?string
+    private function legacyReference(array $input): ?string
     {
         return $this->optionalString($input, [
             'claim_reference',
@@ -65,9 +74,14 @@ final class ClaimPaymentPayloadBuilder
         array $input,
         string $amount,
         string $movementDate,
+        ?string $externalReceiptId,
         ?string $reference,
         ?string $createdBy
     ): string {
+        if ($externalReceiptId !== null) {
+            return 'CLAIM|RECEIPT:' . $this->keyPart($externalReceiptId);
+        }
+
         if ($reference !== null) {
             return 'CLAIM|REF:' . $this->keyPart($reference);
         }
