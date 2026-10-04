@@ -10,6 +10,7 @@ use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacyPrismaStudentHistoryRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
+use Prisma\Sif\Repository\UsocFinancingTermsRepository;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\LegacyPrismaStudentPriceSnapshotResolver;
 use Prisma\Sif\Service\PrismaStudentCourseCheckoutService;
@@ -75,7 +76,8 @@ try {
             $intentService,
             new UuidGenerator()
         ),
-        new LegacyPrismaStudentPriceSnapshotResolver()
+        new LegacyPrismaStudentPriceSnapshotResolver(),
+        new UsocFinancingTermsRepository(new UuidGenerator())
     );
 
     JsonResponse::send([
