@@ -30,7 +30,10 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
 try {
     $baseDir = dirname(__DIR__, 3);
     $config = require $baseDir . '/config/sif.php';
-    $session = new VersionPanelSession((string) ($config['panel']['session_name'] ?? 'SIFPANELSESSID'));
+    $session = new VersionPanelSession(
+        (string) ($config['panel']['session_name'] ?? 'SIFPANELSESSID'),
+        (int) ($config['panel']['version_session_ttl_seconds'] ?? 1800)
+    );
     $session->start();
     $actor = $session->actor();
     $session->assertCsrf((string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''));
