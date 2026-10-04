@@ -64,6 +64,7 @@ final class ManualRefundService
             $result = $this->payments->registerPayment($payload);
             $result['uuid_factura'] = $invoice['UUID_FACTURA'];
             $result['num_visible'] = $invoice['NUM_VISIBLE'];
+            $result['payment_idempotency_key'] = $payload['idempotency_key'];
 
             return $result;
         }
@@ -110,6 +111,7 @@ final class ManualRefundService
 
             $result['uuid_factura'] = $invoice['UUID_FACTURA'];
             $result['num_visible'] = $invoice['NUM_VISIBLE'];
+            $result['payment_idempotency_key'] = $payload['idempotency_key'];
 
             return $result;
         } catch (\Throwable $exception) {
