@@ -79,7 +79,7 @@ final class FiscalCorrectionDecisionResolver
             throw SifException::conflict('UC-74 classification reason does not match audit evidence');
         }
 
-        $resolved['decision_event_uuid'] = $decisionEventUuid;
+        $resolved['decision_event_uuid'] = strtolower($decisionEventUuid);
         $resolved['decision_recorded_at'] = (string) ($event['RECORDED_AT'] ?? '');
 
         return $resolved;
