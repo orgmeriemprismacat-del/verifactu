@@ -43,6 +43,8 @@ checkout regal
 | `SifRedsysGiftStatusClient` | client de consulta d'estat | implementat |
 | `GiftPaymentReturnStatus` | evita convertir retorn navegador en confirmació fiscal | implementat |
 | `GiftPaymentNotificationService` | outbox idempotent del comprador | implementat |
+| `GiftReservationNotificationService` | outbox idempotent de la reserva (comprador + gestió) | implementat |
+| `/api/gifts/reservation/notifications.php` + client web | enqueue/claim/complete signat | implementat |
 
 ## 4. Components modificats
 
@@ -132,6 +134,8 @@ indefinidament.
 El transport/delivery final de l'outbox encara s'ha de provar en entorn; aquest
 canvi no afirma que el correu real ja s'estigui enviant.
 
+La reserva prèvia al pagament també queda governada: `GiftReservationNotificationService` crea dues notificacions (`GIFT_RESERVATION_BUYER_CONFIRMATION` i `GIFT_RESERVATION_INTERNAL_CONFIRMATION`), el web les reclama i completa després de l'SMTP. Els avisos directes `Mail` només resten disponibles amb `CUTOVER=0`.
+
 ## 8. Variables d'entorn del tall
 
 ```text
@@ -140,6 +144,7 @@ SIF_INTERNAL_API_KEY_ID
 SIF_INTERNAL_API_SECRET
 SIF_INTERNAL_REDSYS_GIFT_INTENT_SIGNED_PATH=/api/redsys/gift-intent.php
 SIF_INTERNAL_REDSYS_GIFT_STATUS_SIGNED_PATH=/api/redsys/gift-status.php
+SIF_INTERNAL_GIFT_RESERVATION_NOTIFICATION_SIGNED_PATH=/api/gifts/reservation/notifications.php
 
 REDSYS_MERCHANT_CODE
 REDSYS_MERCHANT_KEY
@@ -187,6 +192,8 @@ Els secrets no s'han de versionar.
 - `RedsysGiftCutoverBoundaryTest`
 - `RedsysGiftPaymentStatusServiceTest`
 - `GiftPaymentNotificationServiceTest`
+- `GiftReservationNotificationServiceTest`
+- `GiftReservationNotificationBoundaryTest`
 - `RedsysGiftRecoveryBoundaryTest`
 - `RedsysGiftWorkerEndToEndTest`
 - `GiftAeatInvoicePayloadEnricherTest`
