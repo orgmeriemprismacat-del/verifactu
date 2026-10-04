@@ -43,7 +43,7 @@ Resultat CI verificat abans del merge:
 - intent AEAT persistit abans de xarxa;
 - `SENT` separat d'`ACCEPTED/ACCEPTED_WITH_ERRORS/REJECTED`;
 - resultat remot incert → `REVIEW`;
-- `UNCERTAIN` no es reconcilia;
+- **[HISTÒRIC 30/09]** `UNCERTAIN` no es reconciliava; des del PR #133 existeix `reconcile_evidence` amb verificació estricta i sense reenviament;
 - reconciliació només amb l'últim intent del mateix job;
 - `REQUEST_HASH` ha de coincidir amb l'XML del snapshot immutable;
 - reconciliació no fa segon SOAP;
@@ -90,7 +90,7 @@ Per tant:
 2. no s'ha d'utilitzar per afirmar que la suite global del `main` actual és verda;
 3. el UC-009 continua tenint evidència automàtica específica favorable dins el run actual;
 4. la branca `audit/uc-009-revalidacio-2026-10-03` amplia cobertura amb contracte del panell, lint/path de CI, preflight de menú i validació UUID estricta;
-5. la nova cobertura queda pendent del resultat CI de la branca/PR.
+5. la cobertura incorporada després d'aquell tall s'ha de valorar amb el workflow dedicat del head vigent de la branca/PR.
 
 No hi ha encara evidència versionada d'un enviament real al servei AEAT de preproducció.
 
@@ -111,3 +111,17 @@ La suite global del mateix tall va quedar en **922 passades / 6 fallades**, tote
 ### Nova extensió d'evidència 2026-10-04
 
 Després d'aquest PASS s'ha incorporat la conciliació d'intents `UNCERTAIN` des d'evidència privada estructurada. Aquesta extensió té tests nous i **no s'ha de donar per verificada fins que el workflow dedicat del head final torni a PASS**.
+
+
+### Autorització i ownership d'evidència
+
+Després del tall 57/57 s'han incorporat també:
+- preassignació de `EVIDENCE_ID` abans de xarxa i ús obligatori del mateix ID per `SoapTransport`;
+- stale `STARTED → UNCERTAIN` conservant l'evidència;
+- verificació de metadata `submission_attempt_uuid + UUID_FACTURA + FISCAL_ORDER`;
+- rebuig de bundle amb HTTP diferent de 200;
+- gate local de lectura al PHP intranet;
+- mutacions AEAT autoritzades només amb `read && reconcile`;
+- `capabilities.reconcile` per no mostrar mutacions a rols només-lectura.
+
+Aquestes extensions **no substitueixen** l'evidència de preproducció real i només es poden marcar verificades quan el workflow `UC-009 AEAT audit` del head que les conté acaba en PASS.
