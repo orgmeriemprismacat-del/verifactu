@@ -3,7 +3,7 @@
 namespace Prisma\Sif\Tests\Unit;
 
 use Prisma\Sif\Aeat\{ClientCertificate, EvidenceStore, SoapTransport};
-use Prisma\Sif\Tests\Support\Assert;
+use Prisma\Sif\Tests\Support\{AeatFixtures, Assert};
 
 final class AeatSecurityTest
 {
@@ -64,6 +64,64 @@ final class AeatSecurityTest
                 rmdir($dir . '/' . $id);
             }
             rmdir($dir);
+        }
+    }
+
+
+    public function testPreassignedEvidenceIdIsImmutableAndTransportRequiresAttemptContext(): void
+    {
+        $dir = sys_get_temp_dir() . '/aeat-preassigned-evidence-' . bin2hex(random_bytes(12));
+        mkdir($dir, 0700);
+        $id = EvidenceStore::generateId();
+
+        try {
+            $store = new EvidenceStore($dir);
+            Assert::same(
+                $id,
+                $store->beginWithId(
+                    $id,
+                    '<preassigned-request/>',
+                    ['environment' => 'offline-test']
+                )
+            );
+            Assert::same(
+                '<preassigned-request/>',
+                file_get_contents($dir . '/' . $id . '/request.xml')
+            );
+
+            Assert::throws(
+                \RuntimeException::class,
+                fn () => $store->beginWithId(
+                    $id,
+                    '<second-request/>',
+                    ['environment' => 'offline-test']
+                )
+            );
+
+            $transport = new SoapTransport(
+                new ClientCertificate('/nonexistent', ''),
+                $store
+            );
+            Assert::throws(
+                \RuntimeException::class,
+                fn () => $transport->send(['aeat' => AeatFixtures::snapshot()])
+            );
+            Assert::same(
+                1,
+                count(glob($dir . '/*', GLOB_ONLYDIR) ?: [])
+            );
+        } finally {
+            foreach (['request.xml', 'request.json', 'response.xml', 'response.json', 'failure.json'] as $name) {
+                if (is_file($dir . '/' . $id . '/' . $name)) {
+                    unlink($dir . '/' . $id . '/' . $name);
+                }
+            }
+            if (is_dir($dir . '/' . $id)) {
+                rmdir($dir . '/' . $id);
+            }
+            if (is_dir($dir)) {
+                rmdir($dir);
+            }
         }
     }
 
