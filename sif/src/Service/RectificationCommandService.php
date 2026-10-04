@@ -3,6 +3,7 @@
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\DocumentJobRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\SifAuditEventRepository;
@@ -19,7 +20,9 @@ final class RectificationCommandService
         private SifAuditEventRepository $auditEvents,
         private OperationalEventRepository $operationalEvents,
         private string $sourceEnvironment,
-        private ?AeatRectificationMapper $aeatMapper = null
+        private ?AeatRectificationMapper $aeatMapper = null,
+        private ?DocumentJobRepository $documentJobs = null,
+        private string $documentGeneratorVersion = 'invoice-documents-v1'
     ) {
         $this->sourceEnvironment = strtoupper(trim($this->sourceEnvironment));
         if ($this->sourceEnvironment === '') {
@@ -150,12 +153,26 @@ final class RectificationCommandService
                         );
                     }
 
+                    $documentJobs = [];
+                    if ($this->documentJobs !== null) {
+                        foreach (['PDF', 'XML', 'QR'] as $documentType) {
+                            $documentJobs[] = $this->documentJobs->enqueue(
+                                $db,
+                                (string) $issued['uuid_factura'],
+                                $documentType,
+                                $this->documentGeneratorVersion,
+                                $audit['correlation_id']
+                            );
+                        }
+                    }
+
                     $after = [
                         'uuid_factura_rectificativa' => $issued['uuid_factura'],
                         'num_visible_rectificativa' => $issued['num_visible'],
                         'uuid_factura_rectificada' => $lockedOriginal['UUID_FACTURA'],
                         'mode' => $prepared['classification']['rectification_mode'],
                         'total' => $lockedPayload['totals']['total'],
+                        'document_jobs' => $documentJobs,
                     ];
 
                     $terminal['uuid_operational_event'] = $this->operationalEvents->append($db, [
