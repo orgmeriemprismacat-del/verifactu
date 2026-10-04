@@ -41,6 +41,7 @@ $relativeFiles = [
     'Integration/ExistingInvoicePaymentCommandServiceTest.php',
     'Integration/ExistingInvoiceLegacyProjectionServiceTest.php',
     'Integration/ExistingInvoicePaymentAuditFlowTest.php',
+    'Integration/Uc002ExistingInvoiceCommandTest.php',
     'Integration/Uc002AuthoritativeBridgeBoundaryTest.php',
     'Unit/PaymentStatusCalculatorTest.php',
     'Unit/PaymentPayloadValidatorTest.php',
