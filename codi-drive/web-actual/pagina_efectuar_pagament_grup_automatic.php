@@ -2,8 +2,11 @@
 // UC-015: prepare PACK checkouts from server-side data and create the SIF intent
 // before building any Redsys merchant parameters.
 $validatedPackCheckout = null;
+$validatedGroupCheckout = null;
 $packOrder = null;
+$groupOrder = null;
 $packCallbackUrl = null;
+$groupCallbackUrl = null;
 $redsysMerchantKey = trim((string) getenv('SIF_REDSYS_MERCHANT_KEY'));
 $packMerchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
 $packTerminal = trim((string) (getenv('REDSYS_TERMINAL') ?: '1'));
@@ -42,7 +45,66 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             }
             $preflightDb->closeStmt();
 
-            if (in_array('P', $preflightTypes, true)) {
+            if (in_array('G', $preflightTypes, true)) {
+                $paymentAllowed = in_array(
+                    $packPaymentUrl,
+                    [
+                        'https://sis.redsys.es/sis/realizarPago',
+                        'https://sis-t.redsys.es:25443/sis/realizarPago',
+                    ],
+                    true
+                );
+                if ($packMerchantCode === '' || $packTerminal === '' || !$paymentAllowed) {
+                    throw new RuntimeException('REDSYS_GROUP_CONFIGURATION_NOT_AVAILABLE');
+                }
+                if ($preflightTypes !== ['G']) {
+                    throw new RuntimeException('GROUP_PAYMENT_NOT_AVAILABLE');
+                }
+
+                require_once __DIR__ . '/inc/GroupPaymentGate.php';
+                require_once __DIR__ . '/inc/SifPaymentIntentClient.php';
+
+                $validatedGroupCheckout = GroupPaymentGate::assertCanPrepare(
+                    $preflightDb->connexio,
+                    $_POST
+                );
+
+                $groupOrder = (string) random_int(100000000000, 999999999999);
+                $intent = (new SifPaymentIntentClient())->create([
+                    'ds_order' => $groupOrder,
+                    'idpag' => (int) $validatedGroupCheckout['idpag'],
+                    'source_type' => 'GRUP',
+                    'source_id' => (string) $validatedGroupCheckout['source_id'],
+                    'expected_amount' => (string) $validatedGroupCheckout['payment_amount'],
+                    'currency' => 'EUR',
+                    'terminal' => $packTerminal,
+                    'snapshot' => $validatedGroupCheckout['snapshot'],
+                ]);
+
+                if ((string) ($intent['ds_order'] ?? '') !== $groupOrder) {
+                    throw new RuntimeException('GROUP_INTENT_ORDER_MISMATCH');
+                }
+
+                $groupCallbackUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
+                $callbackParts = parse_url($groupCallbackUrl);
+                $callbackScheme = is_array($callbackParts)
+                    ? strtolower((string) ($callbackParts['scheme'] ?? ''))
+                    : '';
+                $callbackHost = is_array($callbackParts)
+                    ? strtolower((string) ($callbackParts['host'] ?? ''))
+                    : '';
+                $allowLocalHttp = filter_var(
+                    getenv('SIF_INTERNAL_API_ALLOW_HTTP') ?: '0',
+                    FILTER_VALIDATE_BOOLEAN
+                );
+                $callbackSecure = $callbackScheme === 'https'
+                    || ($allowLocalHttp
+                        && $callbackScheme === 'http'
+                        && in_array($callbackHost, ['127.0.0.1', 'localhost', '::1'], true));
+                if ($groupCallbackUrl === '' || !$callbackSecure) {
+                    throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_NOT_CONFIGURED');
+                }
+            } elseif (in_array('P', $preflightTypes, true)) {
                 $paymentAllowed = in_array(
                     $packPaymentUrl,
                     [
@@ -103,6 +165,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 }
             }
         } catch (Throwable $exception) {
+            if (in_array('G', $preflightTypes, true)) {
+                $preflightDb->desconectarBD();
+                http_response_code(409);
+                exit('Aquest pagament de grup no està disponible. Contacta amb secretaria.');
+            }
             if (in_array('P', $preflightTypes, true)) {
                 $preflightDb->desconectarBD();
                 http_response_code(409);
@@ -125,6 +192,13 @@ if ($validatedPackCheckout !== null) {
     $checkoutDisplayImport = (string) $validatedPackCheckout['total_amount'];
     $checkoutDisplayPaid = (string) $validatedPackCheckout['already_paid_amount'];
     $checkoutDisplayEmail = (string) ($validatedPackCheckout['snapshot']['billing']['email'] ?? '');
+} elseif ($validatedGroupCheckout !== null) {
+    $responsible = $validatedGroupCheckout['snapshot']['responsible'] ?? [];
+    $checkoutDisplayDni = (string) ($responsible['DNI'] ?? '');
+    $checkoutDisplayName = trim((string) ($responsible['NOM'] ?? '') . ' ' . (string) ($responsible['COGNOMS'] ?? ''));
+    $checkoutDisplayImport = (string) $validatedGroupCheckout['total_amount'];
+    $checkoutDisplayPaid = (string) $validatedGroupCheckout['already_paid_amount'];
+    $checkoutDisplayEmail = (string) ($responsible['CORREU'] ?? '');
 }
 ?>
 <!DOCTYPE HTML PUBLIC "-/W3C/DTD HTML 4.01/EN" "http:/www.w3.org/TR/html4/strict.dtd">
@@ -237,7 +311,25 @@ if ($validatedPackCheckout !== null) {
       $importPagat = (float) $_POST['importPagat'];
       $frac = (float) $_POST['frac'];
 
-      if ($validatedPackCheckout !== null) {
+      if ($validatedGroupCheckout !== null) {
+         $idPag = (int) $validatedGroupCheckout['idpag'];
+         $tipusInsc = 'G';
+         $dniTitularPag = trim((string) ($validatedGroupCheckout['snapshot']['responsible']['DNI'] ?? ''));
+         $nomTitularPag = trim(
+            (string) ($validatedGroupCheckout['snapshot']['responsible']['NOM'] ?? '')
+            . ' '
+            . (string) ($validatedGroupCheckout['snapshot']['responsible']['COGNOMS'] ?? '')
+         );
+         $email = (string) ($validatedGroupCheckout['snapshot']['responsible']['CORREU'] ?? '');
+         if ($dniTitularPag === '' || trim($nomTitularPag) === '' || trim($email) === '') {
+            http_response_code(409);
+            exit('Aquest pagament de grup no està disponible.');
+         }
+         $importAPagar = (string) $validatedGroupCheckout['total_amount'];
+         $importPagare = (float) $validatedGroupCheckout['payment_amount'];
+         $importPagat = (float) $validatedGroupCheckout['already_paid_amount'];
+         $frac = 0;
+      } elseif ($validatedPackCheckout !== null) {
          $idPag = (int) $validatedPackCheckout['idpag'];
          $tipusInsc = 'P';
          $cursPag = 'P' . (string) $validatedPackCheckout['pack_id'];
@@ -263,13 +355,17 @@ if ($validatedPackCheckout !== null) {
       // Valores de entrada
       $fuc="11250743";
       $terminal="1";
-      if ($validatedPackCheckout !== null) {
+      if ($validatedPackCheckout !== null || $validatedGroupCheckout !== null) {
          $fuc = $packMerchantCode;
          $terminal = $packTerminal;
       }
       $moneda="978";
       $trans="0";
-      if ($validatedPackCheckout !== null) {
+      if ($validatedGroupCheckout !== null) {
+         $order = (string) $groupOrder;
+         $id = $order;
+      }
+      elseif ($validatedPackCheckout !== null) {
          $order = (string) $packOrder;
          $id = $order;
       }
@@ -286,8 +382,13 @@ if ($validatedPackCheckout !== null) {
          $urlKO .= "?email=".rawurlencode($email);
       }
 
-      if ( $tipusInsc == 'G' )
-         $url="https://www.prisma.cat/realitzaPagamentGrupAutomatic.php?idPag=".$idPag."&dni=".$dniTitularPag."&order=".$order."&import=".$importPagare."&tipusInsc=".$tipusInsc;
+      if ( $tipusInsc == 'G' ) {
+         if ($validatedGroupCheckout === null || $groupCallbackUrl === null) {
+            http_response_code(409);
+            exit('Aquest pagament de grup no està disponible.');
+         }
+         $url = $groupCallbackUrl;
+      }
       if ( $tipusInsc == 'P' ) {
          if ($validatedPackCheckout === null || $packCallbackUrl === null) {
             http_response_code(409);
@@ -300,13 +401,17 @@ if ($validatedPackCheckout !== null) {
 
       $amount=$importPagare * 100;
 
-      $redsysPaymentUrl = $validatedPackCheckout !== null
+      $redsysPaymentUrl = ($validatedPackCheckout !== null || $validatedGroupCheckout !== null)
          ? $packPaymentUrl
          : 'https://sis.redsys.es/sis/realizarPago';
 
       $name='Associaci&oacute; per al Desenvolupament Infantil i Familiar PrisMa';
 
-      if ($validatedPackCheckout !== null) {
+      if ($validatedGroupCheckout !== null) {
+         $producto = 'Grup IDPAG ' . (string) $validatedGroupCheckout['idpag'];
+         $redsysTitular = trim($nomTitularPag);
+      }
+      elseif ($validatedPackCheckout !== null) {
          $producto = 'Pack P' . (string) $validatedPackCheckout['pack_id'];
          $redsysTitular = trim($nomTitularPag);
       }
