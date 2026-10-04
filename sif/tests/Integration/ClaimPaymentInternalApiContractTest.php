@@ -1,0 +1,54 @@
+<?php
+
+namespace Prisma\Sif\Tests\Integration;
+
+use Prisma\Sif\Tests\Support\Assert;
+
+final class ClaimPaymentInternalApiContractTest
+{
+    public function testSignedClaimPaymentApiKeepsIdentityAndAuditServerSide(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $api = file_get_contents($root . '/sif/public/api/claim-payments/register.php');
+        $client = file_get_contents($root . '/codi-drive/intranet-actual/SifInternalClaimPaymentClient.php');
+        $transport = file_get_contents($root . '/codi-drive/intranet-actual/SifInternalUsocClient.php');
+        $config = file_get_contents($root . '/sif/config/sif.php');
+
+        if ($api === false || $client === false || $transport === false || $config === false) {
+            Assert::fail('Could not read UC-024 internal API contract files');
+        }
+
+        Assert::stringContainsString('InternalApiAuthenticator', $api);
+        Assert::stringContainsString('claim_payment_signed_path', $api);
+        Assert::stringContainsString('assertClaimPaymentRole', $api);
+        Assert::stringContainsString('PaymentActionGateway', $api);
+        Assert::stringContainsString('PaymentActionEventRepository', $api);
+        Assert::stringContainsString('LINK_CLAIM_PAYMENT', $api);
+        Assert::stringContainsString('registerByUuidInTransaction', $api);
+        Assert::stringContainsString('registerByNumVisibleInTransaction', $api);
+        Assert::stringContainsString("$paymentInput['created_by'] = (string) ($actor['actor_id']", $api);
+        Assert::stringContainsString('Provide exactly one claim payment invoice selector', $api);
+
+        Assert::stringContainsString('SIF_INTERNAL_CLAIM_PAYMENT_URL', $client);
+        Assert::stringContainsString('SIF_INTERNAL_CLAIM_PAYMENT_SIGNED_PATH', $client);
+        Assert::stringContainsString('/api/claim-payments/register.php', $client);
+        Assert::stringContainsString('registerByUuid', $client);
+        Assert::stringContainsString('registerByNumVisible', $client);
+
+        Assert::stringContainsString('X-SIF-Signature', $transport);
+        Assert::stringContainsString("hash_hmac('sha256'", $transport);
+
+        Assert::stringContainsString('SIF_INTERNAL_CLAIM_PAYMENT_SIGNED_PATH', $config);
+        Assert::stringContainsString('SIF_CLAIM_PAYMENT_MANAGE_ROLES', $config);
+
+        foreach ([
+            "$payload['actor_id']",
+            "$payload['roles']",
+            'SIF_INTERNAL_API_SECRET'
+        ] as $browserControlled) {
+            if (str_contains($api, $browserControlled)) {
+                Assert::fail('UC-024 API must not accept identity/signing material from request JSON');
+            }
+        }
+    }
+}
