@@ -211,7 +211,7 @@ I --> J
 
 El camp `production_authorized=false` és intencional: un preflight tècnic no substitueix una decisió productiva.
 
-## 13. Script · verify-version-governance-evidence.php
+## 11. Script · verify-version-governance-evidence.php
 
 ```mermaid
 flowchart TD
@@ -229,7 +229,7 @@ J --> L[production_authorized=false]
 K --> L
 ```
 
-## 14. Errors i recuperació per apartat
+## 12. Errors i recuperació per apartat
 
 | Apartat | Error | Resposta |
 | --- | --- | --- |
@@ -248,7 +248,7 @@ K --> L
 | Activació | canvi d'evidència sota lock | 409/rollback |
 | Evidència | ACTIVE/journal/declaració/runtime/trace incoherent | JSON ok=false |
 
-## 15. Estat per superfície després de la reconciliació
+## 13. Estat per superfície després de la reconciliació
 
 | Superfície | Documentat | Implementat en branca | Verificat automàtic | Verificat entorn |
 | --- | --- | --- | --- | --- |
