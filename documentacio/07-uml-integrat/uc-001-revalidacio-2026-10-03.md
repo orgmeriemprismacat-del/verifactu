@@ -132,14 +132,14 @@ També s’han inspeccionat canvis de main en callers adjacents (`LegacyPackInvo
 | Redsys callers | **IMPLEMENTAT / VERIFICAT específicament** | Proves de serveis passades |
 | Tests UC-001 pre-F101 | **VERIFICAT** | PASS a `88e5c922…` |
 | F-101 | **IMPLEMENTAT I VERIFICAT** | Prova PASS a `276fb390…`; suite 961/6, fallades alienes a UC-001 |
-| CI global | **NO VERD** | 6 fallades alienes observades |
+| CI global head `9511ac2…` | **EXECUTAT: 965 PASS / 6 FAIL ALIENES** | UC-001 específic PASS; 5 PACK/UC-015 + 1 RedsysSignatureValidator |
 | Preproducció | **PENDENT** | Config, flags, HMAC, issuer/SIF, AEAT builders, evidència |
 | Producció | **PENDENT / BLOQUEJADA** | No declarar llest fins resoldre gaps i acceptació |
 
 ## 8. Pendents que bloquegen el tancament operatiu
 
 1. **RESOLT:** reconciliació amb `main` a la PR #145; `sif/config/sif.php` i `README.md` s'han fusionat preservant el treball concurrent.
-2. Mantenir com a evidència el run `276fb390…` on HARD-017 passa; el CI global continua bloquejat per les sis fallades alienes i s’ha de resoldre/reclassificar abans del merge.
+2. **RECLASSIFICAT:** al head `9511ac2…` la suite acaba `965 pass / 6 fail`; les sis fallades són 5 contractes PACK/UC-015 i `RedsysSignatureValidatorTest::testValidNotificationDecodesAndNormalizesSignedPayload`. Les proves específiques modificades d’UC-001 passen. Aquestes fallades no es classifiquen com a regressió d’UC-001.
 3. Fer obligatòria o equivalent la cobertura comercial entre claus diferents abans de numerar.
 4. Propagar `uuid_operation_line`/identitat comercial des de tots els builders pertinents.
 5. Completar assembler fiscal server-side/`aeat_fields` per tots els fluxos qualificats.
@@ -153,7 +153,7 @@ També s’han inspeccionat canvis de main en callers adjacents (`LegacyPackInvo
 
 **Auditoria de cobertura:** revalidada.  
 **Core UC-001:** substancialment implementat i endurit.  
-**Verificació específica:** existent i actualitzada; F-101 passa al run del head de codi `276fb390…`. El global continua 961/6 per fallades alienes.  
+**Verificació específica:** PASS al head `9511ac2…`; `IssueInvoiceTest`, `LegacyCourseInvoicePayloadBuilderTest`, `PrismaStudentCourseCheckoutServiceTest`, `RedsysCoursePaymentIntentPrismaStudentTest`, `RedsysInvoicePayloadBuilderTest` i `InvoicePayloadValidatorTest` passen. Suite global: **965 pass / 6 fail**, totes sis reclassificades com alienes a UC-001.  
 **Acceptació operativa/producció:** pendent.
 
 No s’ha de convertir “fitxa + UML + tests del core” en “llest per producció”: els gaps fiscals/comercials i la configuració/cutover continuen explícits.
@@ -171,7 +171,7 @@ Aquestes troballes no reobren el hardening ja verificat; concreten els quatre de
 
 ### Estat del gate CI
 
-En la comprovació del 03/10/2026, GitHub Actions mostrava **541 runs en cua** al repositori. Els quatre workflows del head UC-001 continuaven en `queued`, sense conclusió de fallada. Per tant, aquesta espera es classifica com a bloqueig d'infraestructura/capacitat d'Actions i no com a regressió demostrada del UC-001. No es declara PASS fins que els runs finalitzin.
+Al head `9511ac2cb8d85ddfed44c8ef63031a3eeea66192` els workflows han finalitzat. `UC-004 SIF secure flow checks` és **success**. `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` acaben en **failure** perquè executen la mateixa suite global: **965 pass / 6 fail**. Les sis fallades són exactament 5 proves de frontera PACK/UC-015 i 1 prova preexistent de `RedsysSignatureValidatorTest`; no hi ha cap fallada nova en les proves tocades per UC-001. Per aquest motiu el gate d'UC-001 queda **ACCEPTAT AMB FALLES GLOBALS ALIENES DOCUMENTADES**, no pas declarat globalment verd.
 
 
 ### Base de decisió F-107
