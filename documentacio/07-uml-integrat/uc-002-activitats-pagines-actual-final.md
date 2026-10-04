@@ -98,8 +98,8 @@ E -- sí --> F[Intranet::efectuarPagament]
 F --> G[Resposta legacy]
 ~~~
 
-**Implementat a la branca:** POST-only, no-store, sessió, origen, XHR, rol i validació server-side.  
-**Pendent:** CSRF sincronitzador explícit si es requereix; idempotència durable; resposta JSON tipificada; delegació al SIF.
+**Implementat a la branca:** POST-only, no-store, sessió, origen, XHR, rol i validació server-side. En mode `SIF_UC002_AUTHORITATIVE=1`, `efact=1` queda bloquejat aquí amb 409 i la mutació ha d'anar al proxy SIF.  
+**Pont autoritatiu:** token CSRF sincronitzador, request UUID estable, JSON tipificat, HMAC i delegació al SIF implementats a `sifPagamentFacturaToken.php` / `sifPagamentFactura.php`.
 
 ---
 
@@ -155,9 +155,9 @@ L --> M[enviar correus]
 - el pagament parcial s'acumula;
 - s'eliminen echoes de depuració.
 
-### PENDENT bloquejant
+### Estat després del pont autoritatiu
 
-No hi ha transacció global, idempotència SIF, audit event ni retry de correu/sync.
+Aquest mètode llegat continua sent no transaccional end-to-end i només s'utilitza quan el feature flag és desactivat. Amb `SIF_UC002_AUTHORITATIVE=1`, el cobrament `efact=1` no hi entra: el SIF fa el `CHARGE`, el journal funcional comparteix transacció i el sync llegat aplica una projecció absoluta retryable. Els correus/outbox continuen pendents.
 
 ---
 
@@ -180,8 +180,8 @@ I --> J[recalcular ESTAT_COBRAMENT]
 J --> K[JSON UUID_PAYMENT + reused + actor/request]
 ~~~
 
-**Implementat:** frontera segura + nucli.  
-**Pendent:** PaymentActionGateway, evidència externa, atribució genèrica per inscripció.
+**Implementat:** frontera segura + nucli + command `register_existing_invoice` + `PaymentActionGateway` per aquest command.  
+**Pendent:** evidència externa inequívoca i ledger econòmic genèric per inscripció.
 
 ---
 
@@ -205,7 +205,7 @@ H -- no --> J[409 CONFLICT]
 
 **Verificat per inspecció:** sí.  
 **Tests:** definits.  
-**Pendent:** portar la mateixa propietat fins a la UI llegada.
+**Implementat fins a UI en mode autoritatiu:** el navegador conserva el request UUID a `sessionStorage`; el proxy el converteix en idempotency key explícita. Un retry equivalent reutilitza el mateix `UUID_PAYMENT`.
 
 ---
 
@@ -248,27 +248,28 @@ Mantenir aquest model. La factura fiscal és immutable; només varia l'estat eco
 
 ## P-PAG-11 · Auditoria funcional
 
-### ACTUAL
-
-`PaymentActionGateway`, `PaymentActionEventWriter`, `PaymentActionEventRepository` i `payment_action_event` existeixen.
-
-**Però:** `payments/register.php` no els utilitza.
-
-### FINAL
+### ACTUAL per `register_existing_invoice`
 
 ~~~mermaid
 flowchart TD
-A[REQUESTED] --> B[PaymentService]
-B --> C{resultat}
-C -- creat --> D[SUCCEEDED]
-C -- reús --> E[REUSED]
-C -- error --> F[FAILED/REJECTED]
-D --> G[payment_action_event]
-E --> G
-F --> G
+A[REQUESTED] --> B[PaymentActionGateway]
+B --> C[BEGIN owner]
+C --> D[ExistingInvoicePaymentCommandService]
+D --> E[PaymentService participa en transacció]
+E --> F{resultat}
+F -- creat --> G[SUCCEEDED]
+F -- reús --> H[REUSED]
+F -- error --> I[ROLLBACK]
+I --> J[FAILED]
+G --> K[COMMIT CHARGE + terminal event]
+H --> K
 ~~~
 
-Cal redissenyar el boundary transaccional abans de connectar el gateway, perquè el runner actual no suporta transaccions imbricades.
+`TransactionRunner` és participation-aware: només obre/commit/rollback si no hi havia una transacció externa. La prova `ExistingInvoicePaymentAuditFlowTest` exigeix un únic `payment_transaction` i els events `REQUESTED→SUCCEEDED` / `REQUESTED→REUSED`.
+
+### Límit
+
+El mode low-level compatible `action=''` encara crida `PaymentService` directament; no és el command autoritatiu UC-002.
 
 ---
 
@@ -325,3 +326,58 @@ G --> H[mai segon CHARGE]
 ~~~
 
 Contracte objectiu: `CREATED | REUSED | CONFLICT | PENDING_RETRY | ERROR`.
+
+
+---
+
+## P-PAG-15 · Pont autoritatiu Intranet → SIF
+
+~~~mermaid
+flowchart TD
+A[Inicialitzar pantalla] --> B[GET sifPagamentFacturaToken.php]
+B --> C[CSRF + actor/rol + feature flag]
+C --> D{authoritative?}
+D -- no --> E[flux legacy temporal]
+D -- sí --> F[Conservar request UUID a sessionStorage]
+F --> G{banc}
+G -- tpv --> H[409 · flux Redsys]
+G -- Caixa/BBVA --> I[POST sifPagamentFactura.php]
+I --> J[HMAC SifInternalApiClient]
+J --> K[register_existing_invoice]
+K --> L[PaymentActionGateway]
+L --> M[PaymentService]
+M --> N[ExistingInvoiceLegacyProjectionService]
+N --> O{projecció READY?}
+O -- no --> P[202 PENDING_RETRY]
+O -- sí --> Q[Uc002LegacyPaymentProjectionApplier]
+Q --> R{sync ok?}
+R -- sí --> S[200 SYNCED]
+R -- no --> P
+~~~
+
+**Implementat:** sí, darrere `SIF_UC002_AUTHORITATIVE`.  
+**Verificat:** per inspecció i tests definits; CI/E2E pendents.
+
+---
+
+## P-PAG-16 · Descoberta d'una factura SIF-only
+
+### ACTUAL
+
+La cerca per número a `buscarInfomacioPagament.php -> Intranet::mostrarPagaments()` només consulta el model llegat. El SIF ja permet `InvoiceQueryService::search(['num_visible'=>...])`, però aquesta resposta encara no s'ha integrat amb la taula/modal de “Passar pagaments”.
+
+### FINAL
+
+~~~mermaid
+flowchart TD
+A[Cercar número] --> B{legacy troba factura?}
+B -- sí --> C[mostrar resultat legacy]
+B -- no --> D[cerca SIF per NUM_VISIBLE]
+D --> E{exactament 1 i cobrable?}
+E -- no --> F[No trobat / incidència]
+E -- sí --> G[render context SIF]
+G --> H[confirmació SIF]
+H --> I[pont autoritatiu UC-002]
+~~~
+
+No crear una pseudo-factura llegada només per fer-la visible. El fallback ha de conservar el SIF com a font de veritat.
