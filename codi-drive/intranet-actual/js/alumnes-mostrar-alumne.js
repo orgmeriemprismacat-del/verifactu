@@ -1,5 +1,5 @@
 var urlPagina = window.location.pathname.split('?')[0];
-let path = "https://intranet.prisma.cat/ajax/";
+let path = window.location.origin + "/ajax/";
 let hashUrl = null;
 function obtenirCsrfAlumnesLifecycle() {
 	const meta = document.querySelector('meta[name="csrf-token-alumnes-lifecycle"]');
