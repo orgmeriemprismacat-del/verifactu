@@ -11,6 +11,7 @@ use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 use Prisma\Sif\Service\GroupEnrollmentFundAllocationService;
+use Prisma\Sif\Service\GroupParticipantAdditionPreviewService;
 use Prisma\Sif\Service\GroupParticipantRemovalPreviewService;
 use Prisma\Sif\Service\LegacyGroupInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacySyncService;
@@ -102,6 +103,41 @@ final class RedsysGroupWorkerEndToEndTest
         Assert::same(false, $preview['decision']['automatic_commit_allowed']);
         Assert::same(true, $preview['decision']['repricing_policy_required']);
         Assert::same(1, count($preview['fund_movements']));
+
+        $addition = (new GroupParticipantAdditionPreviewService())->preview(
+            $db,
+            $first['uuid_factura'],
+            [
+                'id_insc' => 753,
+                'idpag' => 950,
+                'concept' => 'Comunicacio assertiva - Carla Participant',
+                'base' => '100.00',
+                'discount' => '20.00',
+                'total' => '80.00',
+            ]
+        );
+        Assert::same(753, $addition['candidate']['id_insc']);
+        Assert::same('80.00', $addition['candidate']['total']);
+        Assert::same(2, $addition['group']['participants_before']);
+        Assert::same(3, $addition['group']['participants_after']);
+        Assert::same('280.00', $addition['group']['projected_nominal_total_before_repricing_policy']);
+        Assert::same(false, $addition['decision']['automatic_commit_allowed']);
+        Assert::same(true, $addition['decision']['repricing_policy_required']);
+
+        Assert::throws(\Prisma\Sif\Exception\SifException::class, function () use ($db, $first): void {
+            (new GroupParticipantAdditionPreviewService())->preview(
+                $db,
+                $first['uuid_factura'],
+                [
+                    'id_insc' => 751,
+                    'idpag' => 950,
+                    'concept' => 'Duplicada',
+                    'base' => '120.00',
+                    'discount' => '0.00',
+                    'total' => '120.00',
+                ]
+            );
+        }, 409);
 
         Assert::throws(\Prisma\Sif\Exception\SifException::class, function () use ($db, $first): void {
             (new GroupParticipantRemovalPreviewService(
