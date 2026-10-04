@@ -143,7 +143,7 @@ Això implica:
 | GAP09-16 | `recoverStaleLocks()` feia `PROCESSING → RETRY` i podia provocar segon SOAP després d'una caiguda | fiscal/crític | canviat a `REVIEW` + incidència idempotent + cap retry automàtic |
 | GAP09-17 | resultat remot terminal podia acabar en `RETRY` si fallava/era invàlid el flow wait | fiscal/crític | `FlowControlledTransport` preserva resultat terminal, fallback 60 s + `requires_review` |
 | GAP09-18 | `UNCERTAIN` només conservava l'evidence id dins text/error i no tenia reconciliació verificable | operatiu/fiscal | `EVIDENCE_ID` únic + `AeatEvidenceReconciliationService` + request/response íntegres + `ResponseParser` |
-| GAP09-19 | caiguda abrupta pot deixar `STARTED` sense `EVIDENCE_ID` estructurat | operatiu | **PENDENT FAIL-CLOSED**: queda `REVIEW`; no s'associa evidència per heurística ni es reenvia automàticament |
+| GAP09-19 | caiguda abrupta podia deixar `STARTED` sense una vinculació inequívoca a l'evidència | fiscal/recuperació | **TANCAT EN CODI**: `EVIDENCE_ID` es preassigna i persisteix amb l'intent abans de xarxa; stale `STARTED → UNCERTAIN` conserva el mateix ID |
 | GAP09-20 | resultat remot retornat però fallada local en persistir l'intent podia perdre l'evidence id | fiscal/recuperació | `reviewHold(... evidenceIdOverride)` conserva `EVIDENCE_ID`; prova específica bloqueja reenviament |
 
 ## 7. Traçabilitat requisit → implementació → prova
@@ -214,4 +214,21 @@ Un intent `UNCERTAIN` podia conservar una referència d'evidència només dins e
 
 ### 9.3. Límit que es manté
 
-Un intent `STARTED` sense `EVIDENCE_ID` no es reconcilia automàticament. Encara que existeixi algun directori privat compatible, no es fa matching per hora, factura, hash parcial o ordre de fitxers. Sense una vinculació inequívoca, el job continua `REVIEW` i bloqueja reenviaments.
+Des de la preassignació 2026-10-04, qualsevol intent creat pel worker normal té `EVIDENCE_ID` abans de sortir a xarxa. En recuperar un stale lock, l'últim intent `STARTED` passa a `UNCERTAIN` mantenint el mateix ID. Si el bundle és complet i íntegre, es pot conciliar; si no existeix o és incomplet, continua `REVIEW`. No es fa matching heurístic per hora, factura o ordre de fitxers.
+
+
+### 9.4. Preassignació d'evidència abans de xarxa
+
+L'ordre executable queda:
+
+`claim queue → begin attempt + EVIDENCE_ID en BD → passar context al transport → EvidenceStore::beginWithId() → cURL`.
+
+Això elimina la finestra en què el transport podia crear un bundle privat sense que la BD sabés quin era. `SoapTransport` rebutja qualsevol `send()` sense `uuid_attempt` i `evidence_id` preassignats.
+
+En recuperació stale:
+- si l'últim intent és `STARTED`, passa a `UNCERTAIN`;
+- conserva el mateix `EVIDENCE_ID`;
+- la cua passa a `REVIEW`;
+- no hi ha transport;
+- una evidència completa pot ser conciliada posteriorment;
+- una evidència absent/incompleta manté el bloqueig.
