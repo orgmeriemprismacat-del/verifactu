@@ -54,11 +54,45 @@ try {
         return;
     }
 
+    if ($action === 'view_terms') {
+        sendResult($client->viewFinancingTerms(
+            $actorId,
+            $roles,
+            positiveInt($_POST['id_insc'] ?? null, 'ID inscripció no vàlid'),
+            positiveInt($_POST['idpag'] ?? null, 'IDPAG no vàlid')
+        ));
+        return;
+    }
+
     LegacyInvoiceMutationAuthorization::assertCanEdit(
         $usuariObject,
         $intranetObject,
         '/alumnes/mostrar-alumne/'
     );
+
+    if ($action === 'prepare_terms') {
+        $requestId = requiredString(
+            $_POST['request_id'] ?? null,
+            'Falta requestId dels termes USOC'
+        );
+        if (
+            strlen($requestId) > 120
+            || preg_match('/^[A-Za-z0-9._:-]+$/D', $requestId) !== 1
+        ) {
+            throw new InvalidArgumentException('requestId dels termes USOC no vàlid', 422);
+        }
+
+        sendResult($client->prepareFinancingTerms(
+            $actorId,
+            $roles,
+            $requestId,
+            positiveInt($_POST['id_insc'] ?? null, 'ID inscripció no vàlid'),
+            positiveInt($_POST['idpag'] ?? null, 'IDPAG no vàlid'),
+            positiveMoney($_POST['student_amount'] ?? null, 'Import alumne no vàlid'),
+            positiveMoney($_POST['entity_amount'] ?? null, 'Import USOC no vàlid')
+        ));
+        return;
+    }
 
     if ($action === 'lifecycle_plan') {
         $operation = strtolower(trim((string) ($_POST['operation'] ?? '')));
