@@ -142,6 +142,13 @@ try {
 		);
 		$beginDecision = assertSifValidationDecisionResponse($beginResponse);
 
+		if (($beginDecision['tracked'] ?? false) !== true) {
+			http_response_code(409);
+			throw new Exception(
+				'Error: la classificació USOC ha canviat abans de registrar la decisió al SIF.'
+			);
+		}
+
 		if ((string) ($beginDecision['state'] ?? '') === 'REVIEW_REQUIRED') {
 			http_response_code(409);
 			throw new Exception('Error: la decisió USOC requereix revisió manual abans de continuar.');
@@ -196,7 +203,7 @@ try {
 
 	echo $resultat;
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
 	if ($e->getCode() !== 0) {
 		echo missatgeError($e->getCode());
 	} else {
