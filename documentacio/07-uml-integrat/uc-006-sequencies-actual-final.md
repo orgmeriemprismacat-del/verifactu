@@ -395,6 +395,41 @@ Note over S,DB: No crea payment_transaction ni CHARGE. La disponibilitat baixa a
 
 **Implementat a la branca:** builder, servei transaccional, repositori, preview/process CLI i proves A→B/A→B→C. **Pendent:** que UC-071/UC-006 decideixi i autoritzi quan/quanta quantitat traspassar.
 
+## 6.6. ACTUAL ampliat — reversió segura d'un traspàs A → B
+
+```mermaid
+sequenceDiagram
+autonumber
+participant C as Caller/Coordinator
+participant S as EnrollmentFundTransferService
+participant B as EnrollmentFundTransferPayloadBuilder
+participant F as EnrollmentFundMovementRepository
+participant DB as BD SIF
+C->>S: reverseTransfer(movement_uuid)
+S->>B: buildReversal(...)
+B-->>S: K derivada del UUID original
+S->>DB: BEGIN
+S->>F: lock moviment original
+alt no és INTERNAL_TRANSFER
+  F--xS: 409
+  S->>DB: ROLLBACK
+else transfer vàlid
+  F->>DB: comprovar REVERSAL existent
+  F->>DB: lock/reconstruir disponible de B
+  alt B ja no conserva l'import transferit
+    F--xS: 409
+    S->>DB: ROLLBACK
+  else B conserva prou saldo
+    F->>DB: INSERT REVERSAL(reverses_uuid_movement)
+    S->>DB: COMMIT
+    S-->>C: UUID_REVERSAL / reused
+  end
+end
+Note over F,DB: availableAmountForInscription() ignora el moviment original quan existeix REVERSAL: A recupera l'import i B el perd.
+```
+
+**Límit deliberat:** aquesta reversió no desfà `REFUND_EXIT`, `CREDIT_CREATE` ni `COMPENSATION_ALLOCATION`. Si el canvi ja ha generat altres efectes, cal regularització específica i no una reversió genèrica.
+
 ## 7. FINAL — preview de decisió UC-006
 
 ```mermaid
