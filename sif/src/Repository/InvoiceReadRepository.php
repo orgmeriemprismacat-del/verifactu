@@ -93,14 +93,14 @@ final class InvoiceReadRepository
     public function latestFiscalCorrectionDecision(\PDO $db, string $uuidFactura): ?array
     {
         $stmt = $db->prepare(
-            'SELECT UUID_EVENT, RESULT, REASON_CODE, CHANGESET_JSON, OCCURRED_AT, RECORDED_AT
+            "SELECT UUID_EVENT, RESULT, REASON_CODE, CHANGESET_JSON, OCCURRED_AT, RECORDED_AT
              FROM sif_audit_event
-             WHERE ACTION = "FISCAL_CORRECTION_CLASSIFIED"
-               AND RESULT = "SUCCEEDED"
-               AND RESOURCE_TYPE = "FACTURA"
+             WHERE ACTION = 'FISCAL_CORRECTION_CLASSIFIED'
+               AND RESULT = 'SUCCEEDED'
+               AND RESOURCE_TYPE = 'FACTURA'
                AND RESOURCE_ID = ?
              ORDER BY RECORDED_AT DESC, ID DESC
-             LIMIT 1'
+             LIMIT 1"
         );
         $stmt->execute([$uuidFactura]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
