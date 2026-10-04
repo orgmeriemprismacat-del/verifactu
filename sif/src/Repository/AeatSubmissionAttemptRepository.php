@@ -2,11 +2,11 @@
 
 namespace Prisma\Sif\Repository;
 
-use Prisma\Sif\Aeat\XmlCodec;
+use Prisma\Sif\Aeat\{EvidenceStore, XmlCodec};
 
 final class AeatSubmissionAttemptRepository
 {
-    public function begin(\PDO $db, array $queueItem, array $payload): string
+    public function begin(\PDO $db, array $queueItem, array $payload): array
     {
         $fiscalOrder = $payload['fiscal_order'] ?? null;
         if (!is_int($fiscalOrder) && !ctype_digit((string) $fiscalOrder)) {
@@ -28,11 +28,12 @@ final class AeatSubmissionAttemptRepository
         }
 
         $uuid = $this->uuidV4();
+        $evidenceId = EvidenceStore::generateId();
         $stmt = $db->prepare(
             'INSERT INTO aeat_submission_attempt
              (UUID_ATTEMPT, FACTURA_REGISTRE_ID, FISCAL_QUEUE_ID, ATTEMPT_NO,
-              ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, STATUS, STARTED_AT)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(6))'
+              ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, STATUS, STARTED_AT)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(6))'
         );
         $stmt->execute([
             $uuid,
@@ -42,10 +43,14 @@ final class AeatSubmissionAttemptRepository
             'preproduction',
             'AEAT_WORKER',
             $requestHash,
+            $evidenceId,
             'STARTED',
         ]);
 
-        return $uuid;
+        return [
+            'uuid_attempt' => $uuid,
+            'evidence_id' => $evidenceId,
+        ];
     }
 
     public function complete(\PDO $db, string $uuidAttempt, string $status, array $response): void
