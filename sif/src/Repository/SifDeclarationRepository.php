@@ -26,7 +26,7 @@ final class SifDeclarationRepository
         $approvedAt = trim((string) ($input['approved_at'] ?? ''));
         $idempotencyKey = trim((string) ($input['idempotency_key'] ?? ''));
 
-        if (preg_match('/^[0-9a-f-]{36}$/D', $uuidVersion) !== 1) {
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/D', $uuidVersion) !== 1) {
             throw SifException::validation('Invalid declaration version UUID');
         }
         if ($declarationVersion === '' || strlen($declarationVersion) > 40) {
