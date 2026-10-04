@@ -23,14 +23,15 @@ final class AeatRectificationMapper
         \PDO $db,
         array $originalInvoice,
         array $rectificationPayload,
-        array $classification
+        array $classification,
+        bool $forUpdate = false
     ): ?array {
         $uuid = trim((string) ($originalInvoice['UUID_FACTURA'] ?? ''));
         if ($uuid === '') {
             throw SifException::validation('Original invoice UUID is required for AEAT rectification mapping');
         }
 
-        $record = $this->invoices->findLatestFiscalRecordByUuid($db, $uuid);
+        $record = $this->invoices->findLatestFiscalRecordByUuid($db, $uuid, $forUpdate);
         if ($record === null) {
             if ($this->requireOfficialSnapshot) {
                 throw SifException::conflict('Original invoice has no fiscal record for official rectification');
@@ -114,6 +115,12 @@ final class AeatRectificationMapper
             $identity = (new RecordFactory())->identity($original);
         } catch (\Throwable) {
             throw SifException::conflict('Original AEAT snapshot has an invalid invoice identity');
+        }
+
+        if ($this->issuerNif === ''
+            || !hash_equals($this->issuerNif, strtoupper((string) $identity['IDEmisorFactura']))
+        ) {
+            throw SifException::conflict('Original AEAT issuer does not match the configured SIF issuer');
         }
 
         $expectedNumber = trim((string) ($invoice['NUM_VISIBLE'] ?? ''));
