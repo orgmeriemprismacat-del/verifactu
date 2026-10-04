@@ -10,6 +10,12 @@ on:
       - 'sif/tests/Integration/ManualPaymentServiceTest.php'
       - 'sif/tests/Integration/ManualTransferCommandServiceTest.php'
       - 'sif/tests/Unit/ManualPaymentPayloadBuilderTest.php'
+      - 'sif/tests/Unit/GeneratedInvoiceLegacyPaymentSyncServiceTest.php'
+      - 'sif/tests/Integration/ManualTransferAuditedFlowTest.php'
+      - 'sif/tests/Integration/ManualTransferHttpEndpointTest.php'
+      - 'sif/tests/Integration/ManualTransferIntranetAdapterTest.php'
+      - 'sif/tests/Integration/ManualTransferNotificationServiceTest.php'
+      - 'codi-drive/intranet-nova-canvis-verifactu/**'
       - 'sif/tests/run-uc022-tests.php'
       - '.github/workflows/uc-022-manual-transfer.yml'
   workflow_dispatch:
@@ -53,6 +59,16 @@ jobs:
           php -l sif/tests/Integration/ManualPaymentServiceTest.php
           php -l sif/tests/Integration/ManualTransferCommandServiceTest.php
           php -l sif/tests/Unit/ManualPaymentPayloadBuilderTest.php
+          php -l sif/tests/Unit/GeneratedInvoiceLegacyPaymentSyncServiceTest.php
+          php -l sif/tests/Integration/ManualTransferAuditedFlowTest.php
+          php -l sif/tests/Integration/ManualTransferHttpEndpointTest.php
+          php -l sif/tests/Integration/ManualTransferIntranetAdapterTest.php
+          php -l sif/tests/Integration/ManualTransferNotificationServiceTest.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/SifPaymentSessionGuard.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/SifInternalApiClient.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/SifManualTransferGateway.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/obtenirTokenPagamentSif.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/registrarTransferenciaSif.php
           php -l sif/tests/run-uc022-tests.php
 
       - name: Run UC-022 tests
