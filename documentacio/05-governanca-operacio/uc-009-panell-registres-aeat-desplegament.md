@@ -89,13 +89,14 @@ No executar aquesta sentència sense substituir:
 
 ## 4. Permisos
 
-Hi ha tres barreres independents:
+Hi ha quatre barreres independents:
 
 1. sessió d'intranet vàlida;
-2. rol HMAC autoritzat a `SIF_AEAT_READ_ROLES`;
-3. per a `reconcile`, rol inclòs a `SIF_AEAT_RECONCILE_ROLES` + CSRF de sessió.
+2. gate local de pàgina: els rols vigents de sessió han d'intersectar `SIF_AEAT_READ_ROLES`; si no, HTTP 403 abans de renderitzar;
+3. API HMAC: qualsevol operació exigeix rol de lectura;
+4. `reconcile` i `reconcile_evidence` exigeixen **rol de lectura + rol de reconciliació** i, quan venen del browser, CSRF de sessió.
 
-El fet de veure la pàgina al menú no concedeix permisos d'API.
+`SIF_AEAT_READ_ROLES` s'ha de configurar coherentment tant a l'entorn d'intranet com al SIF. El fet de veure la pàgina al menú no concedeix permisos d'API.
 
 ## 5. Reconciliació REVIEW
 
@@ -107,7 +108,7 @@ La UI només mostra «Conciliar sense reenviar» quan:
 El servidor torna a validar totes aquestes condicions dins d'una transacció.
 
 ### No es permet
-- convertir un `UNCERTAIN` en acceptat;
+- convertir un `UNCERTAIN` en terminal **sense** `EVIDENCE_ID` estructurat, bundle complet/íntegre, HTTP 200, metadata coincident i resposta validada per `ResponseParser`;
 - fer un segon SOAP;
 - canviar número de factura;
 - crear un registre fiscal nou;
@@ -120,10 +121,11 @@ El servidor torna a validar totes aquestes condicions dins d'una transacció.
 2. comprovar que la migració `2026_09_29_000010_add_aeat_queue_claim_token.sql` està aplicada;
 3. configurar rols i URL interna;
 4. verificar `summary`, `list`, `detail`, `preflight`;
-5. provar `reconcile` només amb dades `sif_test*`;
-6. comprovar que un intent `UNCERTAIN` retorna 409 i manté `REVIEW`;
-7. afegir l'apartat al menú de preproducció;
-8. validar permisos amb un usuari autoritzat i un no autoritzat.
+5. provar `reconcile` i `reconcile_evidence` només amb dades `sif_test*`;
+6. comprovar que un `UNCERTAIN` sense evidència vàlida retorna 409 i manté `REVIEW`;
+7. comprovar que un `UNCERTAIN` amb evidència completa, íntegra i coincident es tanca sense segon SOAP;
+8. afegir l'apartat al menú de preproducció;
+9. validar tres perfils: sense read (403 de pàgina), read-only (sense botons de conciliació) i read+reconcile (mutació autoritzada).
 
 ## 7. Producció
 
@@ -172,7 +174,7 @@ Aquestes accions requereixen accés real a l'entorn i **no s'han de donar per fe
 6. Executar `summary`, `list`, `detail` i `preflight`.
 7. Donar d'alta la pàgina a `apartats` amb l'ID pare i rols comprovats.
 8. Verificar permisos amb usuari autoritzat i usuari sense permís.
-9. Crear/usar un cas controlat `REVIEW`: verificar que `UNCERTAIN` no es pot conciliar i que un resultat terminal coincident sí es pot tancar sense nou SOAP.
+9. Crear/usar casos controlats `REVIEW`: resultat terminal coincident → `reconcile`; `UNCERTAIN` amb evidència vàlida → `reconcile_evidence`; evidència incompleta/mismatch → 409 i mantenir `REVIEW`.
 10. Conservar captures/logs/IDs de cua i intents com a evidència de preproducció.
 11. Fer la prova externa AEAT de preproducció.
 12. Mantenir producció bloquejada fins al tancament formal.
@@ -181,7 +183,7 @@ Aquestes accions requereixen accés real a l'entorn i **no s'han de donar per fe
 
 **Codi UC-009 i proves AEAT específiques: VERIFICATS al tall actual disponible.**
 
-**Suite global de `main`: NO VERDA al run 2026-10-02 (917 passades / 6 fallades alienes de PACK/Redsys).** L'evidència 558/0 anterior continua sent històrica del seu commit, no un estat global vigent.
+**CI global:** el 917/6 del 2026-10-02 és un tall històric, no un estat vigent. Abans de merge/release cal mirar el CI del `main` i del PR actuals. L'evidència 558/0 anterior també es conserva només com a històrica.
 
 **Desplegament i operació real: PENDENT D'ENTORN.**
 
