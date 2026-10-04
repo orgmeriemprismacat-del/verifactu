@@ -299,7 +299,8 @@ class PagamentCursAutomatic {
          }
          else {
             $vistaPag .= $this->__mostrarPagamentTargeta(1);
-            $vistaPag .= $this->__mostrarPagamentTransferencia(1);
+            if ( $this->validDesc == 1 )
+               $vistaPag .= $this->__mostrarPagamentTransferencia(1);
          }
          $vistaPag .= $this->__modalError();
          $vistaPag .= $this->__modalSuccess();
