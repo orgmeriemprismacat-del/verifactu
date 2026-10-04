@@ -38,6 +38,22 @@ final class ClaimPaymentReceiptResolver
             return null;
         }
 
+        if (strtoupper(trim((string) ($existing['ESTAT'] ?? ''))) !== 'CONFIRMED') {
+            throw SifException::conflict(
+                'External receipt payment is not confirmed'
+            );
+        }
+
+        if (!in_array(
+            strtoupper(trim((string) ($existing['TIPUS_MOVIMENT'] ?? ''))),
+            ['CHARGE', 'COMPENSATION'],
+            true
+        )) {
+            throw SifException::conflict(
+                'External receipt is not a positive payment movement'
+            );
+        }
+
         $allocatedAmount = $this->receipts->allocatedAmountForInvoice(
             $db,
             (string) $existing['UUID_PAYMENT'],
