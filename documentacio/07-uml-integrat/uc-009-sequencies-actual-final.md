@@ -132,8 +132,10 @@ Q->>DB: FOR UPDATE -> PROCESSING + ATTEMPTS + CLAIM_TOKEN
 P->>Q: assertImmutablePayload()
 Q->>DB: comparar snapshot/registre immutable
 P->>A: begin()
-A->>DB: INSERT aeat_submission_attempt STARTED
-P->>T: send(payload)
+A->>DB: INSERT attempt STARTED + EVIDENCE_ID únic
+A-->>P: uuid_attempt + evidence_id
+P->>T: send(payload + context preassignat)
+T->>T: EvidenceStore::beginWithId(evidence_id)
 T->>X: SOAP/mTLS
 X-->>T: resposta
 T-->>P: status + response + request_xml
@@ -298,6 +300,10 @@ participant T as AeatTransport
 W->>P: recoverStaleLocks(900)
 P->>DB: SELECT stale PROCESSING FOR UPDATE
 DB-->>P: queue_id + UUID_FACTURA
+P->>DB: lock últim attempt del queue
+alt attempt STARTED
+ P->>DB: STARTED -> UNCERTAIN mantenint EVIDENCE_ID
+end
 P->>Q: recoverStaleLocks()
 Q->>DB: PROCESSING -> REVIEW
 Q->>DB: LOCKED_AT=NULL, CLAIM_TOKEN=NULL, NEXT_RETRY_AT=NULL
