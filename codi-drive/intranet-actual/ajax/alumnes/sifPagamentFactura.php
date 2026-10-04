@@ -77,6 +77,21 @@ try {
     if ($bank === '' || mb_strlen($bank, 'UTF-8') > 120) {
         throw new RuntimeException('Invalid payment bank', 422);
     }
+
+    $normalizedBank = strtolower($bank);
+    if ($normalizedBank === 'tpv') {
+        throw new RuntimeException(
+            'Els cobraments TPV s’han de registrar pel flux Redsys autoritatiu',
+            409
+        );
+    }
+    if (!in_array($normalizedBank, ['caixa', 'bbva'], true)) {
+        throw new RuntimeException(
+            'Compte bancari no admès pel cobrament manual UC-002',
+            422
+        );
+    }
+
     if (mb_strlen($notes, 'UTF-8') > 500 || mb_strlen($reference, 'UTF-8') > 160) {
         throw new RuntimeException('Payment notes or reference are too long', 422);
     }
