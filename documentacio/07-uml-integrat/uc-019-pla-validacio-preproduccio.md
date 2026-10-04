@@ -128,7 +128,36 @@ Esperat:
 - l'índex `uq_usoc_validation_active_inscription` existeix;
 - quan la primera passa a `COMMITTED` o `REVIEW_REQUIRED`, deixa de consumir l'unicitat activa.
 
-## 7. Conflicte llegat / REVIEW_REQUIRED
+## 7. Denegació USOC amb reclassificació llegada
+
+Partir de:
+
+- `TIPUS_DESC=4`
+- `VALID_DESC=0`
+
+Denegar la validació.
+
+Esperat:
+
+- el llegat pot deixar `TIPUS_DESC=1` si és exalumne o `TIPUS_DESC=0` si no ho és;
+- `VALID_DESC=2`;
+- `A_PAGAR` recalculat segons la política llegada;
+- la decisió SIF acaba `COMMITTED`, no `REVIEW_REQUIRED`;
+- una aprovació amb `TIPUS_DESC != 4` continua requerint revisió.
+
+## 8. Reintent després de resposta incerta
+
+Simular una resposta perduda després de la mutació.
+
+Esperat:
+
+- el navegador reutilitza exactament el mateix `requestId`;
+- l'endpoint reconeix que el request era USOC encara que `TIPUS_DESC` ja sigui 0/1;
+- no es crea una segona decisió activa;
+- no es torna a aplicar una mutació divergida;
+- el SIF reconcilia el request existent.
+
+## 9. Conflicte llegat / REVIEW_REQUIRED
 
 Escenari controlat:
 
@@ -142,7 +171,7 @@ Esperat:
 - `REVIEW_REASON=LEGACY_DECISION_CONFLICT`;
 - cap intent de forçar el valor a 1.
 
-## 8. Interrupció entre begin i complete
+## 10. Interrupció entre begin i complete
 
 Simular una interrupció després d'haver aplicat el valor al llegat però abans del `complete`.
 
@@ -160,7 +189,7 @@ Esperat:
 - retorna `REVIEW_REQUIRED` si no coincideix;
 - `errors=0` per al cas nominal.
 
-## 9. Seguretat del canal
+## 11. Seguretat del canal
 
 Comprovar:
 
@@ -180,7 +209,7 @@ Comprovar:
 - actor sense rol USOC → 403;
 - cap secret visible al HTML/JS.
 
-## 10. Evidència mínima a conservar
+## 12. Evidència mínima a conservar
 
 Per cada cas:
 
@@ -198,7 +227,7 @@ Per cada cas:
 
 No guardar documentació personal real d'afiliació en aquesta evidència tècnica.
 
-## 11. Criteri de tancament
+## 13. Criteri de tancament
 
 Marcar UC-019 com **CLOSED / VERIFIED_PREPRODUCTION** només quan:
 
@@ -210,6 +239,6 @@ Marcar UC-019 com **CLOSED / VERIFIED_PREPRODUCTION** només quan:
 - HMAC, rols i CSRF estan actius;
 - queda documentat el procediment de negoci amb què Gestió comprova l'afiliació.
 
-## 12. CI actual
+## 14. CI actual
 
 A la PR #143, els tests específics UC-019 passen. La suite global queda vermella per 6 errors no relacionats amb UC-019 (5 PACK + 1 RedsysSignatureValidator). Això no invalida el resultat d'aquest cas, però sí impedeix afirmar que la suite global del repositori és verda.
