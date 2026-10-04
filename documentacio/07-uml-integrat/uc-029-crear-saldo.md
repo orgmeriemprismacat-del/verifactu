@@ -1,5 +1,7 @@
 # UC-29 · Crear un saldo a favor — fitxa i UML integrats
 
+> **Actualització UC-006 04/10/2026:** si `createCredit()` rep `source_enrollment_id`, exigeix `idempotency_key` i registra `CREDIT_CREATE` contra `enrollment_fund_movement` dins la mateixa transacció. Un dret insuficient provoca rollback del saldo. La clau de dret i la titularitat continuen sent responsabilitat del futur orquestrador.
+
 **Abast:** constituir un saldo reutilitzable a favor d'un titular; **no** equival a fer una transferència de devolució, aplicar el saldo a una factura ni rectificar fiscalment l'operació d'origen. Relacions: UC-06 (decisió econòmica), UC-29a (ús posterior), UC-05 (rectificació si correspon), UC-27/72 (baixa), UC-26/71 (canvi de curs).
 
 **Estat tècnic reconciliat 2026-10-03:** `CreditBalanceService::createCredit()`, `CreditBalancePayloadBuilder::forCreditBalance()` i `CreditBalanceRepository` existeixen. En la branca d'auditoria UC-006 s'ha afegit idempotència tècnica **optativa** per clau de caller + hash canònic, amb reús del mateix `UUID_CREDIT` i conflicte si el payload canvia. La justificació/consum del dret d'origen, els permisos i la derivació obligatòria de la clau de negoci continuen pendents.
@@ -276,4 +278,4 @@ Note over D,DB: K/hash ja existeixen; guard/event/consum atòmic d'origen contin
 
 [Fitxa original UC-29](../06-fitxes-funcionals/uc-029.md) · [Cas general UC-06](../04-estat-final/33-casos-us-sif.md) · [CreditBalanceService](../../sif/src/Service/CreditBalanceService.php) · [CreditBalancePayloadBuilder](../../sif/src/Service/CreditBalancePayloadBuilder.php) · [CreditBalanceRepository](../../sif/src/Repository/CreditBalanceRepository.php) · [CreditBalanceServiceTest](../../sif/tests/Integration/CreditBalanceServiceTest.php).
 
-**Pendent de validar:** origen econòmic acreditat i consumit una sola vegada, titular legítim, derivació/obligatorietat de la clau de negoci, permisos, auditoria, flux de pantalla i desplegament. La idempotència tècnica opcional de `createCredit()` queda implementada a la branca UC-006, pendent de CI.
+**Pendent de validar:** titular legítim, derivació obligatòria de la clau de negoci des de la UI/orquestrador, permisos, auditoria, flux de pantalla i desplegament. El consum del dret per inscripció ja està implementat quan arriba `source_enrollment_id`; execució CI/preproducció pendent.
