@@ -23,6 +23,11 @@ $checks = [
     'redsys_notifications' => false,
     'redsys_callback_queue' => false,
     'notification_outbox' => false,
+    'factura' => false,
+    'payment_transaction' => false,
+    'payment_allocation' => false,
+    'invoice_before_payment_coverage' => false,
+    'enrollment_fund_movement' => false,
     'normalized_notification_columns' => false,
 ];
 $errors = [];
@@ -30,7 +35,17 @@ $errors = [];
 try {
     $db = ConnectionFactory::make($config);
     $checks['database_connectivity'] = true;
-    foreach (['redsys_payment_intent', 'redsys_notifications', 'redsys_callback_queue', 'notification_outbox'] as $table) {
+    foreach ([
+        'redsys_payment_intent',
+        'redsys_notifications',
+        'redsys_callback_queue',
+        'notification_outbox',
+        'factura',
+        'payment_transaction',
+        'payment_allocation',
+        'invoice_before_payment_coverage',
+        'enrollment_fund_movement',
+    ] as $table) {
         $stmt = $db->query('SHOW TABLES LIKE ' . $db->quote($table));
         $checks[$table] = $stmt !== false && $stmt->fetchColumn() !== false;
     }
