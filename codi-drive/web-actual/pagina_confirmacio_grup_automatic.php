@@ -93,7 +93,7 @@ header('X-Robots-Tag: noindex, nofollow, noarchive');
       $('head').append(footerCSS);
    </script>
    <link rel='stylesheet' href='https://www.prisma.cat/css1619773569/pagamentGrup.min.css?ver=5.0' />
-   <script async src="https://www.prisma.cat/js1619773569/mostrarConfirmacioPagamentGrupAutomatic.min.js?ver=2.1"></script>
+   <script async src="https://www.prisma.cat/js1619773569/mostrarConfirmacioPagamentGrupAutomatic.min.js?ver=2.2"></script>
    <script async src="https://www.prisma.cat/js1619773569/obrirTancar.min.js"></script>
    <script async src="https://www.prisma.cat/js1619773569/lazysizes.min.js"></script>
    <script async src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
