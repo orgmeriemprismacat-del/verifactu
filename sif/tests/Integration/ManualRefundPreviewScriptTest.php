@@ -24,6 +24,7 @@ final class ManualRefundPreviewScriptTest
         Assert::stringContainsString('--num-visible=', $source);
         Assert::stringContainsString('loadManualRefundInvoice($sifDb, $selector)', $source);
         Assert::stringContainsString('forExistingInvoice($invoice[\'UUID_FACTURA\'], $input)', $source);
+        Assert::stringContainsString('--idempotency-key=', $source);
         Assert::stringContainsString('--source-enrollment-id=', $source);
         Assert::stringContainsString('--correlation-id=', $source);
         Assert::stringContainsString('--uuid-operation=', $source);
