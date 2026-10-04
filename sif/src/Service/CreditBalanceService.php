@@ -204,6 +204,8 @@ final class CreditBalanceService
                 throw new \RuntimeException('Duplicate key detected, but existing compensation could not be loaded.');
             }
 
+            $this->assertSamePaymentPayload($payload, $existing);
+
             return $this->existingPaymentResult($existing, $credit, $invoice);
         });
     }
