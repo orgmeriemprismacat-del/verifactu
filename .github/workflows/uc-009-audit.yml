@@ -4,13 +4,16 @@ on:
   pull_request:
     paths:
       - "sif/src/Aeat/**"
+      - "sif/src/Exception/AeatDeliveryUncertainException.php"
       - "sif/src/Service/AeatReviewReconciliationService.php"
+      - "sif/src/Service/AeatEvidenceReconciliationService.php"
       - "sif/src/Service/FiscalQueueProcessor.php"
       - "sif/src/Repository/AeatOperationsReadRepository.php"
       - "sif/src/Repository/AeatSubmissionAttemptRepository.php"
       - "sif/src/Repository/FiscalQueueRepository.php"
       - "sif/public/api/aeat/**"
       - "sif/config/sif.php"
+      - "sif/database/migrations/2026_10_04_000033_add_aeat_attempt_evidence_id.sql"
       - "sif/scripts/*aeat*"
       - "sif/tests/**/*Aeat*Test.php"
       - "sif/tests/Integration/FiscalQueue*Test.php"
