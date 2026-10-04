@@ -27,6 +27,7 @@ try {
 
 $classes = [
     Prisma\Sif\Tests\Database\SifSchemaTest::class,
+    Prisma\Sif\Tests\Integration\AeatEvidenceReconciliationServiceTest::class,
     Prisma\Sif\Tests\Integration\AeatIntranetUiContractTest::class,
     Prisma\Sif\Tests\Integration\AeatOperationsReadRepositoryTest::class,
     Prisma\Sif\Tests\Integration\AeatReviewReconciliationServiceTest::class,
