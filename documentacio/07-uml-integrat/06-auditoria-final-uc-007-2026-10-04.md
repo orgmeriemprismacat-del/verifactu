@@ -78,12 +78,12 @@ No s'equipara “fitxer existent” amb “asset executat”, ni “test escrit�
 ### UC007-FIND-01 · Asset real de fitxa alumne obsolet — CORREGIT
 La pàgina carregava `alumnes-mostrar-alumne.min.js?ver=1.6`, mentre les correccions existien només al font no minificat. El minificat executable conservava download GET, `resD` indefinit, cleanup GET i lògica anterior de modal.
 
-**Correcció:** `alumnes-mostrar-alumne.php` carrega `alumnes-mostrar-alumne.js?ver=1.7`.
+**Correcció:** `alumnes-mostrar-alumne.php` carrega `alumnes-mostrar-alumne.js?ver=1.8`.
 
 ### UC007-FIND-02 · Dues implementacions SIF simultànies — CORREGIT
 `/alumnes/factura/` carregava `alumnes-factura-sif.js` i `alumnes-factura.js` amb contractes diferents.
 
-**Correcció:** una sola implementació executable, `alumnes-factura.js?ver=1.1`.
+**Correcció:** una sola implementació executable, `alumnes-factura.js?ver=1.2`.
 
 ### UC007-FIND-03 · Deep link UUID inconsistent — CORREGIT
 Format canònic: `#/uuid/<UUID_FACTURA>`. Es conserva compatibilitat amb `?uuid_factura=<UUID_FACTURA>`.
@@ -252,7 +252,7 @@ El head final necessita una nova evidència CI abans del tancament.
 - HMAC/secrets;
 - AL-16/17/18 navegador;
 - una i múltiples factures per inscripció;
-- cache-busting assets 1.1/1.7;
+- cache-busting assets 1.2/1.8;
 - document real READY/CREATED;
 - fitxer absent/hash incorrecte/path/permissions reals;
 - audit `fiscal_document_access`;
