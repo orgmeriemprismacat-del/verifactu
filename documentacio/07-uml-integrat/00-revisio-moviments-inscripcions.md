@@ -1,6 +1,6 @@
 # Revisió transversal · Traçabilitat dels fons associats a cada inscripció
 
-**Estat reconciliat 2026-10-03:** la necessitat funcional continua sent transversal, però la base ja **no és només una proposta**. A `main` existeixen la migració `2026_09_30_000030_add_enrollment_fund_movement.sql`, `EnrollmentFundMovementRepository`, `CourseEnrollmentFundAllocationService` i `PackEnrollmentFundAllocationService`, amb proves d'integració per l'atribució inicial de fons. El que continua pendent és completar el ledger per a reassignació genèrica, sortida de devolució, creació/consum de saldo, titularitat i integració UC-006. Les seccions històriques/proposades d'aquest document s'han de llegir amb aquesta precisió.
+**Estat reconciliat 2026-10-04:** la base és executable i la branca UC-006 l'amplia. A més de l'atribució inicial (`EXTERNAL_ALLOCATION`), ara hi ha primitives per `REFUND_EXIT`, `CREDIT_CREATE` i `COMPENSATION_ALLOCATION` amb `UUID_CREDIT`, càlcul de disponibilitat per inscripció i rollback transaccional. Continuen pendents l'orquestració `INTERNAL_TRANSFER`, titularitat, autorització, audit gateway i E2E/preproducció.
 
 ## 1. Diagnòstic contrastat: què existeix i què falta
 
@@ -14,7 +14,7 @@
 | `credit_balance` + `CreditBalanceService` | Saldo original/disponible, titular, origen i consum per compensació. | La creació/consum canvia imports disponibles, però no deixa, per si sola, un assentament immutable per cada sortida des d'una inscripció i cada aplicació del saldo a una altra. |
 | `academic_economic_state_event` | Esquema de transicions acadèmiques/d'accés i una fotografia econòmica. | Un snapshot d'estat no reemplaça la traçabilitat quantitativa per cada moviment de fons. |
 
-**Conclusió reconciliada:** ja existeix un **registre persistent i immutable base** per atribució de fons per inscripció: `enrollment_fund_movement`. El repositori actual implementa `EXTERNAL_ALLOCATION` i `COMPENSATION_ALLOCATION`; els serveis de curs i pack l'usen per vincular un `CHARGE` confirmat amb una o diverses inscripcions. Encara no hi ha cobertura genèrica acreditada per `REFUND_EXIT`, creació de saldo des d'una inscripció, consum/reassignació completa del dret ni càlcul de disponibilitat per UC-006.
+**Conclusió reconciliada 04/10:** `enrollment_fund_movement` ja cobreix la traça quantitativa principal d'UC-006 quan l'origen/destí d'inscripció és explícit: cobrament → inscripció, inscripció → saldo, inscripció → refund extern i saldo → inscripció. `availableAmountForInscription()` reconstrueix el dret net. El buit ja no és la persistència bàsica sinó l'orquestració obligatòria, titularitat, `INTERNAL_TRANSFER`, auditoria i verificació executada.
 
 ## 2. Separar tres fets que no són sinònims
 
@@ -24,10 +24,29 @@
 
 `inscripcions.PAGAMENT`, `FRACCIO`, `A_PAGAR` i altres valors del llegat poden servir com a **resums sincronitzats**, però no com a única evidència de moviments; qualsevol reconstrucció del saldo ha de tenir les entrades originals i la seva correlació.
 
-## 3. `enrollment_fund_movement` — base IMPLEMENTADA i extensions encara pendents
+## 3. `enrollment_fund_movement` — base i sortides UC-006 IMPLEMENTADES PARCIALMENT
 
-**Implementació executable localitzada:** la migració actual crea `UUID_MOVEMENT`, `IDEMPOTENCY_KEY`, `MOVEMENT_TYPE`, `ORDRE`, referències a pagament/factura/línia, inscripció origen/destí, import, moneda, operació, correlació i reversió. Els tipus acceptats avui són `EXTERNAL_ALLOCATION`, `INTERNAL_TRANSFER`, `REVERSAL` i `COMPENSATION_ALLOCATION`. `EnrollmentFundMovementRepository` implementa inserció/reús de les atribucions externes i de compensació; `CourseEnrollmentFundAllocationService` i `PackEnrollmentFundAllocationService` ja l'utilitzen. Per tant, els camps següents que no existeixen a aquesta migració s'han de continuar tractant com a **extensió de disseny**, no com a esquema actual.
+**Esquema base:** `2026_09_30_000030_add_enrollment_fund_movement.sql`.
 
+**Ampliació UC-006:** `2026_10_04_000034_extend_enrollment_fund_exits.sql` afegeix `UUID_CREDIT` i els tipus `REFUND_EXIT` i `CREDIT_CREATE`.
+
+**Repositori executable:**
+- `insertOrReuseExternalAllocation()`;
+- `insertOrReuseCreditCreate()`;
+- `insertOrReuseRefundExit()`;
+- `insertOrReuseCompensationAllocation()`;
+- `availableAmountForInscription()`;
+- idempotència per `IDEMPOTENCY_KEY`, payload material i locks `FOR UPDATE`.
+
+**Semàntica actual:**
+- `EXTERNAL_ALLOCATION`: entrada externa confirmada → inscripció;
+- `CREDIT_CREATE`: inscripció → saldo (`UUID_CREDIT`);
+- `REFUND_EXIT`: inscripció → exterior, lligat a `payment_transaction.REFUND`;
+- `COMPENSATION_ALLOCATION`: saldo/COMPENSATION → factura/línia/inscripció;
+- `INTERNAL_TRANSFER`: admès per esquema però encara sense servei d'orquestració;
+- `REVERSAL`: admès per esquema; la política completa de reversió continua pendent.
+
+Els camps conceptuals de la taula ampliada que **no** existeixen físicament (per exemple `ORIGIN_TYPE`, `TARGET_TYPE`, `ACTOR_ID`) continuen sent disseny; la implementació actual usa `ID_INSC_ORIGEN`, `ID_INSC_DESTI`, `UUID_PAYMENT`, `UUID_CREDIT`, factura/línia, operació i correlació.
 **Una fila representa un canvi d'atribució de fons identificable**: origen → destí, import positiu, tipus, responsable i referències. La mateixa operació es pot repartir en **diverses files** si afecta diverses inscripcions o destins. Per al traspàs A → B, es registra **una fila amb A com a origen i B com a destí** (no dos cobraments).
 
 | Camp proposat | Funció |
@@ -44,7 +63,7 @@
 | `CORRELATION_ID`, `REASON_CODE`, `ACTOR_ID`, `OCCURRED_AT`, `RECORDED_AT` | Motiu, actor, cronologia i recorregut d'auditoria sense dependre d'una observació lliure del llegat. |
 | `UUID_REVERSAL_OF` | Correcció per una **nova fila inversa** (origen/destí intercanviats); no sobreescriure ni esborrar el moviment anterior. |
 
-**Integritat obligatòria per dissenyar:** un origen/destí intern ha de tenir el seu identificador; `AMOUNT > 0`; origen i destí no poden ser la mateixa inscripció i compte; no es pot traspassar més import del que està disponible en l'atribució d'origen; `RECEIPT_ALLOCATION` i `REFUND_EXIT` han de referenciar un moviment real confirmat; `CREDIT_CREATE` i `CREDIT_APPLY` han de mantenir reconciliació amb `credit_balance`; cap reintent no pot crear una fila addicional equivalent.
+**Integritat obligatòria per dissenyar:** un origen/destí intern ha de tenir el seu identificador; `AMOUNT > 0`; origen i destí no poden ser la mateixa inscripció i compte; no es pot traspassar més import del que està disponible en l'atribució d'origen; `RECEIPT_ALLOCATION` i `REFUND_EXIT` han de referenciar un moviment real confirmat; `CREDIT_CREATE` i `COMPENSATION_ALLOCATION` mantenen reconciliació amb `credit_balance`; `CREDIT_APPLY` és el nom conceptual antic del segon; cap reintent no pot crear una fila addicional equivalent.
 
 **Important:** aquesta taula **no és un segon banc ni un segon `payment_transaction`**. La font del diner extern continua sent el moviment de pagament; la nova taula és el detall de qui té atribuït cada import i com s'ha redistribuït entre inscripcions i saldos.
 
@@ -122,7 +141,7 @@ EnrollmentFundMovementRepository --> EnrollmentFundMovement : emmagatzema
 PaymentService --> PaymentRepository : codi existent
 ```
 
-**Precisió 03/10/2026:** `EnrollmentFundMovementRepository` sí existeix. No existeix l'`EnrollmentFundsOrchestrator` transversal del diagrama, i el model de domini ric mostrat continua sent objectiu. El repositori actual cobreix atribució inicial i una variant de compensació, però no totes les transicions descrites en aquest document.
+**Precisió 04/10/2026:** `EnrollmentFundMovementRepository` ja cobreix atribució inicial, disponibilitat, `CREDIT_CREATE`, `REFUND_EXIT` i `COMPENSATION_ALLOCATION`. No existeix encara l'`EnrollmentFundsOrchestrator`; `INTERNAL_TRANSFER`, titularitat i auditoria transversal continuen sent objectiu.
 
 ## 6. Seqüència transversal proposada — traspàs entre cursos ja cobrats
 
