@@ -96,21 +96,6 @@ final class GeneratedInvoiceLegacyPaymentSyncService
                 ];
             }
 
-            $updateInvoice = $legacyDb->prepare(
-                'UPDATE factures
-                 SET data_pagament = ?, FORMA_PAGAMENT = ?
-                 WHERE num = ?'
-            );
-            $updateInvoice->execute([
-                $movementDate,
-                strtoupper(trim($method)),
-                $numVisible,
-            ]);
-
-            if ($updateInvoice->rowCount() > 1) {
-                throw SifException::conflict('Legacy payment sync updated more than one invoice row');
-            }
-
             $legacyDb->commit();
 
             return [
