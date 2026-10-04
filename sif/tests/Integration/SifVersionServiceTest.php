@@ -59,6 +59,16 @@ final class SifVersionServiceTest
             $view = $service->view($actor, $uuid);
             Assert::same('ACTIVE', $view['version']['STATUS']);
             Assert::same(1, count($view['activations']));
+            $activationEvidence = json_decode(
+                (string) $view['activations'][0]['RUNTIME_EVIDENCE_JSON'],
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+            Assert::same(
+                $declaration['declaration']['DOCUMENT_HASH'],
+                $activationEvidence['declaration']['document_hash']
+            );
 
             $activationReplay = $service->activate($actor, $uuid, $activationInput);
             Assert::same(true, $activationReplay['reused']);
@@ -207,6 +217,23 @@ final class SifVersionServiceTest
             Assert::same(false, array_key_exists('EVIDENCE_JSON', $preflight['preflight']['backup']));
             Assert::same(false, array_key_exists('BACKUP_REFERENCE', $preflight['preflight']['backup']));
             Assert::same(false, array_key_exists('EXECUTED_BY', $preflight['preflight']['backup']));
+
+            $activation = $service->activate(
+                $actor,
+                $uuid,
+                $this->operation('ACT-BACKUP', 'APPROVED_RELEASE') + [
+                    'backup_evidence_uuid' => $backupUuid,
+                ]
+            );
+            $activationEvidence = json_decode(
+                (string) $activation['activation']['RUNTIME_EVIDENCE_JSON'],
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+            Assert::same($backupUuid, $activationEvidence['backup']['UUID_EVIDENCE']);
+            Assert::same(false, array_key_exists('EVIDENCE_JSON', $activationEvidence['backup']));
+            Assert::same(false, array_key_exists('BACKUP_REFERENCE', $activationEvidence['backup']));
         } finally {
             $this->removeTree($dir);
             $this->removeTree($dir . '-evidence');
