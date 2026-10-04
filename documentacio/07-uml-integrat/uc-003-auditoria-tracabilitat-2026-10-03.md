@@ -136,6 +136,14 @@ Si falla, el cas es tracta com conflicte funcional i deriva a `INCIDENT`.
 
 **Prova:** `testLegacyCourseSnapshotRejectsAmbiguousEligibleIdpag` crea dues files MySQL elegibles amb el mateix IDPAG i exigeix 409 abans de carregar el curs o emetre cap factura.
 
+### UC03-FIX-05 — processador directe de preproducció sense resolver UC-004
+
+**Problema observat:** `verify-redsys-course-preproduction.php --execute` delega a `process-redsys-course.php`. Aquest script instanciava `InvoiceService` sense `InvoiceBeforePaymentCoverageRepository` i `RedsysCourseInvoiceService` sense `RedsysCoveredInvoicePaymentService`, tot i que el worker de cua principal sí estava cablejat correctament.
+
+**Risc:** una verificació/execució directa en test o preproducció podia saltar-se la resolució de factura UC-004 prèvia i emetre una factura Redsys nova per la mateixa inscripció, precisament en l'entorn destinat a validar el rollout.
+
+**Correcció:** el processador directe comparteix ara `InvoiceBeforePaymentCoverageRepository`, crea `PaymentService`, injecta el repositori a `InvoiceService` i injecta `RedsysCoveredInvoicePaymentService` al handler CURS. `preflight-redsys-course.php` exigeix `invoice_before_payment_coverage` i `invoice_origin_guard`. Els tests de script/preflight/boundary comproven explícitament aquest wiring.
+
 ## 6. Proves
 
 ### Ja existents i revisades
@@ -221,7 +229,7 @@ Mentre `doit.php`/`realitzaPagamentAutomatic.php` estiguin actius, el llegat pot
 
 **GAP-003-P1-03 · variants i atribució.** CURS/PACK tenen allocation quantitativa. GRUP/REGAL/USOC tenen models específics; verificar per cada variant que la reconstrucció participant/beneficiari/pagador és suficient i no assumir equivalència.
 
-**GAP-003-P1-04 · preproducció.** Callback real amb Redsys, duplicat, retry, lock stale, parcial/complet i error posterior al commit.
+**GAP-003-P1-04 · preproducció.** El processador directe ja comparteix el resolver UC-004 amb el worker; continua pendent executar callback real amb Redsys, duplicat, retry, lock stale, parcial/complet i error posterior al commit.
 
 **GAP-003-P1-05 · semàntica IDPAG transversal.** `IDPAG` no és unicitat global. CURS ara exigeix exactament una inscripció elegible per IDPAG; mantenir aquesta regla separada dels casos compartits de PACK/GRUP i usar `DS_ORDER` + ledger per-inscripció per a la traça econòmica.
 

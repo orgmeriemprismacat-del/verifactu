@@ -146,6 +146,8 @@ final class RedsysCoursePreproductionBoundaryTest
             'cutover_configuration_consistent',
             'legacy_drain_confirmed_if_cutover',
             'payment_allocation_table',
+            'invoice_before_payment_coverage_table',
+            'invoice_origin_guard_table',
             'enrollment_fund_movement_table',
             'notification_outbox_table',
             'redsys_payment_intent_table',

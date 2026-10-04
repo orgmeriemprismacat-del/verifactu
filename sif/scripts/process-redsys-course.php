@@ -11,6 +11,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
 use Prisma\Sif\Repository\NotificationOutboxRepository;
@@ -25,7 +26,9 @@ use Prisma\Sif\Service\InvoiceService;
 use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacySyncService;
 use Prisma\Sif\Service\PaymentPayloadValidator;
+use Prisma\Sif\Service\PaymentService;
 use Prisma\Sif\Service\RedsysCourseInvoiceService;
+use Prisma\Sif\Service\RedsysCoveredInvoicePaymentService;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
 
 if (PHP_SAPI !== 'cli') {
@@ -69,13 +72,21 @@ try {
     $discountSnapshot = (new DiscountSnapshotFileReader())->read($discountFile);
     $notifications = new RedsysNotificationRepository();
     $legacySnapshots = new LegacyCourseSnapshotRepository();
+    $beforePaymentCoverage = new InvoiceBeforePaymentCoverageRepository();
+    $paymentService = new PaymentService(
+        new TransactionRunner($sifDb),
+        new PaymentPayloadValidator(),
+        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+    );
     $invoiceService = new InvoiceService(
         new TransactionRunner($sifDb),
         new InvoicePayloadValidator(),
         new FiscalSequenceRepository(),
         new InvoiceRepository(new UuidGenerator(), new HashCalculator()),
         new PaymentPayloadValidator(),
-        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator()),
+        null,
+        $beforePaymentCoverage
     );
     $service = new RedsysCourseInvoiceService(
         $notifications,
@@ -90,6 +101,10 @@ try {
         'v1',
         new CourseEnrollmentFundAllocationService(
             new EnrollmentFundMovementRepository(new UuidGenerator())
+        ),
+        new RedsysCoveredInvoicePaymentService(
+            $beforePaymentCoverage,
+            $paymentService
         )
     );
 

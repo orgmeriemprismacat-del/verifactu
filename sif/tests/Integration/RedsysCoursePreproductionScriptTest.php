@@ -21,6 +21,11 @@ final class RedsysCoursePreproductionScriptTest
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('new RedsysCourseInvoiceService(', $source);
+        Assert::stringContainsString('new InvoiceBeforePaymentCoverageRepository()', $source);
+        Assert::stringContainsString('new PaymentService(', $source);
+        Assert::stringContainsString('new RedsysCoveredInvoicePaymentService(', $source);
+        Assert::stringContainsString('$beforePaymentCoverage', $source);
+        Assert::stringContainsString('$paymentService', $source);
         Assert::stringContainsString('new LegacySyncService(new LegacySyncRepository())', $source);
         Assert::stringContainsString('new LegacyCourseSnapshotRepository()', $source);
         Assert::stringContainsString('new LegacyCourseInvoicePayloadBuilder()', $source);
