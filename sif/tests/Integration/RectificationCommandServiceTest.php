@@ -3,6 +3,7 @@
 namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\DocumentJobRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\RectificationRepository;
@@ -68,8 +69,18 @@ final class RectificationCommandServiceTest
             'SELECT COUNT(*) FROM sif_audit_event WHERE ACTION = "RECTIFICATION_CONFIRM" AND RESULT = "SUCCEEDED"'
         )->fetchColumn());
         Assert::same('COMMITTED', (string) $db->query(
-            'SELECT STATUS FROM operational_event LIMIT 1'
+            'SELECT STATUS FROM operational_event WHERE OPERATION_TYPE = "RECTIFICATION" LIMIT 1'
         )->fetchColumn());
+        Assert::same(3, (int) $db->query(
+            'SELECT COUNT(*) FROM document_job WHERE STATUS = "PENDING"'
+        )->fetchColumn());
+        Assert::same(
+            'PDF,QR,XML',
+            (string) $db->query(
+                'SELECT GROUP_CONCAT(DOCUMENT_TYPE ORDER BY DOCUMENT_TYPE SEPARATOR ",")
+                 FROM document_job'
+            )->fetchColumn()
+        );
     }
 
     public function testEquivalentRetryReusesSameRectificationAfterOriginalBecomesRectified(): void
@@ -122,6 +133,7 @@ final class RectificationCommandServiceTest
         Assert::same(1, (int) $db->query(
             'SELECT COUNT(*) FROM sif_audit_event WHERE ACTION = "RECTIFICATION_CONFIRM" AND RESULT = "REUSED"'
         )->fetchColumn());
+        Assert::same(3, (int) $db->query('SELECT COUNT(*) FROM document_job')->fetchColumn());
     }
 
     public function testConfirmRejectsChangedPayloadBeforeIssuing(): void
@@ -159,6 +171,7 @@ final class RectificationCommandServiceTest
 
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura_rectificacio')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM document_job')->fetchColumn());
     }
 
     private function commands(\PDO $db): RectificationCommandService
@@ -180,7 +193,10 @@ final class RectificationCommandServiceTest
             new PayloadIdempotencyValidator(),
             new SifAuditEventRepository(new UuidGenerator()),
             new OperationalEventRepository(new UuidGenerator()),
-            'test'
+            'test',
+            null,
+            new DocumentJobRepository(new UuidGenerator()),
+            'uc005-test-documents-v1'
         );
     }
 
