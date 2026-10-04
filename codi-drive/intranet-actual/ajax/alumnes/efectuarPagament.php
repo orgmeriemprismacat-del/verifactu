@@ -69,9 +69,9 @@ try {
 	$idInscSifRaw = $_POST['idInsc'] ?? null;
 	$externalReference = trim((string) ($_POST['externalReference'] ?? ''));
 
-	if ($tipus === '' || $numFact === '') {
+	if ($tipus === '') {
 		http_response_code(422);
-		throw new RuntimeException('Error: falten dades del cobrament.');
+		throw new RuntimeException('Error: falta el tipus de cobrament.');
 	}
 	if (!is_numeric($pagament) || (float) $pagament <= 0) {
 		http_response_code(422);
@@ -100,6 +100,13 @@ try {
 	);
 
 	$idInscSif = null;
+	if ($useSif && $numFact === '') {
+		http_response_code(409);
+		throw new RuntimeException(
+			'Error: cal emetre la factura abans de registrar el cobrament al SIF.'
+		);
+	}
+
 	if ($useSif) {
 		if (filter_var($idInscSifRaw, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
 			http_response_code(422);
