@@ -15,10 +15,27 @@ New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 $lines = New-Object System.Collections.Generic.List[string]
 $lines.Add('UC-015 local verification')
 $lines.Add(('timestamp={0}' -f (Get-Date).ToString('o')))
-$lines.Add('runner=sif/scripts/local-test.ps1 -Action Test')
+$lines.Add('selective_runner=sif/scripts/local-test.ps1 -Action TestUc015')
+$lines.Add('full_runner=sif/scripts/local-test.ps1 -Action Test')
 $lines.Add('')
 
 try {
+    $lines.Add('== UC-015 selective suite ==')
+    $selectiveOutput = & $runner -Action TestUc015 2>&1
+    $selectiveExitCode = $LASTEXITCODE
+    foreach ($line in $selectiveOutput) {
+        $text = [string]$line
+        $lines.Add($text)
+        Write-Host $text
+    }
+    if ($selectiveExitCode -ne 0) {
+        $lines.Add('SELECTIVE_RESULT=FAIL')
+        throw "UC-015 selective suite failed with exit code $selectiveExitCode"
+    }
+    $lines.Add('SELECTIVE_RESULT=PASS')
+    $lines.Add('')
+
+    $lines.Add('== Full SIF suite ==')
     $output = & $runner -Action Test 2>&1
     $exitCode = $LASTEXITCODE
     foreach ($line in $output) {
