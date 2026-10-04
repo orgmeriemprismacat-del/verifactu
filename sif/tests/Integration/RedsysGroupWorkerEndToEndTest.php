@@ -11,6 +11,7 @@ use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 use Prisma\Sif\Service\GroupEnrollmentFundAllocationService;
+use Prisma\Sif\Service\GroupParticipantAdditionDecisionService;
 use Prisma\Sif\Service\GroupParticipantAdditionPreviewService;
 use Prisma\Sif\Service\GroupParticipantRemovalDecisionService;
 use Prisma\Sif\Service\GroupParticipantRemovalPreviewService;
@@ -166,6 +167,19 @@ final class RedsysGroupWorkerEndToEndTest
         Assert::same('280.00', $addition['group']['projected_nominal_total_before_repricing_policy']);
         Assert::same(false, $addition['decision']['automatic_commit_allowed']);
         Assert::same(true, $addition['decision']['repricing_policy_required']);
+
+        $additionPlan = (new GroupParticipantAdditionDecisionService())->plan(
+            $addition,
+            [
+                'repricing_policy' => 'KEEP_EXISTING_MEMBER_PRICES',
+                'fiscal_action' => 'SUPPLEMENTAL_INVOICE_PARTICIPANT',
+                'operation_reference' => 'UC016A-753',
+            ]
+        );
+        Assert::same(true, $additionPlan['executable']);
+        Assert::same('80.00', $additionPlan['amounts']['candidate_total']);
+        Assert::same(false, $additionPlan['payment']['charge_created']);
+        Assert::same(2, count($additionPlan['actions']));
 
         Assert::throws(\Prisma\Sif\Exception\SifException::class, function () use ($db, $first): void {
             (new GroupParticipantAdditionPreviewService())->preview(
