@@ -36,6 +36,7 @@
 | Mateixa clau + dades diferents → 409 | sí | sí | integration | implementat |
 | Número ocupat altra clau → 409 | sí | sí | governance test | CI pendent |
 | Número davant seqüència activa → 409 | sí | sí | governance test | CI pendent |
+| Any actual/futur sense checkpoint `fiscal_sequence` → 409 fail-closed | sí | sí | governance test | CI pendent |
 | Número darrere seqüència → no mutar LAST_NUM | sí | sí | governance test | CI pendent |
 | operational_event | sí | sí | governance test | CI pendent |
 | sif_audit_event | sí | sí | governance test | CI pendent |
