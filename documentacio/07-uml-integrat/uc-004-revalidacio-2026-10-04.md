@@ -129,7 +129,7 @@ El navegador no és autoritat fiscal dels imports ni del receptor.
 | Auditoria transaccional | Sí | **Sí al main** | codi/suite | inspecció evidència |
 | Mutador llegat | Sí | **RETIRAT 410 en aquesta branca** | static test nou | desplegament |
 | `aeat_fields` oficials UC-004 | Sí com a requisit | **NO** | fail-closed detectat | **P0** |
-| Document SIF per UUID | Sí FINAL | **NO al main UC-004** | no | **P0/P1** |
+| Document SIF per UUID | Sí FINAL | **PARCIAL**: schema/metadata/download sí; generació UC-004 no | parcial | **P0/P1** producer/worker/renderer/E2E |
 | Cobrament posterior mateix UUID | Sí | servei existeix | test de servei | E2E canal |
 | E2E pantalla→SIF→document→cobrament | Sí | parcial | no | **PENDENT** |
 
@@ -164,15 +164,17 @@ A diferència del PR #134, el main actual no usa `ISSUE_INVOICE_BEFORE_PAYMENT` 
 
 ## 9. Document fiscal
 
-El PR #134 contenia una proposta avançada de `document_job`, worker, snapshot i storage, però aquests fitxers **no són al main actual** i aquell HEAD no tenia tots els checks globals verds.
+El `main` actual ja conté l'**esquema** `document_job`, `factura_documents`, `fiscal_document_access` i la lectura/descàrrega privada signada de UC-080. El PR #134 contenia, a més, una implementació candidata del repository de jobs, queue post-COMMIT, snapshot verificat, worker/lease/retry i storage writer. Aquests PHP de producció **no són al runtime UC-004 actual**. El workflow específic `UC-004 SIF secure flow checks` del #134 va ser verd; els 6 errors de la suite global van ser 5 regressions de packs/privacitat i 1 de `RedsysSignatureValidator`, no errors UC-004. Per tant #134 és recuperable per peces, però no és un tall globalment verificat ni s'ha de fusionar a cegues.
 
 Per tant l'estat autoritatiu és:
 
-- PDF/QR/XML SIF per UUID: **PENDENT**;
-- job/lease/retry/stale recovery: **PENDENT**;
-- snapshot documental immutable: **PENDENT**;
-- storage privat/hash: **PENDENT**;
-- renderer fiscal: **PENDENT**.
+- schema `document_job` / `factura_documents` / `fiscal_document_access`: **IMPLEMENTAT AL MAIN**;
+- lectura i descàrrega privada signada: **IMPLEMENTADA AL MAIN via UC-080**;
+- producer/queue UC-004 post-COMMIT: **PENDENT al runtime vigent**;
+- repository PHP + lease/retry/stale recovery: **PENDENT al runtime vigent**;
+- snapshot documental immutable verificat: **PENDENT al runtime vigent**;
+- storage writer privat/hash: **PENDENT al runtime vigent**;
+- renderer fiscal PDF/QR/XML: **PENDENT**.
 
 No s'ha recuperat aquest subsistema a cegues dins d'aquesta auditoria.
 
