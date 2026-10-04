@@ -14,7 +14,7 @@ final class ManualInstallmentPaymentService
     ) {
     }
 
-    public function registerByUuid(\PDO $sifDb, string $uuidFactura, array $input): array
+    public function registerByUuid(\PDO $sifDb, string $uuidFactura, array $input, ?callable $afterPersist = null): array
     {
         $uuidFactura = trim($uuidFactura);
         if ($uuidFactura === '') {
@@ -26,10 +26,10 @@ final class ManualInstallmentPaymentService
             throw SifException::validation('SIF invoice not found for manual installment');
         }
 
-        return $this->registerForInvoice($invoice, $input);
+        return $this->registerForInvoice($invoice, $input, $afterPersist);
     }
 
-    public function registerByNumVisible(\PDO $sifDb, string $numVisible, array $input): array
+    public function registerByNumVisible(\PDO $sifDb, string $numVisible, array $input, ?callable $afterPersist = null): array
     {
         $numVisible = trim($numVisible);
         if ($numVisible === '') {
@@ -41,13 +41,32 @@ final class ManualInstallmentPaymentService
             throw SifException::validation('SIF invoice not found for manual installment');
         }
 
-        return $this->registerForInvoice($invoice, $input);
+        return $this->registerForInvoice($invoice, $input, $afterPersist);
     }
 
-    private function registerForInvoice(array $invoice, array $input): array
-    {
-        $payload = $this->installments->forExistingInvoice((string) $invoice['UUID_FACTURA'], $input);
-        $result = $this->payments->registerPayment($payload);
+    private function registerForInvoice(
+        array $invoice,
+        array $input,
+        ?callable $afterPersist
+    ): array {
+        $payload = $this->installments->forExistingInvoice(
+            (string) $invoice['UUID_FACTURA'],
+            $input
+        );
+
+        $wrappedAfterPersist = $afterPersist === null
+            ? null
+            : function (\PDO $db, array $paymentPayload, array $paymentResult) use (
+                $afterPersist,
+                $invoice
+            ): void {
+                $enriched = $paymentResult;
+                $enriched['uuid_factura'] = $invoice['UUID_FACTURA'];
+                $enriched['num_visible'] = $invoice['NUM_VISIBLE'];
+                $afterPersist($db, $paymentPayload, $enriched);
+            };
+
+        $result = $this->payments->registerPayment($payload, $wrappedAfterPersist);
         $result['uuid_factura'] = $invoice['UUID_FACTURA'];
         $result['num_visible'] = $invoice['NUM_VISIBLE'];
 

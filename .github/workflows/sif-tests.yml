@@ -24,6 +24,11 @@ on:
       - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
+      - "codi-drive/intranet-actual/SifInternalInstallmentClient.php"
+      - "codi-drive/intranet-actual/alumnes-pagaments.php"
+      - "codi-drive/intranet-actual/Intranet.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php"
+      - "codi-drive/intranet-actual/js/alumnes-pagaments.js"
       - "codi-drive/intranet-actual/alumnes-mostrar-alumne.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
       - "codi-drive/intranet-actual/ajax/alumnes/realitzarCanviCurs_CanviCurs.php"
@@ -56,6 +61,11 @@ on:
       - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
+      - "codi-drive/intranet-actual/SifInternalInstallmentClient.php"
+      - "codi-drive/intranet-actual/alumnes-pagaments.php"
+      - "codi-drive/intranet-actual/Intranet.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php"
+      - "codi-drive/intranet-actual/js/alumnes-pagaments.js"
       - "codi-drive/intranet-actual/alumnes-mostrar-alumne.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
       - "codi-drive/intranet-actual/ajax/alumnes/realitzarCanviCurs_CanviCurs.php"
@@ -143,6 +153,16 @@ jobs:
           php -l codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php
           node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js
           node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.min.js
+
+      - name: Lint UC-023 intranet installment flow
+        run: |
+          php -l codi-drive/intranet-actual/SifInternalInstallmentClient.php
+          php -l codi-drive/intranet-actual/alumnes-pagaments.php
+          php -l codi-drive/intranet-actual/Intranet.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php
+          php -l sif/public/api/payments/installment.php
+          php -l sif/src/Service/InternalInstallmentPaymentGateway.php
+          node --check codi-drive/intranet-actual/js/alumnes-pagaments.js
 
       - name: Executar suite SIF
         run: php sif/tests/run-tests.php

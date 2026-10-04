@@ -8,6 +8,10 @@ if (!$configOk) {
 	<?php
 }
 else {
+	if (empty($_SESSION['csrf_alumnes_pagaments'])) {
+		$_SESSION['csrf_alumnes_pagaments'] = bin2hex(random_bytes(32));
+	}
+	$csrfAlumnesPagaments = (string) $_SESSION['csrf_alumnes_pagaments'];
 ?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb# video: http://ogp.me/ns/video#">
@@ -17,6 +21,8 @@ else {
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 
 		<title>Pagaments | Intranet</title>
+		<meta name="csrf-alumnes-pagaments" content="<?php echo htmlspecialchars($csrfAlumnesPagaments, ENT_QUOTES, 'UTF-8'); ?>">
+		<meta name="sif-installment-enforced" content="<?php echo filter_var(getenv('SIF_INSTALLMENT_PAYMENT_ENFORCED') ?: '0', FILTER_VALIDATE_BOOLEAN) ? '1' : '0'; ?>">
 
 		<!-- Bootstrap CSS -->
 		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"/>

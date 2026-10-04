@@ -50,6 +50,52 @@ final class RegisterPaymentTest
         Assert::same('PAID', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
     }
 
+    public function testAuditHookFailureRollsBackPaymentAndExternalReceiptClaim(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload(['emesa_abans_cobrament' => 1])
+        );
+
+        $paymentService = self::paymentServiceFor($db);
+
+        Assert::throws(
+            \RuntimeException::class,
+            function () use ($paymentService, $invoice): void {
+                $paymentService->registerPayment(
+                    $this->paymentPayload($invoice['uuid_factura'], [
+                        'idempotency_key' => 'TRANSFERENCIA|REF:AUDIT-ROLLBACK',
+                        'reference' => 'AUDIT-ROLLBACK',
+                    ]),
+                    static function (): void {
+                        throw new \RuntimeException('terminal audit failed');
+                    }
+                );
+            }
+        );
+
+        Assert::same(
+            0,
+            (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn()
+        );
+        Assert::same(
+            0,
+            (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn()
+        );
+        Assert::same(
+            0,
+            (int) $db->query(
+                'SELECT COUNT(*) FROM payment_external_receipt_claim'
+            )->fetchColumn()
+        );
+        Assert::same(
+            'PENDING',
+            (string) $db->query(
+                'SELECT ESTAT_COBRAMENT FROM factura LIMIT 1'
+            )->fetchColumn()
+        );
+    }
+
     public static function paymentServiceFor(\PDO $db): PaymentService
     {
         return new PaymentService(

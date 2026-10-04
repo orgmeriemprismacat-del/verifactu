@@ -19,15 +19,18 @@ final class ManualInstallmentPaymentPayloadBuilder
         $user = $this->requiredString($input, ['user', 'usuari', 'created_by'], 'installment user');
         $reference = $this->optionalString($input, ['reference', 'referencia', 'referencia_bancaria']);
         $bank = $this->optionalString($input, ['bank', 'banc']);
+        $dsOrder = $this->optionalString($input, ['ds_order', 'dsOrder']);
+        $operationId = $this->optionalString($input, ['operation_id', 'installment_id', 'external_event_id', 'receipt_id']);
 
         $payload = [
-            'idempotency_key' => $this->idempotencyKey($idInsc, $amount, $movementDate, $user),
+            'idempotency_key' => $this->idempotencyKey($idInsc, $amount, $movementDate, $user, $operationId),
             'movement_type' => 'CHARGE',
             'method' => 'MANUAL',
             'source_channel' => 'INTRANET',
             'amount' => $amount,
             'movement_date' => $movementDate,
-            'provider_ref' => 'FRACCIO|ID_INSC:' . $idInsc . '|USUARI:' . $this->keyPart($user),
+            'provider_ref' => $this->providerRef($idInsc, $user, $operationId),
+            'inscription_id' => $idInsc,
             'allocations' => [[
                 'uuid_factura' => $uuidFactura,
                 'amount' => $amount,
@@ -35,7 +38,7 @@ final class ManualInstallmentPaymentPayloadBuilder
             ]],
         ];
 
-        foreach (['reference' => $reference, 'bank' => $bank, 'notes' => $this->optionalString($input, ['notes', 'obs', 'observations'])] as $key => $value) {
+        foreach (['reference' => $reference, 'bank' => $bank, 'ds_order' => $dsOrder, 'notes' => $this->optionalString($input, ['notes', 'obs', 'observations'])] as $key => $value) {
             if ($value !== null) {
                 $payload[$key] = $value;
             }
@@ -44,12 +47,35 @@ final class ManualInstallmentPaymentPayloadBuilder
         return $payload;
     }
 
-    private function idempotencyKey(int $idInsc, string $amount, string $movementDate, string $user): string
-    {
+    private function idempotencyKey(
+        int $idInsc,
+        string $amount,
+        string $movementDate,
+        string $user,
+        ?string $operationId = null
+    ): string {
+        if ($operationId !== null) {
+            return 'MANUAL|FRACCIO|EVENT:' . $this->keyPart($operationId);
+        }
+
+        // Compatibilitat: mantenim exactament la clau històrica quan el canal encara
+        // no disposa d'un identificador immutable del fet econòmic. Canviar-la
+        // unilateralment faria que un reintent antic pogués crear un cobrament nou.
         return 'MANUAL|FRACCIO'
             . '|ID_INSC:' . $idInsc
             . '|DATA:' . $this->keyPart(substr($movementDate, 0, 10))
             . '|IMPORT:' . $amount
+            . '|USUARI:' . $this->keyPart($user);
+    }
+
+    private function providerRef(int $idInsc, string $user, ?string $operationId): string
+    {
+        if ($operationId !== null) {
+            return 'FRACCIO|ID_INSC:' . $idInsc
+                . '|EVENT:' . $this->keyPart($operationId);
+        }
+
+        return 'FRACCIO|ID_INSC:' . $idInsc
             . '|USUARI:' . $this->keyPart($user);
     }
 

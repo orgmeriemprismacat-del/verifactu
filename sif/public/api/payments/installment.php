@@ -9,8 +9,16 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
+use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Repository\SifAuditEventRepository;
+use Prisma\Sif\Repository\PaymentActionEventRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Service\InternalApiAuthenticator;
+use Prisma\Sif\Service\InstallmentPaymentAuditTrail;
+use Prisma\Sif\Service\InternalInstallmentPaymentGateway;
+use Prisma\Sif\Service\ManualInstallmentPaymentPayloadBuilder;
+use Prisma\Sif\Service\ManualInstallmentPaymentService;
 use Prisma\Sif\Service\PaymentPayloadValidator;
 use Prisma\Sif\Service\PaymentService;
 
@@ -46,44 +54,46 @@ try {
         $_SERVER,
         $rawBody,
         'POST',
-        (string) ($internalApi['payment_register_signed_path'] ?? '/api/payments/register.php')
+        (string) ($internalApi['installment_payment_signed_path'] ?? '/api/payments/installment.php')
     );
-
-    $allowed = [];
-    foreach ((array) (($config['payment_register'] ?? [])['write_roles'] ?? []) as $role) {
-        $value = strtoupper(trim((string) $role));
-        if ($value !== '') {
-            $allowed[$value] = true;
-        }
-    }
-
-    $actorRoles = [];
-    foreach ((array) ($actor['roles'] ?? []) as $role) {
-        $value = strtoupper(trim((string) $role));
-        if ($value !== '') {
-            $actorRoles[$value] = true;
-        }
-    }
-
-    if ($allowed === [] || array_intersect(array_keys($actorRoles), array_keys($allowed)) === []) {
-        throw SifException::forbidden('Payment register role is not authorized');
-    }
 
     $payload = json_decode($rawBody, true);
     if (!is_array($payload)) {
         throw SifException::validation('Invalid JSON');
     }
 
-    $service = new PaymentService(
+    $action = strtolower(trim((string) ($payload['action'] ?? '')));
+    if ($action !== 'register') {
+        throw SifException::validation('Unknown installment payment action');
+    }
+
+    $uuids = new UuidGenerator();
+
+    $payments = new PaymentService(
         new TransactionRunner($db),
         new PaymentPayloadValidator(),
         new PaymentRepository(
-            new UuidGenerator(),
+            $uuids,
             new PaymentStatusCalculator()
         )
     );
 
-    JsonResponse::send($service->registerPayment($payload));
+    $gateway = new InternalInstallmentPaymentGateway(
+        new ManualInstallmentPaymentService(
+            new ManualPaymentInvoiceRepository(),
+            new ManualInstallmentPaymentPayloadBuilder(),
+            $payments
+        ),
+        (array) (($config['installment_payment'] ?? [])['write_roles'] ?? []),
+        new InstallmentPaymentAuditTrail(
+            new PaymentActionEventRepository($uuids),
+            new OperationalEventRepository($uuids),
+            new SifAuditEventRepository($uuids),
+            (string) ($config['env'] ?? 'local')
+        )
+    );
+
+    JsonResponse::send($gateway->register($db, $actor, $payload));
 } catch (\Throwable $exception) {
     JsonResponse::fromThrowable($exception);
 }

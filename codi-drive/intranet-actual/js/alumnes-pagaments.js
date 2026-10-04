@@ -1,5 +1,7 @@
 let urlPagina = window.location.pathname.split('?')[0];
 let path = "https://intranet.prisma.cat/ajax/";
+let csrfAlumnesPagaments = $('meta[name="csrf-alumnes-pagaments"]').attr('content') || '';
+let sifInstallmentEnforced = ($('meta[name="sif-installment-enforced"]').attr('content') || '0') === '1';
 
 /* Cada vegada que es faci una crida d'un ajax, s'executarà la funció mostrarModalLoading().
 Cada vegada que finalitza la crida d'un ajax, s'executarà la funció amagarLoadingModal(). */
@@ -214,17 +216,27 @@ requestMain.done(function( message ) {
 
 						var efactPagament = $('#efact-'+idTipus).html().trim();
 						var numeroFact = $('#numFact-'+idTipus).html().trim();
+						var idInscSif = $('#idInsc-' + idTipus).html().trim();
+						var externalReference = ($('#reference-' + idTipus).val() || '').trim();
+						var esValidReference = '';
+						var esValidFacturaSif = '';
+						if (sifInstallmentEnforced && numeroFact == '') {
+							esValidFacturaSif = 'Cal emetre la factura abans de registrar el cobrament al SIF.';
+						}
+						if (sifInstallmentEnforced && externalReference == '') {
+							esValidReference = 'Cal indicar la referència bancària o DS_ORDER del cobrament.';
+						}
 
-						if ( esValidPagament == '' && esValidData == '' && esValidBanc == '' ) {
+						if ( esValidPagament == '' && esValidData == '' && esValidBanc == '' && esValidReference == '' && esValidFacturaSif == '' ) {
 
 							if ( efactPagament == 1 ) {
 								console.log('previsualitzacio');
-								mostrarModalConfirmacioPagament(numeroFact, idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc);
+								mostrarModalConfirmacioPagament(numeroFact, idTipus, idInscSif, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, externalReference);
 							}
 							else {
 								console.log('enviar pagament');
 								mostrarModalLoading();
-								aplicarPagament(idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, numeroFact, 0);
+								aplicarPagament(idTipus, idInscSif, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, externalReference, numeroFact, 0);
 							}
 						}
 						else {
@@ -235,6 +247,12 @@ requestMain.done(function( message ) {
 
 							if ( msgError != '' && esValidBanc != '' ) msgError += "<br>" + esValidBanc;
 							else if ( msgError == '' && esValidBanc != '' ) msgError = esValidBanc;
+
+							if ( msgError != '' && esValidReference != '' ) msgError += "<br>" + esValidReference;
+							else if ( msgError == '' && esValidReference != '' ) msgError = esValidReference;
+
+							if ( msgError != '' && esValidFacturaSif != '' ) msgError += "<br>" + esValidFacturaSif;
+							else if ( msgError == '' && esValidFacturaSif != '' ) msgError = esValidFacturaSif;
 
 							afegirHeaderModalError("Alerta!");
 							afegirTextModalError(msgError);
@@ -435,7 +453,7 @@ requestMain.done(function( message ) {
 	}
 
 	//Previsualització
-	function mostrarModalConfirmacioPagament(numFact, idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc) {
+	function mostrarModalConfirmacioPagament(numFact, idTipus, idInscSif, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, externalReference) {
 		var getModal = $.ajax({
 			url: path + "alumnes/mostrarModalConfPag.php",
 			global: false,
@@ -462,7 +480,7 @@ requestMain.done(function( message ) {
 
 					mostrarModalLoading();
 
-					aplicarPagament(idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, numFact, 1);
+					aplicarPagament(idTipus, idInscSif, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, externalReference, numFact, 1);
 				});
 			}
 			else {
@@ -478,33 +496,72 @@ requestMain.done(function( message ) {
 	}
 
 	//S'envia el pagament
-	function aplicarPagament(idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, numFact, efact) {
+	function aplicarPagament(idTipus, idInscSif, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, externalReference, numFact, efact) {
+		var button = $('#upd-insc-' + idTipus);
+		var operationId = button.data('payment-operation-id');
+		if (!operationId) {
+			if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+				operationId = window.crypto.randomUUID();
+			}
+			else {
+				operationId = 'manual-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+			}
+			button.data('payment-operation-id', operationId);
+		}
+
 		var sendPay = $.ajax({
 			url: path + "alumnes/efectuarPagament.php",
 			global: false,
-			method: "GET",
+			method: "POST",
 			data: {
 				id: idTipus,
+				idInsc: idInscSif,
 				numFact: numFact,
 				tipus: tipusInsc,
 				pagament: pagInsc,
 				dataPag: dataPagInsc,
 				banc: bancInsc,
+				externalReference: externalReference,
 				obs: obsInsc,
-				efact: efact
+				efact: efact,
+				operationId: operationId,
+				csrfToken: csrfAlumnesPagaments
 			},
-			dataType: "html"
+			dataType: sifInstallmentEnforced ? "json" : "html"
 		});
 		sendPay.done(function( msg ) {
+			if (sifInstallmentEnforced) {
+				if (msg && msg.ok === true) {
+					amagarLoadingModal();
+					afegirHeaderModalSuccess(
+						msg.status === 'REUSED' ? "Pagament ja registrat" : "Pagament efectuat!"
+					);
+					var textSif = msg.status === 'REUSED'
+						? "El cobrament ja constava registrat al SIF."
+						: "El cobrament s'ha registrat al SIF.";
+					if (msg.reconciled_existing === true) {
+						textSif += " S'ha conciliat amb un moviment econòmic existent.";
+					}
+					if (msg.uuid_payment) {
+						textSif += " UUID: " + msg.uuid_payment;
+					}
+					afegirTextModalSuccess(textSif);
+					mostrarModalSuccess();
+					$("#modalSuccess").on('hidden.bs.modal', function () {
+						reloadUrl();
+					});
+				}
+				return;
+			}
+
 			if ( !msg.toLowerCase().includes("error") ) {
 				amagarLoadingModal();
 				afegirHeaderModalSuccess("Pagament efectuat!");
 				afegirTextModalSuccess(msg);
 				mostrarModalSuccess();
-				// reloadUrl();
-				$("#modalSuccess").on('hidden.bs.modal', function (e) {
+				$("#modalSuccess").on('hidden.bs.modal', function () {
 					reloadUrl();
-				})
+				});
 			}
 			else {
 				afegirHeaderModalError("Alerta");
@@ -514,6 +571,19 @@ requestMain.done(function( message ) {
 			}
 		});
 		sendPay.fail(function( jqXHR, textStatus, errorThrown ) {
+			if (sifInstallmentEnforced && jqXHR.responseJSON) {
+				amagarLoadingModal();
+				var typed = jqXHR.responseJSON.status || 'ERROR';
+				var message = jqXHR.responseJSON.error || "No s'ha pogut completar el cobrament.";
+				if (typed === 'PENDING_RETRY') {
+					message += " Pots reintentar l'operació mantenint la mateixa referència.";
+				}
+				afegirHeaderModalError(typed === 'CONFLICT' ? "Conflicte de cobrament" : "Alerta");
+				afegirTextModalError(message);
+				mostrarModalError();
+				return;
+			}
+
 			errorFunction( jqXHR, textStatus, errorThrown,
 				"Hi ha hagut algun error a l'hora d'efectuar el pagament: " );
 		});
