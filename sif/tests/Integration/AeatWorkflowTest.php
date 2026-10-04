@@ -340,7 +340,9 @@ final class AeatWorkflowTest
             public int $calls = 0;
             public function send(array $payload): array {
                 $this->calls++;
-                throw new AeatDeliveryUncertainException('Synthetic remote outcome uncertain; evidence=test');
+                throw new AeatDeliveryUncertainException(
+                    'Synthetic remote outcome uncertain; evidence=20261003T220000Z-0123456789abcdef01234567'
+                );
             }
         };
         $worker = new SerialWorker($db, $transport);
@@ -352,6 +354,10 @@ final class AeatWorkflowTest
         Assert::same(true, $result['requires_review']);
         Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
         Assert::same('UNCERTAIN', $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn());
+        Assert::same(
+            '20261003T220000Z-0123456789abcdef01234567',
+            $db->query('SELECT EVIDENCE_ID FROM aeat_submission_attempt')->fetchColumn()
+        );
         Assert::same(1, (int) $db->query(
             "SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DELIVERY_UNCERTAIN'"
         )->fetchColumn());
