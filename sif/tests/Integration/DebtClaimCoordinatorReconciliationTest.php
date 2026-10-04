@@ -47,8 +47,11 @@ final class DebtClaimCoordinatorReconciliationTest
         ]);
         Assert::same('OPEN', $partial['status']);
         Assert::same('80.00', $partial['outstanding']);
-        Assert::same(0, $partial['cancelled_notifications']);
+        Assert::same(1, $partial['cancelled_notifications']);
         Assert::same($payment40['uuid_payment'], $partial['uuid_payment']);
+        Assert::same('CANCELLED', (string) $db->query(
+            'SELECT STATUS FROM notification_outbox'
+        )->fetchColumn());
 
         $payment80 = $this->pay($db, $invoice['uuid_factura'], '80.00', 'CLAIM|PAY|80');
         $closed = $service->reconcileAfterPayment($actor, [
@@ -64,7 +67,7 @@ final class DebtClaimCoordinatorReconciliationTest
         Assert::same('RESOLVED', $closed['stage']);
         Assert::same('0.00', $closed['outstanding']);
         Assert::same($payment80['uuid_payment'], $closed['uuid_payment']);
-        Assert::same(1, $closed['cancelled_notifications']);
+        Assert::same(0, $closed['cancelled_notifications']);
         Assert::same('CANCELLED', (string) $db->query(
             'SELECT STATUS FROM notification_outbox'
         )->fetchColumn());
