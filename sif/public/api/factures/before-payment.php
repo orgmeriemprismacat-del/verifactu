@@ -16,6 +16,7 @@ use Prisma\Sif\Repository\InvoiceBeforePaymentSelectionRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\InternalInvoiceBeforePaymentScopeResolver;
+use Prisma\Sif\Service\InvoiceBeforePaymentAeatInputPolicy;
 use Prisma\Sif\Service\InvoiceBeforePaymentCommandService;
 use Prisma\Sif\Service\InvoiceBeforePaymentLegacyPreparationService;
 use Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder;
@@ -105,12 +106,38 @@ try {
     $legacyIntranetDb = ConnectionFactory::makeLegacyIntranet($config);
     $fingerprints = new PayloadIdempotencyValidator();
 
+    $environment = strtoupper(trim((string) ($config['env'] ?? 'local')));
+    $issuer = $config['issuer'] ?? [];
+    $aeatConfig = $config['aeat'] ?? [];
+    $qualifiedEnvironment = in_array(
+        $environment,
+        ['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION'],
+        true
+    );
+    $aeatPolicy = new InvoiceBeforePaymentAeatInputPolicy(
+        (string) ($issuer['nif'] ?? ''),
+        (string) ($issuer['name'] ?? ''),
+        $qualifiedEnvironment,
+        [
+            'system_name' => (string) ($aeatConfig['system_name'] ?? ''),
+            'system_id' => (string) ($aeatConfig['system_id'] ?? ''),
+            'system_version' => (string) ($aeatConfig['system_version'] ?? ''),
+            'installation_id' => (string) ($aeatConfig['installation_id'] ?? ''),
+        ],
+        [
+            'tax_code' => (string) ($writeConfig['aeat_tax_code'] ?? ''),
+            'regime_key' => (string) ($writeConfig['aeat_regime_key'] ?? ''),
+            'exemption_reason' => (string) ($writeConfig['aeat_exemption_reason'] ?? ''),
+        ]
+    );
+
     $preparation = new InvoiceBeforePaymentLegacyPreparationService(
         new InvoiceBeforePaymentSelectionRepository(),
         new InvoiceBeforePaymentBillingPartyRepository(),
         new InvoiceBeforePaymentServerPayloadAssembler(),
         new InvoiceBeforePaymentPayloadBuilder(),
-        $fingerprints
+        $fingerprints,
+        $aeatPolicy
     );
 
     $coverage = new InvoiceBeforePaymentCoverageRepository();
