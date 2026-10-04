@@ -21,8 +21,14 @@ participant R as AeatOperationsReadRepository
 participant DB as BD SIF
 
 U->>P: GET /sif-registres-aeat.php
-P->>P: comprovarSessio + crear CSRF si falta
-P-->>U: HTML + JS
+P->>P: comprovarSessio
+P->>P: exigir intersecció amb SIF_AEAT_READ_ROLES
+alt sense rol read
+ P-->>U: HTTP 403
+else rol read
+ P->>P: crear CSRF si falta
+ P-->>U: HTML + JS
+end
 JS->>B: POST {action: summary}
 B->>B: validar sessió
 B->>C: request(actor,roles,payload)
@@ -215,7 +221,7 @@ U->>JS: confirmar
 JS->>B: POST reconcile + queue_id + attempt_uuid + CSRF
 B->>B: hash_equals(CSRF)
 B->>API: HMAC server-to-server
-API->>API: rol de reconcile
+API->>API: exigir rol READ + rol RECONCILE
 API->>S: reconcile(queueId,attemptUuid,actor)
 S->>Q: reviewForUpdate()
 Q->>DB: SELECT REVIEW FOR UPDATE
@@ -231,7 +237,7 @@ JS-->>U: resultat actualitzat
 
 ### FINAL
 
-Mateixa seqüència. Si l'intent és `UNCERTAIN`, antic o amb hash incompatible, es manté `REVIEW`; la UI no ha de disposar d'una acció que faci un segon SOAP.
+Mateixa seqüència. Aquesta acció normal només accepta intents terminals persistits. Un `UNCERTAIN` es manté `REVIEW` en aquest camí i només pot passar al camí SQ09-10 si existeix evidència privada completa i verificable. Cap UI disposa d'una acció que faci un segon SOAP.
 
 ## 8. SQ09-08 · Deep-link des d'incidències
 
@@ -339,6 +345,7 @@ participant DB as BD SIF
 U->>JS: Validar evidència i conciliar
 JS->>B: POST reconcile_evidence + queue_id + attempt_uuid + CSRF
 B->>API: petició HMAC server-to-server
+API->>API: exigir rol READ + rol RECONCILE
 API->>S: reconcile(queue, attempt, actor)
 S->>Q: reviewForUpdate()
 Q->>DB: lock queue REVIEW
@@ -364,7 +371,7 @@ Note over S,Q: cap AeatTransport / SoapTransport és invocat
 
 ### Bloqueig explícit
 
-Si l'intent és `STARTED`, no té `EVIDENCE_ID`, l'evidència és incompleta/alterada, el request no coincideix o la resposta no valida per aquella factura, la seqüència acaba en conflicte i el job continua `REVIEW`.
+Si l'intent no és `UNCERTAIN`, no té `EVIDENCE_ID`, l'evidència és incompleta/alterada, l'HTTP no és 200, la metadata no correspon al mateix attempt/factura/ordre, el request no coincideix o la resposta no valida per aquella factura, la seqüència acaba en conflicte i el job continua `REVIEW`. En el worker normal, un stale `STARTED` es converteix primer a `UNCERTAIN` mantenint l'ID preassignat.
 
 ## 9. Matriu de verificació
 
