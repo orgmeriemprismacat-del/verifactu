@@ -27,6 +27,7 @@ try {
 
 $relativeFiles = [
     'Unit/ReleaseManifestVerifierTest.php',
+    'Unit/RuntimeConfigFingerprintTest.php',
     'Unit/VersionPanelSessionTest.php',
     'Integration/SifVersionServiceTest.php',
     'Integration/PanelLaunchSecurityTest.php',
