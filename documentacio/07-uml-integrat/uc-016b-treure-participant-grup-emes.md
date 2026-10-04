@@ -117,9 +117,9 @@ flowchart LR
 classDiagram
 direction LR
 class GroupParticipantRemovalCoordinator {
- <<DISSENY: no implementada>>
- +preview(command) result
- +confirm(command) result
+ <<PHP implementat>>
+ +preview(db,uuidFactura,idInsc) array
+ +confirm(sifDb,legacyDb,...) array
 }
 class OperationalEventRepository {
  <<PHP existent>>
@@ -253,3 +253,13 @@ El coordinador de confirmació continua intencionadament no implementat perquè 
 `ACADEMIC_REMOVAL`, `RECTIFICATION`, `REFUND`, `CREDIT` i, si escau, `REPRICE_REMAINING_GROUP`.
 
 No executa cap moviment. Rebutja plans on la disposició econòmica supera els fons atribuïts o on falta informació obligatòria del refund/saldo. Això permet construir el futur coordinador sense acoblar la decisió fiscal a l'efecte bancari.
+
+
+## 8. Saga implementada
+
+`GroupParticipantRemovalCoordinator` executa i reprèn passos idempotents. Un pla de baixa pot completar:
+`ACADEMIC_REMOVAL → RECTIFICATION → REFUND → FUND_REFUND → CREDIT → FUND_CREDIT`.
+
+`EnrollmentFundDispositionService` aplica reversals parcials idempotents. S'ha corregit el càlcul del saldo perquè un reversal parcial resti el seu propi import i no l'import complet del moviment origen.
+
+La saga queda en `WAITING_EXTERNAL` quan el pla demana repricing dels membres restants o disposició comptable no-retornable encara no classificada.
