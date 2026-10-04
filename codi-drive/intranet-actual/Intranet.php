@@ -9661,7 +9661,7 @@ class Intranet
 	* @return Retorna l'HTML de la factura $factura segons si s'ha de visualitzar per
 	* pantalla o s'ha de descarregar. Si $descarrega = true, significa que s'ha de descarregar
 	*/
-	public function generaFactura($factura, $descarrega) {
+	public function generaFactura($factura, $descarrega, $marcaGenerada = true) {
 		if ( $descarrega ) {
 			$widthPantalla = "width: 700px; margin: 0 auto;";
 			$mostrar = "<html><head>
@@ -9847,9 +9847,20 @@ class Intranet
 				throw new RuntimeException('No s’ha pogut escriure el PDF temporal', 500);
 			}
 
-			/* UC-007: la descàrrega és una consulta i no pot mutar l'estat de negoci.
-			   GENERAT s'ha d'actualitzar només en un flux explícit d'emissió/generació,
-			   mai com a efecte lateral de reconstruir un PDF temporal. */
+			if ( $marcaGenerada && ( $generada == null || $generada == '' ) ) {
+				if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["updGeneratFactura"] ) ) {
+					$date = new DateTime("now");
+					$dataGenerada = date_format($date, 'Y-m-d');
+					$idGenerat = (int) $id;
+					$stmt->bind_param("si", $dataGenerada, $idGenerat);
+					$stmt->execute();
+					$conWeb->closeStmt();
+				}
+				else {
+					unlink($filename);
+					throw new Exception('',4127);
+				}
+			}
 
 			$mostrar = $filename;
 		}
