@@ -67,7 +67,7 @@ F --> G[Audit PREVIEW/SUCCEEDED]
 G --> H[Retornar billing/totals/lines + fingerprint]
 ```
 
-### INTRANET PENDENT
+### INTRANET IMPLEMENTADA COM A CONSUMIDOR UC-005
 ```mermaid
 flowchart TD
 A[Modal de correcció] --> B[POST proxy amb sessió + CSRF]
@@ -88,11 +88,11 @@ C --> E[Preview]
 D --> E
 E --> F[Confirmar fingerprint]
 F --> G[Emetre R atòmicament]
-G --> H[TipoRectificativa AEAT = I quan mapper estigui actiu]
+G --> H[TipoRectificativa AEAT = I via mapper server-side]
 ```
 
 **Implementat:** el builder no torna a assumir que `amount = base = total` per factures amb IVA.  
-**Pendent:** mapper AEAT complet i classificador R1-R5.
+**Pendent:** productor UC-74 i perfils AEAT complexos; R1-R5 no els selecciona el navegador.
 
 ## P05 — Rectificació per substitució
 
@@ -109,7 +109,7 @@ H --> I[ImporteRectificacion obligatori]
 ```
 
 **Implementat:** la nova R pot congelar nom/CIF/adreça corregits; `DIFERENCIES` rebutja mutacions de receptor.  
-**Pendent:** obtenir `ImporteRectificacion` i identitat original des del snapshot AEAT congelat, no de dades vives.
+**Implementat en cas compatible:** `ImporteRectificacion` i identitat original es deriven del snapshot AEAT congelat; resten múltiples desglossaments, recàrrec/canvis de perfil i evidència preproducció.
 
 ## P06 — Confirmació i commit
 
@@ -198,8 +198,8 @@ G --> H[Mostrar estat AEAT/document]
 | Audit SIF/operacional | **IMPLEMENTAT** |
 | Guard de decisió UC-74 | **IMPLEMENTAT** |
 | Classificador UC-74 genèric | **PENDENT / BLOQUEJANT** |
-| Proxy intranet sessió+CSRF UC-005 | **PENDENT** |
+| Proxy intranet sessió+CSRF UC-005 | **IMPLEMENTAT** |
 | `RecordFactory` AEAT S/I | **IMPLEMENTAT** |
-| Mapper AEAT rectificatiu R1-R5 | **PENDENT / BLOQUEJANT** |
-| Suite MySQL UC-005 | **DEFINIDA; CI EN CUA** |
+| Mapper AEAT rectificatiu R1-R5 | **PARCIAL / FAIL-CLOSED** |
+| Suite MySQL UC-005 | **DEFINIDA; revalidació CI EN CUA** |
 | E2E/preproducció | **PENDENT** |
