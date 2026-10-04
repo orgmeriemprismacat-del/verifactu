@@ -110,6 +110,7 @@ return [
         'version_launch_path' => getenv('SIF_PANEL_VERSIONS_PATH') ?: '/sif/versions/',
         'max_clock_skew_seconds' => (int) (getenv('SIF_PANEL_LAUNCH_MAX_SKEW') ?: 120),
         'session_name' => getenv('SIF_PANEL_SESSION_NAME') ?: 'SIFPANELSESSID',
+        'version_session_ttl_seconds' => (int) (getenv('SIF_PANEL_VERSION_SESSION_TTL') ?: 1800),
     ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
