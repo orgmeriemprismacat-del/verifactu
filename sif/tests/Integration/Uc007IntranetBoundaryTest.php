@@ -11,7 +11,7 @@ final class Uc007IntranetBoundaryTest
         $page = $this->readIntranet('alumnes-factura.php');
         $js = $this->readIntranet('js/alumnes-factura.js');
 
-        Assert::stringContainsString('js/alumnes-factura.js?ver=1.2', $page);
+        Assert::stringContainsString('/js/alumnes-factura.js?ver=1.3', $page);
         if (str_contains($page, 'SIF_INVOICE_QUERY_UI_ENABLED')) {
             Assert::fail('Obsolete no-op UC-007 UI flag must not remain in the page template.');
         }
@@ -25,6 +25,10 @@ final class Uc007IntranetBoundaryTest
         Assert::stringContainsString('action: "search"', $js);
         Assert::stringContainsString('action: "view"', $js);
         Assert::stringContainsString('sifDocument.php', $js);
+        Assert::stringContainsString('window.location.origin + "/ajax/"', $js);
+        if (str_contains($js, 'https://intranet.prisma.cat/ajax/')) {
+            Assert::fail('UC-007 invoice JS must not hardcode production AJAX origin.');
+        }
     }
 
     public function testLegacyPdfReconstructionHasExplicitReadOnlyMode(): void
@@ -257,7 +261,7 @@ final class Uc007IntranetBoundaryTest
         $page = $this->readIntranet('alumnes-mostrar-alumne.php');
         $js = $this->readIntranet('js/alumnes-mostrar-alumne.js');
 
-        Assert::stringContainsString('js/alumnes-mostrar-alumne.js?ver=1.8', $page);
+        Assert::stringContainsString('/js/alumnes-mostrar-alumne.js?ver=1.9', $page);
         if (str_contains($page, 'SIF_INVOICE_QUERY_UI_ENABLED')) {
             Assert::fail('Obsolete no-op UC-007 UI flag must not remain in the student page template.');
         }
@@ -273,6 +277,10 @@ final class Uc007IntranetBoundaryTest
         Assert::stringContainsString('mostrarModalConsultaFacturaLlegat(id)', $js);
         Assert::stringContainsString('url: path + "alumnes/descarregaFactura.php"', $js);
         Assert::stringContainsString('method: "POST"', $js);
+        Assert::stringContainsString('window.location.origin + "/ajax/"', $js);
+        if (str_contains($js, 'https://intranet.prisma.cat/ajax/')) {
+            Assert::fail('UC-007 student JS must not hardcode production AJAX origin.');
+        }
 
         if (str_contains($js, 'resD.toLowerCase()')) {
             Assert::fail('Legacy invoice fallback must not reference the obsolete undefined resD variable.');
