@@ -127,6 +127,38 @@ W->>Q: PROCESSED
 
 **Revalidació 02/10:** el wrapper real del worker és `RedsysLegacySyncingProcessor`; no existeix cap `AcademicEnrollmentSyncService` en aquest flux. La sincronització legacy s'executa només després que el handler PACK hagi retornat una emissió SIF correcta.
 
+## 3.1. FINAL transversal — gate de delivery de notificacions
+
+Aquest bloc existeix al codi compartit, però **no forma part de la transacció del callback PACK**. El productor PACK només deixa l'event a l'outbox després de l'èxit SIF.
+
+```mermaid
+sequenceDiagram
+autonumber
+actor T as Worker/transport SMTP [cutover pendent]
+participant D as NotificationOutboxDeliveryService
+participant O as notification_outbox
+participant A as notification_delivery_attempt
+
+T->>D: claim(UUID_NOTIFICATION)
+D->>O: SELECT ... FOR UPDATE
+alt PENDING i due
+ D->>A: INSERT attempt SENDING
+ D->>O: STATUS=SENDING
+ D-->>T: should_send=true + UUID_ATTEMPT
+ T->>T: efecte extern SMTP
+ T->>D: complete(accepted/providerRef/error)
+ D->>A: SENT o FAILED
+ D->>O: SENT o FAILED
+else SENT
+ D-->>T: ALREADY_SENT / no reenviar
+else SENDING o FAILED
+ D-->>T: revisió manual / no retry automàtic
+end
+```
+
+**Implementat:** `NotificationOutboxDeliveryService::claim/complete`.  
+**No acreditat per UC-015:** el worker/adaptador SMTP productiu i el seu cutover sobre l'outbox PACK.
+
 ## 4. FINAL — callback duplicat
 
 ```mermaid
