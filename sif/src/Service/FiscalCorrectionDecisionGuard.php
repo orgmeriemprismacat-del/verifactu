@@ -44,12 +44,29 @@ final class FiscalCorrectionDecisionGuard
             );
         }
 
-        return [
+        $resolved = [
             'decision' => $decision,
             'source_uc' => $sourceUc,
             'reason_code' => $reasonCode,
             'policy_version' => $policyVersion,
             'rectification_mode' => $classifiedMode,
         ];
+
+        $decisionEventUuid = trim((string) ($classification['decision_event_uuid'] ?? ''));
+        if ($decisionEventUuid !== '') {
+            if (preg_match(
+                '/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/Di',
+                $decisionEventUuid
+            ) !== 1) {
+                throw SifException::validation('Invalid UC-74 decision event UUID');
+            }
+
+            $resolved['decision_event_uuid'] = strtolower($decisionEventUuid);
+            $resolved['decision_recorded_at'] = trim((string) (
+                $classification['decision_recorded_at'] ?? ''
+            ));
+        }
+
+        return $resolved;
     }
 }
