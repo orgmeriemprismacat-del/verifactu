@@ -136,7 +136,17 @@
             const isLatest = Number(attempt.ATTEMPT_NO) === latestAttemptNo;
             const reconcile = String(queue.STATUS) === 'REVIEW' && terminal && isLatest
                 ? '<button class="btn btn-sm btn-warning sif-aeat-reconcile" data-attempt="' +
-                    esc(attempt.UUID_ATTEMPT) + '">Conciliar sense reenviar</button>'
+                    esc(attempt.UUID_ATTEMPT) + '">Conciliar resultat guardat</button>'
+                : '';
+            const reconcileEvidence = String(queue.STATUS) === 'REVIEW'
+                && String(attempt.STATUS) === 'UNCERTAIN'
+                && isLatest
+                && String(attempt.EVIDENCE_ID || '') !== ''
+                ? '<button class="btn btn-sm btn-outline-warning sif-aeat-reconcile-evidence ms-1" data-attempt="' +
+                    esc(attempt.UUID_ATTEMPT) + '">Validar evidència i conciliar</button>'
+                : '';
+            const reconcileActions = reconcile || reconcileEvidence
+                ? reconcile + reconcileEvidence
                 : '—';
             return '<tr>' +
                 '<td><code>' + esc(attempt.UUID_ATTEMPT) + '</code></td>' +
@@ -145,7 +155,7 @@
                 '<td>' + esc(attempt.RESPONSE_CSV || '—') + '</td>' +
                 '<td>' + esc(attempt.STARTED_AT || '—') + '</td>' +
                 '<td>' + esc(attempt.FINISHED_AT || '—') + '</td>' +
-                '<td class="text-end">' + reconcile + '</td>' +
+                '<td class="text-end">' + reconcileActions + '</td>' +
                 '</tr>';
         }).join('') : '<tr><td colspan="7" class="text-muted">No hi ha intents registrats.</td></tr>';
 
@@ -184,6 +194,31 @@
         await loadDetail(currentQueueId);
     }
 
+
+    async function reconcileEvidence(attemptUuid) {
+        if (!currentQueueId) return;
+        if (!window.confirm(
+            'Aquesta acció NO reenviarà el registre a AEAT. ' +
+            'Verificarà la integritat de request/response privats, comprovarà que el request coincideix ' +
+            'amb el snapshot fiscal immutable i només conciliarà si la resposta AEAT és vàlida. Vols continuar?'
+        )) return;
+
+        hideAlert();
+        const response = await call({
+            action: 'reconcile_evidence',
+            queue_id: currentQueueId,
+            attempt_uuid: attemptUuid,
+            csrf_token: csrf
+        });
+        showAlert(
+            'Evidència verificada i conciliada sense reenviament. Estat AEAT: ' +
+                (response.aeat_status || '—'),
+            'success'
+        );
+        await Promise.all([loadSummary(), loadQueue()]);
+        await loadDetail(currentQueueId);
+    }
+
     async function showPreflight() {
         hideAlert();
         const response = await call({action: 'preflight'});
@@ -216,6 +251,11 @@
     });
 
     document.getElementById('sif-aeat-attempts').addEventListener('click', event => {
+        const evidenceButton = event.target.closest('.sif-aeat-reconcile-evidence');
+        if (evidenceButton) {
+            reconcileEvidence(evidenceButton.dataset.attempt).catch(error => showAlert(error.message));
+            return;
+        }
         const button = event.target.closest('.sif-aeat-reconcile');
         if (button) reconcile(button.dataset.attempt).catch(error => showAlert(error.message));
     });
