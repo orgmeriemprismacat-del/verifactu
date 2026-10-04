@@ -31,4 +31,21 @@ final class ManualPaymentInvoiceRepository
 
         return $row ?: null;
     }
+    public function findLatestFiscalRecordByUuid(
+        \PDO $db,
+        string $uuidFactura,
+        bool $forUpdate = false
+    ): ?array {
+        $sql = 'SELECT * FROM factura_registres WHERE UUID_FACTURA = ? ORDER BY FISCAL_ORDER DESC LIMIT 1';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$uuidFactura]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
 }
