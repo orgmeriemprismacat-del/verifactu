@@ -146,6 +146,15 @@ S'elimina `SIF_INVOICE_QUERY_UI_ENABLED` buit. Els flags efectius són `SIF_UC00
 
 **Regressió:** `Uc007IntranetBoundaryTest::testLegacyInvoiceDownloadUsesBinaryPdfContractOnBothPages`.
 
+### UC007-FIND-18 · UC-007 apuntava a producció des de qualsevol entorn — CORREGIT
+Els JS canònics definien `path = "https://intranet.prisma.cat/ajax/"` i les pàgines carregaven els assets UC-007 amb URL absoluta de producció. En `intranet-pre.prisma.cat` això podia enviar consultes cap a producció o carregar una versió de JS diferent de la desplegada a preproducció.
+
+**Correcció:** els dos JS usen `window.location.origin + "/ajax/"` i les pàgines carreguen els assets UC-007 amb rutes root-relative:
+- `/js/alumnes-factura.js?ver=1.3`;
+- `/js/alumnes-mostrar-alumne.js?ver=1.9`.
+
+La prova de frontera rebutja tornar a introduir `https://intranet.prisma.cat/ajax/` dins dels JS UC-007.
+
 ## 5. Estat F01–F07
 
 | Ref | Funció | Documentat | Implementat | Verificat | Pendent |
