@@ -374,4 +374,63 @@ final class AeatWorkflowTest
         Assert::same(1, (int) $db->query('SELECT ATTEMPTS FROM fiscal_queue')->fetchColumn());
     }
 
+
+    public function testPostResponsePersistenceFailureKeepsEvidenceReferenceAndBlocksResend(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-REMOTE-RESULT-PERSISTENCE-FAIL')
+        );
+        $evidenceId = '20261004T001500Z-abcdefabcdefabcdefabcdef';
+
+        $transport = new class($evidenceId) implements AeatTransport {
+            public int $calls = 0;
+
+            public function __construct(private string $evidenceId) {}
+
+            public function send(array $payload): array
+            {
+                $this->calls++;
+
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'csv' => 'REMOTE-RESULT-EXISTS',
+                        'flow_wait_seconds' => 60,
+                        'evidence_id' => $this->evidenceId,
+                        // Deliberately invalid UTF-8: attempt JSON persistence fails
+                        // after the remote result has already been returned.
+                        'error_message' => "\xB1\x31",
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
+            }
+        };
+
+        $worker = new SerialWorker($db, $transport);
+        $result = $worker->runOnce();
+
+        Assert::same(false, $result['ok']);
+        Assert::same('REVIEW', $result['queue_status']);
+        Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same(
+            'UNCERTAIN',
+            $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            $evidenceId,
+            $db->query('SELECT EVIDENCE_ID FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE TIPUS_INCIDENCIA = 'AEAT_REMOTE_RESULT_NOT_PERSISTED'"
+            )->fetchColumn()
+        );
+
+        Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce()['reason']);
+        Assert::same(1, $transport->calls);
+    }
+
 }
