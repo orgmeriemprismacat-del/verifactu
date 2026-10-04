@@ -208,6 +208,10 @@ class PackConfirmationToken {
 class ConfirmacioPackEndpoint {
   <<IMPLEMENTAT · FAIL-CLOSED>>
 }
+class PagamentGrupAutomatic {
+  <<IMPLEMENTAT · VISTA PAGAMENT>>
+  +mostrarPaginaConfirmacio()
+}
 class NotificationOutboxDeliveryService {
   <<IMPLEMENTAT · GATE TRANSVERSAL>>
   +claim()
@@ -223,7 +227,8 @@ class LegacySyncService {
 EnviarInscripcioPack --> PublicWebMutationAuthorization
 EnviarInscripcioPack --> PackConfirmationToken : token temporal v2
 PackConfirmationToken --> ConfirmacioPackEndpoint : fragment -> GET codificat
-ConfirmacioPackEndpoint --> PackPaymentGate : continuacio de pagament
+ConfirmacioPackEndpoint --> PagamentGrupAutomatic : ID_INSC validat
+PagamentGrupAutomatic --> PackPaymentGate : formulari continua al checkout
 EnviarInscripcioPack --> PackPaymentGate : IDPAG creat
 PackPaymentGate --> SifPaymentIntentClient
 SifPaymentIntentClient --> RedsysPackInvoiceService : intent/callback/worker
