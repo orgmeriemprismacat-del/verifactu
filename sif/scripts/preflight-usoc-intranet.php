@@ -4,6 +4,7 @@ require dirname(__DIR__) . '/src/autoload.php';
 
 use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Service\UsocLifecyclePlanService;
+use Prisma\Sif\Service\UsocFinancingTermsService;
 use Prisma\Sif\Service\UsocValidationDecisionService;
 
 if (PHP_SAPI !== 'cli') {
@@ -17,6 +18,7 @@ $checks = [
     'sif_database' => false,
     'usoc_financing_case_table' => false,
     'usoc_validation_decision_table' => false,
+    'usoc_financing_terms_table' => false,
     'usoc_validation_active_unique_index' => false,
     'usoc_lifecycle_execution_table' => false,
     'internal_api_key_id' => false,
@@ -28,6 +30,7 @@ $checks = [
     'legacy_database_connectivity' => false,
     'usoc_lifecycle_plan_service' => false,
     'usoc_validation_decision_service' => false,
+    'usoc_financing_terms_service' => false,
     'usoc_api_endpoint_file' => false,
 ];
 
@@ -36,6 +39,7 @@ try {
     $checks['sif_database'] = true;
     $checks['usoc_financing_case_table'] = tableExists($db, 'usoc_financing_case');
     $checks['usoc_validation_decision_table'] = tableExists($db, 'usoc_validation_decision');
+    $checks['usoc_financing_terms_table'] = tableExists($db, 'usoc_financing_terms');
     $checks['usoc_validation_active_unique_index'] = uniqueIndexExists(
         $db,
         'usoc_validation_decision',
@@ -74,6 +78,7 @@ if ($checks['legacy_database_configured']) {
 
 $checks['usoc_lifecycle_plan_service'] = class_exists(UsocLifecyclePlanService::class);
 $checks['usoc_validation_decision_service'] = class_exists(UsocValidationDecisionService::class);
+$checks['usoc_financing_terms_service'] = class_exists(UsocFinancingTermsService::class);
 $checks['usoc_api_endpoint_file'] = is_file(dirname(__DIR__) . '/public/api/usoc/manage.php');
 
 $ok = !in_array(false, $checks, true);
