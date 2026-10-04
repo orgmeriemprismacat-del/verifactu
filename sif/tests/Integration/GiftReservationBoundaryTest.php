@@ -40,6 +40,10 @@ final class GiftReservationBoundaryTest
         Assert::stringContainsString('INVALID_AUTHORITATIVE_GIFT_PRICING', $method);
         Assert::stringContainsString('SELECT GET_LOCK(?, 5)', $method);
         Assert::stringContainsString('GIFT_CODE_ALREADY_BOUND_TO_DIFFERENT_RESERVATION', $method);
+        Assert::stringContainsString('$reservationCreated = false;', $method);
+        Assert::stringContainsString('$reservationCreated = true;', $method);
+        Assert::stringContainsString('if ($reservationCreated) $mailCurtGestio->sendMessage();', $method);
+        Assert::stringContainsString('if ($reservationCreated) {', $method);
 
         $insert = strpos($method, 'INSERT INTO regal');
         $mail = strpos($method, 'sendMessage()');
@@ -54,10 +58,10 @@ final class GiftReservationBoundaryTest
         $method = ($start !== false && $end !== false) ? substr($source, $start, $end - $start) : '';
 
         Assert::stringContainsString('SIF_REDSYS_GIFT_CUTOVER_ENABLED', $method);
-        Assert::stringContainsString('if (!$giftCutoverEnabled)', $method);
+        Assert::stringContainsString('if (!$giftCutoverEnabled && $reservationCreated)', $method);
         Assert::stringContainsString('targetes-regal/', $method);
 
-        $guard = strpos($method, 'if (!$giftCutoverEnabled)');
+        $guard = strpos($method, 'if (!$giftCutoverEnabled && $reservationCreated)');
         $write = strpos($method, 'file_put_contents($filename_digital, $pdf_digital)');
         Assert::same(true, $guard !== false && $write !== false && $guard < $write);
     }
