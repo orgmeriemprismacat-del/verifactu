@@ -57,9 +57,9 @@ final class AeatEvidenceReconciliationServiceTest
             $db->prepare(
                 "INSERT INTO aeat_submission_attempt
                  (UUID_ATTEMPT, FACTURA_REGISTRE_ID, FISCAL_QUEUE_ID, ATTEMPT_NO,
-                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, STATUS,
+                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, EVIDENCE_RESPONSE_SHA256, EVIDENCE_HTTP_STATUS, STATUS,
                   ERROR_DETAIL, STARTED_AT, FINISHED_AT)
-                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, 'UNCERTAIN',
+                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, ?, ?, 'UNCERTAIN',
                          'synthetic uncertain evidence', NOW(6), NOW(6))"
             )->execute([
                 $attemptUuid,
@@ -67,6 +67,8 @@ final class AeatEvidenceReconciliationServiceTest
                 (int) $queue['ID'],
                 hash('sha256', $requestXml),
                 $evidenceId,
+                hash('sha256', $responseXml),
+                200,
             ]);
 
             (new IncidentRepository())->openDetailed($db, [
@@ -166,9 +168,9 @@ final class AeatEvidenceReconciliationServiceTest
             $db->prepare(
                 "INSERT INTO aeat_submission_attempt
                  (UUID_ATTEMPT, FACTURA_REGISTRE_ID, FISCAL_QUEUE_ID, ATTEMPT_NO,
-                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, STATUS,
+                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, EVIDENCE_RESPONSE_SHA256, EVIDENCE_HTTP_STATUS, STATUS,
                   STARTED_AT, FINISHED_AT)
-                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, 'UNCERTAIN',
+                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, ?, ?, 'UNCERTAIN',
                          NOW(6), NOW(6))"
             )->execute([
                 $attemptUuid,
@@ -176,6 +178,8 @@ final class AeatEvidenceReconciliationServiceTest
                 (int) $queue['ID'],
                 hash('sha256', $requestXml),
                 $evidenceId,
+                hash('sha256', $responseXml),
+                200,
             ]);
 
             Assert::throws(
@@ -227,14 +231,16 @@ final class AeatEvidenceReconciliationServiceTest
             $db->prepare(
                 "INSERT INTO aeat_submission_attempt
                  (UUID_ATTEMPT, FACTURA_REGISTRE_ID, FISCAL_QUEUE_ID, ATTEMPT_NO,
-                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, STATUS, STARTED_AT)
-                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, 'STARTED', NOW(6))"
+                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, EVIDENCE_RESPONSE_SHA256, EVIDENCE_HTTP_STATUS, STATUS, STARTED_AT)
+                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, ?, ?, 'STARTED', NOW(6))"
             )->execute([
                 $attemptUuid,
                 $recordId,
                 (int) $queue['ID'],
                 hash('sha256', $requestXml),
                 $evidenceId,
+                hash('sha256', $responseXml),
+                200,
             ]);
 
             Assert::throws(
@@ -287,9 +293,9 @@ final class AeatEvidenceReconciliationServiceTest
             $db->prepare(
                 "INSERT INTO aeat_submission_attempt
                  (UUID_ATTEMPT, FACTURA_REGISTRE_ID, FISCAL_QUEUE_ID, ATTEMPT_NO,
-                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, STATUS,
+                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, EVIDENCE_RESPONSE_SHA256, EVIDENCE_HTTP_STATUS, STATUS,
                   STARTED_AT, FINISHED_AT)
-                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, 'UNCERTAIN',
+                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, ?, ?, 'UNCERTAIN',
                          NOW(6), NOW(6))"
             )->execute([
                 $attemptUuid,
@@ -297,6 +303,8 @@ final class AeatEvidenceReconciliationServiceTest
                 (int) $queue['ID'],
                 hash('sha256', $requestXml),
                 $evidenceId,
+                hash('sha256', $responseXml),
+                503,
             ]);
 
             Assert::throws(
@@ -350,9 +358,9 @@ final class AeatEvidenceReconciliationServiceTest
             $db->prepare(
                 "INSERT INTO aeat_submission_attempt
                  (UUID_ATTEMPT, FACTURA_REGISTRE_ID, FISCAL_QUEUE_ID, ATTEMPT_NO,
-                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, STATUS,
+                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, EVIDENCE_RESPONSE_SHA256, EVIDENCE_HTTP_STATUS, STATUS,
                   STARTED_AT, FINISHED_AT)
-                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, 'UNCERTAIN',
+                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, ?, ?, 'UNCERTAIN',
                          NOW(6), NOW(6))"
             )->execute([
                 $attemptUuid,
@@ -360,6 +368,8 @@ final class AeatEvidenceReconciliationServiceTest
                 (int) $queue['ID'],
                 hash('sha256', $requestXml),
                 $evidenceId,
+                hash('sha256', $responseXml),
+                200,
             ]);
 
             Assert::throws(
