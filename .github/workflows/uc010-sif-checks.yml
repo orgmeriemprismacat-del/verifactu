@@ -35,6 +35,40 @@ on:
       - "documentacio/06-fitxes-funcionals/uc-010.md"
       - "documentacio/07-uml-integrat/uc-010-*"
       - ".github/workflows/uc010-sif-checks.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "sif/config/**"
+      - "sif/database/migrations/**"
+      - "sif/public/sif/versions/**"
+      - "sif/scripts/build-release-manifest.php"
+      - "sif/scripts/preflight-version-governance.php"
+      - "sif/src/Database/MigrationRunner.php"
+      - "sif/src/Http/VersionPanelSession.php"
+      - "sif/src/Repository/BackupRestoreEvidenceRepository.php"
+      - "sif/src/Repository/InternalApiRequestRepository.php"
+      - "sif/src/Repository/OperationalEventRepository.php"
+      - "sif/src/Repository/SifAuditEventRepository.php"
+      - "sif/src/Repository/SifDeclarationRepository.php"
+      - "sif/src/Repository/SifVersionActivationRepository.php"
+      - "sif/src/Repository/SifVersionRepository.php"
+      - "sif/src/Service/PanelLaunchAuthenticator.php"
+      - "sif/src/Service/ReleaseManifestVerifier.php"
+      - "sif/src/Service/RuntimeConfigFingerprint.php"
+      - "sif/src/Service/RuntimeVersionInspector.php"
+      - "sif/src/Service/SifVersionService.php"
+      - "sif/tests/Integration/SifVersionServiceTest.php"
+      - "sif/tests/Integration/VersionPanelUiContractTest.php"
+      - "sif/tests/Unit/ReleaseManifestVerifierTest.php"
+      - "sif/tests/run-uc010-tests.php"
+      - "codi-drive/intranet-actual/SifPanelLaunchToken.php"
+      - "codi-drive/intranet-actual/ajax/sif/sifPanelLaunch.php"
+      - "codi-drive/intranet-actual/js/sif-verifactu.js"
+      - "codi-drive/intranet-actual/sif-verifactu.php"
+      - "documentacio/06-fitxes-funcionals/uc-010.md"
+      - "documentacio/07-uml-integrat/uc-010-*"
+      - ".github/workflows/uc010-sif-checks.yml"
   workflow_dispatch:
 
 permissions:
