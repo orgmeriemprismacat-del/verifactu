@@ -48,7 +48,9 @@ final class ManualPaymentService
     {
         $input['num_visible'] = $input['num_visible'] ?? ($invoice['NUM_VISIBLE'] ?? null);
         $payload = $this->manualPayments->forExistingInvoice((string) $invoice['UUID_FACTURA'], $input);
-        $result = $this->payments->registerPayment($payload);
+        $result = $sifDb->inTransaction()
+            ? $this->payments->registerPaymentInTransaction($sifDb, $payload)
+            : $this->payments->registerPayment($payload);
         $result['uuid_factura'] = $invoice['UUID_FACTURA'];
         $result['num_visible'] = $invoice['NUM_VISIBLE'];
 
