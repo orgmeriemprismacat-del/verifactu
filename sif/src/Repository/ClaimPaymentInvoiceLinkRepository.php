@@ -66,7 +66,6 @@ final class ClaimPaymentInvoiceLinkRepository
 
         $stmt = $db->prepare(
             'SELECT DISTINCT f.UUID_FACTURA, f.NUM_VISIBLE, f.ESTAT_FACTURA, f.ESTAT_COBRAMENT,
-                    r.IDPAG,
                     r.IDPAG
              FROM factura AS f
              INNER JOIN fact_rels AS r ON r.UUID_FACTURA = f.UUID_FACTURA
@@ -86,6 +85,12 @@ final class ClaimPaymentInvoiceLinkRepository
         }
 
         $row = $rows[0];
+        if (!isset($row['IDPAG']) || (int) $row['IDPAG'] <= 0) {
+            throw SifException::conflict(
+                'Claim payment invoice relation has no valid legacy IDPAG'
+            );
+        }
+
         $originCount = $db->prepare(
             "SELECT COUNT(DISTINCT SOURCE_ID)
              FROM fact_rels
