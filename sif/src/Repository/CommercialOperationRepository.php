@@ -127,6 +127,26 @@ final class CommercialOperationRepository
     }
 
 
+    public function updateStatus(\PDO $db, string $uuidOperation, string $status): void
+    {
+        $stmt = $db->prepare(
+            'UPDATE commercial_operation
+             SET STATUS = ?, UPDATED_AT = CURRENT_TIMESTAMP
+             WHERE UUID_OPERATION = ?'
+        );
+        $stmt->execute([$status, $uuidOperation]);
+
+        if ($stmt->rowCount() !== 1) {
+            $current = $this->findByUuid($db, $uuidOperation, true);
+            if ($current !== null && (string) $current['STATUS'] === $status) {
+                return;
+            }
+
+            throw SifException::conflict('Commercial operation status could not be updated');
+        }
+    }
+
+
     public function linkInvoice(
         \PDO $db,
         string $uuidOperation,
