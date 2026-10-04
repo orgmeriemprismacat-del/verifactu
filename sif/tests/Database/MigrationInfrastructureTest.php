@@ -100,6 +100,27 @@ final class MigrationInfrastructureTest
         TestDatabase::assertSafeTestConfig(['env'=>'test', 'db'=>['dsn'=>'mysql:host=localhost;dbname=sif_test']]);
     }
 
+    public function testMigrationCliAllowsDevelopmentAndStillBlocksProduction(): void
+    {
+        $db = TestDatabase::fresh();
+        $db->exec('UPDATE fiscal_chain_state SET LAST_FISCAL_ORDER=91 WHERE ID=1');
+
+        $development = ScriptRunner::run('scripts/run-migrations.php', ['SIF_ENV' => 'development']);
+        Assert::same(0, $development['exit_code']);
+        Assert::stringContainsString('Skipped ', $development['stdout']);
+        Assert::same(91, (int) $db->query('SELECT LAST_FISCAL_ORDER FROM fiscal_chain_state WHERE ID=1')->fetchColumn());
+
+        $production = ScriptRunner::run('scripts/run-migrations.php', ['SIF_ENV' => 'production']);
+        Assert::same(1, $production['exit_code']);
+        Assert::stringContainsString(
+            'Migrations require CLI and SIF_ENV=development, local, test or preproduction.',
+            $production['stderr']
+        );
+        Assert::same(91, (int) $db->query('SELECT LAST_FISCAL_ORDER FROM fiscal_chain_state WHERE ID=1')->fetchColumn());
+
+        TestDatabase::fresh();
+    }
+
     public function testRunnerRejectsConcurrentSuiteAndProductionBeforeResettingData(): void
     {
         $db = TestDatabase::fresh();

@@ -6,8 +6,8 @@ use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Database\MigrationRunner;
 
 $config = require dirname(__DIR__) . '/config/sif.php';
-if (PHP_SAPI !== 'cli' || !in_array($config['env'], ['local', 'test', 'preproduction'], true)) {
-    fwrite(STDERR, "Migrations require CLI and SIF_ENV=local, test or preproduction.\n");
+if (PHP_SAPI !== 'cli' || !in_array($config['env'], ['development', 'local', 'test', 'preproduction'], true)) {
+    fwrite(STDERR, "Migrations require CLI and SIF_ENV=development, local, test or preproduction.\n");
     exit(1);
 }
 try {

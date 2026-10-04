@@ -10,7 +10,7 @@ Aquesta carpeta conté utilitats executables per preparar, validar i operar flux
 - `run-*.php`: workers o processos continus/puntuals.
 - `reconcile-*.php`: reconciliació entre estats o sistemes.
 - `verify-*.php` / `test-*.php`: verificació dirigida i evidència.
-- `run-migrations.php`: aplica migracions.
+- `run-migrations.php`: aplica migracions només per CLI amb `SIF_ENV=development`, `local`, `test` o `preproduction`; `production` queda bloquejat.
 - `go-no-go-preproduction.php`: agregador tècnic de preproducció.
 - `local-test.ps1`: helper de l'entorn local.
 
