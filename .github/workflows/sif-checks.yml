@@ -37,6 +37,8 @@ on:
       - "codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysGiftStatusClient.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_regal_automatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentRegalAutomatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/ajax/efectuarPagamentRegalAutomatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/js/mostrarEfectuarPagamentRegal.min.js"
       - "codi-drive/web-actual/respostaOkPagamentAutomatic.php"
       - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioTaller.php"
@@ -140,6 +142,8 @@ jobs:
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysGiftStatusClient.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_regal_automatic.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentRegalAutomatic.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/ajax/efectuarPagamentRegalAutomatic.php
+          node --check codi-drive/pay-prisma-cat-canvis-verifactu/js/mostrarEfectuarPagamentRegal.min.js
           php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
           node --check codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js
 
