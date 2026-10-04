@@ -82,3 +82,20 @@ Quan aquest tall sigui operatiu, `realitzaPagamentRegalAutomatic.php` no ha de c
 ## 6. Estat resultant
 
 La còpia **ACTUAL** es conserva com a evidència del sistema llegat i del rollback. El **FINAL candidat ja no està pendent de programació coneguda**. Resten: CI finalitzat, configuració/rotació de secrets, valors AEAT confirmats, desplegament test/preproducció, compra controlada, callback duplicat/retry i evidència conservada.
+
+## 7. Revalidació de superfície i codi — 2026-10-04
+
+S'afegeixen al FINAL candidat:
+- `pay-prisma-cat-canvis-verifactu/GiftCheckoutToken.php`;
+- fencing d'intents a `RedsysGiftPaymentIntentService`;
+- consultes d'intent pendent/validat a `RedsysPaymentIntentRepository`;
+- idempotència de factura REGAL estable a `RedsysInvoicePayloadBuilder`;
+- proves de regressió cross-order.
+
+També es documenta que `web-actual/PagamentRegalAutomatic.php`,
+`web-actual/pagina_efectuar_pagament_regal_automatic.php` i
+`web-actual/realitzaPagamentRegalAutomatic.php` continuen representant el circuit
+ACTUAL/llegat. El cutover no queda verificat fins que s'acrediti que el trànsit real
+utilitza l'overlay de `pay` i el callback SIF.
+
+Vegeu `uc-017-revalidacio-exhaustiva-2026-10-04.md`.
