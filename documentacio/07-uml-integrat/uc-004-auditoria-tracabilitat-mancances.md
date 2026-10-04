@@ -341,3 +341,22 @@ El fitxer existent `uc-004-emetre-factura-abans-cobrar.md` continua sent una bon
 - [Recuperació selectiva del pipeline documental](uc-004-recuperacio-pipeline-documental-2026-10-04.md).
 - [Contracte AEAT pendent i frontera de responsabilitats](uc-004-contracte-aeat-pendent-2026-10-04.md).
 - El endpoint UC-004 rebutja explícitament `aeat_fields` i `aeat_header` rebuts del caller; la futura construcció oficial ha de ser server-side.
+
+
+## Annex · correlació HTTP i idempotència
+
+`InternalApiAuthenticator` registra un `request_id` UUID diferent per cada petició signada i el reclama a `internal_api_request` com a protecció anti-replay.
+
+No s'ha propagat aquest UUID directament al payload fiscal UC-004 perquè el payload preparat participa en:
+
+- el fingerprint de preview/confirm;
+- el hash d'idempotència de la factura.
+
+Preview i confirm són peticions HTTP diferents i, per tant, tenen `request_id` diferents. Incloure'l al payload faria divergent el fingerprint sense cap canvi de negoci. Igualment, un retry legítim amb una nova petició signada podria deixar de reutilitzar la factura.
+
+**Decisió:** el `request_id` de transport s'ha de correlacionar amb la factura mitjançant una capa d'auditoria/causació separada del payload idempotent. No s'ha de fer formar part del snapshot de negoci ni del hash idempotent.
+
+**Pendent de disseny:** vincular `internal_api_request.REQUEST_ID` amb `UUID_FACTURA` / event d'auditoria després de conèixer el resultat, conservant:
+1. idempotència de negoci estable;
+2. traça de cada intent HTTP;
+3. cap mutació fiscal addicional en retries.
