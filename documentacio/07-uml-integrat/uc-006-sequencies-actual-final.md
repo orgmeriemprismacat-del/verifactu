@@ -241,6 +241,90 @@ A-->>R: count + amount + movements
 
 **Lectura d'auditoria:** aquesta seqüència és executable i demostra que el sistema ja pot atribuir cobraments reals a inscripcions. El buit d'UC-006 és posterior: no s'ha localitzat una seqüència equivalent per treure fons via refund, convertir-los en saldo o lligar el consum d'un saldo al mateix ledger.
 
+## 6.2. ACTUAL ampliat — crear saldo consumint dret d'inscripció
+
+```mermaid
+sequenceDiagram
+autonumber
+participant C as Caller
+participant CS as CreditBalanceService
+participant CR as CreditBalanceRepository
+participant F as EnrollmentFundMovementRepository
+participant DB as BD SIF
+C->>CS: createCredit(K, source_enrollment_id, amount)
+CS->>DB: BEGIN
+CS->>CR: findByIdempotencyKey(K, FOR UPDATE)
+alt saldo existent
+  CS->>CS: assertSameCreditPayload
+else saldo nou
+  CS->>CR: createCredit(K,hash)
+  CR->>DB: INSERT credit_balance
+end
+CS->>F: insertOrReuseCreditCreate(...)
+F->>DB: lock credit + lock/reconstruir ledger origen
+alt dret insuficient
+  F--xCS: 409
+  CS->>DB: ROLLBACK
+else dret disponible
+  F->>DB: INSERT CREDIT_CREATE
+  CS->>DB: COMMIT
+  CS-->>C: UUID_CREDIT created/reused
+end
+```
+
+## 6.3. ACTUAL ampliat — refund consumint el mateix dret
+
+```mermaid
+sequenceDiagram
+autonumber
+participant C as Caller
+participant R as ManualRefundService
+participant P as PaymentService
+participant F as EnrollmentFundMovementRepository
+participant DB as BD SIF
+C->>R: register(... source_enrollment_id ...)
+R->>DB: BEGIN
+R->>P: registerPaymentInTransaction(REFUND)
+P->>DB: create/reuse REFUND + allocation
+R->>F: insertOrReuseRefundExit(uuidPayment,idInsc,amount)
+F->>DB: lock REFUND + ledger inscripció
+alt excedeix REFUND o dret disponible
+  F--xR: 409
+  R->>DB: ROLLBACK payment/allocation/status
+else vàlid
+  F->>DB: INSERT REFUND_EXIT
+  R->>DB: COMMIT
+  R-->>C: UUID_PAYMENT
+end
+```
+
+## 6.4. ACTUAL ampliat — aplicar saldo a una inscripció de la factura
+
+```mermaid
+sequenceDiagram
+autonumber
+participant C as Caller
+participant CS as CreditBalanceService
+participant F as EnrollmentFundMovementRepository
+participant PR as PaymentRepository
+participant DB as BD SIF
+C->>CS: applyCredit(... target_enrollment_id ...)
+CS->>DB: BEGIN + lock credit/factura
+CS->>PR: create/reuse COMPENSATION
+PR->>DB: payment_transaction + payment_allocation
+CS->>F: findInvoiceLineForInscription(factura,target)
+alt target no pertany a factura
+  F--xCS: 409
+  CS->>DB: ROLLBACK COMPENSATION
+else target vàlid
+  CS->>F: insertOrReuseCompensationAllocation
+  F->>DB: INSERT ledger amb UUID_CREDIT/payment/factura/línia/destí
+  CS->>DB: UPDATE credit_balance disponible
+  CS->>DB: COMMIT
+end
+```
+
+**Nota:** aquests tres recorreguts són ACTUALS a la branca, però encara no estan invocats per la UI llegada ni acreditats per CI/preproducció.
 ## 7. FINAL — preview de decisió UC-006
 
 ```mermaid
