@@ -8,6 +8,7 @@ use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
+use Prisma\Sif\Repository\FiscalCorrectionDecisionRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
@@ -16,6 +17,7 @@ use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\RectificationRepository;
 use Prisma\Sif\Repository\SifAuditEventRepository;
 use Prisma\Sif\Service\FiscalCorrectionDecisionGuard;
+use Prisma\Sif\Service\FiscalCorrectionDecisionResolver;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\InternalRectificationScopeResolver;
 use Prisma\Sif\Service\InvoicePayloadValidator;
@@ -78,13 +80,15 @@ try {
 
     $uuidFactura = trim((string) ($payload['uuid_factura'] ?? ''));
     $correction = $payload['correction'] ?? null;
-    $classification = $payload['classification'] ?? null;
+    $classificationEventUuid = trim((string) (
+        $payload['classification_event_uuid'] ?? ''
+    ));
 
     if (!is_array($correction)) {
         throw SifException::validation('Rectification correction block is required');
     }
-    if (!is_array($classification)) {
-        throw SifException::validation('Rectification UC-74 classification block is required');
+    if ($classificationEventUuid === '') {
+        throw SifException::validation('Rectification UC-74 classification event UUID is required');
     }
 
     $fingerprints = new PayloadIdempotencyValidator();
@@ -103,6 +107,16 @@ try {
         new RectificationRepository(),
         new ManualRectificationPayloadBuilder(),
         $invoiceService
+    );
+
+    $classification = (new FiscalCorrectionDecisionResolver(
+        new FiscalCorrectionDecisionRepository(),
+        new FiscalCorrectionDecisionGuard()
+    ))->resolve(
+        $db,
+        $classificationEventUuid,
+        $uuidFactura,
+        $correction
     );
 
     $commands = new RectificationCommandService(
