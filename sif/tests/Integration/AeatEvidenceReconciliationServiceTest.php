@@ -234,13 +234,72 @@ final class AeatEvidenceReconciliationServiceTest
         }
     }
 
-    private function createEvidence(string $requestXml, string $responseXml): array
+
+    public function testRejectsValidLookingResponseEvidenceWhenHttpStatusIsNot200(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->issue($db, 'AEAT|EVIDENCE|HTTP-NON-200');
+
+        $queue = $db->query('SELECT * FROM fiscal_queue LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+        $recordId = (int) $db->query('SELECT ID FROM factura_registres LIMIT 1')->fetchColumn();
+        $payload = json_decode((string) $queue['PAYLOAD_JSON'], true);
+        $requestXml = (new XmlCodec())->request($payload['aeat']);
+        $responseXml = AeatFixtures::response($payload['aeat'], 'Correcto');
+
+        [$dir, $evidenceId] = $this->createEvidence($requestXml, $responseXml, 503);
+        try {
+            $attemptUuid = 'ffffffff-0000-4111-8222-000000000004';
+            $db->exec("UPDATE fiscal_queue SET STATUS = 'REVIEW'");
+            $db->prepare(
+                "INSERT INTO aeat_submission_attempt
+                 (UUID_ATTEMPT, FACTURA_REGISTRE_ID, FISCAL_QUEUE_ID, ATTEMPT_NO,
+                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, STATUS,
+                  STARTED_AT, FINISHED_AT)
+                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, 'UNCERTAIN',
+                         NOW(6), NOW(6))"
+            )->execute([
+                $attemptUuid,
+                $recordId,
+                (int) $queue['ID'],
+                hash('sha256', $requestXml),
+                $evidenceId,
+            ]);
+
+            Assert::throws(
+                SifException::class,
+                fn () => (new AeatEvidenceReconciliationService(
+                    new TransactionRunner($db),
+                    new FiscalQueueRepository(),
+                    new IncidentRepository(),
+                    new AeatSubmissionAttemptRepository(),
+                    $dir
+                ))->reconcile(
+                    (int) $queue['ID'],
+                    $attemptUuid,
+                    'tester'
+                ),
+                409
+            );
+
+            Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+            Assert::same('UNCERTAIN', $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn());
+            Assert::same('PENDING', $db->query('SELECT ESTAT_AEAT FROM factura_registres')->fetchColumn());
+        } finally {
+            $this->removeEvidence($dir, $evidenceId);
+        }
+    }
+
+    private function createEvidence(
+        string $requestXml,
+        string $responseXml,
+        int $httpStatus = 200
+    ): array
     {
         $dir = sys_get_temp_dir() . '/aeat-evidence-reconcile-' . bin2hex(random_bytes(12));
         mkdir($dir, 0700);
         $store = new EvidenceStore($dir);
         $id = $store->begin($requestXml, ['environment' => 'offline-test']);
-        $store->response($id, $responseXml, 200);
+        $store->response($id, $responseXml, $httpStatus);
 
         return [$dir, $id];
     }
