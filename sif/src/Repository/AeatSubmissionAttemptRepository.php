@@ -57,10 +57,13 @@ final class AeatSubmissionAttemptRepository
     {
         $json = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $evidenceId = $this->normalizeEvidenceId($response['evidence_id'] ?? null);
+        if ($evidenceId !== null) {
+            $this->assertPreassignedEvidenceMatches($db, $uuidAttempt, $evidenceId);
+        }
         $stmt = $db->prepare(
             'UPDATE aeat_submission_attempt
              SET STATUS = ?, RESPONSE_CODE = ?, RESPONSE_CSV = ?, RESPONSE_JSON = ?,
-                 ERROR_CODE = ?, ERROR_DETAIL = ?, EVIDENCE_ID = ?, FINISHED_AT = NOW(6)
+                 ERROR_CODE = ?, ERROR_DETAIL = ?, FINISHED_AT = NOW(6)
              WHERE UUID_ATTEMPT = ? AND STATUS = \'STARTED\''
         );
         $stmt->execute([
@@ -70,7 +73,6 @@ final class AeatSubmissionAttemptRepository
             $json,
             $response['error_code'] ?? null,
             $response['error_message'] ?? null,
-            $evidenceId,
             $uuidAttempt,
         ]);
         if ($stmt->rowCount() !== 1) {
@@ -89,15 +91,17 @@ final class AeatSubmissionAttemptRepository
             throw new \InvalidArgumentException('Invalid AEAT attempt failure status.');
         }
         $evidenceId = $this->normalizeEvidenceId($evidenceId);
+        if ($evidenceId !== null) {
+            $this->assertPreassignedEvidenceMatches($db, $uuidAttempt, $evidenceId);
+        }
         $stmt = $db->prepare(
             'UPDATE aeat_submission_attempt
-             SET STATUS = ?, ERROR_DETAIL = ?, EVIDENCE_ID = ?, FINISHED_AT = NOW(6)
+             SET STATUS = ?, ERROR_DETAIL = ?, FINISHED_AT = NOW(6)
              WHERE UUID_ATTEMPT = ? AND STATUS = \'STARTED\''
         );
         $stmt->execute([
             $status,
             mb_substr($detail, 0, 2000, 'UTF-8'),
-            $evidenceId,
             $uuidAttempt,
         ]);
         if ($stmt->rowCount() !== 1) {
@@ -162,6 +166,31 @@ final class AeatSubmissionAttemptRepository
         ]);
         if ($stmt->rowCount() !== 1) {
             throw new \RuntimeException('AEAT uncertain attempt could not be finalized from evidence.');
+        }
+    }
+
+
+    private function assertPreassignedEvidenceMatches(
+        \PDO $db,
+        string $uuidAttempt,
+        string $evidenceId
+    ): void {
+        $stmt = $db->prepare(
+            'SELECT EVIDENCE_ID
+             FROM aeat_submission_attempt
+             WHERE UUID_ATTEMPT = ?
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $stmt->execute([$uuidAttempt]);
+        $current = $stmt->fetchColumn();
+        if (!is_string($current)
+            || $current === ''
+            || !hash_equals($current, $evidenceId)
+        ) {
+            throw new \RuntimeException(
+                'AEAT evidence id does not match the preassigned submission attempt.'
+            );
         }
     }
 
