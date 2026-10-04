@@ -12,6 +12,15 @@ include ('../../SifAuthenticatedActor.php');
 include ('../../SifInternalInstallmentClient.php');
 session_start();
 
+$useSif = filter_var(
+	getenv('SIF_INSTALLMENT_PAYMENT_ENFORCED') ?: '0',
+	FILTER_VALIDATE_BOOLEAN
+);
+if ($useSif) {
+	header('Content-Type: application/json; charset=utf-8');
+	header('Cache-Control: no-store, max-age=0');
+}
+
 $usuariDeserialitzat = false;
 $intranetDeserialitzada = false;
 
@@ -94,11 +103,6 @@ try {
 		throw new RuntimeException('Error: identificador d’operació no vàlid.');
 	}
 
-	$useSif = filter_var(
-		getenv('SIF_INSTALLMENT_PAYMENT_ENFORCED') ?: '0',
-		FILTER_VALIDATE_BOOLEAN
-	);
-
 	$idInscSif = null;
 	if ($useSif && $numFact === '') {
 		http_response_code(409);
@@ -168,9 +172,14 @@ try {
 
 		$uuidPayment = trim((string) ($response['uuid_payment'] ?? ''));
 		$reused = ($response['idempotency_reused'] ?? false) === true;
-		echo $reused
-			? 'El cobrament ja constava registrat al SIF (' . htmlspecialchars($uuidPayment, ENT_QUOTES, 'UTF-8') . ').'
-			: 'Pagament registrat al SIF (' . htmlspecialchars($uuidPayment, ENT_QUOTES, 'UTF-8') . ').';
+		$reconciled = ($response['reconciled_existing'] ?? false) === true;
+		echo json_encode([
+			'ok' => true,
+			'status' => $reused ? 'REUSED' : 'CREATED',
+			'uuid_payment' => $uuidPayment,
+			'idempotency_reused' => $reused,
+			'reconciled_existing' => $reconciled,
+		], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 	} else {
 		// Compatibilitat temporal: mateix comportament funcional llegat, però la
 		// mutació ja queda protegida per POST + sessió + CSRF + origen + permís.
@@ -193,9 +202,22 @@ try {
 		http_response_code($status);
 	}
 
-	if ($status >= 500 && !str_starts_with($e->getMessage(), 'Error SIF UC-023:')) {
+	if ($useSif) {
+		$message = $e->getMessage() !== '' ? $e->getMessage() : 'No s’ha pogut completar el cobrament.';
+		$typedStatus = $status === 409
+			? 'CONFLICT'
+			: ($status >= 500 ? 'PENDING_RETRY' : 'ERROR');
+
+		echo json_encode([
+			'ok' => false,
+			'status' => $typedStatus,
+			'error' => $message,
+		], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+	}
+	else if ($status >= 500 && !str_starts_with($e->getMessage(), 'Error SIF UC-023:')) {
 		echo 'Error: no s’ha pogut completar el cobrament.';
-	} else {
+	}
+	else {
 		echo $e->getMessage() !== '' ? $e->getMessage() : missatgeError($status);
 	}
 } finally {
