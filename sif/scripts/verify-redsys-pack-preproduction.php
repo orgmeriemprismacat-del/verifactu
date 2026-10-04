@@ -104,6 +104,20 @@ $result['preview'] = [
     'payment_amount' => is_numeric($previewPaymentAmount) ? money($previewPaymentAmount) : null,
 ];
 
+$preExecutionFailures = array_keys(array_filter(
+    $result['checks'],
+    static fn ($ok): bool => $ok !== true
+));
+$result['checks']['pre_execution_ready'] = $preExecutionFailures === [];
+
+if (($execute || $diagnosticProcess) && $preExecutionFailures !== []) {
+    $result['failed'] = array_values(array_unique(array_merge(
+        $preExecutionFailures,
+        ['pre_execution_ready']
+    )));
+    output($result, 1);
+}
+
 if ($execute) {
     $workerId = 'uc015-evidence-' . substr(hash('sha256', $dsOrder), 0, 12);
     $worker = runJsonScript(
