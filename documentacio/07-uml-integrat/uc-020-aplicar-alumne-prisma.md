@@ -325,7 +325,7 @@ PrismaStudentCourseCheckoutService --> RedsysPaymentIntentService
 RedsysPaymentIntentService --> CourseIntentSnapshotValidator : SOURCE_TYPE=CURS
 ```
 
-**Estat actual de runtime (03/10/2026):** el checkout de targeta actiu de `pay.prisma.cat` crida `SifRedsysCourseIntentClient` → `/api/redsys/course-intent.php`; si `TIPUS_DESC=1`, `RedsysCoursePaymentIntentService` deriva a `PrismaStudentCourseCheckoutService`, que crea/reutilitza operació i validació, congela el snapshot, crea la intenció i vincula `UUID_OPERATION ↔ UUID_INTENT`. L'alta AP llegada també revalida historial i tarifa al servidor i, després d'UC020-94, conserva aquest import fins a l'INSERT. **Continuen pendents** l'oferta SIF nativa a totes les superfícies, `payment_link` com a ruta canònica, la unificació de transferència i l'E2E real/preproducció.
+**Estat runtime reconciliat (04/10/2026):** el nucli SIF i el pont `pay-prisma-cat-canvis-verifactu` implementen `SifRedsysCourseIntentClient` → `/api/redsys/course-intent.php` → `PrismaStudentCourseCheckoutService`, però la carpeta pay és una **candidata** segons `codi-drive/README.md`. `web-actual/pagina_efectuar_pagament_automatic.php` encara construeix Redsys directament. Per tant, el pont està IMPLEMENTAT però el seu desplegament/cutover és **NO VERIFICAT**. L'alta AP llegada sí queda hardenitzada a la branca UC-020.
 
 ## 7. Seqüència ACTUAL — web d'inscripció
 
@@ -487,7 +487,7 @@ sequenceDiagram
         Link->>CO: validar vigència de l'operació
         Link-->>UI: operació + import esperat
 
-        Note over UI,RI: Checkout AP de targeta IMPLEMENTAT via course-intent; payment_link canònic PENDENT MIGRACIÓ
+        Note over UI,RI: Pont candidat AP IMPLEMENTAT via course-intent; DESPLEGAMENT/CUTOVER NO VERIFICATS
         UI->>RI: create(CURS,DS_ORDER,expectedAmount,snapshot)
         RI-->>UI: UUID_INTENT
         UI->>CO: linkIntent(UUID_OPERATION,UUID_INTENT,expected)
@@ -681,9 +681,9 @@ C->>CO: vincular UUID_OPERATION ↔ UUID_INTENT
 C-->>UI: operació + intenció
 ```
 
-**Pendent de migració/rollout:** l'alta/preview web, la resolució intranet i les pantalles P03/P04 encara no comparteixen l'oferta servidor canònica; el guard intern de `PaymentLinkService` ja està implementat però encara no governa aquestes rutes llegades. Falten E2E navegador → Redsys → factura i validació de preproducció. Les decisions UC20-DEC-001…006 ja estan tancades. El checkout de targeta actiu sí que invoca aquest nucli via `course-intent`.
+**Pendent de migració/rollout:** l'alta/preview web, la resolució intranet i les pantalles P03/P04 encara no comparteixen l'oferta servidor canònica; el guard intern de `PaymentLinkService` ja està implementat però encara no governa aquestes rutes llegades. Falten E2E navegador → Redsys → factura i validació de preproducció. Les decisions UC20-DEC-001…006 ja estan tancades. El pont candidat de targeta sí que invoca aquest nucli via `course-intent`; no consta acreditat que sigui el runtime desplegat.
 
-## 21. Reconciliació del canal de pagament actiu — 02/10/2026
+## 21. Reconciliació del pont de pagament — fotografia 02/10, corregida 04/10
 
 ```mermaid
 sequenceDiagram
@@ -757,3 +757,15 @@ La cobertura requerida continua completa i queda indexada a [uc-020-revalidacio-
 **Delta executable:** el reintent de `PrismaStudentCourseCheckoutService` revalida ara participant i línia comercial abans de reutilitzar l'operació. `CommercialOperationLineRepository` elimina l'últim SQL inline rellevant d'aquesta línia del checkout. La integració s'ha fet selectivament: no s'ha adoptat el PR #158 sencer perquè aquell tall reintroduïa comportaments ja descartats a #112.
 
 **Estat:** DOCUMENTAT + IMPLEMENTAT; verificació estàtica completada. CI del HEAD i E2E real/preproducció continuen PENDENTS.
+
+
+## 27. Correcció d'estat runtime — 04/10/2026
+
+La presència de `SifRedsysCourseIntentClient` a `pay-prisma-cat-canvis-verifactu` no demostra desplegament. L'[inventari runtime](uc-020-inventari-runtime-pay-prisma-2026-10-04.md) separa:
+
+- **ACTUAL/fallback inspeccionat:** `web-actual`, Redsys directe;
+- **PONT CANDIDAT:** `pay-prisma-cat-canvis-verifactu`, intenció SIF abans de Redsys;
+- **FINAL SIF:** serveis i repositoris `sif/`;
+- **PENDENT:** evidència de deploy, cutover i E2E real.
+
+Qualsevol diagrama anterior que etiqueti el pont com «actiu» s'ha de llegir amb aquesta correcció.
