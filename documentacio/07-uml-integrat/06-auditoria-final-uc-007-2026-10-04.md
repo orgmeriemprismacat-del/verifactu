@@ -176,6 +176,13 @@ El generador llegat construeix el filename amb timestamp de precisió d'un segon
 
 **Regressió:** `Uc007IntranetBoundaryTest::testLegacyInvoiceDownloadIsolatesConcurrentTemporaryFiles`.
 
+### UC007-FIND-22 · Audit de document atribuïa un rol arbitrari — CORREGIT
+`InvoiceDocumentAccessService` enregistrava `ACTOR_ROLE` amb el primer rol de l'actor. En actors multirole això podia no coincidir amb el rol que realment havia concedit FULL/MINIMAL.
+
+**Correcció:** `InternalInvoiceScopeResolver` retorna `invoice_scope_role` amb el rol efectiu que ha concedit la projecció; UC-080 el prioritza a `fiscal_document_access.ACTOR_ROLE`.
+
+**Regressió:** `InternalInvoiceScopeResolverTest` comprova prioritat FULL i rol efectiu; `InvoiceDocumentAccessServiceTest::testAuditRecordsRoleThatActuallyGrantedFullScope` comprova el ledger.
+
 ## 5. Estat F01–F07
 
 | Ref | Funció | Documentat | Implementat | Verificat | Pendent |
