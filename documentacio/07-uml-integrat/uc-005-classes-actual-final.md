@@ -116,7 +116,7 @@ ManualRectificationService --> DocumentService
 ## 4. Estat reconciliat
 
 - **Atomicitat:** implementada mitjançant el callback `beforeCommit` d'`InvoiceService`.
-- **Concurrència:** `FOR UPDATE` + revalidació del snapshot abans del COMMIT; pendent prova E2E amb sessions concurrents.
+- **Concurrència:** `FOR UPDATE` + revalidació del snapshot abans del COMMIT; prova multiprocés amb dues connexions implementada a `ManualRectificationConcurrencyTest`, pendent execució CI/preproducció.
 - **Fiscalitat local:** fail-closed; IVA subjecte exigeix bloc fiscal explícit.
 - **SUBSTITUCIO:** receptor corregit congelat a la nova R; original immutable.
 - **Decisió fiscal:** guard UC-74 implementat; classificador UC-74 genèric pendent.
