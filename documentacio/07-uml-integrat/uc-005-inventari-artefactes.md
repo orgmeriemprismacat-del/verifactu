@@ -66,25 +66,25 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 
 ## 5. Peces que encara falten
 
-1. **PENDENT UI:** proxy/adaptador intranet amb sessió, permís i CSRF que signi i consumeixi `/api/factures/rectify.php`.
+1. **UI CONSUMIDORA IMPLEMENTADA:** consulta SIF + decisió UC-74 + panell read-only + proxy sessió/permís/same-origin/CSRF + HMAC + preview/confirm. Pendent només el productor UC-74 que alimenta el snapshot executable i validació E2E/preproducció.
 2. **PENDENT UC-74:** productor/classificador fiscal genèric executable. UC-005 ja exigeix una decisió persistida vinculada per `correction_fingerprint`; vegeu `uc-005-contracte-uc074.md`.
-3. **PENDENT AEAT:** mapping específic de rectificatives a `aeat_fields`, XSD/protocol i evidència d'enviament.
+3. **AEAT PARCIAL:** mapper server-side implementat per un únic desglossament compatible; pendents perfils fiscals complexos, XSD/worker E2E i evidència d'enviament real.
 4. **PENDENT DECISIÓ:** correccions sense variació d'import; el builder continua rebutjant total zero fins que el criteri fiscal ho defineixi.
 5. **IMPLEMENTAT:** emissió R + `factura_rectificacio` + estat original + audit terminal comparteixen la transacció d'`InvoiceService`.
 6. **IMPLEMENTAT:** `FOR UPDATE` i revalidació del snapshot original abans del COMMIT; falta prova de concurrència E2E amb dues sessions.
 7. **IMPLEMENTAT:** `sif_audit_event` i `operational_event` del command, amb `REQUESTED/SUCCEEDED/REUSED/FAILED`.
-8. **PENDENT E2E:** pantalla → UC-74 → preview → confirm → R → document → consulta.
+8. **PENDENT E2E:** productor UC-74 → read model/pantalla → preview → confirm → R → document → consulta.
 9. **PENDENT EVIDÈNCIA:** conclusió verda de la suite UC-005 i preproducció.
 
 ## 6. Estat global
 
 - **Documentació estructural:** COMPLETADA en aquesta auditoria.
 - **Codi SIF de rectificació manual:** IMPLEMENTAT PARCIALMENT.
-- **Pantalla final UC-005:** PENDENT.
+- **Pantalla UC-005:** CONSUMIDOR IMPLEMENTAT EN BRANCA; mostra la decisió i la correcció aprovades i només permet preview/confirm. No inclou selector fiscal manual.
 - **Fiscalitat local SIF:** IMPLEMENTADA EN MODE FAIL-CLOSED · AEAT específic pendent.
 - **Atomicitat del nucli UC-005:** IMPLEMENTADA I PASSADA A LA SUITE ESPECÍFICA · pendent concurrència/preproducció.
 - **Command backend segur:** IMPLEMENTAT · endpoint intern signat, rols explícits i preview/confirm.
 - **Classificador UC-74:** PENDENT com a productor; consum de decisió persistida, R1-R5 i fingerprint de la correcció ja implementats.
-- **Proxy intranet UC-005:** IMPLEMENTAT EN BRANCA (sessió, edit permission, same-origin, CSRF, HMAC, preview/confirm); modal/formulari final pendent.
+- **Proxy/panell intranet UC-005:** IMPLEMENTAT EN BRANCA (sessió, edit permission, same-origin, CSRF, HMAC, decisió UC-74 al read model, preview/confirm).
 - **Proves definides:** SÍ, inclosa suite aïllada UC-005.
 - **Proves executades:** suite UC-005 verda 34/34 abans del resolver persistit; la nova passada amb `classification_event_uuid` està pendent. La suite global manté fallades alienes documentades.
