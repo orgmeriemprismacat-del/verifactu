@@ -6,9 +6,9 @@
 **FINAL:** mateixa UX possible, però les dades de producte/preu han de provenir d'un snapshot server-side versionat.
 
 ## Pàgina 2 · Destinatari i dedicatòria
-**ACTUAL:** el JS conserva `desti`, `origen`, `dedicatoria`.
+**ACTUAL original:** el JS conservava `desti`, `origen`, `dedicatoria` i els enviava per GET junt amb preu/hores/percentatge per construir el formulari.
 
-**FINAL:** dades comercials del regal; no confondre-les amb receptor fiscal ni identitat del futur alumne.
+**FINAL candidat:** l'endpoint del formulari només accepta POST+CSRF i rep el `codiCurs`; preu/hores/descompte es recalculen al servidor i els camps personals es repoblen localment al DOM. Són dades comercials del regal, no receptor fiscal ni identitat del futur alumne.
 
 ## Pàgina 3 · Previsualització
 **ACTUAL original:** `previsualitza_regal.php` rebia contingut per GET i mostrava/creava el codi a la UX.
