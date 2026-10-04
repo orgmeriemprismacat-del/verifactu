@@ -275,12 +275,14 @@ El mateix resultat s'ha d'exposar al panell intern en mode lectura, sense revela
 
 ## 11. A09-10 · Panell `intranet.prisma.cat/sif-registres-aeat.php`
 
-### ACTUAL implementat i fusionat a `main`
+### ACTUAL — baseline + hardening del PR #133
 
 ```mermaid
 flowchart TD
     A[GET /sif-registres-aeat.php] --> B[Sessió intranet]
-    B --> C[Proxy ajax/sif/sifAeat.php]
+    B --> B1{Rol dins SIF_AEAT_READ_ROLES?}
+    B1 -- No --> B2[HTTP 403]
+    B1 -- Sí --> C[Proxy ajax/sif/sifAeat.php]
     C --> D[HMAC servidor-servidor]
     D --> E[/api/aeat/operations.php]
     E --> F[summary / list / detail / preflight]
@@ -329,9 +331,9 @@ No ha de mostrar:
 
 ## 12. A09-11 · Reconciliació de REVIEW
 
-### ACTUAL implementat i fusionat a `main`
+### ACTUAL — reconciliació terminal + evidència al PR #133
 
-La UI mostra «Conciliar sense reenviar» només per un job `REVIEW` amb intent terminal remot `ACCEPTED`, `ACCEPTED_WITH_ERRORS` o `REJECTED`. El backend torna a validar el mateix `FISCAL_QUEUE_ID`, bloqueja files amb `FOR UPDATE`, regenera l'XML des del snapshot fiscal immutable i persisteix el resultat original sense cap segon SOAP. Un intent `UNCERTAIN` continua en `REVIEW`.
+La UI mostra la conciliació terminal només per un job `REVIEW` amb intent terminal remot `ACCEPTED`, `ACCEPTED_WITH_ERRORS` o `REJECTED`. El backend torna a validar el mateix `FISCAL_QUEUE_ID`, bloqueja files amb `FOR UPDATE`, regenera l'XML des del snapshot fiscal immutable i persisteix el resultat original sense cap segon SOAP. Un intent `UNCERTAIN` no entra per aquesta acció; pot usar `reconcile_evidence` només si el bundle privat complet i la metadata coincideixen.
 
 ### FINAL
 
@@ -397,7 +399,7 @@ flowchart TD
 - **Implementat backend preproducció:** sí, amb fencing, ledger d'intents i REVIEW fusionats a `main`.
 - **Panell web:** implementat; alta/configuració del menú de preproducció pendent.
 - **Proves escrites:** sí; ampliades per intents, resultat incert, fencing, consulta operativa i reconciliació REVIEW.
-- **Proves UC-009 revalidades:** al run CI de `main` del 2026-10-02 els tests AEAT/UC-009 passen; la suite global queda en **917 passed / 6 failed** per fallades alienes de PACK/Redsys. L'evidència **558/0** del 30/09 es conserva com a històrica del seu commit.
+- **Proves UC-009 revalidades:** 558/0 (30/09) i 917/6 global (02/10) són evidències històriques. El workflow dedicat del PR va acreditar posteriorment 57/57 UC-009 PASS abans de les extensions d'evidència/autorització; el head final necessita el seu propi PASS.
 - **Enviament AEAT real de preproducció:** pendent d'evidència.
 - **Producció:** no habilitada.
 
@@ -426,7 +428,7 @@ flowchart TD
     M --> N[Sense segon SOAP]
 ```
 
-**No aplica recuperació heurística:** un `STARTED` sense referència estructurada d'evidència continua `REVIEW`.
+**No aplica recuperació heurística:** en el worker normal `EVIDENCE_ID` es preassigna abans de xarxa i un stale `STARTED` passa a `UNCERTAIN` conservant-lo. Un `STARTED` legacy/manual sense referència inequívoca no es concilia per heurística i continua `REVIEW`.
 
 ## 16. Revalidació per pàgina i apartat — 2026-10-03
 
@@ -466,3 +468,23 @@ flowchart TD
 ```
 
 En un stale `STARTED`, la recuperació fa `STARTED → UNCERTAIN` conservant `EVIDENCE_ID` abans de posar la cua en `REVIEW`.
+
+
+## 15.2. A09-13 · Autorització del panell i mutacions
+
+```mermaid
+flowchart TD
+    A[Sessió intranet] --> B{Rol READ AEAT?}
+    B -- No --> C[403 abans del panell]
+    B -- Sí --> D[Render shell + CSRF]
+    D --> E[API HMAC]
+    E --> F{Acció mutadora?}
+    F -- No --> G[READ autoritzat]
+    F -- Sí --> H{READ i RECONCILE?}
+    H -- No --> I[403 backend]
+    H -- Sí --> J[Mutació autoritzada]
+    G --> K[detail capabilities.reconcile]
+    K --> L{capability true?}
+    L -- No --> M[No mostrar botons reconcile]
+    L -- Sí --> N[Mostrar accions + CSRF]
+```
