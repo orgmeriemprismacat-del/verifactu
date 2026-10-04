@@ -84,7 +84,7 @@ Durant aquesta auditoria s'ha implementat el nucli SIF que faltava i una fronter
 7. En tancar-se, els avisos pendents es cancel·len i el worker no els envia.
 8. La baixa acadèmica és una decisió separada i no anul·la fiscalment la factura.
 9. El bridge de la intranet és fail-closed: feature flag, POST, mateix origen, CSRF, permisos i HMAC.
-10. `ID_INSC` no es converteix implícitament en factura SIF.
+10. `ID_INSC` només es resol server-side si identifica inequívocament una factura SIF aplicable; l'ambigüitat falla amb `409`.
 
 ## 6. Bloquejos que no permeten declarar producció
 
@@ -135,3 +135,17 @@ Fins aleshores l'auditoria està tancada, però l'acceptació operativa no.
 ### Reconciliació d'avisos després de pagament
 
 Un cobrament confirmat, encara que sigui **parcial**, invalida l'import incorporat als avisos `PENDING`. Per això `reconcileAfterPayment()` cancel·la els avisos pendents de la factura en qualsevol reconciliació de pagament. Els missatges ja `SENT` no es modifiquen. Si encara queda saldo, l'expedient continua obert amb el saldo recalculat i qualsevol avís posterior es generarà amb un snapshot nou.
+
+
+## Bloqueig de cutover confirmat per codi legacy
+
+La simple inclusió de `sif-debt-claim-bridge.js` **no significa que les pantalles hagin fet cutover**. Els quatre JavaScript actuals continuen cridant els endpoints legacy:
+
+- recordatori final → `updDadesRecordatoriPagament.php`;
+- primera reclamació → `updDadesPrimeraReclamacio.php`;
+- reclamació final → `updLastClaimPay.php`;
+- control de morosos → handlers `upd*ClaimPayDefaulter.php`.
+
+A més, `updateSendMsg_LastClaimPay()` no és només una reclamació: segons el cas deriva a `updateSendMsg_LastClaimPay_noApprove()/approve()`, pot executar `__donarBaixaMoodleNou()` i `updCampInscripcioBaixaMorosBD()`. Per això **P-MOR-04 no es pot commutar cegament** a `FINAL_CLAIM`; primer s'ha de separar la reclamació de la baixa acadèmica (UC-72/95/96) i definir la projecció legacy posterior al commit SIF.
+
+També s'ha corregit una incidència existent del recordatori legacy: `updateSendMsg_Facturacio_Recordatori_Pagament()` passava `$reclamatM` a `updClaimRecPag` sense inicialitzar-lo a `Intranet.php`, mentre `IntranetProva.php` sí contenia la lògica correcta. La branca ara preserva el valor anterior de `reclamat` i hi afegeix «Reclamat fi de curs», amb prova de regressió.
