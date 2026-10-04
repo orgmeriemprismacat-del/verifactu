@@ -96,3 +96,25 @@ classDiagram
 ```
 
 La seva existència al repositori no prova desplegament productiu.
+
+## Revalidació de components FINAL — 2026-10-04
+
+```mermaid
+classDiagram
+  class GiftCheckoutToken
+  class PagamentRegal
+  class SifRedsysGiftIntentClient
+  class RedsysGiftPaymentIntentService
+  class RedsysPaymentIntentRepository
+  class RedsysInvoicePayloadBuilder
+  class InvoiceService
+
+  PagamentRegal --> GiftCheckoutToken : issue
+  SifRedsysGiftIntentClient --> RedsysGiftPaymentIntentService
+  RedsysGiftPaymentIntentService --> RedsysPaymentIntentRepository : reuse/fence
+  RedsysInvoicePayloadBuilder --> InvoiceService : stable REGAL key
+```
+
+La separació `web-actual` / `pay-prisma-cat-canvis-verifactu` és una frontera de
+desplegament i s'ha de demostrar en preproducció; no s'infereix només per existència
+dels fitxers.
