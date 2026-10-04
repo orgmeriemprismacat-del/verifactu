@@ -43,7 +43,7 @@ final class ManualRectificationService
             throw SifException::validation('SIF invoice not found for manual rectification');
         }
 
-        return $this->issueForInvoice($sifDb, $invoice, $input);
+        return $this->issueForInvoice($sifDb, $invoice, $input, $beforeCommit);
     }
 
     private function issueForInvoice(\PDO $sifDb, array $invoice, array $input, ?callable $beforeCommit = null): array
