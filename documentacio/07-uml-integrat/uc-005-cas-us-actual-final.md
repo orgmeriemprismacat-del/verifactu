@@ -34,18 +34,22 @@ L'ACTUAL de la branca ja disposa de **backend i consumidor intranet UC-005** fai
 
 ```mermaid
 flowchart LR
+  CLASS[UC-74 productor fiscal<br/>PENDENT] --> DEC[(sif_audit_event<br/>classification + correction)]
   OP[Operador autoritzat] --> UI[Factura SIF]
-  UI --> PX[Proxy intranet<br/>sessió + permís + CSRF]
+  UI --> Q[Consulta SIF FULL]
+  Q --> DEC
+  DEC --> READY{Decisió executable<br/>RECTIFICATION?}
+  READY -- no --> BLOCK[Bloqueig / derivar a altre UC]
+  READY -- sí --> PX[Proxy intranet<br/>sessió + permís + CSRF]
   PX --> API[POST signat UC-005]
   API --> AUTH[HMAC + replay + role scope]
-  AUTH --> CLASS[UC-74 classificador fiscal executable]
-  CLASS -->|RECTIFICATION| PRE[Preview + fingerprint]
-  CLASS -->|ANUL·LACIÓ REGISTRE| UC30[UC-30]
-  CLASS -->|SUBSANACIÓ| UC31[UC-31]
-  CLASS -->|NO CHANGE| NONE[Cap mutació fiscal]
+  AUTH --> RES[FiscalCorrectionDecisionResolver]
+  RES --> DEC
+  RES --> PRE[Preview + fingerprint]
   PRE --> CONF[Confirmació usuari]
   CONF --> CMD[RectificationCommandService]
   CMD --> RS[ManualRectificationService]
+  CMD --> MAP[AeatRectificationMapper]
   RS --> IS[InvoiceService]
   IS --> DB[(SIF)]
   DB --> LINK[factura R + factura_rectificacio + original RECTIFIED]
