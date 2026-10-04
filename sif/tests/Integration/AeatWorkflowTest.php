@@ -495,7 +495,12 @@ final class AeatWorkflowTest
                     $payload['_sif_submission_attempt']['evidence_id'] ?? ''
                 );
                 throw new AeatDeliveryUncertainException(
-                    'Synthetic remote outcome uncertain; evidence=' . $this->evidenceId
+                    'Synthetic remote outcome uncertain; evidence=' . $this->evidenceId,
+                    0,
+                    null,
+                    $this->evidenceId,
+                    hash('sha256', 'synthetic-remote-response'),
+                    200
                 );
             }
         };
