@@ -69,16 +69,19 @@ if (($config['env'] ?? 'local') === 'production' && !$allowProduction) {
 
 $limit = 25;
 $workerId = '';
+$dsOrder = '';
 foreach (array_slice($argv, 1) as $argument) {
     if (str_starts_with($argument, '--limit=')) {
         $limit = (int) substr($argument, strlen('--limit='));
     } elseif (str_starts_with($argument, '--worker-id=')) {
         $workerId = trim(substr($argument, strlen('--worker-id=')));
+    } elseif (str_starts_with($argument, '--ds-order=')) {
+        $dsOrder = trim(substr($argument, strlen('--ds-order=')));
     }
 }
 
 if ($limit < 1 || $limit > 100 || $workerId === '') {
-    fwrite(STDERR, "Usage: php sif/scripts/process-redsys-callback-queue.php --limit=25 --worker-id=pay-prisma-1\n");
+    fwrite(STDERR, "Usage: php sif/scripts/process-redsys-callback-queue.php --limit=25 --worker-id=pay-prisma-1 [--ds-order=ORDER]\n");
     exit(1);
 }
 
@@ -150,7 +153,9 @@ try {
     $counts = ['claimed' => 0, 'processed' => 0, 'retried' => 0, 'incidents' => 0, 'jasom_not_staged' => 0];
 
     for ($index = 0; $index < $limit; $index++) {
-        $result = $worker->runOne($db, $workerId, new DateTimeImmutable());
+        $result = $dsOrder === ''
+            ? $worker->runOne($db, $workerId, new DateTimeImmutable())
+            : $worker->runOneForDsOrder($db, $dsOrder, $workerId, new DateTimeImmutable());
         if ($result === null) {
             break;
         }
@@ -171,7 +176,12 @@ try {
             $counts['processed']++;
         }
     }
-    echo json_encode(['ok' => true] + $counts, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), PHP_EOL;
+    $output = ['ok' => true] + $counts;
+    if ($dsOrder !== '') {
+        $output['ds_order'] = $dsOrder;
+        $output['targeted'] = true;
+    }
+    echo json_encode($output, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), PHP_EOL;
     exit(0);
 } catch (Throwable $exception) {
     echo json_encode(['ok' => false, 'error' => $exception->getMessage()], JSON_PRETTY_PRINT), PHP_EOL;
