@@ -32,6 +32,7 @@ $relativeFiles = [
     'Integration/PackCheckoutBoundaryTest.php',
     'Integration/PackCommercialOrderBoundaryTest.php',
     'Integration/PackComponentAvailabilityBoundaryTest.php',
+    'Integration/PackDeploymentParityBoundaryTest.php',
     'Integration/PackEnrollmentAtomicityBoundaryTest.php',
     'Integration/PackEnrollmentIdempotencyBoundaryTest.php',
     'Integration/PackEnrollmentTransportBoundaryTest.php',
