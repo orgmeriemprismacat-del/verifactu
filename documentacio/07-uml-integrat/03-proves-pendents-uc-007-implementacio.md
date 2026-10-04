@@ -120,3 +120,14 @@ El primer run del PR ha executat i aprovat `Uc007IntranetBoundaryTest`, `Invoice
 - [x] La signatura manté `$marcaGenerada = true` per compatibilitat amb altres fluxos.
 - [x] L'UPDATE `updGeneratFactura` queda condicionat per `$marcaGenerada`.
 - [ ] En preproducció: descarregar una factura llegada amb `generada IS NULL` i comprovar abans/després que el camp continua `NULL`.
+
+
+## 8. Contracte binari de descàrrega llegada — 2026-10-04
+
+- [x] Backend respon `Content-Type: application/pdf`.
+- [x] Backend respon `Content-Disposition: attachment` i elimina el temporal abans de finalitzar.
+- [x] `alumnes-factura.js` consumeix la resposta com a `Blob`, no com a HTML/filename.
+- [x] `alumnes-mostrar-alumne.js` consumeix la resposta com a `Blob`, no com a HTML/filename.
+- [x] El navegador crea una URL temporal amb `URL.createObjectURL()` i la revoca.
+- [x] La prova de frontera impedeix reintroduir `dataType: "html"` en aquest contracte.
+- [ ] E2E navegador real: confirmar que el PDF s'obre/descarrega amb nom correcte a preproducció.
