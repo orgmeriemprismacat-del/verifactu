@@ -183,7 +183,7 @@ La policy implementada materialitza les decisions UC20-DEC-001…006 sota la ver
 
 ## 6. Reconciliació 02/10/2026
 
-- `PrismaStudentCourseCheckoutService` ja no es considera només disseny/nucli: forma part del pagament AP actiu via `course-intent`.
+- `PrismaStudentCourseCheckoutService` és codi SIF implementat i és consumit pel **pont candidat** via `course-intent`; el desplegament del pont a `pay.prisma.cat` no està acreditat pel repositori.
 - Aquesta revisió fa que l'orquestrador reutilitzi `CommercialOperationRepository` i `DiscountValidationRepository` dins de la seva transacció.
 - `DiscountDecisionService` continua sent una abstracció transversal possible; no bloqueja UC-020 perquè la policy específica ja existeix i està versionada.
 - `PaymentLinkService` és infraestructura implementada però encara no és la ruta canònica del pagament AP actiu.
@@ -255,3 +255,8 @@ PrismaStudentCourseCheckoutService --> RedsysPaymentIntentRepository
 ```
 
 **Invariant nou:** una operació idempotent UC-020 no es pot reutilitzar si el participant congelat divergeix. També es rebutgen múltiples participants amb rol `PARTICIPANT` o línies duplicades amb el mateix `ORDRE` dins d'aquest flux.
+
+
+## 11. Límits de desplegament — 04/10/2026
+
+Les classes SIF FINAL existeixen i el pont candidat les orquestra, però `web-actual` encara no conté `SifRedsysCourseIntentClient`. Per tant, **IMPLEMENTAT** descriu codi disponible al SIF/pont; no equival a **DESPLEGAT**.
