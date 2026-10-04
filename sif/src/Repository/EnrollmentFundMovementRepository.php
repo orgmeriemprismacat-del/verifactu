@@ -464,6 +464,161 @@ final class EnrollmentFundMovementRepository
         return $this->transferResult($created, false);
     }
 
+    public function insertOrReuseInternalTransferReversal(
+        \PDO $db,
+        array $movement
+    ): array {
+        foreach ([
+            'idempotency_key',
+            'order',
+            'reverses_uuid_movement',
+            'correlation_id',
+        ] as $field) {
+            if (!array_key_exists($field, $movement)
+                || $movement[$field] === null
+                || $movement[$field] === ''
+            ) {
+                throw SifException::validation(
+                    'Missing internal-transfer reversal field ' . $field
+                );
+            }
+        }
+
+        $normalized = [
+            'uuid_movement' => $this->uuidGenerator->generate(),
+            'idempotency_key' => trim((string) $movement['idempotency_key']),
+            'movement_type' => 'REVERSAL',
+            'order' => (int) $movement['order'],
+            'reverses_uuid_movement' => strtolower(
+                trim((string) $movement['reverses_uuid_movement'])
+            ),
+            'currency' => strtoupper(trim((string) ($movement['currency'] ?? 'EUR'))),
+            'uuid_operation' => $this->optionalString($movement['uuid_operation'] ?? null),
+            'correlation_id' => trim((string) $movement['correlation_id']),
+            'notes' => $this->optionalString($movement['notes'] ?? null),
+        ];
+
+        if ($normalized['idempotency_key'] === ''
+            || strlen($normalized['idempotency_key']) > 160
+            || $normalized['order'] <= 0
+            || $normalized['reverses_uuid_movement'] === ''
+            || $normalized['correlation_id'] === ''
+            || strlen($normalized['correlation_id']) > 120
+            || $normalized['currency'] === ''
+        ) {
+            throw SifException::validation(
+                'Invalid internal-transfer reversal values'
+            );
+        }
+
+        $existing = $this->findByIdempotencyKey(
+            $db,
+            $normalized['idempotency_key'],
+            true
+        );
+
+        $original = $this->findMovementByUuid(
+            $db,
+            $normalized['reverses_uuid_movement'],
+            true
+        );
+        if ($original === null) {
+            throw SifException::validation(
+                'Enrollment fund transfer movement not found for reversal'
+            );
+        }
+        if ((string) $original['MOVEMENT_TYPE'] !== 'INTERNAL_TRANSFER') {
+            throw SifException::conflict(
+                'Only INTERNAL_TRANSFER movements can be reversed by this service'
+            );
+        }
+
+        $normalized['amount'] = $this->money($original['IMPORT']);
+        $normalized['currency'] = (string) $original['CURRENCY'];
+        $normalized['id_insc_origin'] = (int) $original['ID_INSC_ORIGEN'];
+        $normalized['id_insc_destination'] = (int) $original['ID_INSC_DESTI'];
+
+        if ($existing !== null) {
+            $this->assertInternalTransferReversalMatches($existing, $normalized);
+
+            return $this->reversalResult($existing, $original, true);
+        }
+
+        $alreadyReversed = $this->findReversalOf(
+            $db,
+            $normalized['reverses_uuid_movement'],
+            true
+        );
+        if ($alreadyReversed !== null) {
+            throw SifException::conflict(
+                'Internal enrollment fund transfer has already been reversed'
+            );
+        }
+
+        $destinationAvailable = $this->availableAmountForInscription(
+            $db,
+            $normalized['id_insc_destination'],
+            true
+        );
+        $this->assertAvailable(
+            $destinationAvailable,
+            $normalized['amount']
+        );
+
+        try {
+            $db->prepare(
+                'INSERT INTO enrollment_fund_movement (
+                    UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
+                    UUID_PAYMENT, UUID_CREDIT, UUID_FACTURA, ID_FACTURA_LINIA,
+                    ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
+                    UUID_OPERATION, CORRELATION_ID, REVERSES_UUID_MOVEMENT, NOTES
+                 ) VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL,
+                           NULL, NULL, ?, ?, ?, ?, ?, ?)'
+            )->execute([
+                $normalized['uuid_movement'],
+                $normalized['idempotency_key'],
+                $normalized['movement_type'],
+                $normalized['order'],
+                $normalized['amount'],
+                $normalized['currency'],
+                $normalized['uuid_operation'],
+                $normalized['correlation_id'],
+                $normalized['reverses_uuid_movement'],
+                $normalized['notes'],
+            ]);
+        } catch (\PDOException $exception) {
+            if ((string) $exception->getCode() !== '23000') {
+                throw $exception;
+            }
+
+            $existing = $this->findByIdempotencyKey(
+                $db,
+                $normalized['idempotency_key'],
+                true
+            );
+            if ($existing === null) {
+                throw $exception;
+            }
+
+            $this->assertInternalTransferReversalMatches($existing, $normalized);
+
+            return $this->reversalResult($existing, $original, true);
+        }
+
+        $created = $this->findByIdempotencyKey(
+            $db,
+            $normalized['idempotency_key'],
+            true
+        );
+        if ($created === null) {
+            throw new \RuntimeException(
+                'Created internal enrollment fund transfer reversal could not be loaded'
+            );
+        }
+
+        return $this->reversalResult($created, $original, false);
+    }
+
     public function insertOrReuseCreditCreate(
         \PDO $db,
         array $movement
@@ -753,6 +908,96 @@ final class EnrollmentFundMovementRepository
         }
     }
 
+    private function findMovementByUuid(
+        \PDO $db,
+        string $uuidMovement,
+        bool $forUpdate = false
+    ): ?array {
+        $sql =
+            'SELECT UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
+                    UUID_PAYMENT, UUID_CREDIT, UUID_FACTURA, ID_FACTURA_LINIA,
+                    ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
+                    UUID_OPERATION, CORRELATION_ID, REVERSES_UUID_MOVEMENT, NOTES
+             FROM enrollment_fund_movement
+             WHERE UUID_MOVEMENT = ?';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$uuidMovement]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
+    }
+
+    private function findReversalOf(
+        \PDO $db,
+        string $uuidMovement,
+        bool $forUpdate = false
+    ): ?array {
+        $sql =
+            "SELECT UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
+                    UUID_PAYMENT, UUID_CREDIT, UUID_FACTURA, ID_FACTURA_LINIA,
+                    ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
+                    UUID_OPERATION, CORRELATION_ID, REVERSES_UUID_MOVEMENT, NOTES
+             FROM enrollment_fund_movement
+             WHERE MOVEMENT_TYPE = 'REVERSAL'
+               AND REVERSES_UUID_MOVEMENT = ?";
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$uuidMovement]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
+    }
+
+    private function assertInternalTransferReversalMatches(
+        array $existing,
+        array $movement
+    ): void {
+        $matches =
+            (string) $existing['MOVEMENT_TYPE'] === 'REVERSAL'
+            && (int) $existing['ORDRE'] === $movement['order']
+            && $existing['UUID_PAYMENT'] === null
+            && $existing['UUID_CREDIT'] === null
+            && $existing['UUID_FACTURA'] === null
+            && $existing['ID_FACTURA_LINIA'] === null
+            && $existing['ID_INSC_ORIGEN'] === null
+            && $existing['ID_INSC_DESTI'] === null
+            && $this->money($existing['IMPORT']) === $movement['amount']
+            && (string) $existing['CURRENCY'] === $movement['currency']
+            && (string) ($existing['UUID_OPERATION'] ?? '')
+                === (string) ($movement['uuid_operation'] ?? '')
+            && (string) ($existing['REVERSES_UUID_MOVEMENT'] ?? '')
+                === $movement['reverses_uuid_movement'];
+
+        if (!$matches) {
+            throw SifException::conflict(
+                'Internal-transfer reversal idempotency key already exists with different payload'
+            );
+        }
+    }
+
+    private function reversalResult(
+        array $row,
+        array $original,
+        bool $reused
+    ): array {
+        return [
+            'uuid_movement' => (string) $row['UUID_MOVEMENT'],
+            'reverses_uuid_movement' => (string) $original['UUID_MOVEMENT'],
+            'id_insc_origin' => (int) $original['ID_INSC_ORIGEN'],
+            'id_insc_destination' => (int) $original['ID_INSC_DESTI'],
+            'amount' => $this->money($original['IMPORT']),
+            'movement_type' => 'REVERSAL',
+            'idempotency_reused' => $reused,
+        ];
+    }
+
     private function assertInternalTransferMatches(
         array $existing,
         array $movement
@@ -852,7 +1097,7 @@ final class EnrollmentFundMovementRepository
             'SELECT UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
                     UUID_PAYMENT, UUID_CREDIT, UUID_FACTURA, ID_FACTURA_LINIA,
                     ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
-                    UUID_OPERATION, CORRELATION_ID, NOTES
+                    UUID_OPERATION, CORRELATION_ID, REVERSES_UUID_MOVEMENT, NOTES
              FROM enrollment_fund_movement
              WHERE IDEMPOTENCY_KEY = ?';
         if ($forUpdate) {
