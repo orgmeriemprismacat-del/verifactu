@@ -213,6 +213,11 @@ final class EnrollmentFundMovementRepository
             );
         }
 
+        $this->assertMoneyBackedCredit(
+            $db,
+            $normalized['uuid_credit']
+        );
+
         $existing = $this->findByIdempotencyKey($db, $normalized['idempotency_key'], true);
         if ($existing !== null) {
             $this->assertCompensationMatches($existing, $normalized);
@@ -722,6 +727,55 @@ final class EnrollmentFundMovementRepository
         if (!$matches) {
             throw SifException::conflict(
                 'Enrollment fund idempotency key already exists with different payload'
+            );
+        }
+    }
+
+    private function assertMoneyBackedCredit(
+        \PDO $db,
+        string $uuidCredit
+    ): void {
+        $creditStmt = $db->prepare(
+            'SELECT IMPORT_ORIGINAL
+             FROM credit_balance
+             WHERE UUID_CREDIT = ?
+             FOR UPDATE'
+        );
+        $creditStmt->execute([$uuidCredit]);
+        $creditOriginal = $creditStmt->fetchColumn();
+        if ($creditOriginal === false) {
+            throw SifException::validation(
+                'Credit balance not found for compensation enrollment allocation'
+            );
+        }
+
+        $movementStmt = $db->prepare(
+            "SELECT m.ID, m.IMPORT
+             FROM enrollment_fund_movement m
+             WHERE m.UUID_CREDIT = ?
+               AND m.MOVEMENT_TYPE = 'CREDIT_CREATE'
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM enrollment_fund_movement r
+                   WHERE r.MOVEMENT_TYPE = 'REVERSAL'
+                     AND r.REVERSES_UUID_MOVEMENT = m.UUID_MOVEMENT
+               )
+             ORDER BY m.ID
+             FOR UPDATE"
+        );
+        $movementStmt->execute([$uuidCredit]);
+        $rows = $movementStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $backedCents = 0;
+        foreach ($rows as $row) {
+            $backedCents += $this->cents($row['IMPORT']);
+        }
+
+        if ($backedCents <= 0
+            || $backedCents !== $this->cents($creditOriginal)
+        ) {
+            throw SifException::conflict(
+                'Compensation enrollment allocation requires fully money-backed credit'
             );
         }
     }
