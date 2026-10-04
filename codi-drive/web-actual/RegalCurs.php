@@ -704,10 +704,16 @@ class RegalCurs{
       $numEstils = $stmtParam->num_rows();
       $stmtParam->bind_result($idEstil);
       $i=1;
+      $allowedStyles = [];
       $mostrar .= "<div class='d-flex mb-3'>";
       while ($stmtParam->fetch()) {
-         //Per cada estils des de params, buscar el nom dels estil
-         $mostrar .= "<button id='".$idEstil."' class='estil mesinfo ";
+         $idEstil = trim((string) $idEstil);
+         if (preg_match('/^estil-[1-9][0-9]?$/D', $idEstil) !== 1) {
+            continue;
+         }
+         $allowedStyles[] = $idEstil;
+         $safeIdEstil = htmlspecialchars($idEstil, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+         $mostrar .= "<button id='".$safeIdEstil."' class='estil mesinfo ";
          if ( $i == $numEstils) $marge = "mr-0";
          $mostrar .= $marge." border-radius-2 text-center position-relative ";
          $mostrar .= "w-100 flex-shrink-1 py-1 px-2 font-weight-bold 500'>";
@@ -743,15 +749,15 @@ class RegalCurs{
          $mostrar .= "<img class='w-100 val-regal lazyloaded' src='".$pathPicture.".jpg' alt='Val regal' />";
          $mostrar .= "</picture>";
          $mostrar .= "<div class='cnt-text-regal d-flex flex-column w-100 position-absolute h-50 px-2 py-2'>";
-            $mostrar .= "<div class='cnt-nom d-flex w-100 align-items-center justify-content-center'>".$desti."</div>";
+            $mostrar .= "<div class='cnt-nom d-flex w-100 align-items-center justify-content-center'>".$safeDesti."</div>";
             $mostrar .= "<div class='cnt-text-dedicatoria d-flex w-100 h-100 px-md-4 px-sm-3 px-2 pl-1'>";
                $mostrar .= "<div class='cnt-text d-flex flex-column w-50 pt-4 align-items-center text-center'>";
-                  $mostrar .= "<div class='cnt-dedicatoria d-flex pb-2'>".$dedicatoria."</div>";
-                  $mostrar .= "<div class='cnt-origen d-flex'>".$origen."</div>";
+                  $mostrar .= "<div class='cnt-dedicatoria d-flex pb-2'>".$safeDedicatoria."</div>";
+                  $mostrar .= "<div class='cnt-origen d-flex'>".$safeOrigen."</div>";
                $mostrar .= "</div>";
                $mostrar .= "<div class='cnt-curs-regal d-flex flex-column w-50 pr-2'>";
-                  $mostrar .= "<div class='cnt-codi-regal d-flex justify-content-center align-items-center'>".$codiRegal."</div>";
-                  $mostrar .= "<div class='cnt-curs d-flex justify-content-center align-items-center text-center pr-2 ".$classNomCurs."'>".$nomCurs."</div>";
+                  $mostrar .= "<div class='cnt-codi-regal d-flex justify-content-center align-items-center'>".$safeCodiRegal."</div>";
+                  $mostrar .= "<div class='cnt-curs d-flex justify-content-center align-items-center text-center pr-2 ".$classNomCurs."'>".$safeNomCurs."</div>";
                $mostrar .= "</div>";
             $mostrar .= "</div>";
          $mostrar .= "</div>";
