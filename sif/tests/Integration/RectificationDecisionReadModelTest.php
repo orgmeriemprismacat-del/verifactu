@@ -67,6 +67,7 @@ final class RectificationDecisionReadModelTest
         Assert::same(true, is_array($decision));
         Assert::same(strtolower($eventUuid), $decision['event_uuid']);
         Assert::same(true, $decision['eligible_for_uc005']);
+        Assert::same(true, $decision['correction_fingerprint_valid']);
         Assert::same(true, $decision['ready_for_uc005_ui']);
         Assert::same('R1', $decision['classification']['invoice_type']);
         Assert::same('DIFERENCIES', $decision['classification']['rectification_mode']);
@@ -75,6 +76,62 @@ final class RectificationDecisionReadModelTest
         Assert::same('DIFERENCIES', $decision['correction']['mode']);
         Assert::same(false, array_key_exists('actor_id', $decision));
         Assert::same(false, array_key_exists('actor_role', $decision));
+    }
+
+    public function testProjectionBlocksDecisionWhenExposedCorrectionDoesNotMatchFingerprint(): void
+    {
+        $db = TestDatabase::fresh();
+        $issued = IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'UC005|QUERY|FINGERPRINT-MISMATCH',
+        ]));
+
+        $approvedCorrection = [
+            'amount' => '-40.00',
+            'reason' => 'DEVOLUCIO_PARCIAL',
+            'mode' => 'DIFERENCIES',
+            'concept' => 'Rectificacio parcial',
+            'unexpected_policy_input' => 'must-not-be-silently-dropped',
+        ];
+        $fingerprint = (new RectificationDecisionFingerprint())->calculate($approvedCorrection);
+
+        (new SifAuditEventRepository(new UuidGenerator()))->append($db, [
+            'request_id' => 'uc074-query-fingerprint-mismatch',
+            'correlation_id' => 'uc074-query-fingerprint-mismatch',
+            'action' => 'FISCAL_CORRECTION_CLASSIFIED',
+            'result' => 'SUCCEEDED',
+            'resource_type' => 'FACTURA',
+            'resource_id' => $issued['uuid_factura'],
+            'source_environment' => 'TEST',
+            'source_channel' => 'INTERNAL_API',
+            'actor_type' => 'HUMAN',
+            'actor_id' => 'responsable-fiscal',
+            'actor_role' => 'FACTURACIO',
+            'reason_code' => 'AMOUNT_DECREASE',
+            'changeset' => [
+                'classification' => [
+                    'decision' => 'RECTIFICATION',
+                    'source_uc' => 'UC-74',
+                    'reason_code' => 'AMOUNT_DECREASE',
+                    'policy_version' => '2026-10',
+                    'invoice_type' => 'R1',
+                    'rectification_mode' => 'DIFERENCIES',
+                ],
+                'correction_fingerprint' => $fingerprint,
+                'correction' => $approvedCorrection,
+            ],
+        ]);
+
+        $view = (new InvoiceQueryService(
+            $db,
+            new InvoiceReadRepository(),
+            $this->allowAllPolicy()
+        ))->view(['actor_id' => 'operator-test'], $issued['uuid_factura']);
+
+        $decision = $view['fiscal_correction_decision'] ?? null;
+        Assert::same(true, is_array($decision));
+        Assert::same(true, $decision['eligible_for_uc005']);
+        Assert::same(false, $decision['correction_fingerprint_valid']);
+        Assert::same(false, $decision['ready_for_uc005_ui']);
     }
 
     public function testExecutedUc74DecisionIsProjectedReadOnly(): void
