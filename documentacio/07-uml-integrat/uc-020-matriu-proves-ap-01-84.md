@@ -238,3 +238,16 @@ Proves noves creades i encara pendents de CI:
 AP-72 deixa de ser una mancança de codi: el canvi de curs AP ja no usa el selector genèric `ID_PREU + TIPUS`. `resolveLegacyPrismaStudentCourseChangePrice()` exigeix target únic, tarifa base única, tarifa AP única, vigència, curs o hores i mes de destí. `LegacyPrismaStudentCourseChangeBoundaryTest` protegeix també que `TIPUS_DESC/VALID_DESC` i els imports AP no tornin a quedar sota autoritat dels hidden inputs.
 
 Continua `PENDENT_CI` fins observar el nou test en PASS. AP-69/AP-73 continuen oberts perquè la unificació de selectors/policy **entre tots els canals** encara no està completada.
+
+
+## Robustesa addicional de reintents — 04/10/2026
+
+Aquesta ampliació no crea AP-85+: manté la matriu canònica AP-01…AP-84 i registra proves internes de robustesa UC-020.
+
+| ID intern | Escenari | Esperat | Estat |
+| --- | --- | --- | --- |
+| UC20-TEST-009 | Repetir el mateix checkout després d'alterar el nom del participant llegat. | 409; conservar un únic participant i snapshot original. | TEST CREAT · PENDENT CI HEAD |
+| UC20-TEST-010 | Repetir el mateix checkout amb una clau canònica de participant diferent. | 409; no crear segon participant. | TEST CREAT · PENDENT CI HEAD |
+| UC20-TEST-011 | Duplicar participant per rol o línia per `ORDRE`. | fail-closed, no reutilització ambigua. | GUARD IMPLEMENTAT · PENDENT CI HEAD |
+
+Aquests tests complementen AP-58/AP-63 i la idempotència del checkout: el snapshot comercial no es limita a import/preu/intenció; inclou també identitat del participant i línia de producte.
