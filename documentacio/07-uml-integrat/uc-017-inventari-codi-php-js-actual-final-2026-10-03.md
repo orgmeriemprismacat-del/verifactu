@@ -61,6 +61,8 @@ Quan aquest tall sigui operatiu, `realitzaPagamentRegalAutomatic.php` no ha de c
 
 | Fitxer/component | Responsabilitat | Estat |
 | --- | --- | --- |
+| `web-actual/pagina_regal.php + ajax/previsualitza_regal.php + mostrarRegal.min.js` | preview POST+CSRF, no-store i reserva server-side del codi | IMPLEMENTAT |
+| `web-actual/RegalCurs.php` | escaping de preview/PDF i allowlist d'estils | IMPLEMENTAT |
 | `pay-prisma.../SifRedsysGiftIntentClient.php` | crea intenció signada contra SIF | IMPLEMENTAT |
 | `sif/public/api/redsys/gift-intent.php` | endpoint intern `PAYMENT_CHANNEL` | IMPLEMENTAT |
 | `RedsysGiftPaymentIntentService.php` | rellegeix `regal`, valida import/estat i congela snapshot | IMPLEMENTAT |
