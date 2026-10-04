@@ -27,7 +27,8 @@ final class ClaimPaymentInternalApiContractTest
         Assert::stringContainsString('registerByUuidInTransaction', $api);
         Assert::stringContainsString('registerByNumVisibleInTransaction', $api);
         Assert::stringContainsString("$paymentInput['created_by'] = (string) ($actor['actor_id']", $api);
-        Assert::stringContainsString('Provide exactly one claim payment invoice selector', $api);
+        Assert::stringContainsString('Provide at most one claim payment invoice selector', $api);
+        Assert::stringContainsString('resolveUniqueOriginForInscription', $api);
         Assert::stringContainsString('source_inscription_id', $api);
         Assert::stringContainsString('ClaimPaymentInvoiceLinkRepository', $api);
         Assert::stringContainsString('assertUuidMatches', $api);
@@ -41,6 +42,7 @@ final class ClaimPaymentInternalApiContractTest
         Assert::stringContainsString('SIF_INTERNAL_CLAIM_PAYMENT_URL', $client);
         Assert::stringContainsString('SIF_INTERNAL_CLAIM_PAYMENT_SIGNED_PATH', $client);
         Assert::stringContainsString('/api/claim-payments/register.php', $client);
+        Assert::stringContainsString('registerByInscription', $client);
         Assert::stringContainsString('registerByUuid', $client);
         Assert::stringContainsString('registerByNumVisible', $client);
         Assert::stringContainsString("'source_inscription_id' => \$sourceInscriptionId", $client);
