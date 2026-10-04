@@ -87,6 +87,19 @@ final class RedsysLegacySyncingProcessor implements RedsysJobProcessor
             $estatCobrament
         );
 
+        if (($sync['mode'] ?? '') === 'GROUP_FULL_PAYMENT') {
+            $movementDate = trim((string) ($sync['movement_date'] ?? ''));
+            if ($movementDate === '') {
+                throw SifException::conflict('Missing group payment movement date for legacy sync');
+            }
+
+            $this->legacySync->syncGroupFullPayment(
+                $this->legacyDb,
+                $relations,
+                $movementDate
+            );
+        }
+
         if (($sync['mode'] ?? '') === 'PACK_FULL_PAYMENT') {
             $movementDate = trim((string) ($sync['movement_date'] ?? ''));
             if ($movementDate === '') {
