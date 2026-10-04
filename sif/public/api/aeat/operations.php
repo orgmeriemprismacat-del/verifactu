@@ -68,14 +68,15 @@ try {
 
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
     $isReconcile = in_array($action, ['reconcile', 'reconcile_evidence'], true);
-    $canReconcile = $reconcileRoles !== [] && array_intersect($roles, $reconcileRoles) !== [];
-    $requiredRoles = $isReconcile ? $reconcileRoles : $readRoles;
-    if ($requiredRoles === [] || array_intersect($roles, $requiredRoles) === []) {
-        throw SifException::forbidden(
-            $isReconcile
-                ? 'AEAT reconciliation role is not authorized'
-                : 'AEAT operations role is not authorized'
-        );
+    $hasReadRole = $readRoles !== [] && array_intersect($roles, $readRoles) !== [];
+    $hasReconcileRole = $reconcileRoles !== [] && array_intersect($roles, $reconcileRoles) !== [];
+    $canReconcile = $hasReadRole && $hasReconcileRole;
+
+    if (!$hasReadRole) {
+        throw SifException::forbidden('AEAT operations role is not authorized');
+    }
+    if ($isReconcile && !$canReconcile) {
+        throw SifException::forbidden('AEAT reconciliation role is not authorized');
     }
 
     $repository = new AeatOperationsReadRepository();
