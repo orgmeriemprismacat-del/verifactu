@@ -180,6 +180,117 @@ final class RedsysPaymentIntentTest
         }, 422);
     }
 
+    public function testCreatesValidatedUsocStudentIntentWithFrozenAmounts(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(
+            new RedsysPaymentIntentRepository(),
+            new UuidGenerator()
+        );
+
+        $created = $service->create($db, [
+            'ds_order' => '9800USOC0001',
+            'idpag' => 980,
+            'source_type' => 'USOC_ALUMNE',
+            'source_id' => '880',
+            'expected_amount' => '75.00',
+            'currency' => 'EUR',
+            'terminal' => '1',
+            'snapshot' => $this->usocSnapshot(),
+            'created_by' => 'usoc-checkout-test',
+        ]);
+
+        $loaded = (new RedsysPaymentIntentRepository())->findByDsOrder($db, '9800USOC0001');
+        $snapshot = json_decode((string) $loaded['SNAPSHOT_JSON'], true);
+
+        Assert::same(false, $created['idempotency_reused']);
+        Assert::same('USOC_ALUMNE', $loaded['SOURCE_TYPE']);
+        Assert::same('880', (string) $loaded['SOURCE_ID']);
+        Assert::same('75.00', number_format((float) $loaded['EXPECTED_AMOUNT'], 2, '.', ''));
+        Assert::same('75.00', (string) $snapshot['usoc']['student_amount']);
+        Assert::same('25.00', (string) $snapshot['usoc']['entity_amount']);
+    }
+
+    public function testRejectsUsocIntentWhenStudentAmountDiffersFromExpectedAmount(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(
+            new RedsysPaymentIntentRepository(),
+            new UuidGenerator()
+        );
+        $snapshot = $this->usocSnapshot();
+        $snapshot['usoc']['student_amount'] = '74.00';
+        $snapshot['payment']['amount'] = '74.00';
+
+        $exception = Assert::throws(SifException::class, static function () use ($db, $service, $snapshot): void {
+            $service->create($db, [
+                'ds_order' => '9800USOC0002',
+                'idpag' => 980,
+                'source_type' => 'USOC_ALUMNE',
+                'source_id' => '880',
+                'expected_amount' => '75.00',
+                'currency' => 'EUR',
+                'terminal' => '1',
+                'snapshot' => $snapshot,
+            ]);
+        }, 409);
+
+        Assert::same('Redsys USOC student amount does not match expected amount', $exception->getMessage());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
+    public function testRejectsUsocIntentWithoutValidatedMarkers(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(
+            new RedsysPaymentIntentRepository(),
+            new UuidGenerator()
+        );
+        $snapshot = $this->usocSnapshot();
+        $snapshot['inscription']['VALID_DESC'] = 0;
+
+        Assert::throws(SifException::class, static function () use ($db, $service, $snapshot): void {
+            $service->create($db, [
+                'ds_order' => '9800USOC0003',
+                'idpag' => 980,
+                'source_type' => 'USOC_ALUMNE',
+                'source_id' => '880',
+                'expected_amount' => '75.00',
+                'currency' => 'EUR',
+                'terminal' => '1',
+                'snapshot' => $snapshot,
+            ]);
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
+    public function testRejectsUsocIntentWithoutExplicitEntityAmount(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(
+            new RedsysPaymentIntentRepository(),
+            new UuidGenerator()
+        );
+        $snapshot = $this->usocSnapshot();
+        unset($snapshot['usoc']['entity_amount']);
+
+        Assert::throws(SifException::class, static function () use ($db, $service, $snapshot): void {
+            $service->create($db, [
+                'ds_order' => '9800USOC0004',
+                'idpag' => 980,
+                'source_type' => 'USOC_ALUMNE',
+                'source_id' => '880',
+                'expected_amount' => '75.00',
+                'currency' => 'EUR',
+                'terminal' => '1',
+                'snapshot' => $snapshot,
+            ]);
+        }, 422);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
     public function testEquivalentIntentReusesExistingDsOrder(): void
     {
         $db = TestDatabase::fresh();
@@ -556,6 +667,38 @@ final class RedsysPaymentIntentTest
             'terminal' => '1',
             'snapshot' => $this->courseSnapshot(700, 700, '120.00'),
             'created_by' => 'test',
+        ];
+    }
+
+    private function usocSnapshot(): array
+    {
+        return [
+            'inscription' => [
+                'ID' => 880,
+                'IDPAG' => 980,
+                'ANY' => 2026,
+                'MES' => '10',
+                'CURS' => 'ABC',
+                'NOM' => 'Maria',
+                'COGNOMS' => 'Exemple',
+                'DNI' => '12345678Z',
+                'A_PAGAR' => '75.00',
+                'TIPUS_DESC' => 4,
+                'VALID_DESC' => 1,
+            ],
+            'course' => [
+                'NOM_CURS' => 'Curs USOC de prova',
+            ],
+            'payment' => [
+                'idpag' => 980,
+                'amount' => '75.00',
+            ],
+            'usoc' => [
+                'student_amount' => '75.00',
+                'entity_amount' => '25.00',
+                'tipus_desc' => 4,
+                'valid_desc' => 1,
+            ],
         ];
     }
 
