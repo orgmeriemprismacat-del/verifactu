@@ -422,5 +422,5 @@ El verificador no publica l'identificador bancari ni el número visible en clar:
 **Encara pendent**
 - executar el preflight amb la configuració real;
 - executar i conservar T01–T06 del runbook;
-- decidir la font definitiva de l'`external_bank_event_id` des de l'operació/export bancari real;
+- font de l'`external_bank_event_id` decidida: identificador únic del banc a l'extracte/detall/export; resta automatitzar-ne la importació.
 - conservar evidència del worker de notificacions.
