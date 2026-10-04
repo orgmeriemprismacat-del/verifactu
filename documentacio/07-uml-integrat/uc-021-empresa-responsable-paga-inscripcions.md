@@ -34,7 +34,7 @@
 | E3. Empresa que encara no ha pagat | L'emissió genera factura real amb número fiscal i registre; el pagament continua `PENDING`. La documentació explica que el tractament històric d'exportació/comptabilització podia considerar-la cobrada: el nou model ha de mostrar els dos estats separats. |
 | E4. Pagament parcial o transferència posterior | Registrar moviment i assignació sobre el mateix `uuid_factura`; el calculador econòmic determina `PARTIAL` o `PAID` segons la suma neta. |
 | E5. Factura ja emesa, participants/import modificats | No tornar a construir una factura amb les dades vives: cal registrar canvi i resoldre si la factura exigeix rectificació o altra acció fiscal validada. |
-| **P1. Assignació per participant** | La selecció, imports i relacions per participant **sí** es reconstrueixen al servidor amb `InvoiceBeforePaymentCommandService`/`LegacyPreparationService`/`ServerPayloadAssembler`. El que continua pendent és l'atribució quantitativa d'un cobrament global posterior a cada participant i el seu ledger econòmic. |
+| **P1. Assignació per participant** | La selecció, imports i relacions es reconstrueixen al servidor i el cobrament global es pot distribuir explícitament amb `JointInvoiceEnrollmentFundAllocationService` sobre `enrollment_fund_movement`, vinculant `UUID_PAYMENT`, `UUID_FACTURA`, línia fiscal i `ID_INSC_DESTI`. Pendent només la validació operativa/UI i preproducció. |
 | **P2. Dades i permisos** | L'operador intern ja està protegit per sessió, rol, CSRF i API interna signada. L'accés extern del pagador/receptor al document continua pendent; els participants no han de rebre visibilitat implícita sobre la factura conjunta. |
 | **P3. IDPAG i flux manual de grup** | `ManualGroupInvoiceService::issueFromLegacyGroupPayment()` demana import de pagament i `ManualGroupInvoicePayloadBuilder` adjunta un bloc de pagament inicial; **no s'ha de reutilitzar directament com si fos l'emissió abans de cobrar de UC-21**. |
 | **P4. Titular de saldos** | Si posteriorment hi ha retorn/saldo, la documentació exigeix determinar el titular econòmic quan pagava una empresa o responsable. UC-29 no ho valida per si sol. |
@@ -77,11 +77,11 @@ Note over UI,DB: Seqüència OBJECTIU: el servei actual no fa els INSERT per ins
 
 **Variant E5-bis — empresa inscrita com a contacte i doble factura:** el xat original descriu una inscripció grupal feta per l'empresa en què el contacte ha utilitzat el CIF de l'entitat com a identificador; després d'emetre factura prèvia, la cerca per CIF a «Passar pagaments» pot iniciar indegudament una segona factura. La cerca fiscal definitiva ha d'identificar les inscripcions i llurs relacions amb UUID_FACTURA/fact_rels, IDPAG i, quan existeixi, FACTURA_RELACIONADA històric; **el CIF tot sol no identifica una factura única**. Si hi ha diverses factures legítimes del mateix CIF, cal seleccionar i validar la factura exacta, o obrir incidència; no agrupar-les ni generar-ne una altra per defecte.
 
-**Control previ d'enllaços i concurrència (contracte objectiu, NO implementació acreditada):** abans de confirmar la cobertura d'una inscripció per una factura d'empresa, verificar factura i cobraments existents, intencions Redsys pendents i enllaços individuals; impedir noves intencions individuals incompatibles al backend i coordinar el canvi d'estat amb l'emissió. La mera ocultació d'una URL al navegador no és un bloqueig. No donar per resolta la concurrència amb un ordre ingenu «emetre factura → desactivar enllaç»: un callback individual podria confirmar-se entre els dos passos. Si una intenció individual ja s'està processant, suspendre la nova emissió fins a conciliar-la. Si l'emissió fiscal s'ha confirmat però falla la sincronització amb la intranet, **conservar la factura**, registrar incidència, mantenir la restricció de nova emissió/cobrament incompatible i reprendre la sincronització de manera idempotent; no crear factura local alternativa.
+**Control previ d'enllaços i concurrència (implementat per CURS):** `EnrollmentPaymentFlowLockRepository` serialitza per `INSCRIPCIO`; UC-021 comprova dins del lock factures SIF existents i intencions Redsys actives; Redsys revalida `invoice_before_payment_coverage` dins la mateixa transacció abans d'emetre. Nova intenció després de coverage i callback tardà també es rebutgen. Si una projecció/sincronització posterior falla, **es conserva la realitat fiscal/econòmica** i es reprèn de manera idempotent.
 
 **Pagament posterior:** quan la factura preexistent cobreix les inscripcions, «Passar pagaments», la transferència o el callback autoritzat han de registrar i assignar el cobrament a aquell UUID_FACTURA (UC-02/22), no invocar el camí ManualGroupInvoiceService que emet una factura amb pagament inicial. Una factura pendent d'empresa pot conservar **el seu propi enllaç segur de pagament**, encara que els individuals incompatibles quedin inactius. El pagament parcial deixa PARTIAL i el cobrament total PAID sense alterar el número de factura ni crear un nou registre de venda per aquest únic cobrament.
 
-**Idempotència de negoci pendent:** reutilitzar una clau no és suficient si el receptor, el conjunt d'inscripcions, les línies o els imports han canviat; el servei ha de contrastar la petició amb el snapshot original i rebutjar un conflicte, en lloc de retornar silenciosament la factura anterior. La reutilització per clau observada a InvoiceService no acredita encara aquesta comparació integral. El document i el correu al receptor s'han de distingir de la comunicació als participants: un alumne pot veure que la seva inscripció està coberta, però no la factura completa que exposi altres participants.
+**Idempotència de negoci implementada:** `InvoiceService` compara el hash canònic del payload abans de reutilitzar una factura; un canvi de receptor, participants, línies o imports sota la mateixa clau provoca conflicte. El document i el correu al receptor es mantenen separats de la comunicació als participants: `visible_alumne=0` i la política de document exigeix `invoice_scope=FULL` explícit.
 
 ### 1.5. Proves d'acceptació específiques del circuit d'empresa (no executades)
 
@@ -196,20 +196,20 @@ ManualGroupInvoiceService --> InvoiceService : altre camí, NO UC-21 abans cobra
 
 **Frontera del diagrama:** `ManualGroupInvoiceService` es mostra com a contrast amb un camí diferent, no com una crida feta per `InvoiceBeforePaymentService`. No es representa cap classe fictícia per crear un «pagament d'empresa» si no consta al codi.
 
-### 3.1. Classes de coordinació proposades per a la cobertura de participants — NO implementades
+### 3.1. Classes de coordinació reconciliades per a la cobertura de participants — IMPLEMENTACIÓ PARCIAL OPERATIVA
 
-El model executable anterior no conté una classe que protegeixi de dues factures sobre el mateix `ID_INSC` quan les peticions arriben per canals diferents. Aquest subdiagrama defineix les dependències **objectiu** de les accions 4.3/4.4 sense atribuir-ne l'existència al PHP actual.
+El model executable ja protegeix el solapament principal `CURS`: lock compartit per `INSCRIPCIO`, coverage UC-021, comprovació de factura SIF existent, intencions Redsys i revalidació de coverage al callback. El subdiagrama següent representa l'estat reconciliat.
 
 ```mermaid
 classDiagram
 direction LR
 class CompanyInvoiceCoordinator {
- <<DISSENY: no acreditat>>
- +previewCoverage(command) proposal
+ <<implementat funcionalment via CommandService/PreparationService>>
+ +previewCoverage(command) result
  +confirmInvoice(command) result
 }
 class EnrollmentInvoiceCoverageGuard {
- <<DISSENY: no acreditat>>
+ <<implementat amb coverage + lock + guard SIF/Redsys>>
  +validateEnrollments(ids,receptor,operation) decision
 }
 class InvoiceBeforePaymentService {
@@ -225,14 +225,14 @@ class EnrollmentFundMovementRepository {
  +append(db,movement) string
 }
 class RedsysPaymentIntentService {
- <<PHP existent: no impedeix automàticament solapament entre canals>>
+ <<PHP existent: guard coverage + lock compartit CURS>>
  +create(db,input) array
 }
 CompanyInvoiceCoordinator --> EnrollmentInvoiceCoverageGuard : factura i inscripcions prèvies
-EnrollmentInvoiceCoverageGuard ..> RedsysPaymentIntentService : estats/intencions a conciliar [PENDENT]
+EnrollmentInvoiceCoverageGuard ..> RedsysPaymentIntentService : coverage/intencions CURS [IMPLEMENTAT]
 CompanyInvoiceCoordinator --> InvoiceBeforePaymentService : emetre una vegada
 CompanyInvoiceCoordinator ..> PaymentService : cobrament posterior independent
-CompanyInvoiceCoordinator ..> EnrollmentFundMovementRepository : atribució quantitativa [PENDENT]
+CompanyInvoiceCoordinator ..> EnrollmentFundMovementRepository : atribució quantitativa [IMPLEMENTAT MANUAL]
 ```
 ## 4. Seqüència — empresa sol·licita factura i paga posteriorment (objectiu + nucli implementat)
 
@@ -406,9 +406,9 @@ end
 Note over G,Inc: Guard Redsys CURS i concurrència exacta estan implementats; l'autenticació externa del receptor continua pendent.
 ```
 
-### 4.4. Acció pròpia: ingrés parcial d'empresa i atribució entre participants — OBJECTIU
+### 4.4. Acció pròpia: ingrés parcial d'empresa i atribució entre participants — IMPLEMENTAT EN FLUX MANUAL
 
-Quan una empresa paga parcialment una factura que cobreix diverses inscripcions, la UC-02 només assigna import a factura. La quantitat real que correspon a **cada participant** no es pot deduir de `fact_rels`, ni repartir equitativament per defecte; `enrollment_fund_movement` continua proposta. L'operació ha de conservar un únic `UUID_PAYMENT` per ingrés extern, la mateixa factura inicial i una decisió quantitativa per inscripció quan s'implementi l'atribució.
+Quan una empresa paga parcialment una factura que cobreix diverses inscripcions, `PaymentService` manté un únic `UUID_PAYMENT` assignat a la factura i `JointInvoiceEnrollmentFundAllocationService` exigeix un repartiment explícit `ID_INSC → import`. No es dedueix de `fact_rels` ni es reparteix equitativament per defecte. `enrollment_fund_movement` conserva línia fiscal, participant i import de cada part.
 
 ```mermaid
 sequenceDiagram
@@ -439,7 +439,7 @@ Note over P,L: El cobrament és realitat econòmica i es confirma primer; el led
 | ID de prova pendent | Escenari | Resultat exigible |
 | --- | --- | --- |
 | EM-21-01 | Mateixes inscripcions amb factura prèvia sota una altra clau | Recuperar factura existent o crear incidència; cap segon número fiscal. |
-| EM-21-02 | Grup de 3 participants, empresa paga una part | Un `UUID_PAYMENT` per ingrés, factura comuna i atribució exacta per participant quan el ledger existeixi. |
+| EM-21-02 | Grup de 3 participants, empresa paga una part | Un `UUID_PAYMENT` per ingrés, factura comuna i atribució explícita exacta per participant; rebutjar si la suma no coincideix. |
 | EM-21-03 | Intenció individual Redsys anterior a la factura d'empresa i callback tardà | Conciliar diner real sense segona factura ni perdre la reserva/estat de participant. |
 | EM-21-04 | Empresa i participant tenen NIF diferent, accés al PDF des del portal | Només receptor/representant legítim autoritzat, mai exposició automàtica a tots els participants. |
 | EM-21-05 | Reús de clau amb receptor o línies diferents | Rebuig per conflicte de contingut abans de donar equivalència; control pendent al nucli actual. |
