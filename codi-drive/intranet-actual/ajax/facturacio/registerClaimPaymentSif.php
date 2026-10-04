@@ -72,6 +72,11 @@ try {
         return;
     }
 
+    $externalReceiptType = strtoupper(trim((string) ($_POST['externalReceiptType'] ?? '')));
+    if (!in_array($externalReceiptType, ['BANK_REFERENCE', 'DS_ORDER', 'PROVIDER_REF'], true)) {
+        throw new RuntimeException('Tipus de referència externa no vàlid.', 422);
+    }
+
     $externalReceiptId = claimPaymentIdentifier(
         $_POST['externalReceiptId'] ?? null,
         'Referència externa de cobrament no vàlida.'
@@ -134,6 +139,7 @@ try {
         $actorRoles,
         $idInsc,
         $claimCaseId,
+        $externalReceiptType,
         $externalReceiptId,
         $payment
     );
