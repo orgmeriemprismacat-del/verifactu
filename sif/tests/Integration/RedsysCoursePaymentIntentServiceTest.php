@@ -99,6 +99,43 @@ final class RedsysCoursePaymentIntentServiceTest
         }, 422);
     }
 
+    public function testValidatedUsocCannotBeRoutedAsGenericCourseIntent(): void
+    {
+        $sifDb = TestDatabase::fresh();
+
+        $exception = Assert::throws(SifException::class, function () use ($sifDb): void {
+            $this->service()->create($sifDb, $this->legacyDb(false, '120.00', '20.00', 4, 1), [
+                'idpag' => 700,
+                'requested_amount' => '100.00',
+                'terminal' => '1',
+                'ds_order' => '700000000007',
+            ]);
+        }, 409);
+
+        Assert::same(
+            'USOC course payment requires a dedicated USOC_ALUMNE intent with explicit entity amount.',
+            $exception->getMessage()
+        );
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
+    public function testPendingUsocCannotStartPaymentBeforeValidation(): void
+    {
+        $sifDb = TestDatabase::fresh();
+
+        $exception = Assert::throws(SifException::class, function () use ($sifDb): void {
+            $this->service()->create($sifDb, $this->legacyDb(false, '120.00', '20.00', 4, 0), [
+                'idpag' => 700,
+                'requested_amount' => '100.00',
+                'terminal' => '1',
+                'ds_order' => '700000000008',
+            ]);
+        }, 409);
+
+        Assert::same('USOC discount is not in a payable state.', $exception->getMessage());
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
     public function testRejectsMissingOrInvalidTerminal(): void
     {
         $sifDb = TestDatabase::fresh();
@@ -163,7 +200,9 @@ final class RedsysCoursePaymentIntentServiceTest
     private function legacyDb(
         bool $fractional,
         string $contractTotal = '120.00',
-        string $alreadyPaid = '20.00'
+        string $alreadyPaid = '20.00',
+        int $tipusDesc = 0,
+        int $validDesc = 0
     ): RedsysCourseIntentLegacySpyPdo {
         return new RedsysCourseIntentLegacySpyPdo([
             [
@@ -184,6 +223,8 @@ final class RedsysCoursePaymentIntentServiceTest
                 'PAGAMENT' => $alreadyPaid,
                 'FRACCIONAT' => $fractional ? 1 : 0,
                 'FRACCIO' => '',
+                'TIPUS_DESC' => $tipusDesc,
+                'VALID_DESC' => $validDesc,
             ],
             [
                 'NOM_CURS' => 'Curs de prova',
