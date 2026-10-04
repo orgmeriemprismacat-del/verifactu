@@ -23,7 +23,7 @@ UC-005 **no estava sense codi**: existeix un nucli SIF executable per crear una 
 | Receptor nou | Necessitat documentada | **Sí en SUBSTITUCIO** | Sí | UI + criteri fiscal/AEAT |
 | IVA/règim heretat/correcte | Necessitat documentada | **Fail-closed + bloc fiscal explícit** | Sí | mapping AEAT/XSD específic |
 | Import zero per canvi receptor/concepte | Necessitat possible | No | builder el rebutja | decidir regla |
-| Classificador fiscal UC-74 | Sí | **Guard integrat; classificador genèric no** | Sí | implementar UC-74 executable |
+| Classificador fiscal UC-74 | Sí | **Consum d'evidència persistida + guard; productor/classificador genèric no** | Sí | implementar UC-74 executable |
 | Pantalla UC-005 SIF | Sí FINAL | No | Sí | implementar adaptador/proxy intranet |
 | Auth/CSRF command UC-005 | Sí FINAL | **HMAC/replay/rol backend sí** | Sí | sessió+CSRF al proxy intranet |
 | Atomicitat total | Sí FINAL | **Implementada en aquesta branca per UC-005** | Revisada estàticament | executar prova de rollback/concurrència |
@@ -37,7 +37,7 @@ UC-005 **no estava sense codi**: existeix un nucli SIF executable per crear una 
 
 La branca d'auditoria afegeix un hook `beforeCommit` opcional a `InvoiceService`. `ManualRectificationService` l'utilitza per bloquejar l'original amb `FOR UPDATE`, revalidar el snapshot, inserir `factura_rectificacio` i marcar l'original `RECTIFIED` **abans del COMMIT de la mateixa transacció**. També s'ha afegit una prova d'injecció de fallada que exigeix rollback de `factura`, línies, registre, cua i relacions.
 
-**Pendent per tancar evidència:** execució CI/MySQL verda de la nova prova i prova de concurrència específica sobre l'original.
+**Evidència disponible:** la suite específica UC-005 va passar 34/34 incloent rollback transaccional. **Pendent:** concurrència específica sobre l'original i revalidació posterior al merge amb `main`.
 
 ### UC005-F02 — TANCAT PARCIALMENT / AEAT PENDENT · fiscalitat local fail-closed
 
@@ -55,11 +55,11 @@ La branca d'auditoria afegeix un hook `beforeCommit` opcional a `InvoiceService`
 
 La validació rebutja imports amb valor absolut < 0,005. Cal decidir documentalment com representar correccions que no alteren total però sí receptor/concepte, sense inventar una figura fiscal.
 
-### UC005-F05 — GUARD IMPLEMENTAT / CLASSIFICADOR PENDENT · UC-74 abans de mutar
+### UC005-F05 — CONSUM D'EVIDÈNCIA IMPLEMENTAT / CLASSIFICADOR PENDENT · UC-74 abans de mutar
 
-El botó llegat “anul·lar” no pot mapar-se directament a UC-005. El nou `FiscalCorrectionDecisionGuard` impedeix confirmar UC-005 si la decisió no declara `source_uc=UC-74`, `decision=RECTIFICATION`, versió de política, reason code i mode coherent.
+El botó llegat “anul·lar” no pot mapar-se directament a UC-005. A més del `FiscalCorrectionDecisionGuard`, l'endpoint ara exigeix `classification_event_uuid` i el resol contra `sif_audit_event`. Només s'accepta un event `FISCAL_CORRECTION_CLASSIFIED` amb `RESULT=SUCCEEDED`, `RESOURCE_TYPE=FACTURA`, la mateixa factura i reason code coherent; la classificació inline del request deixa de ser font de veritat.
 
-Això **no equival a tenir UC-74 implementat**: el classificador genèric continua en `[DISSENY/BLOQUEJANT]`.
+Això **no equival a tenir UC-74 implementat**: encara falta el productor/classificador genèric que crea aquesta decisió persistent segons regles fiscals aprovades.
 
 ### UC005-F06 — TANCAT EN BRANCA · alias incoherents
 
@@ -94,5 +94,5 @@ UC-005 només es pot marcar tancat quan:
 
 **DOCUMENTAT:** sí, paquet estructural complet.  
 **IMPLEMENTAT:** nucli rectificatiu, atomicitat, aliases, fiscalitat fail-closed, SUBSTITUCIO amb receptor, command intern signat, preview/confirm, guard UC-74, auditoria i suite UC-005 aïllada.  
-**VERIFICAT:** revisió estàtica i cobertura de proves escrita; la suite global prèvia va donar 918 passats i 6 errors aliens al UC-005.  
-**PENDENT:** resultat verd de la suite UC-005 aïllada, classificador UC-74 executable, mapping AEAT/XSD de rectificatives, proxy/UI intranet, concurrència E2E i preproducció.
+**VERIFICAT:** revisió estàtica, suite específica UC-005 verda 34/34 abans del reforç de decisió persistida, incloent atomicitat, fiscalitat local, command, permisos i protocol AEAT.  
+**PENDENT:** revalidació CI de la nova capa `classification_event_uuid`, classificador/productor UC-74 executable, mapping AEAT E2E de rectificatives, proxy/UI intranet, concurrència E2E i preproducció.
