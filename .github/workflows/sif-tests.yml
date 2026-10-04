@@ -9,6 +9,7 @@ on:
       - "codi-drive/web-actual/Pack.php"
       - "codi-drive/web-actual/inc/buscantPacksDisponibles.php"
       - "codi-drive/web-actual/inc/PublicWebMutationAuthorization.php"
+      - "codi-drive/web-actual/inc/SifGiftReservationNotificationClient.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
       - "codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php"
       - "codi-drive/web-actual/pagina_inscripcio_pack.php"
@@ -58,6 +59,7 @@ on:
       - "codi-drive/web-actual/Pack.php"
       - "codi-drive/web-actual/inc/buscantPacksDisponibles.php"
       - "codi-drive/web-actual/inc/PublicWebMutationAuthorization.php"
+      - "codi-drive/web-actual/inc/SifGiftReservationNotificationClient.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
       - "codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php"
       - "codi-drive/web-actual/pagina_inscripcio_pack.php"
@@ -151,6 +153,7 @@ jobs:
           php -l codi-drive/web-actual/Pack.php
           php -l codi-drive/web-actual/inc/buscantPacksDisponibles.php
           php -l codi-drive/web-actual/inc/PublicWebMutationAuthorization.php
+          php -l codi-drive/web-actual/inc/SifGiftReservationNotificationClient.php
           php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
           php -l codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php
           php -l codi-drive/web-actual/pagina_inscripcio_pack.php
