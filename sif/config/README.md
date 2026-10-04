@@ -123,3 +123,59 @@ El checkout PACK és fail-closed i no reutilitza imports, titular, correu ni end
 - Default UC-015: `https://www.prisma.cat;https://prisma.cat`.
 - `enviarInscripcioPack.php` exigeix POST, `X-Requested-With: XMLHttpRequest`, allowlist d'origen/referer i conserva també la comprovació `Sec-Fetch-Site` com a defensa addicional.
 - Aquest control redueix CSRF cross-site i peticions directes no-AJAX; no substitueix rate limiting o controls anti-bot.
+
+
+## Promoció docent novell — UC-111
+
+UC-111 té dues fronteres diferents a la intranet i s'han de configurar totes dues en preproducció.
+
+### SIF / pay.prisma.cat
+
+Variables obligatòries o bloquejants:
+
+- `SIF_ENV=preproduction`: entorn SIF de preproducció.
+- `SIF_DB_DSN`, `SIF_DB_USER`, `SIF_DB_PASSWORD`: BD SIF de preproducció.
+- `SIF_LEGACY_DB_DSN`, `SIF_LEGACY_DB_USER`, `SIF_LEGACY_DB_PASSWORD`: lectura controlada de la BD legacy necessària per projectar la decisió docent novell.
+- `SIF_NOVICE_PROMO_WRAP_KEY_HEX`: clau de wrapping AES de **32 bytes codificada com 64 caràcters hexadecimals**. Secret; no guardar-la a Git, Trello ni documentació.
+- `SIF_NOVICE_PROMO_KEY_VERSION`: versió lògica de la clau; permet rotació i traçabilitat.
+- `SIF_NOVICE_PROMOTION_MANAGE_ROLES`: rols interns autoritzats a projectar decisions. Sense rols configurats, l'API falla tancada.
+- `SIF_INTERNAL_API_KEY_ID` i `SIF_INTERNAL_API_SECRET`: credencial HMAC compartida amb la intranet.
+- `SIF_INTERNAL_API_MAX_SKEW`: desviació màxima admesa del rellotge.
+- `SIF_INTERNAL_NOVICE_PROMOTION_SIGNED_PATH`: path canònic signat; default `/api/novice-promotion/manage.php`.
+
+L'endpoint `sif/public/api/novice-promotion/manage.php` exigeix POST, autenticació HMAC, actor/rols signats i un rol inclòs a `SIF_NOVICE_PROMOTION_MANAGE_ROLES`.
+
+### Intranet
+
+#### Consulta / Modifica alumne · lectura del dret
+
+- `SIF_NOVICE_PROMOTION_UI_ENABLED=1`: activa la targeta «Promoció docent novell». Per defecte queda desactivada.
+- `SIF_APP_ROOT`: ruta local al desplegament del codi SIF que conté `src/autoload.php` i `config/sif.php`.
+- Les variables `SIF_DB_*` han de ser accessibles des del procés PHP de la intranet perquè el bridge actual obre la BD SIF per construir el read model.
+
+**Arquitectura actual:** aquesta consulta no usa l'API HMAC; el bridge de la intranet carrega el SIF localment amb `SIF_APP_ROOT`. Si el servidor de la intranet no té aquest codi o no pot connectar a la BD SIF, l'endpoint respon fail-closed amb `PROMOTION_SUMMARY_UNAVAILABLE`.
+
+Controls ja implementats: sessió intranet, permís de visualització de `/alumnes/mostrar-alumne/`, POST, same-origin/XHR, CSRF, feature flag i resposta `no-store`.
+
+#### Validar docent novell · projecció de la decisió
+
+- `SIF_INTERNAL_NOVICE_PROMOTION_URL`: URL HTTPS server-to-server de `/api/novice-promotion/manage.php`.
+- `SIF_INTERNAL_NOVICE_PROMOTION_SIGNED_PATH`: mateix path canònic configurat al SIF.
+- `SIF_INTERNAL_API_KEY_ID` i `SIF_INTERNAL_API_SECRET`: mateix parell HMAC que al SIF.
+- `INTRANET_ALLOWED_ORIGINS`: allowlist per a les mutacions sensibles de la intranet.
+- `SIF_INTERNAL_API_ALLOW_HTTP=1` només és acceptable per localhost/127.0.0.1/::1 en desenvolupament local; no usar-lo per preproducció.
+
+La identitat i els rols no els envia el navegador: `SifAuthenticatedActor` els deriva de la sessió i `SifInternalNovicePromotionClient` els signa server-side.
+
+### Ordre recomanat d'activació UC-111 en preproducció
+
+1. Aplicar migracions SIF a la BD de preproducció i executar la suite en una BD `sif_test*` separada.
+2. Configurar `SIF_NOVICE_PROMO_WRAP_KEY_HEX`, versió de clau, HMAC i rols al SIF.
+3. Configurar a la intranet `SIF_APP_ROOT` + accés read-only/necessari a la BD SIF i mantenir `SIF_NOVICE_PROMOTION_UI_ENABLED=0`.
+4. Verificar server-to-server `SIF_INTERNAL_NOVICE_PROMOTION_URL` amb HMAC i una decisió sintètica/controlada.
+5. Activar `SIF_NOVICE_PROMOTION_UI_ENABLED=1` només en preproducció.
+6. Verificar amb usuari autoritzat i usuari sense permís: lectura, POST directe, CSRF incorrecte i same-origin.
+7. Executar el cas 50 € + 70 € + callback/reintent duplicat amb dades sintètiques.
+8. Verificar a Consulta / Modifica alumne el saldo i historial i confirmar que el JSON no conté token, ciphertext ni identificadors interns innecessaris.
+9. Guardar commit, versions PHP/MySQL, captures anonimitzades, log de proves i resultat GO/NO-GO abans de qualsevol activació de producció.
+
