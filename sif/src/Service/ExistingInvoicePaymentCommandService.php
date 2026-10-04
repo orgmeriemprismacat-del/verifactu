@@ -6,8 +6,10 @@ use Prisma\Sif\Exception\SifException;
 
 final class ExistingInvoicePaymentCommandService
 {
-    public function __construct(private ManualPaymentService $manualPayments)
-    {
+    public function __construct(
+        private ManualPaymentService $manualPayments,
+        private ?ExistingInvoiceLegacyProjectionService $legacyProjection = null
+    ) {
     }
 
     public function register(\PDO $sifDb, array $command): array
@@ -40,6 +42,25 @@ final class ExistingInvoicePaymentCommandService
 
         $result['action'] = 'register_existing_invoice';
         $result['payment_committed'] = true;
+
+        if ($this->legacyProjection !== null) {
+            try {
+                $result['legacy_projection'] = $this->legacyProjection->build(
+                    $sifDb,
+                    (string) $result['uuid_factura']
+                );
+                $result['legacy_projection_status'] = 'READY';
+            } catch (\Throwable $exception) {
+                // The SIF payment is already committed at this point. A projection
+                // failure must never turn the operation into a second CHARGE on retry.
+                $result['legacy_projection_status'] = 'PENDING_RETRY';
+                $result['legacy_projection_error'] = substr(
+                    str_replace(["\r", "\n"], ' ', $exception->getMessage()),
+                    0,
+                    240
+                );
+            }
+        }
 
         return $result;
     }
