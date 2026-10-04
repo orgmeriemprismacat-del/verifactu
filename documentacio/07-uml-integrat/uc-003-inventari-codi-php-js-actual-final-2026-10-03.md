@@ -146,13 +146,29 @@ Serveis d'atribució localitzats:
 - `sif/src/Service/InvoiceService.php`
   - emet/reutilitza factura i, amb payment inicial, retorna `uuid_payment`.
 - `sif/src/Service/PaymentService.php` / repositoris de pagament
-  - nucli de moviments econòmics en fluxos de pagament dedicats.
-- persistència afectada: `factura`, `factura_linia`, `factura_registres`, `fiscal_queue`, `payment_transaction`, `payment_allocation`, `fact_rels` i, segons variant, `enrollment_fund_movement`, outbox/drets/casos comercials.
+  - nucli de moviments econòmics en fluxos de pagament dedicats;
+  - UC-003 usa `registerPaymentWithPrecondition()` per revalidar factura/cobertura dins la mateixa transacció que crea o reutilitza el CHARGE.
+- `sif/src/Service/RedsysCoveredInvoicePaymentService.php`
+  - resol factura UC-004 existent;
+  - exigeix `CHARGE/REDSYS/REDSYS`, clau `PAYMENT|REDSYS|ORDER:<DS_ORDER>`, `provider_ref=DS_ORDER`, `movement_date` determinista i coincidència IDPAG/import amb snapshot congelat;
+  - valida total contractual, línia d'inscripció i saldo pendent sota lock.
+- `sif/src/Repository/InvoiceBeforePaymentCoverageRepository.php`
+  - comparteix la serialització UC-003/UC-004;
+  - deduplica i ordena `SOURCE_ID` abans de bloquejar;
+  - adquireix el mutex persistent `invoice_origin_guard` abans de consultar `fact_rels`/coverage.
+- `sif/database/migrations/2026_10_04_000033_add_invoice_origin_guard.sql`
+  - crea el mutex operacional `(SOURCE_TYPE,SOURCE_ID)`; no és registre fiscal ni prova d'emissió.
+- persistència afectada: `factura`, `factura_linia`, `factura_registres`, `fiscal_queue`, `payment_transaction`, `payment_allocation`, `fact_rels`, `invoice_before_payment_coverage`, `invoice_origin_guard` i, segons variant, `enrollment_fund_movement`, outbox/drets/casos comercials.
 
 ## 9. Operació
 
 - `sif/scripts/preflight-redsys-callback-queue.php`
-  - comprova entorn, OpenSSL, PDO MySQL, clau Redsys, DB SIF/llegada, taules i columnes.
+  - comprova entorn, OpenSSL, PDO MySQL, clau Redsys, DB SIF/llegada, taules i columnes;
+  - exigeix explícitament `invoice_before_payment_coverage` i `invoice_origin_guard` abans d'arrencar el worker.
+- `sif/scripts/preflight-invoice-before-payment.php`
+  - UC-004 SIF exigeix `invoice_origin_guard_table` a més de coverage/fact_rels.
+- `sif/scripts/preflight-invoice-before-payment-from-legacy.php`
+  - la ruta legacy→UC-004 també exigeix `sif_invoice_origin_guard_table`, evitant desplegament asimètric.
 - `sif/scripts/process-redsys-callback-queue.php`
   - només CLI;
   - bloqueja producció si `SIF_REDSYS_WORKER_ALLOW_PRODUCTION != 1`;
@@ -186,6 +202,17 @@ Serveis d'atribució localitzats:
   - intents màxims;
   - **afegit 03/10:** resultat incomplet → incident;
   - **afegit 03/10:** worker antic no pot processed/retry/incident un job reclamat per un altre.
+- `sif/tests/Integration/RedsysCourseCoveredInvoicePaymentTest.php`
+  - factura UC-004 existent + cobrament complet idempotent;
+  - parcial 50+70 sobre factura 120 amb estat SIF `PARTIAL`→`PAID`;
+  - sobrepagament rebutjat sense segon CHARGE;
+  - guard d'emissió Redsys quan ja hi ha coverage UC-004;
+  - contracte estricte de `movement_type/method/source_channel`, `movement_date`, import, key, provider_ref i IDPAG;
+  - **afegit 04/10:** dues connexions MySQL a `READ COMMITTED` comproven que `invoice_origin_guard` serialitza el mateix origen sense dependre de gap locks.
+- `sif/tests/Integration/RedsysCoveredInvoiceWorkerContractTest.php`
+  - verifica wiring del resolver al worker i presència de les taules `invoice_before_payment_coverage` + `invoice_origin_guard` al preflight.
+- `sif/tests/Integration/InvoiceBeforePaymentPreflightScriptTest.php` i `InvoiceBeforePaymentLegacyScriptsTest.php`
+  - comproven que ambdues rutes UC-004 exigeixen també `invoice_origin_guard`.
 
 ## 11. Factura prèvia UC-004 — implementació CURS a la branca
 
@@ -196,9 +223,9 @@ La ruta CURS ja no depèn exclusivament de la clau d'emissió Redsys. `RedsysCou
 4. rebutja sobrepagament o cobertura incompatible amb 409;
 5. si no existeix cobertura, `InvoiceService::issueInvoice(payload, true)` bloqueja/reconsulta l'origen abans de crear una nova factura.
 
-El guard és un paràmetre de control fora del payload fiscal, de manera que no altera `IDEMPOTENCY_PAYLOAD_HASH` ni trenca reintents d'ordres Redsys creades abans del canvi.
+El guard és un paràmetre de control fora del payload fiscal, de manera que no altera `IDEMPOTENCY_PAYLOAD_HASH` ni trenca reintents d'ordres Redsys creades abans del canvi. La mutual exclusion es materialitza a `invoice_origin_guard` i ja té prova de dues connexions amb `READ COMMITTED`; per tant, la protecció no depèn de next-key/gap locks implícits de `fact_rels`.
 
-**Pendent de tancament:** verificació CI/preproducció de CURS, una prova concurrent de dues connexions per la cursa UC-004↔Redsys i decidir si PACK/GRUP/REGAL/USOC necessiten una regla equivalent segons el seu contracte propi.
+**Pendent de tancament:** resultat CI del head i preproducció real de CURS; decidir si PACK/GRUP/REGAL/USOC necessiten una regla equivalent segons el seu contracte propi.
 
 ## 12. Conclusió de l'inventari
 
