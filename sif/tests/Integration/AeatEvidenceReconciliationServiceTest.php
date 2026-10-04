@@ -396,6 +396,134 @@ final class AeatEvidenceReconciliationServiceTest
         }
     }
 
+
+
+    public function testRejectsCompleteEvidenceWithoutIndependentDatabaseResponseAnchor(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->issue($db, 'AEAT|EVIDENCE|NO-DB-ANCHOR');
+
+        $queue = $db->query('SELECT * FROM fiscal_queue LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+        $recordId = (int) $db->query('SELECT ID FROM factura_registres LIMIT 1')->fetchColumn();
+        $payload = json_decode((string) $queue['PAYLOAD_JSON'], true);
+        $requestXml = (new XmlCodec())->request($payload['aeat']);
+        $responseXml = AeatFixtures::response($payload['aeat'], 'Correcto');
+
+        $attemptUuid = '33333333-cccc-4ddd-8eee-000000000007';
+        [$dir, $evidenceId] = $this->createEvidence(
+            $requestXml,
+            $responseXml,
+            $attemptUuid,
+            (string) $queue['UUID_FACTURA'],
+            (int) $payload['fiscal_order']
+        );
+
+        try {
+            $db->exec("UPDATE fiscal_queue SET STATUS = 'REVIEW'");
+            $db->prepare(
+                "INSERT INTO aeat_submission_attempt
+                 (UUID_ATTEMPT, FACTURA_REGISTRE_ID, FISCAL_QUEUE_ID, ATTEMPT_NO,
+                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID, STATUS,
+                  STARTED_AT, FINISHED_AT)
+                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, 'UNCERTAIN',
+                         NOW(6), NOW(6))"
+            )->execute([
+                $attemptUuid,
+                $recordId,
+                (int) $queue['ID'],
+                hash('sha256', $requestXml),
+                $evidenceId,
+            ]);
+
+            Assert::throws(
+                SifException::class,
+                fn () => (new AeatEvidenceReconciliationService(
+                    new TransactionRunner($db),
+                    new FiscalQueueRepository(),
+                    new IncidentRepository(),
+                    new AeatSubmissionAttemptRepository(),
+                    $dir
+                ))->reconcile(
+                    (int) $queue['ID'],
+                    $attemptUuid,
+                    'tester'
+                ),
+                409
+            );
+
+            Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+            Assert::same('UNCERTAIN', $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn());
+            Assert::same(
+                null,
+                $db->query('SELECT EVIDENCE_RESPONSE_SHA256 FROM aeat_submission_attempt')->fetchColumn()
+            );
+        } finally {
+            $this->removeEvidence($dir, $evidenceId);
+        }
+    }
+
+    public function testRejectsEvidenceWhenDatabaseResponseAnchorDiffersFromPrivateFile(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->issue($db, 'AEAT|EVIDENCE|DB-ANCHOR-MISMATCH');
+
+        $queue = $db->query('SELECT * FROM fiscal_queue LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+        $recordId = (int) $db->query('SELECT ID FROM factura_registres LIMIT 1')->fetchColumn();
+        $payload = json_decode((string) $queue['PAYLOAD_JSON'], true);
+        $requestXml = (new XmlCodec())->request($payload['aeat']);
+        $responseXml = AeatFixtures::response($payload['aeat'], 'Correcto');
+
+        $attemptUuid = '44444444-dddd-4eee-8fff-000000000008';
+        [$dir, $evidenceId] = $this->createEvidence(
+            $requestXml,
+            $responseXml,
+            $attemptUuid,
+            (string) $queue['UUID_FACTURA'],
+            (int) $payload['fiscal_order']
+        );
+
+        try {
+            $db->exec("UPDATE fiscal_queue SET STATUS = 'REVIEW'");
+            $db->prepare(
+                "INSERT INTO aeat_submission_attempt
+                 (UUID_ATTEMPT, FACTURA_REGISTRE_ID, FISCAL_QUEUE_ID, ATTEMPT_NO,
+                  ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH, EVIDENCE_ID,
+                  EVIDENCE_RESPONSE_SHA256, EVIDENCE_HTTP_STATUS, STATUS,
+                  STARTED_AT, FINISHED_AT)
+                 VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, ?, 200,
+                         'UNCERTAIN', NOW(6), NOW(6))"
+            )->execute([
+                $attemptUuid,
+                $recordId,
+                (int) $queue['ID'],
+                hash('sha256', $requestXml),
+                $evidenceId,
+                str_repeat('a', 64),
+            ]);
+
+            Assert::throws(
+                SifException::class,
+                fn () => (new AeatEvidenceReconciliationService(
+                    new TransactionRunner($db),
+                    new FiscalQueueRepository(),
+                    new IncidentRepository(),
+                    new AeatSubmissionAttemptRepository(),
+                    $dir
+                ))->reconcile(
+                    (int) $queue['ID'],
+                    $attemptUuid,
+                    'tester'
+                ),
+                409
+            );
+
+            Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+            Assert::same('UNCERTAIN', $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn());
+        } finally {
+            $this->removeEvidence($dir, $evidenceId);
+        }
+    }
+
     private function createEvidence(
         string $requestXml,
         string $responseXml,
