@@ -359,6 +359,45 @@ final class CreditBalanceServiceTest
         )->fetchColumn());
     }
 
+    public function testRejectsEnrollmentAllocationForCreditWithoutMoneyBacking(): void
+    {
+        $db = TestDatabase::fresh();
+        $target = $this->pendingInvoiceForEnrollment($db, 20, 'COMP-NON-MONEY-TARGET');
+        $service = $this->service($db);
+
+        $credit = $service->createCredit([
+            'idempotency_key' => 'CREDIT|COMMERCIAL|NO-CASH|80',
+            'holder_type' => 'STUDENT',
+            'holder_id' => 10,
+            'holder_name' => 'Client Exemple',
+            'amount' => '80.00',
+            'source_type' => 'PROMOCIO',
+            'source_id' => 999,
+        ]);
+
+        Assert::throws(SifException::class, static function () use ($service, $credit, $target): void {
+            $service->applyCreditByUuid(
+                $credit['uuid_credit'],
+                $target['uuid_factura'],
+                [
+                    'amount' => '60.00',
+                    'movement_date' => '2026-10-04 02:10:00',
+                    'target_enrollment_id' => 20,
+                ]
+            );
+        }, 409);
+
+        Assert::same(0, (int) $db->query(
+            "SELECT COUNT(*) FROM payment_transaction WHERE TIPUS_MOVIMENT = 'COMPENSATION'"
+        )->fetchColumn());
+        Assert::same(0, (int) $db->query(
+            "SELECT COUNT(*) FROM enrollment_fund_movement WHERE MOVEMENT_TYPE = 'COMPENSATION_ALLOCATION'"
+        )->fetchColumn());
+        Assert::same('80.00', (string) $db->query(
+            'SELECT IMPORT_DISPONIBLE FROM credit_balance'
+        )->fetchColumn());
+    }
+
     public function testRollsBackCompensationWhenTargetEnrollmentIsNotOnInvoice(): void
     {
         $db = TestDatabase::fresh();
