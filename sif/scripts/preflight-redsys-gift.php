@@ -29,7 +29,7 @@ $legacyDrainConfirmed = filter_var(
     FILTER_VALIDATE_BOOLEAN
 );
 $checks = [
-    'environment_is_test_or_preproduction' => in_array($env, ['test', 'preproduction', 'pre'], true),
+    'environment_is_test_or_preproduction' => in_array($env, ['test', 'preproduction', 'preprod'], true),
     'bridge_redsys_merchant_code_configured' => $bridgeMerchantCode !== '',
     'sif_redsys_merchant_code_configured' => trim((string) ($config['redsys']['merchant_code'] ?? '')) !== '',
     'bridge_and_sif_redsys_merchant_codes_match' => $bridgeMerchantCode !== ''
