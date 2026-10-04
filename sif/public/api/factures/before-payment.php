@@ -67,6 +67,11 @@ try {
         throw SifException::validation('Invalid JSON');
     }
 
+    $contractVersion = trim((string) ($payload['contract_version'] ?? ''));
+    if ($contractVersion !== 'UC004-V1') {
+        throw SifException::validation('Unsupported invoice-before-payment contract version');
+    }
+
     $inscriptionIds = $payload['inscription_ids'] ?? null;
     if (!is_array($inscriptionIds) || $inscriptionIds === []) {
         throw SifException::validation('Invoice before payment requires inscription_ids');
@@ -100,6 +105,8 @@ try {
         $fingerprints
     );
 
+    $coverage = new InvoiceBeforePaymentCoverageRepository();
+
     $invoiceService = new InvoiceService(
         new TransactionRunner($sifDb),
         new InvoicePayloadValidator(),
@@ -108,7 +115,7 @@ try {
         null,
         null,
         $fingerprints,
-        new InvoiceBeforePaymentCoverageRepository()
+        $coverage
     );
 
     $commands = new InvoiceBeforePaymentCommandService(
@@ -118,7 +125,9 @@ try {
         new InvoiceBeforePaymentService(
             new InvoiceBeforePaymentPayloadBuilder(),
             $invoiceService
-        )
+        ),
+        $sifDb,
+        $coverage
     );
 
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
@@ -131,20 +140,21 @@ try {
             $context
         );
         unset($preview['payload']);
+        $preview['contract_version'] = $contractVersion;
         JsonResponse::send($preview);
         return;
     }
 
     if ($action === 'confirm') {
-        JsonResponse::send(
-            $commands->confirm(
-                $inscriptionIds,
-                $entityId,
-                (string) $actor['actor_id'],
-                (string) ($payload['expected_fingerprint'] ?? ''),
-                $context
-            )
+        $confirmed = $commands->confirm(
+            $inscriptionIds,
+            $entityId,
+            (string) $actor['actor_id'],
+            (string) ($payload['expected_fingerprint'] ?? ''),
+            $context
         );
+        $confirmed['contract_version'] = $contractVersion;
+        JsonResponse::send($confirmed);
         return;
     }
 
