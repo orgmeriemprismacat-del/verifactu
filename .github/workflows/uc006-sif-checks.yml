@@ -76,6 +76,7 @@ jobs:
           php -l sif/src/Repository/EnrollmentFundMovementRepository.php
           php -l sif/src/Service/EnrollmentFundTransferPayloadBuilder.php
           php -l sif/src/Service/EnrollmentFundTransferService.php
+          php -l sif/src/Service/EnrollmentFundTransferActionService.php
           php -l sif/src/Service/PaymentService.php
           php -l sif/src/Service/ManualRefundPayloadBuilder.php
           php -l sif/src/Service/ManualRefundService.php
@@ -92,6 +93,7 @@ jobs:
           php -l sif/scripts/preview-enrollment-fund-transfer-reversal.php
           php -l sif/scripts/process-enrollment-fund-transfer-reversal.php
           php -l sif/tests/Integration/EnrollmentFundTransferServiceTest.php
+          php -l sif/tests/Integration/EnrollmentFundTransferActionServiceTest.php
           php -l sif/tests/Integration/EnrollmentFundTransferPreviewScriptTest.php
           php -l sif/tests/Integration/EnrollmentFundTransferPreproductionScriptTest.php
           php -l sif/tests/Integration/EnrollmentFundTransferReversalPreviewScriptTest.php
