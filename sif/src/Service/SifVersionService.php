@@ -48,7 +48,10 @@ final class SifVersionService
         return [
             'ok' => true,
             'active_uuid_version' => is_array($state) ? ($state['ACTIVE_UUID_VERSION'] ?? null) : null,
-            'versions' => $this->versions->list($this->db, $limit),
+            'versions' => array_map(
+                fn (array $version): array => $this->versionOutput($version),
+                $this->versions->list($this->db, $limit)
+            ),
         ];
     }
 
@@ -62,9 +65,14 @@ final class SifVersionService
 
         return [
             'ok' => true,
-            'version' => $version,
-            'declaration' => $this->declarations->findLatestApprovedByVersion($this->db, $uuidVersion),
-            'activations' => $this->activations->listByVersion($this->db, $uuidVersion),
+            'version' => $this->versionOutput($version),
+            'declaration' => ($declaration = $this->declarations->findLatestApprovedByVersion($this->db, $uuidVersion))
+                ? $this->declarationOutput($declaration)
+                : null,
+            'activations' => array_map(
+                fn (array $activation): array => $this->activationOutput($activation),
+                $this->activations->listByVersion($this->db, $uuidVersion)
+            ),
         ];
     }
 
@@ -81,7 +89,7 @@ final class SifVersionService
         );
         if ($existingReplay !== null) {
             $this->assertVersionRegistrationReplay($existingReplay, $versionCode, $actorId);
-            return ['ok' => true, 'reused' => true, 'version' => $existingReplay];
+            return ['ok' => true, 'reused' => true, 'version' => $this->versionOutput($existingReplay)];
         }
 
         $runtime = $this->runtimeInspector->inspect($this->db, $this->config);
@@ -129,7 +137,11 @@ final class SifVersionService
                 );
             }
 
-            return ['ok' => true] + $result;
+            return [
+                'ok' => true,
+                'reused' => (bool) ($result['reused'] ?? false),
+                'version' => $this->versionOutput((array) $result['version']),
+            ];
         });
     }
 
@@ -153,7 +165,7 @@ final class SifVersionService
                 $storageKey,
                 $actorId
             );
-            return ['ok' => true, 'reused' => true, 'declaration' => $existingReplay];
+            return ['ok' => true, 'reused' => true, 'declaration' => $this->declarationOutput($existingReplay)];
         }
 
         $version = $this->versions->findByUuid($this->db, $uuidVersion);
@@ -196,7 +208,7 @@ final class SifVersionService
                     $storageKey,
                     $actorId
                 );
-                return ['ok' => true, 'reused' => true, 'declaration' => $existingReplay];
+                return ['ok' => true, 'reused' => true, 'declaration' => $this->declarationOutput($existingReplay)];
             }
 
             if (strtoupper((string) ($lockedVersion['STATUS'] ?? '')) !== 'DRAFT') {
@@ -234,7 +246,11 @@ final class SifVersionService
                 );
             }
 
-            return ['ok' => true] + $result;
+            return [
+                'ok' => true,
+                'reused' => (bool) ($result['reused'] ?? false),
+                'declaration' => $this->declarationOutput((array) $result['declaration']),
+            ];
         });
     }
 
@@ -258,7 +274,7 @@ final class SifVersionService
         $existing = $this->activations->findByIdempotencyKey($this->db, $operation['idempotency_key']);
         if ($existing !== null) {
             $this->assertActivationReplay($existing, $uuidVersion, $backupUuid, $actorId, $role, $operation);
-            return ['ok' => true, 'reused' => true, 'activation' => $existing];
+            return ['ok' => true, 'reused' => true, 'activation' => $this->activationOutput($existing)];
         }
 
         $preflight = $this->buildPreflight($uuidVersion, $backupUuid);
@@ -284,7 +300,7 @@ final class SifVersionService
             $existing = $this->activations->findByIdempotencyKey($db, $operation['idempotency_key'], true);
             if ($existing !== null) {
                 $this->assertActivationReplay($existing, $uuidVersion, $backupUuid, $actorId, $role, $operation);
-                return ['ok' => true, 'reused' => true, 'activation' => $existing];
+                return ['ok' => true, 'reused' => true, 'activation' => $this->activationOutput($existing)];
             }
 
             $candidate = $this->versions->findByUuid($db, $uuidVersion, true);
@@ -374,7 +390,11 @@ final class SifVersionService
                 ]
             );
 
-            return ['ok' => true] + $activation;
+            return [
+                'ok' => true,
+                'reused' => (bool) ($activation['reused'] ?? false),
+                'activation' => $this->activationOutput((array) $activation['activation']),
+            ];
         });
     }
 
@@ -441,6 +461,59 @@ final class SifVersionService
             'backup_required' => $backupRequired,
             'backup' => $this->backupEvidenceSummary($backup),
         ];
+    }
+
+    private function versionOutput(array $version): array
+    {
+        return array_intersect_key($version, array_fill_keys([
+            'UUID_VERSION',
+            'VERSION_CODE',
+            'GIT_REVISION',
+            'ARTIFACT_HASH',
+            'CONFIG_HASH',
+            'DATABASE_VERSION',
+            'STATUS',
+            'CREATED_BY',
+            'CREATED_AT',
+            'ACTIVATED_AT',
+        ], true));
+    }
+
+    private function declarationOutput(array $declaration): array
+    {
+        return array_intersect_key($declaration, array_fill_keys([
+            'UUID_DECLARATION',
+            'UUID_VERSION',
+            'DECLARATION_VERSION',
+            'DOCUMENT_HASH',
+            'STORAGE_KEY',
+            'APPROVED_BY',
+            'APPROVED_AT',
+            'STATUS',
+            'CREATED_AT',
+        ], true));
+    }
+
+    private function activationOutput(array $activation): array
+    {
+        return array_intersect_key($activation, array_fill_keys([
+            'UUID_ACTIVATION',
+            'UUID_VERSION',
+            'PREVIOUS_UUID_VERSION',
+            'UUID_DECLARATION',
+            'UUID_BACKUP_EVIDENCE',
+            'ACTOR_ID',
+            'ACTOR_ROLE',
+            'REASON_CODE',
+            'CORRELATION_ID',
+            'ENVIRONMENT',
+            'RUNTIME_GIT_REVISION',
+            'RUNTIME_ARTIFACT_HASH',
+            'RUNTIME_CONFIG_HASH',
+            'RUNTIME_DATABASE_VERSION',
+            'STATUS',
+            'CREATED_AT',
+        ], true));
     }
 
     private function backupEvidenceSummary(?array $backup): ?array
