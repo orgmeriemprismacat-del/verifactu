@@ -16,8 +16,8 @@ final class RedsysGiftCutoverBoundaryTest
         Assert::stringContainsString('SIF_REDSYS_GIFT_CUTOVER_ENABLED', $source);
         Assert::stringContainsString('SIF_REDSYS_GIFT_LEGACY_DRAIN_CONFIRMED', $source);
         Assert::stringContainsString('SIF_REDSYS_CALLBACK_URL', $source);
-        Assert::stringContainsString('$url = $sifMerchantUrl;', $source);
-        Assert::stringContainsString('$url = $legacyMerchantUrl;', $source);
+        Assert::stringContainsString('$urlPag = $sifMerchantUrl;', $source);
+        Assert::stringContainsString('$urlPag = $legacyMerchantUrl;', $source);
         Assert::stringContainsString('DS_MERCHANT_MERCHANTDATA', $source);
     }
 
@@ -161,6 +161,25 @@ final class RedsysGiftCutoverBoundaryTest
         $guard = strpos($source, 'SIF_REDSYS_GIFT_CUTOVER_ENABLED');
         $firstInclude = strpos($source, 'include(');
         Assert::same(true, $guard !== false && $firstInclude !== false && $guard < $firstInclude);
+    }
+
+    public function testGiftPaymentFormPostsAuthoritativeGiftIdWithoutLegacyGiftCodeOrEmail(): void
+    {
+        $source = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/PagamentRegalAutomatic.php'
+        );
+
+        Assert::stringContainsString("id='giftId' name='giftId'", $source);
+        Assert::stringContainsString("$giftId = (int) $this->idRegal;", $source);
+
+        foreach ([
+            "name='codiRegal' value='".$codiRegal",
+            "name='email' value='".$correu",
+        ] as $forbidden) {
+            if (str_contains($source, $forbidden)) {
+                Assert::fail('Gift payment form still posts undefined/legacy sensitive context: ' . $forbidden);
+            }
+        }
     }
 
     public function testGiftCheckoutJavascriptDoesNotSendPiiBeforeRedsys(): void
