@@ -162,6 +162,13 @@ La prova de frontera rebutja tornar a introduir `https://intranet.prisma.cat/aja
 
 **Regressió:** `Uc007IntranetBoundaryTest::testLegacyLikeEscapingMatchesSqlEscapeContract`.
 
+### UC007-FIND-20 · PDF temporal llegat dins del directori web — CORREGIT
+El wrapper de F07 feia `chdir(__DIR__)`, de manera que Dompdf escrivia el temporal dins `ajax/alumnes`. Encara que el fitxer es llegia i s'eliminava immediatament, existia una finestra en què el temporal era dins d'una superfície web.
+
+**Correcció:** F07 usa `SIF_LEGACY_INVOICE_TEMP_ROOT` o, per defecte, un subdirectori privat sota `sys_get_temp_dir()`, el crea amb mode `0700`, comprova `realpath/is_writable`, genera el PDF allí, valida que el fitxer resolgui sota el root privat, el llegeix i l'elimina abans de respondre.
+
+**Regressió:** `Uc007IntranetBoundaryTest::testLegacyInvoiceDownloadUsesPrivateTemporaryStorage`.
+
 ## 5. Estat F01–F07
 
 | Ref | Funció | Documentat | Implementat | Verificat | Pendent |
