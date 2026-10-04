@@ -23,6 +23,10 @@ try {
     $dni = (string) ($request['dni'] ?? '');
     $cercaPer = (string) ($request['cercaPer'] ?? '');
 
+    if (strlen($dni) > 64 || strlen($cercaPer) > 1000) {
+        throw new InvalidArgumentException('Paràmetre de consulta massa llarg', 422);
+    }
+
     echo $intranet->mostrarTotesFacturesUsuari_Factures($dni, $cercaPer);
 } catch (Throwable $exception) {
     $code = (int) $exception->getCode();
