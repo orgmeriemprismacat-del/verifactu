@@ -43,6 +43,28 @@ final class ClaimPaymentLegacySyncServiceTest
         }, 409);
     }
 
+    public function testEmptyLegacyPaymentIsEquivalentToZeroBaseline(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|LEGACY_BASELINE|EMPTY',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        $result = (new ClaimPaymentLegacySyncService())->assertBaselineSynchronized(
+            $db,
+            new ClaimPaymentLegacySyncSpyPdo('120.00', null),
+            10,
+            123,
+            $invoice['uuid_factura']
+        );
+
+        Assert::same('0.00', $result['legacy_payment']);
+        Assert::same(true, $result['synchronized']);
+    }
+
     public function testProjectsInvoiceLedgerAfterClaimPayment(): void
     {
         $db = TestDatabase::fresh();
@@ -179,7 +201,7 @@ final class ClaimPaymentLegacySyncSpyPdo extends \PDO
 
     public function __construct(
         private string $contractTotal,
-        private string $paid
+        private ?string $paid
     ) {
     }
 
@@ -200,7 +222,7 @@ final class ClaimPaymentLegacySyncSelectStatement extends \PDOStatement
 {
     public function __construct(
         private string $contractTotal,
-        private string $paid
+        private ?string $paid
     ) {
     }
 
