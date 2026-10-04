@@ -12,6 +12,7 @@ on:
       - "sif/src/Repository/PaymentRepository.php"
       - "sif/src/Service/ExistingInvoiceLegacyProjectionService.php"
       - "sif/src/Service/ExistingInvoicePaymentCommandService.php"
+      - "sif/src/Service/ExistingInvoiceEnrollmentFundAllocationService.php"
       - "sif/src/Service/InternalApiAuthenticator.php"
       - "sif/src/Service/ManualPaymentPayloadBuilder.php"
       - "sif/src/Service/ManualPaymentService.php"
@@ -54,6 +55,7 @@ on:
       - "sif/src/Repository/PaymentRepository.php"
       - "sif/src/Service/ExistingInvoiceLegacyProjectionService.php"
       - "sif/src/Service/ExistingInvoicePaymentCommandService.php"
+      - "sif/src/Service/ExistingInvoiceEnrollmentFundAllocationService.php"
       - "sif/src/Service/ManualPaymentPayloadBuilder.php"
       - "sif/src/Service/ManualPaymentService.php"
       - "sif/src/Service/PaymentActionGateway.php"
@@ -131,6 +133,7 @@ jobs:
         run: |
           php -l sif/tests/run-uc002-tests.php
           php -l sif/public/api/payments/register.php
+          php -l sif/src/Service/ExistingInvoiceEnrollmentFundAllocationService.php
           php -l codi-drive/intranet-actual/SifInternalApiClient.php
           php -l codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php
           php -l codi-drive/intranet-actual/Uc002LegacyPaymentProjectionApplier.php
