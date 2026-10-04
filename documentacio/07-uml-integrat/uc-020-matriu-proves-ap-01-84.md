@@ -35,7 +35,7 @@
 | AP-11 | INT | Persona elegible però no existeix cap tarifa AP aplicable. | Estat `ELIGIBLE_NO_PRICE`/incidència equivalent; cap import nul o inventat pagable. | TEST_NOU_PENDENT_CI_FAIL_CLOSED |
 | AP-12 | INT | Coincideixen AP i promoció. | AP + promoció falla tancat en l'alta AP; no s'acumulen silenciosament. | VERIFICAT_CI_FRONTERA_CODI_9a70516 |
 | AP-13 | SEC | El client manipula `tipusDescompte`, `preuDescompte` o `tipusCurs`. | Per AP, el servidor rellegeix elegibilitat/tarifa i deriva `TIPUS_CURS` de metadades servidor; el navegador no és autoritat monetària. | VERIFICAT_CI_FRONTERA_CODI_9a70516 |
-| AP-14 | CONC | La tarifa canvia entre previsualització i confirmació. | Confirmar només una oferta servidor vigent o retornar conflicte; no acceptar TOCTOU silenciós. | PENDENT_EXECUCIO |
+| AP-14 | CONC | La tarifa canvia entre previsualització i confirmació. | El servidor compara base/net del preview amb tarifa vigent i retorna 409 si han canviat. | IMPLEMENTAT_SERVER_CONFLICT · TEST_NOU_PENDENT_CI |
 | AP-15 | E2E | Oferta AP → cobrament → línia fiscal. | Base − descompte = net; import cobrat i línia fiscal són coherents amb el snapshot congelat. | PENDENT_EXECUCIO |
 | AP-16 | CONC | Reintent equivalent de la mateixa operació. | Reutilitzar decisió/operació; no duplicar descompte, cobrament ni factura. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
 
@@ -51,7 +51,7 @@
 | AP-22 | CONC | Dues peticions comercials simultànies intenten actualitzar la mateixa oferta. | Una versió vàlida; l'altra reutilitza o rep conflicte, sense sobreescriptura desfasada. | PENDENT_EXECUCIO |
 | AP-23 | SEC | Usuari autenticat sense permís específic intenta resoldre el descompte. | Denegació al servidor i cap canvi econòmic. | VERIFICAT_CI_FRONTERA_P05_0c1825c |
 | AP-24 | INT | Snapshot monetàriament coherent però sense origen/regla AP. | No atribuir-lo arbitràriament a Alumne PrisMa ni a una promoció genèrica. | VERIFICAT_CI_INTENT_ORIGIN_GUARD_0c1825c |
-| AP-25 | E2E | Operació AP amb pagament fraccionat. | Separar preu net total, descompte i cadascun dels cobraments; cap fracció és el total de l'oferta. | PENDENT_IMPLEMENTACIO · FAIL_CLOSED_VERIFICAT_CI_0c1825c |
+| AP-25 | E2E | Operació AP amb pagament fraccionat. | Fins que existeixi model fiscal explícit, no crear ni oferir pagament AP fraccionat. | FAIL_CLOSED_WEB+GATE+SIF_IMPLEMENTAT · TESTS_PENDENT_CI_HEAD |
 
 ## AP-26…AP-35 · promocions, confirmació i circuit bancari
 
@@ -280,3 +280,10 @@ La conciliació/registre efectiu d'una transferència és UC-022 i continua fora
 - `LegacyIdpagAllocatorSecurityTest`: `GET_LOCK`/ `RELEASE_LOCK`, allocator compartit i invariant `reserveIdPag() < INSERT < releaseIdPag()`.
 - **AP-29:** reclassificat a implementat/protegit.
 - **AP-28:** continua pendent; un allocator únic no és idempotència semàntica de matrícula. Destí transversal: UC-107.
+
+
+## TOCTOU de tarifa i fraccionament AP — 04/10/2026
+
+- **AP-14:** `enviarInscripcio.php` compara base i tarifa AP proposades amb la relectura servidor en cèntims. Si divergeixen, 409 i cap INSERT.
+- **AP-25:** nova alta AP fraccionada retorna 409; les pantalles llegades/candidates no mostren mètodes per AP fraccionat; `JasomNovicePaymentGate` el rebutja fins i tot amb POST directe; el SIF candidat ja era fail-closed.
+- El futur model de fraccionament AP continuarà requerint canvi explícit de policy/contracte, no simplement retirar aquests guards.
