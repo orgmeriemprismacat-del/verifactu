@@ -51,6 +51,7 @@ final class SifVersionRepository
             'config_hash' => $configHash,
             'database_version' => $databaseVersion,
             'created_by' => $createdBy,
+            'reason_code' => strtoupper(trim((string) ($input['reason_code'] ?? ''))),
         ];
         $payloadHash = $this->idempotency->calculateHash($payload);
 
@@ -95,6 +96,24 @@ final class SifVersionRepository
             'reused' => false,
             'version' => $this->findByUuid($db, $uuid) ?? throw new \RuntimeException('Created SIF version not found'),
         ];
+    }
+
+    public function assertReplay(array $existing, array $input): void
+    {
+        $payload = [
+            'version_code' => trim((string) ($input['version_code'] ?? '')),
+            'git_revision' => strtolower((string) ($existing['GIT_REVISION'] ?? '')),
+            'artifact_hash' => strtolower((string) ($existing['ARTIFACT_HASH'] ?? '')),
+            'config_hash' => strtolower((string) ($existing['CONFIG_HASH'] ?? '')),
+            'database_version' => (string) ($existing['DATABASE_VERSION'] ?? ''),
+            'created_by' => trim((string) ($input['created_by'] ?? '')),
+            'reason_code' => strtoupper(trim((string) ($input['reason_code'] ?? ''))),
+        ];
+
+        $this->idempotency->assertMatches(
+            $payload,
+            (string) ($existing['IDEMPOTENCY_PAYLOAD_HASH'] ?? '')
+        );
     }
 
     public function findByUuid(\PDO $db, string $uuid, bool $forUpdate = false): ?array
