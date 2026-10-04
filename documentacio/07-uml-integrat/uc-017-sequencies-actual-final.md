@@ -100,3 +100,36 @@ checkout
 
 El punt encara no acreditat és el **desplegament i execució E2E en preproducció**,
 no l'absència dels components.
+
+## 5. FINAL revalidat — token + fencing d'intents
+
+```mermaid
+sequenceDiagram
+  actor C as Comprador
+  participant W as Web regal
+  participant T as GiftCheckoutToken
+  participant P as Pay
+  participant I as GiftIntentService
+  participant DB as SIF
+  participant R as Redsys
+
+  C->>W: obre pagament del regal autoritzat
+  W->>T: issue(giftId, TTL)
+  T-->>W: giftToken HMAC
+  W->>P: POST giftToken + dades titular
+  P->>T: verify(giftToken)
+  T-->>P: giftId
+  P->>I: create(giftId)
+  I->>DB: GET_LOCK per giftId
+  I->>DB: buscar intent sense notificació
+  alt intent pendent existent
+    DB-->>I: mateix DS_ORDER
+  else cap intent
+    I->>DB: crear un únic intent
+  end
+  I-->>P: DS_ORDER + import autoritatiu
+  P->>R: formulari signat Redsys
+```
+
+La factura REGAL conserva `LEGACY|REGAL|ID:<giftId>`; per tant una notificació
+validada amb un segon `DS_ORDER` no pot materialitzar una segona factura/CHARGE SIF.
