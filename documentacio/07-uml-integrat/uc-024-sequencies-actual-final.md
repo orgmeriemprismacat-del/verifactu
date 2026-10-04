@@ -158,3 +158,75 @@ else no consta i està acreditat
  C->>DB: registrar un únic CHARGE
 end
 ```
+
+
+## 7. BRANCA 04/10/2026 — flux implementat darrere feature flag
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant UI as claim-payment-sif.js
+participant B as registerClaimPaymentSif.php
+participant IC as SifInternalClaimPaymentClient
+participant API as /api/claim-payments/register.php
+participant AUTH as InternalApiAuthenticator
+participant L as ClaimPaymentInvoiceLinkRepository
+participant X as ClaimPaymentReceiptResolver
+participant G as ClaimPaymentBalanceGuard
+participant LG as ClaimPaymentLegacySyncService
+participant PA as PaymentActionGateway
+participant CP as ClaimPaymentService
+participant DB as SIF
+participant LEG as Legacy DB
+
+O->>UI: Registrar cobrament
+UI->>B: POST idInsc + receipt type/id + import/data + CSRF
+B->>B: sessió + Same-Origin/AJAX + CSRF + permís
+B->>B: derivar claim_case_id i actor
+B->>IC: request signada HMAC
+IC->>API: POST intern signat
+API->>AUTH: autenticar + anti-replay
+AUTH-->>API: actor/request_id
+API->>PA: LINK_CLAIM_PAYMENT REQUESTED
+PA->>L: resoldre factura d'origen + IDPAG per idInsc
+L->>DB: fact_rels + factura FOR UPDATE
+PA->>X: cercar rebut extern global
+alt rebut existent
+ X->>DB: payment_transaction + allocation
+ X-->>PA: UUID_PAYMENT existent si factura/IDPAG/import coincideixen
+else rebut nou BANK_REFERENCE
+ PA->>LG: baseline legacy == net SIF anterior
+ LG->>LEG: llegir PAGAMENT/A_PAGAR
+ LG->>DB: sumar allocations de factura
+ PA->>G: import <= saldo pendent
+ PA->>CP: registerByUuidInTransaction()
+ CP->>DB: payment_transaction + payment_allocation + estat cobrament
+else DS_ORDER/PROVIDER_REF no existent
+ X--xPA: CONFLICT; esperar canal autoritatiu
+end
+PA->>DB: event terminal SUCCEEDED/REUSED/FAILED
+API->>DB: SYNC_LEGACY REQUESTED
+API->>LG: syncAfterSifSuccess()
+LG->>DB: net actual de la factura
+LG->>LEG: validar delta i projectar PAGAMENT/DATA PAG/INSC CURS
+alt projecció correcta
+ API->>DB: SYNC_LEGACY SUCCEEDED
+ API-->>B: ok + UUID_PAYMENT + legacy_sync
+else projecció falla després del commit SIF
+ API->>DB: SYNC_LEGACY FAILED
+ API-->>B: 409 payment_persisted + requires_reconciliation
+ Note over B,API: reintent reutilitza el mateix UUID_PAYMENT i torna a provar la projecció
+end
+B-->>UI: JSON
+UI-->>O: resultat
+```
+
+### Garanties de la branca
+
+- el browser no selecciona la factura;
+- `claim_case_id` i rebut extern són identitats diferents;
+- `DS_ORDER`/`PROVIDER_REF` només es reutilitzen si el canal autoritatiu ja els ha registrat;
+- un cobrament nou no pot superar el saldo pendent;
+- baseline legacy divergent bloqueja **abans** de crear un cobrament nou;
+- una fallada de projecció posterior al commit SIF queda explícita i és reintentable sense duplicar el moviment.
