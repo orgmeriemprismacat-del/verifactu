@@ -149,3 +149,14 @@ La simple inclusió de `sif-debt-claim-bridge.js` **no significa que les pantall
 A més, `updateSendMsg_LastClaimPay()` no és només una reclamació: segons el cas deriva a `updateSendMsg_LastClaimPay_noApprove()/approve()`, pot executar `__donarBaixaMoodleNou()` i `updCampInscripcioBaixaMorosBD()`. Per això **P-MOR-04 no es pot commutar cegament** a `FINAL_CLAIM`; primer s'ha de separar la reclamació de la baixa acadèmica (UC-72/95/96) i definir la projecció legacy posterior al commit SIF.
 
 També s'ha corregit una incidència existent del recordatori legacy: `updateSendMsg_Facturacio_Recordatori_Pagament()` passava `$reclamatM` a `updClaimRecPag` sense inicialitzar-lo a `Intranet.php`, mentre `IntranetProva.php` sí contenia la lògica correcta. La branca ara preserva el valor anterior de `reclamat` i hi afegeix «Reclamat fi de curs», amb prova de regressió.
+
+
+### Reclamació final recurrent i període de 30 dies
+
+El control legacy de morosos permet una nova reclamació quan han passat **30 dies** des de la darrera. El model SIF preserva aquesta regla sense relaxar la idempotència:
+
+- `FINAL_REMINDER` i `FIRST_CLAIM` continuen sense poder repetir-se amb una clau nova ni retrocedir d'etapa;
+- `FINAL_CLAIM` es pot repetir només si l'expedient continua obert, el saldo continua pendent i han transcorregut almenys 30 dies des de l'últim event `FINAL_CLAIM`;
+- un retry amb la mateixa clau idempotent continua reutilitzant el resultat;
+- un intent de seguiment final abans de 30 dies retorna conflicte `409`;
+- aquesta regla no activa cap scheduler: l'automatització temporal general continua bloquejada fins que UC-096 tingui venciment/pròrroga autoritatius.
