@@ -13,10 +13,10 @@ UC-024 **existeix parcialment** al SIF, però **no està tancat de punta a punta
 | Registrar CHARGE contra factura existent | Sí | Sí | Sí | No | PARCIAL |
 | Idempotència dins de la mateixa clau | Sí | Sí | Sí | No | PARCIAL |
 | Cobrament parcial | Sí | Sí | Sí | No | PARCIAL |
-| Segon ingrés real de la mateixa reclamació | Sí, com a gap | No resolt | Sí: avui pot fer CONFLICT/reús indegut segons payload | No | BLOQUEJAT |
+| Segon ingrés real de la mateixa reclamació | Sí | Resolució implementada en el contracte nou amb external_receipt_id diferent | Sí en proves de branca | No preproducció | PARCIAL |
 | Conciliació intercanal UC-022/UC-023/Redsys | Sí, objectiu | No | No | No | PENDENT |
 | Expedient de reclamació separat de la referència bancària | Sí, objectiu | No | Sí: avui estan barrejats | No | PENDENT |
-| Actor/auditoria transversal de la mutació | Sí, objectiu | No acreditat en aquesta ruta | No | No | PENDENT |
+| Actor/auditoria transversal de la mutació | Sí | Implementat a la nova API signada de la branca | Sí: PaymentActionGateway + payment_action_event | No preproducció | PARCIAL |
 | Pantalles de reclamació → ClaimPaymentService | Sí, objectiu | No | Sí: continuen en llegat | No | PENDENT |
 | Autorització de mutació + CSRF als AJAX de reclamació | Sí, objectiu | No acreditat | Sí: no es veu guard propi als endpoints inspeccionats | No | PENDENT |
 | Outbox per correus | Sí, objectiu | No en les pantalles llegades | Sí: SMTP síncron | No | PENDENT |
@@ -69,17 +69,21 @@ UC-024 **existeix parcialment** al SIF, però **no està tancat de punta a punta
 
 ## 4. Troballes de codi
 
-### F-024-01 — Identitat de reclamació i identitat bancària conflueixen — ALTA
+### F-024-01 — Identitat de reclamació i identitat bancària conflueixen a la ruta legacy — ALTA / MITIGAT A BRANCA
 
 El builder tracta `claim_reference` com la primera candidata a `payload['reference']`. El repositori desa aquest valor a `payment_transaction.REFERENCIA_BANCARIA`. Per tant, un codi intern d'expedient pot acabar a una columna que semànticament representa la referència bancària.
 
-**Conseqüència:** la traça no diferencia de manera executable `claim_case_id` de `external_receipt_id`.
+**Conseqüència a `main`:** la traça no diferencia de manera executable `claim_case_id` de `external_receipt_id`.
 
-### F-024-02 — Segon ingrés parcial real amb el mateix claim_reference — ALTA
+**Canvi de la branca:** la nova API interna exigeix `claim_case_id` i `external_receipt_id` separats; elimina camps legacy ambigus del payment input, usa l’ingrés extern per `CLAIM|RECEIPT:*` i conserva l’expedient al `CHANGESET_JSON` de `payment_action_event`.
+
+### F-024-02 — Segon ingrés parcial real amb el mateix claim_reference — RESOLT EN CONTRACTE NOU / LEGACY PENDENT
 
 Dos ingressos diferents E1/E2 d'una mateixa reclamació generen la mateixa clau `CLAIM|REF:<claim>`. Si l'import o altres camps difereixen, `PaymentService` falla tancat amb 409; si tot el payload coincideix, no hi ha cap identificador extern que permeti demostrar que E2 és un altre fet real i el reintent es pot reutilitzar.
 
-**Conseqüència:** el model actual és idempotent per petició/clau, però no modela correctament múltiples entrades econòmiques d'un mateix expedient.
+**Conseqüència a legacy:** el model antic és idempotent per `claim_reference`, però no modela correctament múltiples entrades econòmiques d'un mateix expedient.
+
+**Canvi de la branca:** `ClaimPaymentPayloadBuilder` prioritza `external_receipt_id` i deriva `CLAIM|RECEIPT:<id>`; dues entrades E1/E2 amb identificadors externs diferents es registren com dos moviments diferents encara que pertanyin al mateix expedient.
 
 ### F-024-03 — Sense conciliació global del mateix fet econòmic — ALTA
 
@@ -97,11 +101,13 @@ Les famílies de claus `CLAIM|REF`, transferència, Redsys i fraccionaments no c
 
 La factura es resol abans d'entrar a la transacció de `PaymentService` i `ClaimPaymentService` crida el repositori sense `FOR UPDATE`. El repositori de pagaments sí bloqueja la factura quan recalcula l'estat, però la precondició llegida pel servei no forma una decisió atòmica de saldo/estat.
 
-### F-024-06 — created_by no és auditoria d'actor persistent — ALTA
+### F-024-06 — created_by no era auditoria d'actor persistent — MITIGAT A NOVA API
 
 El builder admet `created_by`, però `PaymentRepository::createPayment()` no el desa en una columna específica del moviment. Tampoc s'ha acreditat en aquesta ruta l'escriptura de `payment_action_event`, `operational_event` o `sif_audit_event`.
 
-**Conseqüència:** la fitxa anterior sobreafirmava la persistència mínima implementada.
+**Conseqüència a CLI/legacy:** `created_by` sol no acredita actor complet.
+
+**Canvi de la branca:** l’API signada obté actor/rol de `InternalApiAuthenticator` i escriu `REQUESTED` + terminal a `payment_action_event` mitjançant `PaymentActionGateway`. El pagament i l’event terminal comparteixen transacció.
 
 ### F-024-07 — UI de reclamacions no invoca ClaimPaymentService — ALTA
 
@@ -144,13 +150,13 @@ El cobrament posterior a una factura existent **no crea** un registre fiscal nou
 | Idempotència payload | Sí | Sí | Sí | identitat global intercanal |
 | Cobrament parcial | Sí | Sí | Sí | E2 mateix expedient |
 | OVERPAID | Parcial | Sí | Sí | política de negoci |
-| Actor/auditoria | Sí | Parcial/no acreditat | Sí | persistència |
+| Actor/auditoria | Sí | Sí a API interna nova; no a tots els canals legacy/CLI | Sí | desplegar i integrar UI |
 | Scripts preview/process | Sí | Sí | Sí | evidència preproducció |
 | Primera reclamació | Sí | Llegat | Sí | adaptador SIF |
 | Recordatori final | Sí | Llegat | Sí | adaptador SIF |
 | Reclamació final | Sí | Llegat | Sí | adaptador SIF |
 | Control morosos | Sí | Llegat | Sí | adaptador SIF |
-| CSRF mutacions | Sí, com a requisit transversal | No localitzat | Sí | implementar |
+| CSRF mutacions | Sí per frontera navegador | API SIF usa HMAC anti-replay; AJAX llegat encara sense CSRF acreditat | Sí | implementar al bridge navegador→intranet |
 | Outbox | Sí, objectiu | No en llegat | Sí | implementar |
 | E2E real amb MySQL controlat | Sí | N/A | No | executar i guardar evidència |
 
@@ -158,8 +164,8 @@ El cobrament posterior a una factura existent **no crea** un registre fiscal nou
 
 UC-024 només es podrà marcar **TANCAT** quan:
 
-1. les pantalles/endpoint autoritatiu de reclamacions registrin el cobrament via SIF;
-2. `claim_case_id` i l'identificador de cada ingrés real siguin diferents i persistents;
+1. les pantalles de reclamacions quedin connectades a l’endpoint intern SIF signat;
+2. `claim_case_id` i l'identificador de cada ingrés real siguin diferents en el contracte i la traça; si es requereix consulta relacional d’expedient, afegir persistència dedicada;
 3. existeixi deduplicació/conciliació intercanal;
 4. el saldo pendent i la política d'`OVERPAID` estiguin definits i provats;
 5. les mutacions tinguin autenticació, permís específic, CSRF/idempotència i actor auditable;
