@@ -24,6 +24,7 @@ on:
       - "codi-drive/intranet-actual/SifInternalAeatClient.php"
       - "codi-drive/intranet-actual/ajax/sif/sifAeat.php"
       - "codi-drive/intranet-actual/js/sif-registres-aeat.js"
+      - "codi-drive/intranet-actual/js/general_v5.js"
       - "codi-drive/intranet-actual/css/sif-registres-aeat.css"
       - "codi-drive/intranet-actual/preflight-sif-registres-aeat-menu.php"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
@@ -62,6 +63,7 @@ on:
       - "codi-drive/intranet-actual/SifInternalAeatClient.php"
       - "codi-drive/intranet-actual/ajax/sif/sifAeat.php"
       - "codi-drive/intranet-actual/js/sif-registres-aeat.js"
+      - "codi-drive/intranet-actual/js/general_v5.js"
       - "codi-drive/intranet-actual/css/sif-registres-aeat.css"
       - "codi-drive/intranet-actual/preflight-sif-registres-aeat-menu.php"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
@@ -163,6 +165,7 @@ jobs:
           php -l codi-drive/intranet-actual/ajax/sif/sifAeat.php
           php -l codi-drive/intranet-actual/preflight-sif-registres-aeat-menu.php
           node --check codi-drive/intranet-actual/js/sif-registres-aeat.js
+          node --check codi-drive/intranet-actual/js/general_v5.js
 
       - name: Executar suite SIF
         run: php sif/tests/run-tests.php
