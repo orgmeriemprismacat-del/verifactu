@@ -85,7 +85,7 @@ Moviments disponibles al model actual de la branca:
 - `CREDIT_CREATE`: inscripció → `credit_balance`;
 - `REFUND_EXIT`: inscripció → exterior, vinculat a REFUND confirmat;
 - `COMPENSATION_ALLOCATION`: `credit_balance`/COMPENSATION → factura/línia/inscripció;
-- `INTERNAL_TRANSFER`: admès per esquema, encara sense servei UC-006;
+- `INTERNAL_TRANSFER`: **IMPLEMENTAT com a primitiva** amb `EnrollmentFundTransferService`, builder, repositori, CLI i proves;
 - `REVERSAL`: admès per esquema, encara sense orquestració UC-006.
 
 El repositori també implementa `availableAmountForInscription()` i impedeix que les sortides `CREDIT_CREATE`/`REFUND_EXIT` superin el dret net atribuït. Les sortides i el moviment econòmic corresponent comparteixen transacció quan el caller identifica la inscripció.
@@ -122,7 +122,8 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 | C-09 | Evidència externa de refund / pending-confirmed | FALTA GENÈRIC |
 | C-10 | Wiring de `PaymentActionGateway` | FALTA UC-006 |
 | C-11 | Wiring amb baixa | FALTA |
-| C-12 | Wiring amb canvi curs / `INTERNAL_TRANSFER` | FALTA |
+| C-12 | Primitiva `INTERNAL_TRANSFER` | **IMPLEMENTADA** · builder + servei + repo + CLI + proves |
+| C-12b | Wiring amb canvi curs / coordinator | FALTA |
 | C-13 | Separació definitiva UI “A TORNAR” | FALTA |
 | C-14 | Sync llegat post-COMMIT | FALTA / CAL VALIDAR |
 | C-15 | E2E a `sif_test*` / `sif_pre` | FALTA EVIDÈNCIA |
@@ -148,13 +149,15 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 - `COMPENSATION_ALLOCATION` cap a inscripció destí;
 - rollback si la inscripció destí no pertany a la factura;
 - atribució inicial de curs per inscripció, reintent i fraccions.
+- transferència A→B, reintent amb correlació nova, K contradictòria i sobretraspàs;
+- cadena A→B→C sense nou CHARGE;
 
 ### Falten per tancament UC-006
 
 - titular incompatible en refund/saldo/compensació;
 - refund Redsys/manual del mateix fet extern;
 - generació/autorització de K explícita per ordres de compensació des de la UI (el servei ja suporta dues K diferents);
-- `INTERNAL_TRANSFER` A→B de canvi de curs;
+- wiring del `CourseChangeCoordinator` a `EnrollmentFundTransferService`;
 - concurrència simultània real de dues sessions consumint el mateix dret;
 - audit REQUESTED + terminal;
 - autorització endpoint;
