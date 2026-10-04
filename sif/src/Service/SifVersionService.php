@@ -341,6 +341,14 @@ final class SifVersionService
                     'schema_checks' => $runtime['schema_checks'] ?? [],
                     'manifest' => $runtime['manifest'] ?? [],
                     'preflight_checks' => $preflight['checks'] ?? [],
+                    'declaration' => [
+                        'uuid_declaration' => $declaration['UUID_DECLARATION'] ?? null,
+                        'declaration_version' => $declaration['DECLARATION_VERSION'] ?? null,
+                        'document_hash' => $declaration['DOCUMENT_HASH'] ?? null,
+                        'approved_by' => $declaration['APPROVED_BY'] ?? null,
+                        'approved_at' => $declaration['APPROVED_AT'] ?? null,
+                    ],
+                    'backup' => $preflight['backup'] ?? null,
                 ],
             ]);
 
@@ -356,7 +364,9 @@ final class SifVersionService
                 [
                     'active_uuid_version' => $uuidVersion,
                     'uuid_declaration' => $declaration['UUID_DECLARATION'],
+                    'declaration_document_hash' => $declaration['DOCUMENT_HASH'] ?? null,
                     'uuid_backup_evidence' => $backupUuid,
+                    'backup_evidence' => $preflight['backup'] ?? null,
                     'runtime_git_revision' => $runtime['git_revision'],
                     'runtime_artifact_hash' => $runtime['artifact_hash'],
                     'runtime_config_hash' => $runtime['config_hash'],
