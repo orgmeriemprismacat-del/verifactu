@@ -146,7 +146,7 @@ La fitxa antiga deia que existien abans del commit. Els builders/serveis UC-006 
 
 La fitxa antiga deia que tota petició/consulta/denegació/reús/resultat genera `payment_action_event`.
 
-`PaymentActionGateway` existeix. Però:
+`PaymentActionGateway` existeix. A la branca UC-006, `EnrollmentFundTransferActionService` ja l'utilitza per `REALLOCATE` i `UNALLOCATE`, amb REQUESTED i resultat terminal dins el patró del gateway. Però:
 - `ManualRefundService` delega directament a `PaymentService`;
 - `CreditBalanceService` opera directament amb repositoris;
 - els scripts inspeccionats instancien aquests serveis;
@@ -393,7 +393,7 @@ S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferent
 | Classes A/F | Sí | N/A | revisat | actualització final de l'estat |
 | Seqüències A/F | Sí | N/A | revisat | actualització final de l'estat |
 | Activitats per pàgina A/F | Sí | N/A | revisat | actualització final de l'estat |
-| Audit gateway UC-006 | Sí objectiu | No acreditat | No | integrar |
+| Audit gateway UC-006 | Sí objectiu | **PARCIAL** · transfer/reversal auditats | tests afegits; CI pendent | refund/saldo/compensació/controller |
 | Preproducció | Sí criteris/CLI | scripts preparats | No executat | executar i conservar evidència |
 
 ## 11. Mancances prioritzades
@@ -422,7 +422,7 @@ S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferent
 
 - **UC006-GAP-P1-PROV · Proveniència exacta del transfer.** `INTERNAL_TRANSFER` conserva saldo A/B i no crea nou CHARGE, però no referencia encara quin `EXTERNAL_ALLOCATION`/`UUID_PAYMENT` originari finança cada tram quan hi ha fons barrejats. El wiring productiu ha de particionar per origen o ampliar el model abans d'afirmar traça de cobrament completa.
 
-7. `PaymentActionGateway` o equivalent per REQUESTED/terminal.
+7. Estendre `PaymentActionGateway`/equivalent a refund, saldo, compensació i controller; transfer/reversal ja generen REQUESTED + terminal.
 8. request/correlation id estable de punta a punta.
 9. sync llegat només post-COMMIT.
 10. incidència automàtica en divergència.
