@@ -1,6 +1,6 @@
 let urlPagina = window.location.pathname.split('?')[0];
 let veureUnaFactura = "";
-let path = "https://intranet.prisma.cat/ajax/";
+let path = window.location.origin + "/ajax/";
 let uc007SearchGeneration = 0;
 let uc007SifSearchRequest = null;
 let uc007LegacySearchRequest = null;
