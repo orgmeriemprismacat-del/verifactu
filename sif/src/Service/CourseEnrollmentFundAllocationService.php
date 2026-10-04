@@ -67,9 +67,9 @@ final class CourseEnrollmentFundAllocationService
             );
             $invoiceStmt->execute([$uuidFactura]);
             $invoiceTotal = $invoiceStmt->fetchColumn();
-            if ($invoiceTotal === false || $this->cents($invoiceTotal) !== $expectedCents) {
+            if ($invoiceTotal === false || $this->cents($invoiceTotal) < $expectedCents) {
                 throw SifException::conflict(
-                    'Invoice total does not match course enrollment allocation'
+                    'Invoice total is lower than course enrollment allocation'
                 );
             }
 
@@ -78,9 +78,9 @@ final class CourseEnrollmentFundAllocationService
                 $uuidFactura,
                 $idInsc
             );
-            if ($this->cents($line['TOTAL']) !== $expectedCents) {
+            if ($this->cents($line['TOTAL']) !== $this->cents($invoiceTotal)) {
                 throw SifException::conflict(
-                    'Invoice line total does not match course enrollment allocation'
+                    'Course invoice line must represent the full invoice value'
                 );
             }
 
