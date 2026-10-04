@@ -100,7 +100,14 @@ final class DebtClaimCoordinator
                 throw SifException::conflict('Debt claim case is closed');
             }
             $currentStage = strtoupper((string) $claim['CURRENT_STAGE']);
-            if ($this->rank($action) <= $this->rank($currentStage)) {
+            $currentRank = $this->rank($currentStage);
+            $actionRank = $this->rank($action);
+            $repeatableFinalClaim = $action === 'FINAL_CLAIM'
+                && $currentStage === 'FINAL_CLAIM';
+
+            if ($actionRank < $currentRank
+                || ($actionRank === $currentRank && !$repeatableFinalClaim)
+            ) {
                 throw SifException::conflict('Debt claim notice would repeat or regress current stage');
             }
 
