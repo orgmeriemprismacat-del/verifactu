@@ -18,7 +18,8 @@ final class ClaimPaymentReceiptResolver
         \PDO $db,
         string $type,
         string $externalReceiptId,
-        string $uuidFactura
+        string $uuidFactura,
+        string $expectedAmount
     ): ?array {
         $type = $this->type($type);
         $externalReceiptId = trim($externalReceiptId);
@@ -42,6 +43,15 @@ final class ClaimPaymentReceiptResolver
             $uuidFactura
         );
 
+        if (
+            $this->money((string) ($existing['IMPORT'] ?? ''))
+            !== $this->money($expectedAmount)
+        ) {
+            throw SifException::conflict(
+                'External receipt amount does not match recorded payment'
+            );
+        }
+
         return [
             'ok' => true,
             'idempotency_reused' => true,
@@ -50,6 +60,16 @@ final class ClaimPaymentReceiptResolver
             'payment_idempotency_key' => (string) $existing['IDEMPOTENCY_KEY'],
             'uuid_factura' => $uuidFactura,
         ];
+    }
+
+    private function money(string $amount): string
+    {
+        $normalized = str_replace(',', '.', trim($amount));
+        if (!is_numeric($normalized)) {
+            throw SifException::validation('Invalid external receipt amount');
+        }
+
+        return number_format((float) $normalized, 2, '.', '');
     }
 
     public function assertMayCreateNew(string $type): void
