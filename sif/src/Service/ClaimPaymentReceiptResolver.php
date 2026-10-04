@@ -38,7 +38,7 @@ final class ClaimPaymentReceiptResolver
             return null;
         }
 
-        $this->receipts->assertAllocatedToInvoice(
+        $allocatedAmount = $this->receipts->allocatedAmountForInvoice(
             $db,
             (string) $existing['UUID_PAYMENT'],
             $uuidFactura
@@ -57,11 +57,11 @@ final class ClaimPaymentReceiptResolver
         }
 
         if (
-            $this->money((string) ($existing['IMPORT'] ?? ''))
+            $this->money($allocatedAmount)
             !== $this->money($expectedAmount)
         ) {
             throw SifException::conflict(
-                'External receipt amount does not match recorded payment'
+                'External receipt allocation does not match claim amount'
             );
         }
 
