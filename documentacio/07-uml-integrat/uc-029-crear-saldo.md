@@ -4,7 +4,7 @@
 
 **Abast:** constituir un saldo reutilitzable a favor d'un titular; **no** equival a fer una transferència de devolució, aplicar el saldo a una factura ni rectificar fiscalment l'operació d'origen. Relacions: UC-06 (decisió econòmica), UC-29a (ús posterior), UC-05 (rectificació si correspon), UC-27/72 (baixa), UC-26/71 (canvi de curs).
 
-**Estat tècnic reconciliat 2026-10-03:** `CreditBalanceService::createCredit()`, `CreditBalancePayloadBuilder::forCreditBalance()` i `CreditBalanceRepository` existeixen. En la branca d'auditoria UC-006 s'ha afegit idempotència tècnica **optativa** per clau de caller + hash canònic, amb reús del mateix `UUID_CREDIT` i conflicte si el payload canvia. La justificació/consum del dret d'origen, els permisos i la derivació obligatòria de la clau de negoci continuen pendents.
+**Estat tècnic reconciliat 2026-10-04:** `CreditBalanceService::createCredit()`, el builder i el repositori existeixen. La branca UC-006 afegeix idempotència per K/hash i, quan arriba `source_enrollment_id`, exigeix K i registra `CREDIT_CREATE` contra `enrollment_fund_movement` dins la mateixa transacció. El que continua pendent és que l'orquestrador/UI construeixi obligatòriament aquesta identitat de dret, validi titularitat i autoritzi l'operació.
 
 ## 1. Fitxa de cas d'ús
 
@@ -13,7 +13,7 @@
 | Actor principal | Operador de gestió autoritzat, a través de canal encara pendent d'acreditar. |
 | Disparador | Una decisió econòmica documentada atribueix un import a reutilitzar en el futur. |
 | Entrades obligatòries segons el constructor | `holder_type`/`tipus_titular`; `holder_name`/àlies; `amount`/`import` numèric i estrictament positiu; `source_type`/`origen`. |
-| Entrades opcionals | `idempotency_key`, `holder_id`, `source_id`, `holder_nif_cif`, `uuid_factura_origen`, `uuid_factura_rectificativa`, `review_after`. |
+| Entrades opcionals | `idempotency_key`, `source_enrollment_id`, `holder_id`, `source_id`, `holder_nif_cif`, `uuid_factura_origen`, `uuid_factura_rectificativa`, `review_after`, `correlation_id`, `uuid_operation`. Si hi ha `source_enrollment_id`, `idempotency_key` deixa de ser opcional. |
 | Postcondició del nucli | Sense clau: crea un `UUID_CREDIT` nou. Amb clau: crea una vegada o reutilitza el mateix `UUID_CREDIT` si el payload és equivalent; mateixa clau amb payload diferent → conflicte. `IMPORT_ORIGINAL = IMPORT_DISPONIBLE = amount` a l'alta i `ESTAT = ACTIVE`. |
 | Moviments no generats | El camí `createCredit()` **no** crea `payment_transaction`, `payment_allocation`, `factura`, `factura_registres` o una nova remissió AEAT. |
 
@@ -21,9 +21,10 @@
 
 1. Operador determina el titular correcte, l'import i l'origen justificat del dret de saldo; aquestes comprovacions de negoci **no estan implementades al builder**.
 2. `CreditBalanceService::createCredit(input)` prepara el payload amb `CreditBalancePayloadBuilder`; si falta un camp obligatori o l'import no és positiu, rebutja la petició.
-3. `TransactionRunner` inicia la transacció; `CreditBalanceRepository::createCredit()` genera UUID i insereix el saldo actiu.
-4. La transacció es confirma i el servei retorna `ok`, `uuid_credit`, `import_disponible` i `estat`.
-5. Qualsevol aplicació posterior requereix un nou cas, UC-29a, amb identificació explícita de la factura receptora i comprovació de l'import pendent.
+3. `TransactionRunner` inicia la transacció i el servei cerca/reutilitza la K si existeix; una alta nova insereix `credit_balance ACTIVE`.
+4. Si hi ha `source_enrollment_id`, `EnrollmentFundMovementRepository::insertOrReuseCreditCreate()` bloqueja el saldo i el ledger, calcula el dret disponible i insereix `CREDIT_CREATE`; si no hi ha prou dret, tota l'alta fa rollback.
+5. La transacció es confirma i el servei retorna `ok`, `uuid_credit`, `import_disponible`, `estat` i estat de reús.
+6. Qualsevol aplicació posterior requereix UC-29a, amb factura receptora i, quan es vol conservar traça monetària per participant, `target_enrollment_id`.
 
 ### 1.2. Alternatives, dades i riscos
 
@@ -34,16 +35,16 @@
 | C3. Saldo associat a factura o rectificativa | Els UUID es poden aportar i conservar; l'existència o la coherència amb la decisió fiscal requereixen contrast específic. |
 | E1. Import zero, negatiu o no numèric | Error de validació. |
 | E2. Titular, nom o tipus d'origen absent | Error de validació. |
-| **P1. Duplicats** | **Parcialment resolt en aquesta branca:** si el caller aporta `idempotency_key`, el servei guarda hash canònic, reutilitza el mateix UUID en reintent equivalent i rebutja payload contradictori. Continua pendent que UC-006 derivi/exigeixi una clau per dret econòmic i consumeixi el mateix origen una sola vegada. Sense clau, es conserva el comportament compatible de nova alta. |
+| **P1. Duplicats / doble consum** | **Resolució tècnica parcial:** K/hash evita duplicar la mateixa alta i `CREDIT_CREATE` impedeix consumir més dret del disponible quan s'identifica la inscripció origen. Continua pendent que UC-006 derivi/exigeixi sempre una K de dret estable i `source_enrollment_id` des de la superfície productiva. Sense origen d'inscripció, es conserva compatibilitat amb altes no monetàries/comercials. |
 | **P2. Titular i autorització** | No s'ha acreditat que el titular declarat sigui qui legalment/econòmicament té dret al saldo, especialment si pagava una empresa o responsable. |
 | **P3. Caducitat o revisió** | `review_after` s'emmagatzema, però aquest mètode no aplica automàticament cap expiració o validació quan arriba la data. |
 | **P4. Auditoria** | El camí analitzat no registra explícitament l'esdeveniment funcional transversal descrit en el disseny d'operació del SIF. |
 
 **Prova existent al repositori, no executada ara:** `CreditBalanceServiceTest::testCreatesCreditBalanceWithoutFiscalOrPaymentSideEffects`.
 
-### 1.3. Revisió: cal rastrejar de quina inscripció surt el saldo — PENDENT
+### 1.3. Rastreig de la inscripció origen — IMPLEMENTAT PARCIAL A LA BRANCA
 
-Si el saldo prové d'import **cobrat i atribuït** a una inscripció, la creació de `credit_balance` ha de correlacionar-se amb una fila `INSCRIPCIÓ → CREDIT` del mateix import, vinculada al cobrament original i a l'event de canvi o baixa. No es pot crear saldo per una quantitat superior a la que queda a l'origen després d'altres traspassos i devolucions. Si el crèdit es concedeix **sense cobrament previ** com a avantatge comercial, no s'ha d'inventar una entrada de caixa: necessita una classificació econòmica diferenciada. `CreditBalanceService::createCredit()` crea el saldo actual, però no aquest assentament per inscripció ni la comprovació de duplicats per origen.
+Si el saldo prové d'import **cobrat i atribuït** a una inscripció, `source_enrollment_id` activa el recorregut `INSCRIPCIÓ → CREDIT`: el servei exigeix K, crea/reutilitza `credit_balance`, calcula el dret restant sobre `enrollment_fund_movement` i registra `CREDIT_CREATE` del mateix import dins la mateixa transacció. No es pot crear saldo per una quantitat superior a la que queda després d'altres traspassos, refunds o saldos. Si el crèdit és **comercial/promocional sense cobrament previ**, no s'ha d'inventar una entrada de caixa ni un `CREDIT_CREATE`: necessita una classificació diferenciada.
 
 [Revisió transversal de fons](00-revisio-moviments-inscripcions.md).
 
@@ -55,7 +56,7 @@ Si el saldo prové d'import **cobrat i atribuït** a una inscripció, la creaci�
 
 **C-ANTIC — revisió manual, NO caducitat automàtica:** l'usuària indica que el saldo d'una baixa no caduca automàticament. Secretaria revisa manualment els saldos molt antics, **per exemple superiors a cinc anys**, abans d'utilitzar-los o decidir-ne el tractament. El llindar dels cinc anys és una pauta de revisió, **no** una data de venciment que autoritzi `EXPIRED`, eliminació del registre o pèrdua de drets per si sola. `review_after` es pot desar al builder actual, però no acredita una alerta o revisió automàtica implementada.
 
-**C-ÚNIC — doble clic/repetició:** la branca UC-006 ja permet que el caller enviï `idempotency_key`; un reintent equivalent reutilitza el `UUID_CREDIT` i una variant contradictòria retorna conflicte. Això resol el duplicat **tècnic** quan la clau és estable. Encara falta que la pantalla/orquestrador construeixi la clau a partir d'un event/dret econòmic únic i bloquegi el valor d'origen, de manera que dues claus diferents no puguin convertir el mateix tram en dos saldos. Després de crear crèdit, la seva aplicació és UC-29a, no un segon `CHARGE` real.
+**C-ÚNIC — doble clic/repetició:** K/hash resol el reintent equivalent i, amb `source_enrollment_id`, el ledger bloqueja també que dues claus diferents consumeixin més valor del que resta a l'origen. Continua faltant que la pantalla/orquestrador construeixi una identitat de dret estable, perquè dues claus diferents encara podrien representar particions legítimes o intents contradictoris mentre hi hagi saldo disponible. Després de crear crèdit, la seva aplicació és UC-29a, no un segon `CHARGE` real.
 
 ### 1.5. Proves d'acceptació addicionals (no executades)
 
@@ -153,7 +154,7 @@ participant T as TransactionRunner
 participant R as CreditBalanceRepository
 participant DB as BD fiscal SIF
 O->>UI: Demanar crear saldo (titular, import, origen, justificació)
-Note over UI,S: Validar dret al saldo, duplicats i permisos: pendent a integrar
+Note over UI,S: Titularitat/permisos continuen pendents; K + dret per inscripció ja tenen suport tècnic
 UI->>S: createCredit(input)
 S->>B: forCreditBalance(input)
 alt Dades obligatòries absents o import no positiu
@@ -163,9 +164,12 @@ else Payload vàlid
  B-->>S: holder_type,holder_name,amount,source_type...
  S->>T: run(callback)
  T->>DB: BEGIN
- S->>R: createCredit(db,payload)
- R->>DB: INSERT credit_balance ACTIVE amb import original/disponible
- R-->>S: uuid_credit, import_disponible, estat
+ S->>R: find/create/reuse credit_balance per K
+ R->>DB: INSERT/reuse credit_balance ACTIVE
+ opt source_enrollment_id
+   S->>DB: lock ledger i calcular disponible
+   S->>DB: INSERT/reuse CREDIT_CREATE
+ end
  T->>DB: COMMIT
  S-->>UI: ok, UUID, import disponible i estat
  UI-->>O: Saldo creat
@@ -206,7 +210,7 @@ else K existeix
 end
 ```
 
-**Límit:** K és una dada de caller. Encara no hi ha una regla genèrica que la derivi d'un dret de baixa/canvi ni un consum atòmic de l'origen al ledger d'inscripcions.
+**Límit:** K continua sent una dada del caller/orquestrador. El consum atòmic de l'origen ja existeix si s'aporta `source_enrollment_id`; el que falta és derivar/obligar la K i l'origen des del dret de baixa/canvi validat.
 
 ### 4.2. Acció objectiu: confirmar el dret econòmic i recuperar l'alta idempotent
 
@@ -257,14 +261,15 @@ else Origen/acord aprovats
  else Event X nou i import disponible
   D->>C: createCredit(input normalitzat + K estable)
   C->>R: Alta/reús idempotent de credit_balance [IMPLEMENTAT]
-  R->>DB: INSERT/reuse credit_balance; consum del dret origen [ENCARA OBJECTIU]
+  R->>DB: INSERT/reuse credit_balance
+  C->>DB: CREDIT_CREATE i consum del dret origen [IMPLEMENTAT si source_enrollment_id]
   R-->>C: UUID_CREDIT_A
   C-->>D: UUID i estat ACTIVE
   D-->>A: Alta confirmada i correlacionada
  end
 end
 A-->>G: UUID existent, nou o incidència explícita
-Note over D,DB: K/hash ja existeixen; guard/event/consum atòmic d'origen continuen pendents. En crèdits comercials sense caixa cal una classificació diferenciada.
+Note over D,DB: K/hash i consum atòmic per inscripció ja existeixen; guard d'origen/titularitat/autorització continuen pendents. En crèdits comercials sense caixa cal classificació diferenciada.
 ```
 
 | Prova pendent | Entrada | Resultat exigible |
