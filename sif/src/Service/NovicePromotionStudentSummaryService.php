@@ -95,8 +95,6 @@ final class NovicePromotionStudentSummaryService
                     $applied,
                     $reserved
                 ),
-                'entitlement_status' => (string) $right['ENTITLEMENT_STATUS'],
-                'validation_status' => (string) $right['VALIDATION_STATUS'],
                 'delivery_status' => $right['DELIVERY_STATUS'] === null ? null : (string) $right['DELIVERY_STATUS'],
                 'original_amount' => $this->money($original),
                 'applied_amount' => $this->money($applied),
@@ -104,7 +102,6 @@ final class NovicePromotionStudentSummaryService
                 'available_amount' => $this->money($available),
                 'issued_at' => (string) $right['ISSUED_AT'],
                 'expires_at' => (string) $right['EXPIRES_AT'],
-                'rule_version' => (string) $right['RULE_VERSION'],
                 'origin' => [
                     'enrollment_id' => (string) $right['ORIGIN_ENROLLMENT_ID'],
                     'product_code' => (string) $right['ORIGIN_PRODUCT_CODE'],
@@ -122,9 +119,6 @@ final class NovicePromotionStudentSummaryService
                             : (string) $application['DESTINATION_INVOICE_NUMBER'],
                         'reserved_at' => (string) $application['RESERVED_AT'],
                         'applied_at' => $application['APPLIED_AT'] === null ? null : (string) $application['APPLIED_AT'],
-                        'released_at' => $application['RELEASED_AT'] === null ? null : (string) $application['RELEASED_AT'],
-                        'reversed_at' => $application['REVERSED_AT'] === null ? null : (string) $application['REVERSED_AT'],
-                        'reason_code' => $application['REASON_CODE'] === null ? null : (string) $application['REASON_CODE'],
                     ],
                     $applications
                 ),
