@@ -165,6 +165,74 @@ final class RedsysCourseCoveredInvoicePaymentTest
         )->fetchColumn());
     }
 
+    public function testCoveredResolverRejectsNonChargeRedsysSemantics(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->issueBeforePayment($db, '95.50');
+        $resolver = new RedsysCoveredInvoicePaymentService(
+            new InvoiceBeforePaymentCoverageRepository(),
+            RegisterPaymentTest::paymentServiceFor($db)
+        );
+        $payload = $this->coveredPayload('UC003SEM0001', '95.50');
+        $payload['payment']['movement_type'] = 'REFUND';
+
+        Assert::throws(SifException::class, function () use ($db, $resolver, $payload): void {
+            $resolver->registerIfCovered(
+                $db,
+                'UC003SEM0001',
+                $this->snapshot('95.50', '95.50'),
+                $payload
+            );
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
+    public function testCoveredResolverRequiresDeterministicMovementDate(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->issueBeforePayment($db, '95.50');
+        $resolver = new RedsysCoveredInvoicePaymentService(
+            new InvoiceBeforePaymentCoverageRepository(),
+            RegisterPaymentTest::paymentServiceFor($db)
+        );
+        $payload = $this->coveredPayload('UC003DATE0001', '95.50');
+        unset($payload['payment']['movement_date']);
+
+        Assert::throws(SifException::class, function () use ($db, $resolver, $payload): void {
+            $resolver->registerIfCovered(
+                $db,
+                'UC003DATE0001',
+                $this->snapshot('95.50', '95.50'),
+                $payload
+            );
+        }, 422);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
+    public function testCoveredResolverRejectsAmountDifferentFromFrozenSnapshot(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->issueBeforePayment($db, '95.50');
+        $resolver = new RedsysCoveredInvoicePaymentService(
+            new InvoiceBeforePaymentCoverageRepository(),
+            RegisterPaymentTest::paymentServiceFor($db)
+        );
+        $payload = $this->coveredPayload('UC003AMT0001', '50.00');
+
+        Assert::throws(SifException::class, function () use ($db, $resolver, $payload): void {
+            $resolver->registerIfCovered(
+                $db,
+                'UC003AMT0001',
+                $this->snapshot('40.00', '95.50'),
+                $payload
+            );
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     public function testRedsysInvoiceRaceGuardRefusesNewInvoiceWhenUc004CoverageExists(): void
     {
         $db = TestDatabase::fresh();
@@ -255,6 +323,31 @@ final class RedsysCourseCoveredInvoicePaymentTest
             ['source' => 'covered-invoice-test'],
             'VALIDATED'
         );
+    }
+
+    private function coveredPayload(string $order, string $amount): array
+    {
+        return [
+            'relations' => [[
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 410,
+                'relation_type' => 'ORIGIN',
+                'idpag' => 400,
+                'ds_order' => $order,
+                'visible_alumne' => 1,
+            ]],
+            'payment' => [
+                'idempotency_key' => 'PAYMENT|REDSYS|ORDER:' . $order,
+                'movement_type' => 'CHARGE',
+                'method' => 'REDSYS',
+                'source_channel' => 'REDSYS',
+                'amount' => $amount,
+                'movement_date' => '2030-06-19 10:00:00',
+                'provider_ref' => $order,
+                'ds_order' => $order,
+                'idpag' => 400,
+            ],
+        ];
     }
 
     private function snapshot(string $amount, string $contractTotal): array
