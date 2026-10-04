@@ -3,7 +3,7 @@
 require dirname(__DIR__) . '/src/autoload.php';
 
 use Prisma\Sif\Exception\SifException;
-use Prisma\Sif\Service\CreditBalancePayloadBuilder;
+use Prisma\Sif\Service\EnrollmentFundTransferPayloadBuilder;
 
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "This script can only run from CLI.\n");
@@ -13,14 +13,14 @@ if (PHP_SAPI !== 'cli') {
 $config = require dirname(__DIR__) . '/config/sif.php';
 
 if (($config['env'] ?? 'local') === 'production') {
-    fwrite(STDERR, "Refusing to preview credit balances with SIF_ENV=production.\n");
+    fwrite(STDERR, "Refusing to preview enrollment fund transfers with SIF_ENV=production.\n");
     exit(1);
 }
 
-$input = parseCreditBalanceArgs(array_slice($argv, 1));
+$input = parseTransferArgs(array_slice($argv, 1));
 
 try {
-    $payload = (new CreditBalancePayloadBuilder())->forCreditBalance($input);
+    $payload = (new EnrollmentFundTransferPayloadBuilder())->build($input);
 
     echo json_encode([
         'ok' => true,
@@ -38,7 +38,7 @@ try {
     exit(1);
 }
 
-function parseCreditBalanceArgs(array $args): array
+function parseTransferArgs(array $args): array
 {
     $positionals = [];
     foreach ($args as $arg) {
@@ -53,18 +53,12 @@ function parseCreditBalanceArgs(array $args): array
 
     foreach ([
         'idempotency_key' => ['--idempotency-key='],
-        'holder_type' => ['--holder-type=', '--tipus-titular='],
-        'holder_id' => ['--holder-id=', '--id-titular='],
-        'holder_nif_cif' => ['--holder-nif-cif=', '--nif-cif=', '--nif='],
-        'holder_name' => ['--holder-name=', '--holder-nom=', '--nom-titular='],
-        'source_type' => ['--source-type=', '--origen='],
-        'source_id' => ['--source-id=', '--id-origen='],
         'source_enrollment_id' => ['--source-enrollment-id=', '--id-insc-origin=', '--id-insc-origen='],
+        'target_enrollment_id' => ['--target-enrollment-id=', '--id-insc-destination=', '--id-insc-dest=', '--id-insc-desti='],
         'correlation_id' => ['--correlation-id='],
         'uuid_operation' => ['--uuid-operation='],
-        'uuid_factura_origen' => ['--uuid-factura-origen=', '--invoice-origin-uuid='],
-        'uuid_factura_rectificativa' => ['--uuid-factura-rectificativa=', '--rectification-invoice-uuid='],
-        'review_after' => ['--review-after=', '--revisar-despres='],
+        'notes' => ['--notes=', '--obs=', '--observations='],
+        'order' => ['--order='],
     ] as $key => $prefixes) {
         $value = optionValue($args, $prefixes);
         if ($value !== null) {
@@ -72,7 +66,11 @@ function parseCreditBalanceArgs(array $args): array
         }
     }
 
-    if (!isset($input['holder_type'], $input['holder_name'], $input['source_type'])) {
+    if (!isset(
+        $input['idempotency_key'],
+        $input['source_enrollment_id'],
+        $input['target_enrollment_id']
+    )) {
         usage('preview');
     }
 
@@ -85,16 +83,12 @@ function amount(mixed $value): string
         usage('preview');
     }
 
-    if (!is_numeric($value)) {
-        throw SifException::validation('Invalid credit amount');
+    $text = trim(str_replace(',', '.', (string) $value));
+    if (!is_numeric($text) || (float) $text <= 0.0) {
+        throw SifException::validation('Invalid enrollment fund transfer amount');
     }
 
-    $amount = (float) $value;
-    if ($amount <= 0.0) {
-        throw SifException::validation('Invalid credit amount');
-    }
-
-    return number_format($amount, 2, '.', '');
+    return number_format((float) $text, 2, '.', '');
 }
 
 function optionValue(array $args, array $prefixes): ?string
@@ -116,7 +110,7 @@ function usage(string $script): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/{$script}-credit-balance.php AMOUNT --holder-type=STUDENT|ENTITY --holder-name=NAME --source-type=BAIXA|CANVI_CURS|RECTIFICATIVA [--holder-id=ID] [--holder-nif-cif=NIF] [--source-id=ID] [--uuid-factura-origen=UUID] [--uuid-factura-rectificativa=UUID] [--review-after=YYYY-MM-DD] [--idempotency-key=KEY] [--source-enrollment-id=ID] [--correlation-id=ID] [--uuid-operation=UUID]\n"
+        "Usage: php sif/scripts/{$script}-enrollment-fund-transfer.php AMOUNT --source-enrollment-id=ID --target-enrollment-id=ID --idempotency-key=KEY [--correlation-id=ID] [--uuid-operation=UUID] [--notes=TEXT] [--order=N]\n"
     );
     exit(1);
 }

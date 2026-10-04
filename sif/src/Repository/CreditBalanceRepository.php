@@ -16,12 +16,15 @@ final class CreditBalanceRepository
 
         $db->prepare(
             'INSERT INTO credit_balance (
-                UUID_CREDIT, HOLDER_TYPE, HOLDER_ID, HOLDER_NIF_CIF, HOLDER_NOM_RAO,
+                UUID_CREDIT, IDEMPOTENCY_KEY, IDEMPOTENCY_PAYLOAD_HASH,
+                HOLDER_TYPE, HOLDER_ID, HOLDER_NIF_CIF, HOLDER_NOM_RAO,
                 IMPORT_ORIGINAL, IMPORT_DISPONIBLE, SOURCE_TYPE, SOURCE_ID,
                 UUID_FACTURA_ORIGEN, UUID_FACTURA_RECTIFICATIVA, REVIEW_AFTER, ESTAT
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'ACTIVE\')'
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'ACTIVE\')'
         )->execute([
             $uuid,
+            $payload['idempotency_key'] ?? null,
+            $payload['idempotency_payload_hash'] ?? null,
             $payload['holder_type'],
             $payload['holder_id'] ?? null,
             $payload['holder_nif_cif'] ?? null,
@@ -40,6 +43,20 @@ final class CreditBalanceRepository
             'import_disponible' => $payload['amount'],
             'estat' => 'ACTIVE',
         ];
+    }
+
+    public function findByIdempotencyKey(\PDO $db, string $key, bool $forUpdate = false): ?array
+    {
+        $sql = 'SELECT * FROM credit_balance WHERE IDEMPOTENCY_KEY = ?';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$key]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return $row ?: null;
     }
 
     public function findByUuid(\PDO $db, string $uuidCredit, bool $forUpdate = false): ?array

@@ -27,6 +27,10 @@ final class CreditCompensationPreproductionScriptTest
         Assert::stringContainsString('--num-visible=', $source);
         Assert::stringContainsString('applyCreditByUuid', $source);
         Assert::stringContainsString('applyCreditByNumVisible', $source);
+        Assert::stringContainsString('--idempotency-key=', $source);
+        Assert::stringContainsString('--target-enrollment-id=', $source);
+        Assert::stringContainsString('--correlation-id=', $source);
+        Assert::stringContainsString('--uuid-operation=', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
 
         if (str_contains($source, 'new InvoiceService(') || str_contains($source, 'issueInvoice(')) {

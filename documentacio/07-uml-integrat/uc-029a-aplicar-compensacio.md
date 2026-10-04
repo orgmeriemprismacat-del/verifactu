@@ -2,7 +2,7 @@
 
 **Objectiu:** consumir un saldo existent per cobrir, totalment o parcialment, l'import pendent d'una factura SIF, amb un moviment `COMPENSATION`. No es crea una factura nova ni es fa cap transferència bancària. Relacions: UC-29 (saldo previ), UC-02 (comptabilització del moviment), UC-06 (decisió econòmica), UC-05 (rectificació si el servei facturat canvia).
 
-**Estat:** servei, repositoris i proves disponibles; la comprovació de la titularitat creuada entre el saldo i la factura i la pantalla definitiva continuen pendents de contrast.
+**Estat reconciliat 2026-10-04:** servei, repositoris i proves ampliats. A més del hash de payload, `target_enrollment_id` permet registrar `COMPENSATION_ALLOCATION` amb `UUID_CREDIT`, payment, factura i línia en la mateixa transacció. Només es permet atribuir valor monetari a la inscripció si el crèdit està completament respaldat per `CREDIT_CREATE`. Titularitat creuada, identitat d'ordre per dues aplicacions iguals i UI continuen pendents.
 
 ## 1. Fitxa de cas d'ús
 
@@ -10,7 +10,7 @@
 | --- | --- |
 | Actor principal | Operador autoritzat. |
 | Precondicions | Saldo `credit_balance` existent i `ACTIVE`, factura identificada per UUID o número visible, import pendent positiu, import de compensació positiu. |
-| Entrades | `uuid_credit`, factura, `amount`/`import`, `movement_date`/`data_moviment`/`data`; `notes` i `allocation_type` opcionals. |
+| Entrades | `uuid_credit`, factura, `amount`/`import`, `movement_date`/`data_moviment`/`data`; opcionals: `idempotency_key`, `target_enrollment_id`, `notes`, `allocation_type`, `correlation_id`, `uuid_operation`. |
 | Comprovacions existents | Bloqueig del saldo i de la factura; relectura del moviment per clau idempotent; saldo actiu; import no superior al saldo disponible **ni a l'import pendent de factura**. |
 | Efecte econòmic | `payment_transaction` amb `TIPUS_MOVIMENT=COMPENSATION`, mètode `COMPENSACIO`, referència al saldo, una assignació `CREDIT_COMPENSATION`, consum de `credit_balance.IMPORT_DISPONIBLE` i recàlcul de l'estat de cobrament de factura. |
 | Resultat | `uuid_payment`, `uuid_credit`, `uuid_factura`, `num_visible`, `import_disponible`, `credit_estat` i `idempotency_reused`. |
@@ -19,7 +19,7 @@
 
 1. `CreditBalanceService::applyCreditByUuid()` o `applyCreditByNumVisible()` obre una transacció de `TransactionRunner`.
 2. `lockedCompensationContext()` bloqueja el saldo i la factura (`FOR UPDATE`) i construeix el moviment amb `CreditBalancePayloadBuilder::forCompensation()`.
-3. El constructor crea la clau `COMPENSACIO|UUID_CREDIT:<uuid>|FACT:<número>|IMPORT:<quantitat>`, força `movement_type=COMPENSATION`, `method=COMPENSACIO`, `source_channel=INTRANET` i `provider_ref=uuid_credit`; `PaymentPayloadValidator` valida el payload.
+3. El constructor usa `idempotency_key` explícita si el caller l'aporta; en cas contrari deriva `COMPENSACIO|UUID_CREDIT:<uuid>|FACT:<número>|IMPORT:<quantitat>`. Després força `movement_type=COMPENSATION`, `method=COMPENSACIO`, `source_channel=INTRANET` i `provider_ref=uuid_credit`; `PaymentPayloadValidator` valida el payload.
 4. Si existeix ja un `payment_transaction` amb la mateixa clau, es retorna el resultat reutilitzat **sense consumir de nou el saldo**.
 5. Si és un moviment nou, `assertCreditCanBeApplied()` verifica `ESTAT=ACTIVE`, import disponible i pendent a la factura. Aquest últim es calcula com a màxim entre zero i total menys càrrecs/compensacions més devolucions.
 6. `PaymentRepository::createPayment()` inscriu el moviment i l'assignació i actualitza `factura.ESTAT_COBRAMENT`.
@@ -32,20 +32,20 @@
 | S1. Aplicació parcial | Es conserva el saldo restant i l'estat `ACTIVE`; la factura pot passar a `PARTIAL`. |
 | S2. Consum de tot el saldo | `IMPORT_DISPONIBLE=0.00` i estat `USED`; no implica que tota la factura estigui pagada si l'import pendent era superior. |
 | S3. Cobertura total de factura | `PaymentStatusCalculator` recalcula `PAID` quan el total net cobreix exactament el total. |
-| S4. Reintent mateix saldo/factura/import | La mateixa clau de compensació reutilitza el pagament; no torna a reduir el saldo. |
+| S4. Reintent mateix saldo/factura/import | La mateixa clau reutilitza el pagament **si el payload coincideix**; payload diferent amb la mateixa K retorna conflicte i no torna a reduir el saldo. |
 | E1. Saldo/factura desconegut o saldo no actiu | Rebuig. |
 | E2. Import superior al saldo disponible o al pendent de factura | Rebuig abans de crear moviment. |
 | E3. Error SQL duplicat concurrent | El servei obre una nova transacció i recupera el moviment per clau; no s'ha de consumir el saldo dues vegades. |
 | **P1. Titularitat** | No es veu en `assertCreditCanBeApplied()` cap comprovació d'identitat entre `HOLDER_ID`/`HOLDER_NIF_CIF` i el receptor/pagador de la factura. És una validació funcional i de permisos pendent. |
-| **P2. Idempotència de quantitats coincidents** | La clau es basa en saldo, factura i import; **dues aplicacions legítimes de la mateixa quantitat a la mateixa factura tenen la mateixa clau**. Cal decidir si es permeten i definir una referència d'operació diferenciada abans d'habilitar-les. |
+| **P2. Idempotència de quantitats coincidents** | La K derivada continua sent saldo+factura+import, però el builder ja accepta `idempotency_key` explícita. Això permet dues aplicacions legítimes de la mateixa quantitat amb K diferents, mentre el reintent d'una ordre concreta reutilitza només la seva K. L'orquestrador encara ha de construir aquesta identitat estable. |
 | P3. Tipus d'assignació personalitzable | El builder permet `allocation_type` opcional; cal acotar al contracte funcional i no confiar en l'entrada del client sense autorització. |
 | P4. Origen fiscal del saldo | El servei no emet una rectificativa ni verifica automàticament que l'origen del crèdit estigui fiscalment resolt; correspon al procés que el va crear. |
 
 **Proves existents, no executades aquí:** `CreditBalanceServiceTest::testAppliesCreditAsCompensationAndConsumesAvailableBalanceOnce`, `testAppliesFullCreditByVisibleInvoiceNumberAndMarksCreditUsed`, `testRejectsApplyingMoreThanAvailableCredit`, `testRejectsApplyingMoreThanInvoiceOutstandingAmount`.
 
-### 1.3. Revisió: el consum del crèdit ha de tenir destí d'inscripció — PENDENT
+### 1.3. Revisió: destí d'inscripció — IMPLEMENTAT PARCIALMENT
 
-`CreditBalanceService` consumeix saldo i registra `COMPENSATION` **a la factura** en una mateixa transacció, però no conserva una fila quantitativa per cadascuna de les inscripcions beneficiàries quan una factura cobreix diverses persones. UC-29a ha de registrar `CREDIT → INSCRIPCIÓ` per cada import aplicat, amb `UUID_CREDIT`, `UUID_PAYMENT` i l'assignació a factura relacionats. La suma de les atribucions no pot superar el saldo consumit; cap consum de saldo no és un ingrés bancari nou. Cal validar titularitat del crèdit i permís d'aplicar-lo a cada participant.
+`CreditBalanceService` pot conservar una fila quantitativa per una inscripció beneficiària explícita mitjançant `target_enrollment_id`: valida la `factura_linia`, registra `COMPENSATION_ALLOCATION` i consumeix saldo en la mateixa transacció. UC-29a ha de registrar `CREDIT → INSCRIPCIÓ` per cada import aplicat, amb `UUID_CREDIT`, `UUID_PAYMENT` i l'assignació a factura relacionats. La suma de les atribucions no pot superar el saldo consumit; cap consum de saldo no és un ingrés bancari nou. Cal validar titularitat del crèdit i permís d'aplicar-lo a cada participant.
 
 [Model i reconciliació proposats](00-revisio-moviments-inscripcions.md).
 
@@ -53,7 +53,7 @@
 
 **A-TITULAR — pagar amb saldo no és fer un descompte:** el cas d'ús consumeix fons/valor ja reconeguts en un `credit_balance` i registra un moviment `COMPENSATION`; no redueix automàticament el preu fiscal de la factura ni és un `CHARGE` bancari nou. Abans d'aplicar-lo a una factura d'empresa, grup, USOC o d'una altra persona, validar titular econòmic, consentiment i autorització de l'ús del saldo per a **cada inscripció beneficiària**; el servei actual comprova saldo i pendent de factura, però no acredita aquesta comprovació entre titulars.
 
-**A-DOBLE — dos usos de mateix import sobre la mateixa factura:** la clau actual `COMPENSACIO|UUID_CREDIT:<uuid>|FACT:<num>|IMPORT:<quantitat>` tracta dues peticions d'import igual com a una sola operació. Això és correcte per a un reintent equivalent, però pot confondre dos usos legítims si el titular decideix aplicar 20 € avui i 20 € un altre dia a la mateixa factura. El contracte objectiu requereix una referència única/versionada **d'operació confirmada**, comparació del payload original i revalidació del saldo disponible, sense perdre la idempotència d'un reintent ni permetre dos consums simultanis dels mateixos diners. La nova referència d'operació no consta acreditada en el builder existent.
+**A-DOBLE — dos usos de mateix import sobre la mateixa factura:** la clau derivada continua fusionant per defecte saldo+factura+import, però ara `idempotency_key` explícita permet modelar ordres A i B diferents. El servei conserva comparació de payload, locks i revalidació del saldo; per tant, dues K diferents poden consumir 20 € + 20 € si hi ha saldo/deute suficients, mentre el reintent d'A reutilitza només A. La responsabilitat pendent és que l'orquestrador generi/guardi una identitat d'ordre estable i autoritzada.
 
 **A-CANVI — destí d'una compensació després de baixa o canvi:** si es crea un saldo per baixa i després s'aplica a una altra inscripció, conservar la traça `INSCRIPCIÓ_ORIGEN → CREDIT → INSCRIPCIÓ_DESTÍ` i els UUID_CREDIT/UUID_PAYMENT. Si el destinatari canvia de curs o es reactiva la baixa, no restaurar saldo consumit amb un simple UPDATE: cal classificar nous traspassos i efectes fiscals. Una compensació a factura de grup amb N participants requereix repartiment real, no atribució total a cadascú.
 
@@ -208,54 +208,51 @@ else Context existent
 end
 ```
 
-### 4.1. Acció específica: repetir una compensació equivalent vs aplicar una segona quota real de mateix import
+### 4.1. Acció específica: reintent equivalent vs segona compensació real del mateix import
 
-**Contracte verificat:** `CreditBalancePayloadBuilder::forCompensation()` deriva la clau de `UUID_CREDIT`, número visible de factura i import. **No incorpora data de moviment, identificador independent de l'ordre ni `allocation_type`**. `CreditBalanceService::applyCredit()` consulta aquesta clau *abans* de `assertCreditCanBeApplied()` i, en trobar-la, retorna el `UUID_PAYMENT` existent sense consumir saldo. Això és correcte per a una petició idèntica repetida, però una **segona compensació legítima de mateix import al mateix document** queda fusionada amb la primera encara que hi hagi saldo i deute pendents. La sortida reutilitzada porta `IMPORT_DISPONIBLE` i `ESTAT` del **saldo actual**, no un snapshot del saldo després de l'aplicació històrica original.
+**Contracte reconciliat:** el builder accepta K explícita i conserva la K derivada com a fallback:
+
+- sense K explícita → `UUID_CREDIT + factura + import`;
+- K A + payload A repetit → mateix `UUID_PAYMENT_A`, cap segon consum;
+- K A + payload material diferent → 409/CONFLICT;
+- K B diferent + mateix saldo/factura/import → nova compensació legítima si saldo i deute continuen sent suficients;
+- cada K genera el seu `COMPENSATION_ALLOCATION` idempotent.
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor O as Operador
-participant UI as Intranet [integració pendent]
-participant S as CreditBalanceService [PHP]
-participant B as CreditBalancePayloadBuilder [PHP]
-participant CR as CreditBalanceRepository [PHP]
-participant PR as PaymentRepository [PHP]
-participant TR as TransactionRunner [PHP]
+participant S as CreditBalanceService
+participant B as CreditBalancePayloadBuilder
+participant PR as PaymentRepository
+participant H as PayloadIdempotencyValidator
 participant DB as BD SIF
-O->>UI: Aplicar 20 de saldo C a factura F (ordre real A)
-UI->>S: applyCreditByUuid(C,F,{amount:20,movement_date:D1})
-S->>TR: run(callback A)
-TR->>DB: BEGIN
-S->>CR: findByUuid(C,true)
+O->>S: Aplicar 20 a saldo C/factura F, data D1
 S->>B: forCompensation(C,F,20,D1)
-B-->>S: clau K = C + F + 20
+B-->>S: K = explicit(K_A) o fallback C + F + 20
 S->>PR: findByIdempotencyKey(K,true)
-PR-->>S: No trobat
-S->>CR: Comprovar saldo ACTIVE/available i pendent de F
-S->>PR: createPayment(COMPENSATION A, allocation F 20)
-PR->>DB: INSERT pagament i allocation
-S->>CR: updateAvailableAmount(C,restant)
-TR->>DB: COMMIT
-S-->>UI: UUID_PAYMENT_A, idempotency_reused=false
-O->>UI: Aplicar altres 20 reals sobre C i F (ordre B, data D2)
-UI->>S: applyCreditByUuid(C,F,{amount:20,movement_date:D2})
-S->>TR: run(callback B)
-TR->>DB: BEGIN
-S->>CR: findByUuid(C,true)
-S->>B: forCompensation(C,F,20,D2)
-B-->>S: mateixa clau K, data no inclosa
+PR-->>S: no existeix
+S->>PR: createPayment(payload A)
+PR->>DB: guarda PAYLOAD_HASH_VERSION=2
+S->>DB: consumeix saldo
+S-->>O: UUID_PAYMENT_A
+O->>S: Reintent exactament igual
 S->>PR: findByIdempotencyKey(K,true)
-PR-->>S: UUID_PAYMENT_A existent
-TR->>DB: COMMIT sense crear ni consumir B
-S-->>UI: idempotency_reused=true, UUID_PAYMENT_A
-UI-->>O: Segona ordre B no ha quedat registrada com a aplicació nova
-Note over S,DB: El PHP no compara payload de B amb l'original A ni disposa d'identificador d'ordre B.
+PR-->>S: A + hash
+S->>H: assertMatches(payload A,hash)
+H-->>S: OK
+S-->>O: UUID_PAYMENT_A, reused=true
+O->>S: Mateix C/F/20 però data D2 o notes diferents
+S->>PR: findByIdempotencyKey(K,true)
+PR-->>S: A + hash
+S->>H: assertMatches(payload B,hash)
+H--xO: 409 CONFLICT
+Note over S,DB: No hi ha segon consum d'A. Una ordre B legítima usa una K explícita diferent.
 ```
 
-### 4.2. Acció objectiu: confirmar aplicació nova i reusar només la mateixa ordre
+### 4.2. Acció d'integració pendent: generar la K d'ordre des del canal autoritzat
 
-El contracte pendent requereix un identificador estable d'operació **diferent del fet que dos imports siguin iguals**; el servei ha de verificar que la clau usada anteriorment representa el mateix titular, saldo, factura, import, destinació, regla, data i autorització. Cada aplicació nova ha de seguir bloquejant el saldo i la factura en transacció, com fa el servei actual. La validació de titularitat ha de ser anterior al consum i abastar receptor/pagador real i les inscripcions de destí quan la factura és de grup.
+El servei ja accepta un identificador estable d'operació via `idempotency_key`; el pendent és que el canal autoritzat el generi i persisteixi a partir d'una ordre de negoci real, després de validar actor, titular, factura i inscripció destí. Cada aplicació continua bloquejant saldo/factura i comprovant payload, deute i disponible.
 
 ```plantuml
 @startuml
@@ -282,7 +279,7 @@ autonumber
 actor O as Operador
 participant UI as Canal autoritzat [PENDENT]
 participant G as Guard titularitat i idempotència [PENDENT]
-participant S as CreditBalanceService [PHP, contracte a ampliar]
+participant S as CreditBalanceService [K explícita implementada]
 participant DB as BD SIF
 O->>UI: Confirmar ordre B amb ID propi, saldo C, factura F, import 20
 UI->>G: Verificar actor, titular, participants i identitat immutable d'ordre B
@@ -292,7 +289,7 @@ else Ordre exactament repetida
  G-->>UI: UUID_PAYMENT anterior, cap segon consum
 else Ordre B nova i autoritzada
  G-->>UI: Dades normalitzades i clau única de B
- UI->>S: applyCredit(B,C,F,20) [API/constructor ampliats]
+ UI->>S: applyCredit(C,F,20,idempotency_key=B)
  S->>DB: BEGIN + bloqueig saldo i factura
  alt Sense saldo suficient o factura sense pendent
   DB-->>S: Error de validació, ROLLBACK
@@ -304,13 +301,13 @@ else Ordre B nova i autoritzada
  end
 end
 UI-->>O: Reús, conflicte o nova aplicació acreditada
-Note over UI,S: Identificació per ordre i guard són disseny. El PHP actual només deriva la clau per C, F i import.
+Note over UI,S: La K explícita ja és suportada; guard de titularitat/autorització i generació de la K des de negoci continuen pendents.
 ```
 
 | ID de prova pendent | Escenari | Resultat requerit |
 | --- | --- | --- |
-| CO-07 | Ordres A i B diferents a C/F de 20 cadascuna, amb saldo i deute suficients | Dos UUID_PAYMENT i consum total 40, sense fusionar-les per import. |
-| CO-08 | Reintent d'ordre A amb mateix ID i import/factura/titular | Reús de UUID_PAYMENT_A, sense nou consum. |
+| CO-07 | Ordres A i B diferents a C/F de 20 cadascuna, amb K explícites diferents | **Test afegit:** dos UUID_PAYMENT i consum total 40; CI pendent. |
+| CO-08 | Reintent d'ordre A amb mateixa K i payload | **Test afegit dins CO-07:** reús de UUID_PAYMENT_A, sense nou consum. |
 | CO-09 | Mateix ID d'ordre A però canvi de factura o data/origen material | Conflicte explícit abans de cap moviment. |
 | CO-10 | Segona ordre B després de consumir el saldo per una altra operació | Rebuig per saldo insuficient, no reutilització casual d'A. |
 | CO-11 | Reús d'A després que una altra compensació hagi modificat el saldo | Retornar identificador d'A i **distingir saldo actual de saldo posterior històric d'A**. |
@@ -318,4 +315,4 @@ Note over UI,S: Identificació per ordre i guard són disseny. El PHP actual nom
 
 [Fitxa original UC-29a](../06-fitxes-funcionals/uc-029a.md) · [UC-29 Crear saldo](uc-029-crear-saldo.md) · [UC-02 Pagament](uc-002-registrar-cobrament-factura.md) · [CreditBalanceService](../../sif/src/Service/CreditBalanceService.php) · [CreditBalancePayloadBuilder](../../sif/src/Service/CreditBalancePayloadBuilder.php) · [CreditBalanceRepository](../../sif/src/Repository/CreditBalanceRepository.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [CreditBalanceServiceTest](../../sif/tests/Integration/CreditBalanceServiceTest.php).
 
-**No acredita:** titularitat validada, control d'operacions legítimes repetides, validació fiscal de l'origen, permisos i prova final de la pantalla.
+**No acredita:** titularitat validada, repartiment multiinscripció automàtic, generació/autorització de la K d'ordre des de la UI, permisos ni prova final de pantalla. El ledger monetari rebutja crèdits sense `CREDIT_CREATE` de backing.

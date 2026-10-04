@@ -1,0 +1,110 @@
+name: UC-006 SIF economic flow checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "sif/**"
+      - "documentacio/06-fitxes-funcionals/uc-006.md"
+      - "documentacio/06-fitxes-funcionals/uc-029.md"
+      - "documentacio/07-uml-integrat/uc-006-*"
+      - "documentacio/07-uml-integrat/uc-029-*"
+      - ".github/workflows/uc006-sif-checks.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "sif/**"
+      - "documentacio/06-fitxes-funcionals/uc-006.md"
+      - "documentacio/06-fitxes-funcionals/uc-029.md"
+      - "documentacio/07-uml-integrat/uc-006-*"
+      - "documentacio/07-uml-integrat/uc-029-*"
+      - ".github/workflows/uc006-sif-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  uc006-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_test;charset=utf8mb4
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+      SIF_LEGACY_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_legacy_test;charset=utf8mb4
+      SIF_LEGACY_DB_USER: root
+      SIF_LEGACY_DB_PASSWORD: root
+      SIF_NOVICE_PROMO_WRAP_KEY_HEX: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+      SIF_NOVICE_PROMO_KEY_VERSION: test-v1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 amb extensions SIF
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, openssl, mbstring
+          coverage: none
+
+      - name: Preparar BD legacy de proves
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot \
+            -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+      - name: Sintaxi PHP UC-006
+        run: |
+          php -l sif/src/Repository/EnrollmentFundMovementRepository.php
+          php -l sif/src/Service/EnrollmentFundTransferPayloadBuilder.php
+          php -l sif/src/Service/EnrollmentFundTransferService.php
+          php -l sif/src/Service/EnrollmentFundTransferActionService.php
+          php -l sif/src/Service/PaymentService.php
+          php -l sif/src/Service/ManualRefundPayloadBuilder.php
+          php -l sif/src/Service/ManualRefundService.php
+          php -l sif/src/Service/ManualRefundActionService.php
+          php -l sif/src/Service/CreditBalancePayloadBuilder.php
+          php -l sif/src/Service/CreditBalanceService.php
+          php -l sif/src/Service/CreditBalanceActionService.php
+          php -l sif/scripts/preview-credit-balance.php
+          php -l sif/scripts/process-credit-balance.php
+          php -l sif/scripts/preview-manual-refund.php
+          php -l sif/scripts/process-manual-refund.php
+          php -l sif/scripts/preview-credit-compensation.php
+          php -l sif/scripts/process-credit-compensation.php
+          php -l sif/scripts/preview-enrollment-fund-transfer.php
+          php -l sif/scripts/process-enrollment-fund-transfer.php
+          php -l sif/scripts/preview-enrollment-fund-transfer-reversal.php
+          php -l sif/scripts/process-enrollment-fund-transfer-reversal.php
+          php -l sif/tests/Integration/EnrollmentFundTransferServiceTest.php
+          php -l sif/tests/Integration/EnrollmentFundTransferActionServiceTest.php
+          php -l sif/tests/Integration/EnrollmentFundTransferPreviewScriptTest.php
+          php -l sif/tests/Integration/EnrollmentFundTransferPreproductionScriptTest.php
+          php -l sif/tests/Integration/EnrollmentFundTransferReversalPreviewScriptTest.php
+          php -l sif/tests/Integration/EnrollmentFundTransferReversalPreproductionScriptTest.php
+          php -l sif/tests/Integration/CreditBalanceServiceTest.php
+          php -l sif/tests/Integration/CreditBalanceActionServiceTest.php
+          php -l sif/tests/Integration/ManualRefundServiceTest.php
+          php -l sif/tests/Integration/ManualRefundActionServiceTest.php
+          php -l sif/tests/run-uc006-tests.php
+
+      - name: Executar suite selectiva UC-006
+        run: php sif/tests/run-uc006-tests.php

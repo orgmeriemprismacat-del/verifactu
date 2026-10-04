@@ -32,6 +32,54 @@ final class PaymentService
         }
     }
 
+    public function registerPaymentInTransaction(\PDO $db, array $payload): array
+    {
+        if (!$db->inTransaction()) {
+            throw new \RuntimeException(
+                'registerPaymentInTransaction requires an active transaction'
+            );
+        }
+
+        $payload = $this->validator->validate($payload);
+        $existing = $this->payments->findByIdempotencyKey(
+            $db,
+            $payload['idempotency_key'],
+            true
+        );
+        if ($existing !== null) {
+            $this->assertSamePayload($payload, $existing);
+
+            return $this->existingResult($existing);
+        }
+
+        try {
+            $created = $this->payments->createPayment($db, $payload);
+
+            return [
+                'ok' => true,
+                'idempotency_reused' => false,
+                'uuid_payment' => $created['uuid_payment'],
+            ];
+        } catch (\PDOException $exception) {
+            if (!$this->isDuplicateKeyException($exception)) {
+                throw $exception;
+            }
+
+            $existing = $this->payments->findByIdempotencyKey(
+                $db,
+                $payload['idempotency_key'],
+                true
+            );
+            if ($existing === null) {
+                throw $exception;
+            }
+
+            $this->assertSamePayload($payload, $existing);
+
+            return $this->existingResult($existing);
+        }
+    }
+
     private function createOrReusePayment(array $payload): array
     {
         return $this->transactions->run(function (\PDO $db) use ($payload): array {

@@ -308,13 +308,13 @@ end
 - substituir definitivament el GET compatible de l'executor llegat per un comandament POST autenticat amb protecció CSRF/anti-replay d'usuari;
 - substituir l'executor llegat per `CourseChangeCoordinator`;
 - persistir `course_change_event` de forma idempotent;
-- implementar ledger `enrollment_fund_movement`;
+- integrar el coordinator amb el ledger `enrollment_fund_movement`; la primitiva `INTERNAL_TRANSFER` ja existeix a la branca UC-006;
 - executar UC-005/074 segons la decisió fiscal;
 - emetre rectificativa per diferència o substitució només després de confirmació;
 - crear nova factura quan correspongui;
 - registrar `AMOUNT_DUE` sense `CHARGE`;
-- resoldre `EXCESS_TO_RESOLVE` via refund/saldo/reassignació;
-- conservar cadena A→B→C i reversions.
+- resoldre `EXCESS_TO_RESOLVE` via refund/saldo/reassignació; refund/saldo/transfer tenen primitives, però la decisió/orquestració continua pendent;
+- conservar cadena A→B→C; la cadena quantitativa A→B→C ja és suportada pel ledger, però `REVERSAL` i l'event/orquestració de canvi continuen pendents.
 
 ## 14. Fonts normatives utilitzades per la classificació
 

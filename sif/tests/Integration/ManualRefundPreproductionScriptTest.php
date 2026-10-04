@@ -26,6 +26,10 @@ final class ManualRefundPreproductionScriptTest
         Assert::stringContainsString('--num-visible=', $source);
         Assert::stringContainsString('registerByUuid', $source);
         Assert::stringContainsString('registerByNumVisible', $source);
+        Assert::stringContainsString('--idempotency-key=', $source);
+        Assert::stringContainsString('--source-enrollment-id=', $source);
+        Assert::stringContainsString('--correlation-id=', $source);
+        Assert::stringContainsString('--uuid-operation=', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
 
         if (str_contains($source, 'new InvoiceService(') || str_contains($source, 'issueInvoice(')) {

@@ -42,6 +42,37 @@ final class ManualRefundPayloadBuilder
             }
         }
 
+        $sourceEnrollmentId = $this->optional(
+            $input,
+            ['source_enrollment_id', 'id_insc_origin', 'id_insc_origen']
+        );
+        if ($sourceEnrollmentId !== null && $sourceEnrollmentId !== '') {
+            if (!is_numeric($sourceEnrollmentId) || (int) $sourceEnrollmentId <= 0) {
+                throw SifException::validation('Invalid source enrollment ID for refund');
+            }
+            $payload['source_enrollment_id'] = (int) $sourceEnrollmentId;
+        }
+
+        foreach ([
+            'correlation_id' => ['correlation_id'],
+            'uuid_operation' => ['uuid_operation'],
+        ] as $key => $keys) {
+            $value = $this->optionalString($input, $keys);
+            if ($value !== null) {
+                $payload[$key] = $value;
+            }
+        }
+
+        if (mb_strlen((string) $payload['idempotency_key'], 'UTF-8') > 160) {
+            throw SifException::validation('Refund idempotency key is too long');
+        }
+
+        if (isset($payload['correlation_id'])
+            && mb_strlen((string) $payload['correlation_id'], 'UTF-8') > 120
+        ) {
+            throw SifException::validation('Refund correlation ID is too long');
+        }
+
         return $payload;
     }
 

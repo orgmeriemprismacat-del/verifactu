@@ -18,6 +18,7 @@ final class CreditBalancePayloadBuilder
         foreach ([
             'holder_id' => ['holder_id', 'id_titular'],
             'source_id' => ['source_id', 'id_origen'],
+            'source_enrollment_id' => ['source_enrollment_id', 'id_insc_origin', 'id_insc_origen'],
         ] as $key => $keys) {
             $value = $this->optional($input, $keys);
             if ($value !== null && $value !== '') {
@@ -26,15 +27,30 @@ final class CreditBalancePayloadBuilder
         }
 
         foreach ([
+            'idempotency_key' => ['idempotency_key'],
             'holder_nif_cif' => ['holder_nif_cif', 'nif_cif', 'nif'],
             'uuid_factura_origen' => ['uuid_factura_origen', 'invoice_origin_uuid'],
             'uuid_factura_rectificativa' => ['uuid_factura_rectificativa', 'rectification_invoice_uuid'],
             'review_after' => ['review_after', 'revisar_despres'],
+            'correlation_id' => ['correlation_id'],
+            'uuid_operation' => ['uuid_operation'],
         ] as $key => $keys) {
             $value = $this->optionalString($input, $keys);
             if ($value !== null) {
                 $payload[$key] = $value;
             }
+        }
+
+        if (isset($payload['idempotency_key']) && mb_strlen($payload['idempotency_key'], 'UTF-8') > 160) {
+            throw SifException::validation('Credit idempotency key is too long');
+        }
+
+        if (isset($payload['source_enrollment_id']) && $payload['source_enrollment_id'] <= 0) {
+            throw SifException::validation('Invalid source enrollment ID for credit balance');
+        }
+
+        if (isset($payload['correlation_id']) && mb_strlen($payload['correlation_id'], 'UTF-8') > 120) {
+            throw SifException::validation('Credit correlation ID is too long');
         }
 
         return $payload;
@@ -57,8 +73,10 @@ final class CreditBalancePayloadBuilder
         $movementDate = $this->requiredString($input, ['movement_date', 'data_moviment', 'data'], 'movement_date');
         $invoiceRef = trim((string) ($invoice['NUM_VISIBLE'] ?? $uuidFactura));
 
+        $explicitIdempotencyKey = $this->optionalString($input, ['idempotency_key']);
         $payload = [
-            'idempotency_key' => 'COMPENSACIO|UUID_CREDIT:' . $uuidCredit . '|FACT:' . $invoiceRef . '|IMPORT:' . $amount,
+            'idempotency_key' => $explicitIdempotencyKey
+                ?? ('COMPENSACIO|UUID_CREDIT:' . $uuidCredit . '|FACT:' . $invoiceRef . '|IMPORT:' . $amount),
             'movement_type' => 'COMPENSATION',
             'method' => 'COMPENSACIO',
             'source_channel' => 'INTRANET',
@@ -75,6 +93,37 @@ final class CreditBalancePayloadBuilder
         $notes = $this->optionalString($input, ['notes', 'obs', 'observations']);
         if ($notes !== null) {
             $payload['notes'] = $notes;
+        }
+
+        $targetEnrollmentId = $this->optional(
+            $input,
+            ['target_enrollment_id', 'id_insc_dest', 'id_insc_desti']
+        );
+        if ($targetEnrollmentId !== null && $targetEnrollmentId !== '') {
+            if (!is_numeric($targetEnrollmentId) || (int) $targetEnrollmentId <= 0) {
+                throw SifException::validation('Invalid target enrollment ID for compensation');
+            }
+            $payload['target_enrollment_id'] = (int) $targetEnrollmentId;
+        }
+
+        foreach ([
+            'correlation_id' => ['correlation_id'],
+            'uuid_operation' => ['uuid_operation'],
+        ] as $key => $keys) {
+            $value = $this->optionalString($input, $keys);
+            if ($value !== null) {
+                $payload[$key] = $value;
+            }
+        }
+
+        if (mb_strlen((string) $payload['idempotency_key'], 'UTF-8') > 160) {
+            throw SifException::validation('Compensation idempotency key is too long');
+        }
+
+        if (isset($payload['correlation_id'])
+            && mb_strlen((string) $payload['correlation_id'], 'UTF-8') > 120
+        ) {
+            throw SifException::validation('Compensation correlation ID is too long');
         }
 
         return $payload;

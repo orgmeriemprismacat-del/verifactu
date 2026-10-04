@@ -1,6 +1,10 @@
 # UC-06 · Escollir i registrar devolució, saldo o compensació — fitxa i UML integrats
 
+> **Auditoria actualitzada 2026-10-04:** contrastada amb PHP/JS real i reconciliada amb `main`. Vegeu [classes ACTUAL/FINAL](uc-006-classes-actual-final.md), [seqüències ACTUAL/FINAL](uc-006-sequencies-actual-final.md), [activitats](uc-006-activitats-pagines-actual-final.md), [auditoria/traçabilitat](uc-006-auditoria-tracabilitat-2026-10-03.md) i [inventari mestre](uc-006-inventari-artefactes.md). Estat: primitives de dret/ledger per refund, saldo i compensació implementades parcialment; orquestrador/UI, titularitat, evidència externa genèrica i E2E continuen pendents.
+
 **Funció del cas mare:** representar una decisió de gestió entre tres **efectes econòmics diferents**. El catàleg original anomena aquest cas «Registrar devolució, saldo o compensació». En el codi revisat **no s'ha identificat una classe `Uc06Service` ni un orquestrador únic que prengui automàticament aquesta decisió**. El cas és una agrupació funcional, resolta pels casos concrets UC-28, UC-29 i UC-29a.
+
+**Precisió sobre traçabilitat de fons 04/10:** la branca amplia `enrollment_fund_movement` amb `UUID_CREDIT`, `REFUND_EXIT` i `CREDIT_CREATE`; calcula disponibilitat per inscripció i cableja `COMPENSATION_ALLOCATION`. Quan el caller aporta inscripció origen/destí, les mutacions i el ledger comparteixen transacció. `INTERNAL_TRANSFER`, titularitat i orquestrador continuen pendents.
 
 **Fonts del projecte:** [catàleg general UC-06](../04-estat-final/33-casos-us-sif.md), [fitxa genèrica anterior](../06-fitxes-funcionals/uc-006.md) i els tres serveis/repositoris referenciats més avall. No assumir que la modalitat escollida queda automàticament autoritzada per la situació fiscal de l'operació.
 
@@ -15,7 +19,7 @@
 | Variant B | **Saldo (UC-29):** s'atorga un import disponible a un titular, sense retorn bancari ni aplicació immediata. |
 | Variant C | **Compensació (UC-29a):** existeix un saldo actiu i s'aplica a una factura amb import pendent; registrar `COMPENSATION` i consumir saldo atòmicament. |
 | Possibilitat fiscal | Si es modifica o anul·la el servei facturat, valorar **UC-05** per separat. Un moviment econòmic no substitueix el document fiscal que correspongui. |
-| Estat d'implementació | Serveis individuals disponibles; **pantalla/classificador de decisió UC-06 i regles completes de titularitat, permís, conciliació i auditoria no acreditats** en els camins consultats. |
+| Estat d'implementació | Serveis individuals + primitives transaccionals de dret implementats; **pantalla/orquestrador UC-06, titularitat, evidence guard genèric, permisos i auditoria transversal encara no acreditats**. |
 
 ### 1.1. Flux funcional objectiu de decisió
 
@@ -29,9 +33,9 @@
 
 | Decisió | Què registra el servei actual | Què NO registra pel sol fet d'executar-lo |
 | --- | --- | --- |
-| Devolució UC-28 | `payment_transaction` `REFUND` + `payment_allocation` | No acredita el pagament bancari de sortida; no emet rectificativa automàticament. |
-| Saldo UC-29 | `credit_balance` amb titular, origen i import `ACTIVE` | No registra moviment `payment_transaction`; no redueix cap import pendent de factura; no evita duplicats per origen en el camí revisat. |
-| Compensació UC-29a | `payment_transaction` `COMPENSATION` + assignació; minva de `credit_balance` en la mateixa transacció | No mou diners al banc; no crea nova factura; el servei revisat no compara titular de saldo i receptor de factura. |
+| Devolució UC-28 | `REFUND` + `payment_allocation`; amb `source_enrollment_id`, també `REFUND_EXIT` i límit de dret | No acredita que el banc/Redsys hagi executat el retorn; no emet rectificativa automàticament. |
+| Saldo UC-29 | `credit_balance` idempotent; amb inscripció origen, `CREDIT_CREATE` consumeix dret disponible | No registra moviment bancari; la titularitat/origen autoritatiu continua sent responsabilitat de l'orquestrador. |
+| Compensació UC-29a | `COMPENSATION` + assignació + consum; amb `target_enrollment_id`, `COMPENSATION_ALLOCATION` a línia/inscripció | No mou diners al banc; no crea factura; encara no compara titular de saldo i receptor/pagador. |
 
 ### 1.3. Errors, alternatives i criteri de completitud
 
@@ -41,11 +45,13 @@
 - La decisió fiscal, l'autorització, la traça de titular i les comprovacions de duplicats s'han de tancar abans que una pantalla única pugui automatitzar la tria.
 - Les proves individuals dels serveis existeixen, però no demostren un orquestrador transaccional comú ni un flux complet de baixa/canvi de curs fins a cobrament i rectificació.
 
-### 1.4. Revisió: la decisió econòmica exigeix traça quantitativa per origen i destí — PENDENT
+### 1.4. Revisió: traça quantitativa per origen i destí — IMPLEMENTADA PARCIALMENT
 
 La tria UC-06 ha de desglossar **cada tram d'import**: una devolució és una sortida des d'una inscripció cap a l'exterior amb un `REFUND` real; crear saldo amb diners ja cobrats mou l'atribució d'una inscripció a `credit_balance` **sense** crear un nou cobrament; aplicar saldo mou atribució de `credit_balance` a la inscripció destí i registra `COMPENSATION` a la factura corresponent. Un dret comercial atorgat sense diners ingressats s'ha de classificar separadament, sense una entrada de caixa fictícia. Cada variant conserva referència a l'event de canvi/baixa i al titular legítim. El cas mare **no** ha de crear tres moviments automàticament.
 
 [Esquema proposat i exemple de repartiment](00-revisio-moviments-inscripcions.md).
+
+**Implementació 04/10:** el camí monetari ja pot reconstruir i consumir dret per inscripció per `CREDIT_CREATE`/`REFUND_EXIT`, i només permet `COMPENSATION_ALLOCATION` monetària quan el `UUID_CREDIT` està completament respaldat per `CREDIT_CREATE`. Això evita convertir un crèdit comercial/promocional sense fons originals en diners potencialment retornables.
 
 ### 1.5. Separació de «A TORNAR», retorn real i decisió del client — xat original
 
