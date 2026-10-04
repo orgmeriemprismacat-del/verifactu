@@ -129,7 +129,7 @@ El navegador no és autoritat fiscal dels imports ni del receptor.
 | Auditoria transaccional | Sí | **Sí al main** | codi/suite | inspecció evidència |
 | Mutador llegat | Sí | **RETIRAT 410 en aquesta branca** | static test nou | desplegament |
 | `aeat_fields` oficials UC-004 | Sí com a requisit | **NO** | fail-closed detectat | **P0** |
-| Document SIF per UUID | Sí FINAL | **PARCIAL AVANÇAT A #166**: schema/download al main + job repository/snapshot/queue service versionats; no wired | proves noves definides, CI HEAD pendent | **P0/P1** wiring + processor/storage/renderer/E2E |
+| Document SIF per UUID | Sí FINAL | **PARCIAL MOLT AVANÇAT A #166**: schema/download + jobs/snapshot/queue/processor/storage writer; no wired | proves D1/D2 versionades, CI HEAD pendent | **P0/P1** renderer + worker entrypoint/wiring + E2E |
 | Cobrament posterior mateix UUID | Sí | servei existeix | test de servei | E2E canal |
 | E2E pantalla→SIF→document→cobrament | Sí | parcial | no | **PENDENT** |
 
@@ -173,8 +173,9 @@ Per tant l'estat autoritatiu és:
 - producer/queue UC-004 post-COMMIT: **servei de queue versionat a #166, wiring PENDENT**;
 - repository PHP de jobs: **VERSIONAT A #166**, amb primitives de lease/retry/stale; CI del HEAD pendent;
 - snapshot documental immutable verificat: **VERSIONAT A #166**, amb prova de tamper/hash mismatch; CI del HEAD pendent;
-- storage writer privat/hash: **PENDENT al runtime vigent**;
-- renderer fiscal PDF/QR/XML: **PENDENT**.
+- processor/lease/retry + storage writer privat/hash: **VERSIONATS A #166**, no wired; CI pendent;
+- renderer fiscal PDF/QR/XML concret: **PENDENT**;
+- worker executable/supervisat i wiring post-COMMIT: **PENDENT**.
 
 No s'ha recuperat aquest subsistema a cegues dins d'aquesta auditoria.
 
