@@ -14,10 +14,19 @@ if (PHP_SAPI !== 'cli') {
 $baseDir = dirname(__DIR__);
 $config = require $baseDir . '/config/sif.php';
 $governance = (array) ($config['version_governance'] ?? []);
+$panel = (array) ($config['panel'] ?? []);
 $checks = [
     'read_roles_configured' => (array) ($governance['read_roles'] ?? []) !== [],
     'manage_roles_configured' => (array) ($governance['manage_roles'] ?? []) !== [],
     'activation_enabled' => (bool) ($governance['activation_enabled'] ?? false),
+    'panel_launch_key_id_configured' => trim((string) ($panel['launch_key_id'] ?? '')) !== '',
+    'panel_launch_secret_configured' => trim((string) ($panel['launch_secret'] ?? '')) !== '',
+    'version_launch_path_valid' => str_starts_with(
+        trim((string) ($panel['version_launch_path'] ?? '')),
+        '/sif/'
+    ),
+    'version_session_ttl_valid' => (int) ($panel['version_session_ttl_seconds'] ?? 0) >= 300
+        && (int) ($panel['version_session_ttl_seconds'] ?? 0) <= 28800,
     'declaration_storage_private' => false,
     'release_manifest_external' => false,
     'sif_version_table' => false,
@@ -28,17 +37,24 @@ $checks = [
     'runtime_complete' => false,
 ];
 
-$declarationRoot = realpath((string) ($governance['declaration_root'] ?? ''));
+$declarationRootConfig = trim((string) ($governance['declaration_root'] ?? ''));
+$declarationRoot = $declarationRootConfig === '' ? false : realpath($declarationRootConfig);
 $publicRoot = realpath($baseDir . '/public');
-$manifestPath = realpath((string) ($governance['release_manifest_path'] ?? ''));
+$releaseRoot = realpath($baseDir);
+$manifestPathConfig = trim((string) ($governance['release_manifest_path'] ?? ''));
+$manifestPath = $manifestPathConfig === '' ? false : realpath($manifestPathConfig);
 if ($manifestPath !== false && is_file($manifestPath)) {
     $checks['release_manifest_external'] = $manifestPath !== $baseDir
         && !str_starts_with($manifestPath, $baseDir . DIRECTORY_SEPARATOR);
 }
 if ($declarationRoot !== false && is_dir($declarationRoot)) {
-    $checks['declaration_storage_private'] = $publicRoot === false
+    $outsidePublic = $publicRoot === false
         || ($declarationRoot !== $publicRoot
             && !str_starts_with($declarationRoot, $publicRoot . DIRECTORY_SEPARATOR));
+    $outsideRelease = $releaseRoot === false
+        || ($declarationRoot !== $releaseRoot
+            && !str_starts_with($declarationRoot, $releaseRoot . DIRECTORY_SEPARATOR));
+    $checks['declaration_storage_private'] = $outsidePublic && $outsideRelease;
 }
 
 $runtime = null;
