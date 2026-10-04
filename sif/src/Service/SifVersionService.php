@@ -444,6 +444,19 @@ final class SifVersionService
             }
         }
 
+        $state = $this->versions->state($this->db);
+        $activeRows = $this->versions->activeRows($this->db);
+        $stateUuid = is_array($state) ? trim((string) ($state['ACTIVE_UUID_VERSION'] ?? '')) : '';
+        $activeUuid = count($activeRows) === 1
+            ? trim((string) ($activeRows[0]['UUID_VERSION'] ?? ''))
+            : '';
+        $activeStateCoherent = is_array($state)
+            && count($activeRows) <= 1
+            && (
+                (count($activeRows) === 0 && $stateUuid === '')
+                || (count($activeRows) === 1 && $stateUuid !== '' && hash_equals($stateUuid, $activeUuid))
+            );
+
         $governance = (array) ($this->config['version_governance'] ?? []);
         $activationEnabled = (bool) ($governance['activation_enabled'] ?? false);
         $backupRequired = (bool) ($governance['require_backup_evidence'] ?? true);
@@ -459,6 +472,8 @@ final class SifVersionService
         $checks = [
             'activation_enabled' => $activationEnabled,
             'candidate_is_draft' => strtoupper((string) ($version['STATUS'] ?? '')) === 'DRAFT',
+            'version_state_singleton_present' => is_array($state),
+            'active_version_state_coherent' => $activeStateCoherent,
             'runtime_complete' => ($runtime['complete'] ?? false) === true,
             'git_revision_matches' => $this->same((string) ($version['GIT_REVISION'] ?? ''), $runtime['git_revision'] ?? null),
             'artifact_hash_matches' => $this->same((string) ($version['ARTIFACT_HASH'] ?? ''), $runtime['artifact_hash'] ?? null),
