@@ -36,7 +36,7 @@ try {
         throw new RuntimeException('No es pot resoldre el directori temporal de factures', 500);
     }
 
-    $filename = trim((string) $intranet->generaFactura((int) $id, true));
+    $filename = trim((string) $intranet->generaFactura((int) $id, true, false));
     if ($filename === ''
         || basename($filename) !== $filename
         || preg_match('/^[A-Za-z0-9._-]+\.pdf$/D', $filename) !== 1) {
