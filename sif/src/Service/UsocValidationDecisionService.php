@@ -51,8 +51,12 @@ final class UsocValidationDecisionService
             );
 
             $state = (string) $decision['STATE'];
-            $legacyStillUsoc = (int) $legacy['TIPUS_DESC'] === 4;
-            $denialReclassified = $desiredValidDesc === 2 && $current === 2;
+            $legacyType = (int) $legacy['TIPUS_DESC'];
+            $legacyStillUsoc = $legacyType === 4;
+            $denialReclassified =
+                $desiredValidDesc === 2
+                && $current === 2
+                && in_array($legacyType, [0, 1], true);
 
             if (
                 $state === 'COMMITTED'
@@ -129,8 +133,12 @@ final class UsocValidationDecisionService
             $legacy = $this->legacyState($legacyDb, (int) $decision['ID_INSC']);
             $current = (int) $legacy['VALID_DESC'];
             $desired = (int) $decision['DESIRED_VALID_DESC'];
-            $legacyStillUsoc = (int) $legacy['TIPUS_DESC'] === 4;
-            $denialReclassified = $desired === 2 && $current === 2;
+            $legacyType = (int) $legacy['TIPUS_DESC'];
+            $legacyStillUsoc = $legacyType === 4;
+            $denialReclassified =
+                $desired === 2
+                && $current === 2
+                && in_array($legacyType, [0, 1], true);
 
             if (!$legacyStillUsoc && !$denialReclassified) {
                 $decision = $this->decisions->markReviewRequired(
