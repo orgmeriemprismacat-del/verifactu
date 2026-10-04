@@ -9,6 +9,7 @@ final class HistoricalInvoicePayloadBuilder
     public function build(array $input): array
     {
         $numVisible = $this->requiredString($input, ['num_visible', 'num_factura'], 'historical invoice visible number');
+        $this->assertMaxLength($numVisible, 30, 'historical invoice visible number');
         $parsed = $this->parseVisibleNumber($numVisible);
 
         $payload = $input;
@@ -20,9 +21,11 @@ final class HistoricalInvoicePayloadBuilder
         $payload['type'] = strtoupper($this->optionalString($input, ['type', 'tipus_factura'], 'F1'));
         $this->assertInvoiceType($payload['type']);
         $payload['idempotency_key'] = $this->idempotencyKey($input, $numVisible);
+        $this->assertMaxLength($payload['idempotency_key'], 100, 'historical invoice idempotency key');
         $payload['source_channel'] = 'MIGRACIO';
         $payload['source_type'] = 'HISTORIC_WEB_FACTURES';
         $payload['created_by'] = $this->optionalString($input, ['created_by', 'user', 'usuari'], 'historic-migration');
+        $this->assertMaxLength($payload['created_by'], 80, 'historical invoice created_by');
         $payload['invoice_status'] = 'HISTORICAL';
         $payload['aeat_status'] = 'NO_VERIFACTU';
         $payload['payment_status'] = $this->optionalString($input, ['payment_status', 'estat_cobrament'], 'UNKNOWN');
@@ -211,6 +214,13 @@ final class HistoricalInvoicePayloadBuilder
         }
 
         return $block;
+    }
+
+    private function assertMaxLength(string $value, int $maxLength, string $label): void
+    {
+        if (mb_strlen($value, 'UTF-8') > $maxLength) {
+            throw SifException::validation("Invalid {$label}: maximum length is {$maxLength}");
+        }
     }
 
     private function assertNumeric(mixed $value, string $label): void
