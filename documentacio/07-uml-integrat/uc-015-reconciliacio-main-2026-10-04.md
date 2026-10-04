@@ -89,7 +89,7 @@ A partir d'ara, el tancament UC-015 disposa d'una porta selectiva pròpia.
 
 ## 5. PENDENT
 
-No queda cap gap de programació/documentació bloquejant propi d'UC-015 detectat en aquesta passada.
+La continuació pàgina per pàgina ha detectat un gap de seguretat addicional, **SEC-015-01**, a la confirmació PACK. El gap està corregit al PR #171; per tant no queda obert com a codi pendent, però la nova implementació encara requereix CI i acceptació runtime.
 
 Queda pendent d'**acceptació operativa**:
 1. pagament PACK real en preproducció;
@@ -128,7 +128,7 @@ Ja existeix `NotificationOutboxDeliveryService`. La documentació passa a distin
 | PK-A01 llistat | sí | sí | inspecció | cap gap intern |
 | PK-A02 fitxa/ordre | sí | sí | boundary | cap gap intern |
 | PK-A03 formulari | sí | sí | boundary | E2E navegador |
-| PK-A04 alta N | sí | sí | atomicitat/idempotència | E2E fallada real |
+| PK-A04 alta N | sí | sí | atomicitat/idempotència | E2E fallada real |\n| PK-A04b confirmació | sí | token v2 implementat PR171 | inspecció + tests escrits | CI PR171 + E2E navegador |
 | PK-A05 intenció | sí | sí | CI/tests | Redsys real |
 | PK-A06 callback | sí | sí | worker/boundary | callback preprod |
 | PK-A07 factura | sí | sí | CI | evidència real |
@@ -139,8 +139,8 @@ Ja existeix `NotificationOutboxDeliveryService`. La documentació passa a distin
 
 ## 8. Criteri de tancament
 
-**Auditoria tècnica/documental:** TANCADA, subjecta al gate selectiu d'aquest PR.  
-**Implementació UC-015:** COMPLETA per l'abast definit.  
+**Auditoria tècnica/documental:** TANCADA quant a inventari i correccions, subjecta al gate selectiu d'aquest PR.  
+**Implementació UC-015:** COMPLETA al PR #171 per l'abast definit, inclosa la nova frontera segura de confirmació; **CI del nou codi pendent**.  
 **Acceptació de producció:** NO ACREDITADA encara; requereix preproducció real i evidència operativa.
 
 
@@ -170,3 +170,33 @@ La plantilla d'evidència s'ha actualitzat perquè `verify-redsys-pack-preproduc
 - verificació persistent posterior amb `verify-redsys-pack-evidence.php`.
 
 Això elimina l'ambigüitat entre scripts individuals i el flux d'acceptació recomanat.
+
+
+### R-08 · SEC-015-01 — token de confirmació PACK
+
+La revisió de la ruta `/packs/confirmacio` ha descobert una frontera que no estava separada a l'inventari original.
+
+**ACTUAL observat a main:**
+- `base64(IV + HMAC(ciphertext) + ciphertext)`;
+- IV no autenticat;
+- `openssl_decrypt` abans de `hash_equals`;
+- HMAC només del ciphertext;
+- token al path/access logs;
+- parsing fràgil de `REQUEST_URI`;
+- pageview analytics potencial amb la URL sensible.
+
+**FINAL implementat al PR #171:**
+- helper `PackConfirmationToken` v2;
+- AES-256-CBC amb clau derivada + HMAC amb clau separada;
+- MAC sobre domini + IV + ciphertext abans de decrypt;
+- Base64URL;
+- TTL 24 h + clock skew 5 min;
+- format legacy fail-closed;
+- fragment URL `#TOKEN`;
+- `$_GET['keyEncr']` + `encodeURIComponent`;
+- no-store / no-referrer / noindex;
+- pageview automàtic desactivat;
+- proves unitàries i boundary específiques;
+- PK-A04b afegit als diagrames d'activitats.
+
+**Evidència:** el baseline anterior segueix sent PR #149 = 971/0. Aquesta evidència **no s'atribueix** al nou fix; el PR #171 necessita el seu gate verd abans del merge.
