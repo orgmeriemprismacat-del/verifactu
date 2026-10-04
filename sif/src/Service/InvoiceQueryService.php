@@ -81,6 +81,27 @@ final class InvoiceQueryService
 
         $fiscalRecord = $this->invoices->latestFiscalRecord($this->db, $uuid);
 
+        $decision = $this->correctionDecisionProjection(
+            $this->invoices->latestFiscalCorrectionDecision($this->db, $uuid)
+        );
+        if ($decision !== null) {
+            $execution = $this->invoices->findRectificationExecutionByDecisionEvent(
+                $this->db,
+                (string) $decision['event_uuid']
+            );
+            $decision['executed'] = $execution !== null;
+            if ($execution !== null) {
+                $decision['ready_for_uc005_ui'] = false;
+                $decision['execution'] = [
+                    'audit_event_uuid' => strtolower((string) $execution['UUID_EVENT']),
+                    'result' => strtoupper((string) $execution['RESULT']),
+                    'uuid_factura_rectificativa' => (string) ($execution['RESOURCE_ID'] ?? ''),
+                    'occurred_at' => $execution['OCCURRED_AT'] ?? null,
+                    'recorded_at' => $execution['RECORDED_AT'] ?? null,
+                ];
+            }
+        }
+
         return [
             'ok' => true,
             'invoice' => $this->invoiceProjection($invoice, $fiscalRecord),
@@ -89,9 +110,7 @@ final class InvoiceQueryService
             'rectifications' => $this->invoices->findRectifications($this->db, $uuid),
             'payments' => $this->invoices->findPayments($this->db, $uuid),
             'fiscal_record' => $fiscalRecord,
-            'fiscal_correction_decision' => $this->correctionDecisionProjection(
-                $this->invoices->latestFiscalCorrectionDecision($this->db, $uuid)
-            ),
+            'fiscal_correction_decision' => $decision,
             'documents' => $this->invoices->findDocumentMetadata($this->db, $uuid),
         ];
     }
