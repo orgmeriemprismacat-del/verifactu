@@ -68,14 +68,16 @@ $checks = [
     'aeat_installation_id_present' => trim((string) ($config['aeat']['installation_id'] ?? '')) !== '',
     'aeat_producer_name_present' => trim((string) ($config['aeat']['producer_name'] ?? '')) !== '',
     'aeat_producer_nif_present' => trim((string) ($config['aeat']['producer_nif'] ?? '')) !== '',
-    'aeat_gift_tax_code_valid' => preg_match(
-        '/^[0-9]{2}$/D',
-        trim((string) ($config['aeat']['gift_tax_code'] ?? ''))
-    ) === 1,
-    'aeat_gift_regime_key_valid' => preg_match(
-        '/^[0-9]{2}$/D',
-        trim((string) ($config['aeat']['gift_regime_key'] ?? ''))
-    ) === 1,
+    'aeat_gift_tax_code_valid' => in_array(
+        trim((string) ($config['aeat']['gift_tax_code'] ?? '')),
+        ['01', '02', '03', '05'],
+        true
+    ),
+    'aeat_gift_regime_key_valid' => in_array(
+        trim((string) ($config['aeat']['gift_regime_key'] ?? '')),
+        ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '14', '15', '17', '18', '19', '20', '21'],
+        true
+    ),
     'aeat_gift_exemption_code_valid' => in_array(
         strtoupper(trim((string) ($config['aeat']['gift_exemption_code'] ?? ''))),
         ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8'],
