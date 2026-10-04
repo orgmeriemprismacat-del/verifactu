@@ -108,7 +108,7 @@ L'auditoria ampliada ha localitzat una base que redueix el gap de traçabilitat:
 - moviment immutable identificat per UUID i `IDEMPOTENCY_KEY` UNIQUE;
 - `EXTERNAL_ALLOCATION` d'un `CHARGE` confirmat cap a `ID_INSC_DESTI`;
 - variant `COMPENSATION_ALLOCATION` al repositori;
-- `INTERNAL_TRANSFER` i `REVERSAL` previstos pel CHECK de la migració;
+- `INTERNAL_TRANSFER` implementat com a primitiva idempotent; `REVERSAL` continua només previst pel CHECK;
 - correlació amb factura/línia/pagament/operació;
 - reús idempotent amb verificació de payload;
 - allocadors reals per curs i pack.
@@ -127,7 +127,7 @@ L'auditoria ampliada ha localitzat una base que redueix el gap de traçabilitat:
 ### Què continua faltant
 
 - política de titularitat/pagador/receptor;
-- `INTERNAL_TRANSFER` de canvi de curs com a operació orquestrada;
+- wiring de `EnrollmentFundTransferService` des del canvi de curs/orquestrador;
 - obligar els identificadors d'inscripció i la clau de dret des de UI/endpoint UC-006;
 - evidència externa genèrica abans de registrar un REFUND;
 - audit gateway i E2E.
@@ -387,7 +387,7 @@ S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferent
 | Compensació base | Sí | Sí + ledger destí | contrast estàtic + tests afegits | titular/identitat d'ordre/E2E |
 | Dret disponible per inscripció | Sí | `availableAmountForInscription()` | contrast estàtic + tests afegits | concurrència real/preprod |
 | Baixa actual | Sí | Sí | contrast PHP/JS | derivació econòmica |
-| Canvi actual | Sí | Sí parcial | contrast PHP/JS | executar `EXCESS_TO_RESOLVE`; `INTERNAL_TRANSFER` |
+| Canvi actual | Sí | Sí parcial + primitiva `INTERNAL_TRANSFER` | contrast PHP/JS + tests afegits | executar `EXCESS_TO_RESOLVE` des del coordinator |
 | Anul·lació factura actual | Sí | Sí | contrast PHP/JS | separar retorn real |
 | Classes A/F | Sí | N/A | revisat | actualització final de l'estat |
 | Seqüències A/F | Sí | N/A | revisat | actualització final de l'estat |
@@ -411,8 +411,8 @@ S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferent
 4. **UC006-GAP-P0-04 · Identitat externa/cross-channel.**  
    El mateix retorn real no pot quedar duplicat entre Redsys, banc i registre manual.
 
-5. **UC006-GAP-P0-05 · `INTERNAL_TRANSFER` de canvi de curs.**  
-   El ledger admet el tipus, però falta servei/orquestració A→B amb conservació i proves.
+5. **UC006-GAP-P0-05 · Wiring de `INTERNAL_TRANSFER` al canvi de curs.**  
+   Builder, servei, repositori, CLI i proves A→B/A→B→C ja existeixen; falta que el coordinator decideixi l'import transferible i cridi la primitiva amb actor/autorització/event.
 
 6. **UC006-GAP-P0-06 · Contracte obligatori del dret.**  
    UI/endpoint han d'aportar sempre la inscripció origen/destí i una identitat estable del dret quan el moviment prové de fons atribuïts.
@@ -487,7 +487,7 @@ Després de la primera auditoria s'han implementat només primitives que es pode
 - flags CLI per validar els recorreguts en test/preproducció;
 - merge real de `main` dins la branca abans de continuar, preservant els canvis recents d'UC-001.
 
-No s'ha implementat per inferència la **titularitat**, l'autorització UC-006, la prova bancària genèrica, `INTERNAL_TRANSFER` ni la decisió final de UI. Aquestes continuen requerint contracte funcional explícit.
+No s'ha implementat per inferència la **titularitat**, l'autorització UC-006, la prova bancària genèrica, la decisió de quan/quanta reassignació executar ni la UI final. `INTERNAL_TRANSFER` sí existeix com a primitiva neutra.
 
 ## 15. Criteri de tancament de l’auditoria
 
@@ -496,4 +496,4 @@ No s'ha implementat per inferència la **titularitat**, l'autorització UC-006, 
 **Orquestració UC-006:** **NO tancada**.  
 **Acceptació operativa:** **NO tancada**.
 
-**Motiu:** falten titularitat, evidència externa genèrica, identitat cross-channel, `INTERNAL_TRANSFER`, endpoint/UI autoritzat, auditoria transversal i evidència executada de CI/preproducció.
+**Motiu:** falten titularitat, evidència externa genèrica, identitat cross-channel, wiring del transfer al coordinator, endpoint/UI autoritzat, auditoria transversal i evidència executada de CI/preproducció.
