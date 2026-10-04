@@ -32511,7 +32511,7 @@ echo "usuarisBD: ".$usuarisBD[4]."<BR>";*/
 					// Marquem de color en els casos que s'han de tenir controlats (entitas i grups)
 					$classAccess = $this->__getColorTrCont_Recordatori_Pagament($tipusInsc, $entitat);
 
-						$infoTable .= "<tr ".$classAccess.">
+						$infoTable .= "<tr data-id-insc='".$idInsc."' ".$classAccess.">
 							".$this->mostrarFilaTaulaResponsive('', $alertaMoros)."
 							".$this->mostrarFilaTaulaResponsive($titolsInscr[0], $labels)."
 							".$this->mostrarFilaTaulaResponsive($titolsInscr[1], $any)."
@@ -34007,7 +34007,7 @@ echo "usuarisBD: ".$usuarisBD[4]."<BR>";*/
 
 								$buttonValidar = 	$this->obtenirLabel('reclamar-'.$idInsc, 'lightGreen marcat pointer w-100', 'SÍ'.$this->obtenirIconaMaterials('', '', 'sentiment_satisfied_alt', 'dona de baixa'));
 
-								$infoTable .= "<tr ".$classAccess.">
+								$infoTable .= "<tr data-id-insc='".$idInsc."' ".$classAccess.">
 									".$this->mostrarFilaTaulaResponsive($titolsInscr[0], $labelTipus)."
 									".$this->mostrarFilaTaulaResponsive($titolsInscr[1], $any)."
 									".$this->mostrarFilaTaulaResponsive($titolsInscr[2], $mes)."
@@ -34963,7 +34963,7 @@ echo "usuarisBD: ".$usuarisBD[4]."<BR>";*/
 
 								$buttonValidar = 	$this->obtenirLabel('reclamar-'.$idInsc, 'lightRed no_marcat pointer w-100', 'NO'.$this->obtenirIconaMaterials('', '', 'sentiment_very_dissatisfied', 'dona de baixa'));
 
-								$infoTable .= "<tr ".$classAccess.">
+								$infoTable .= "<tr data-id-insc='".$idInsc."' ".$classAccess.">
 									".$this->mostrarFilaTaulaResponsive($titolsInscr[0], $labels)."
 									".$this->mostrarFilaTaulaResponsive($titolsInscr[1], $any)."
 									".$this->mostrarFilaTaulaResponsive($titolsInscr[2], $mes)."
@@ -36072,7 +36072,7 @@ echo "usuarisBD: ".$usuarisBD[4]."<BR>";*/
 							$buttonValidar = 	$this->obtenirLabel('', 'red error pointer w-100', 'NO HI HA DATA DE RECLAMACIÓ');
 						}
 
-						$infoTable .= "<tr>
+						$infoTable .= "<tr data-id-insc='".$idInsc."'>
 							".$this->mostrarFilaTaulaResponsive($titolsInscr[0], $any)."
 							".$this->mostrarFilaTaulaResponsive($titolsInscr[1], $mes)."
 							".$this->mostrarFilaTaulaResponsive($titolsInscr[2], $curs)."
@@ -36524,7 +36524,7 @@ echo "usuarisBD: ".$usuarisBD[4]."<BR>";*/
 							$buttonValidar = 	$this->obtenirLabel('', 'red error pointer w-100', 'NO HI HA DATA DE RECLAMACIÓ');
 						}
 
-						$infoTable .= "<tr>
+						$infoTable .= "<tr data-id-insc='".$idInsc."'>
 							".$this->mostrarFilaTaulaResponsive($titolsInscr[0], $any)."
 							".$this->mostrarFilaTaulaResponsive($titolsInscr[1], $mes)."
 							".$this->mostrarFilaTaulaResponsive($titolsInscr[2], $curs)."
@@ -36896,7 +36896,7 @@ echo "usuarisBD: ".$usuarisBD[4]."<BR>";*/
 							$buttonValidar = 	$this->obtenirLabel('', 'red error pointer w-100', 'NO HI HA DATA DE RECLAMACIÓ');
 						}
 
-						$infoTable .= "<tr>
+						$infoTable .= "<tr data-id-insc='".$idInsc."'>
 							".$this->mostrarFilaTaulaResponsive($titolsInscr[0], $any)."
 							".$this->mostrarFilaTaulaResponsive($titolsInscr[1], $mes)."
 							".$this->mostrarFilaTaulaResponsive($titolsInscr[2], $curs)."
