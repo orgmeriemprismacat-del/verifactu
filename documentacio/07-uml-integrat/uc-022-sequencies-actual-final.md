@@ -85,8 +85,8 @@ participant Auth as InternalApiAuthenticator [IMPLEMENTAT]
 participant Bank as BankReceiptResolver [CANAL PENDENT]
 participant M as ManualPaymentService
 participant PS as PaymentService
-participant Audit as PaymentActionAudit [PENDENT]
-participant Sync as LegacySync [PENDENT]
+participant Audit as PaymentActionAudit [IMPLEMENTAT]
+participant Sync as ManualTransferLegacyProjectionService [IMPLEMENTAT]
 O->>UI: Selecciona entrada bancària i factura
 UI->>Auth: POST signat HMAC + request UUID + actor/roles
 Auth-->>UI: actor autenticat + anti-replay
@@ -102,8 +102,9 @@ else nou
  PS-->>M: CREATED
 end
 M-->>UI: UUID_PAYMENT + UUID_FACTURA
-UI->>Audit: resultat correlacionat
-UI->>Sync: enqueue after commit
+M->>Audit: REQUESTED + terminal + operational/sif audit
+M->>Sync: projectar post-commit des del SIF
+Sync-->>UI: SYNCED o PENDING_RETRY
 UI-->>O: JSON tipificat
 ```
 
@@ -147,7 +148,9 @@ sequenceDiagram
     participant M as ManualTransferCommandService
     participant PA as PaymentActionGateway
     participant P as PaymentService
+    participant LP as ManualTransferLegacyProjectionService
     participant L as GeneratedInvoiceLegacyPaymentSyncService
+    participant N as ManualTransferNotificationService
 
     U->>JS: confirma efact=1 + ID moviment bancari
     JS->>I: POST JSON + CSRF
@@ -160,14 +163,18 @@ sequenceDiagram
     PA->>P: registre dins transacció existent
     P-->>PA: CREATED o REUSED
     PA-->>M: event terminal atòmic
-    M-->>L: projectar total confirmat SIF
+    M-->>I: payment CREATED/REUSED
+    I->>LP: projectar des del SIF
+    LP->>L: recalcular total confirmat i actualitzar només inscripcions
     alt projecció OK
-        L-->>I: SYNCED
-        I-->>JS: CREATED/REUSED
-    else projecció falla
-        L--xI: error
+        L-->>LP: PARTIALLY_PAID/PAID
+        LP->>N: enqueue notification_outbox
+        N-->>I: bundle preparat
+        I-->>JS: CREATED/REUSED + SYNCED
+    else projecció/notificació falla
+        LP--xI: error recuperable
         I-->>JS: 202 PENDING_RETRY
-        Note over JS,I: mateix external_bank_event_id reintenta sense duplicar
+        Note over JS,I: mateix external_bank_event_id reintenta sense duplicar payment
     end
 ```
 
@@ -177,3 +184,6 @@ sequenceDiagram
 ### Triple auditoria del commit
 
 En el tram `ManualTransferCommandService → PaymentActionGateway`, el cobrament no es confirma fins que dins la mateixa transacció s'han escrit `operational_event` i `sif_audit_event`; després el gateway afegeix el terminal de `payment_action_event` i fa commit. Un 403/422 previ segueix un camí separat `ACCESS_DENIED|VALIDATION_REJECTED → REJECTED` sense `payment_transaction`.
+
+
+**Invariant de seqüència:** `registrarTransferenciaSif.php` no executa cap escriptura al legacy. Tota projecció és responsabilitat de l'endpoint SIF després del commit econòmic.
