@@ -481,10 +481,10 @@ Decisió aplicada: crear `audit/uc-010-reconciliacio-2026-10-04` des del `main` 
 1. **CI de la branca reconciliada:** és imprescindible executar-la després de tots els canvis.
 2. **MySQL/preproducció:** aplicar migració, generar manifest real, registrar candidata, vincular declaració i executar activació de prova.
 3. **UC-85:** definir i implementar un contracte de backup/restauració que acrediti scope, resultat i recuperabilitat; avui UC-010 no pot convertir la fila existent en una prova completa.
-4. **Política de `CONFIG_HASH`:** el fingerprint actual inclou valors secrets en memòria i només persisteix el hash. Cal decidir abans de producció si una rotació de secret ha de considerar-se drift de configuració executable.
+4. **Política de `CONFIG_HASH`: RESOLT.** Els valors secrets es redaccionen a `SET/EMPTY`; la seva rotació no canvia el fingerprint, però passar de configurat a buit sí.
 5. **Segregació de funcions:** el mateix rol `manage` pot vincular una declaració i activar. Si es requereix maker-checker o aprovació legal separada, s'ha d'afegir com a regla explícita.
 6. **TTL de sessió del panell:** RESOLT — TTL absolut configurable, default 1800 s, fail-closed i reentrada des de la intranet.
-7. **Verificació SQL profunda:** si cal acreditar índexs/constraints/tipus, cal ampliar el preflight o afegir checks específics.
+7. **Verificació SQL profunda:** RESOLT per als invariants crítics UC-010 (índex ACTIVE únic, CHECKs i triggers). Continua fora d'abast acreditar exhaustivament cada índex/default/tipus/constraint de totes les taules SIF.
 8. **Producció:** queda fora de l'abast i no s'autoritza per cap preflight tècnic.
 
 ## 22. Classificació final de l'auditoria
@@ -544,3 +544,60 @@ S'ha incorporat `SifVersionEvidenceVerifier` i el CLI `sif/scripts/verify-versio
 En producció el CLI falla tancat tret que s'habiliti explícitament `SIF_UC010_EVIDENCE_ALLOW_PRODUCTION=1`. Aquest script permet conservar un JSON d'evidència després de l'E2E de `sif_test*`/preproducció sense executar cap mutació addicional.
 
 **Estat del CI en aquest tall:** el PR #165 continua mergeable i `behind_by=0`, però GitHub Actions manté el gate UC-010 i les suites compartides en estat `queued`; encara no existeixen logs del head final que permetin marcar CI verd o vermell.
+
+
+## 26. Troballes addicionals de la continuació
+
+| ID | Severitat | Troballa | Correcció |
+| --- | --- | --- | --- |
+| UC010-AUD-18 | Alta | La immutabilitat del journal era només una regla de repositori; SQL directe podia fer UPDATE/DELETE | migració additiva amb triggers no-update/no-delete i CHECK `STATUS=ACTIVATED` |
+| UC010-AUD-19 | Alta | L'exclusivitat ACTIVE depenia només del lock/servei | `ACTIVE_UNIQUE_GUARD` generat + índex únic; prova de segon ACTIVE per SQL directe |
+| UC010-AUD-20 | Alta | `MigrationRunner::inspect()` no detectava si s'eliminaven índex/CHECK/trigger UC-010 | `RuntimeVersionInspector::uc010DatabaseHardeningChecks()`; `schema_verified=false` si falta qualsevol guard |
+| UC010-AUD-21 | Mitjana | `list/view/register/attach/activate` retornaven files SQL completes amb idempotency keys/hashes, guard columns i evidence JSON | DTOs explícits de versió/declaració/activació |
+| UC010-AUD-22 | Mitjana | `preflight()` encara exposava models crus interns | projecció pública `preflightOutput()` amb DTOs i backup mínim |
+| UC010-AUD-23 | Alta | El launch HMAC acceptava qualsevol host HTTPS i el receptor un UUID de 36 caràcters no necessàriament v4 | host `prisma.cat`, path URL exactament igual al signat, sense query/fragment/credencials i UUIDv4 canònic; prova E2E |
+| UC010-AUD-24 | Alta | `CONFIG_HASH` incorporava directament passwords/secrets al SHA-256 públic | secrets redaccionats a presència `SET/EMPTY`; proves de rotació i canvi funcional |
+| UC010-AUD-25 | Mitjana | El verifier ignorava l'`artifact_hash` declarat al manifest | camp obligatori i comprovació d'autoconsistència; test de mismatch |
+| UC010-AUD-26 | Alta | El preflight visual podia donar GO amb `sif_version_state` incoherent; només l'activació sota lock ho detectava | check read-only `active_version_state_coherent` incorporat al preflight |
+| UC010-AUD-27 | Alta | Una ACTIVE preexistent podia deixar el singleton NULL després de migrar | migració additiva de backfill només amb exactament una ACTIVE + CHECK `ID=1` + trigger no-delete |
+| UC010-AUD-28 | Mitjana | Registre/declaració i activació no aplicaven igual la semàntica transversal d'idempotència | repositoris reutilitzen `PayloadIdempotencyValidator`: trace metadata exclosa, `reason_code` semàntic |
+| UC010-AUD-29 | Mitjana | Proves antigues podien quedar verdes/vermelles pel motiu equivocat després del canvi de contracte | manifests de test complets, traversal verificat pel missatge correcte i fingerprint tests actualitzats |
+
+## 27. Estat real després de la continuació
+
+### DOCUMENTAT
+
+Sí. Fitxa 2.2, UML integrada, classes, seqüències, activitats, configuració i auditoria descriuen el mateix contracte executable.
+
+### IMPLEMENTAT
+
+Sí en la branca reconciliada:
+
+- governança de runtime i candidata;
+- declaració física;
+- preflight;
+- activació serialitzada;
+- guards físics de BD;
+- DTOs mínims;
+- launch HMAC endurit;
+- sessió TTL;
+- manifest exhaustiu/autoconsistent;
+- config fingerprint sense valors secrets;
+- CLI d'evidència read-only.
+
+### VERIFICAT
+
+**Parcial.** Existeix cobertura automatitzada específica preparada i l'evidència històrica del PR #139 va ser positiva per l'UC-010 anterior. La implementació reconciliada actual encara no pot elevar-se a `VERIFIED` perquè GitHub Actions manté tots els jobs del PR en `queued`, sense runner ni logs disponibles.
+
+### PENDENT REAL
+
+1. execució efectiva del gate `UC-010 SIF version governance checks` i suites compartides;
+2. E2E sobre `sif_test*`/preproducció amb les tres migracions;
+3. manifest real després del deploy;
+4. declaració física real de prova;
+5. evidència UC-85 només quan el seu contracte quedi tancat; avui continua `DISSENY/BLOQUEJANT`;
+6. decidir si governança exigeix segregació maker-checker entre declaració i activació;
+7. conservar JSON de `verify-version-governance-evidence.php`;
+8. decisió productiva separada.
+
+**Producció continua NO autoritzada.**
