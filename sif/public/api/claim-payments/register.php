@@ -15,7 +15,7 @@ use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentActionEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Service\ClaimPaymentBalanceGuard;
-use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
+use Prisma\Sif\Service\ClaimPaymentLegacySyncService;
 use Prisma\Sif\Service\ClaimPaymentPayloadBuilder;
 use Prisma\Sif\Service\ClaimPaymentReceiptResolver;
 use Prisma\Sif\Service\ClaimPaymentService;
@@ -42,6 +42,7 @@ if ($rawBody === false) {
 try {
     $config = require dirname(__DIR__, 3) . '/config/sif.php';
     $db = ConnectionFactory::make($config);
+    $legacyDb = ConnectionFactory::makeLegacy($config);
 
     $internalApi = $config['internal_api'] ?? [];
     $actor = (new InternalApiAuthenticator(
@@ -161,6 +162,7 @@ try {
         new ClaimPaymentExternalReceiptRepository()
     );
     $balanceGuard = new ClaimPaymentBalanceGuard();
+    $legacySyncService = new ClaimPaymentLegacySyncService();
 
     $result = $gateway->run(
         $auditContext,
@@ -169,6 +171,8 @@ try {
             $invoiceLinks,
             $receiptResolver,
             $balanceGuard,
+            $legacySyncService,
+            $legacyDb,
             $sourceInscriptionId,
             $uuidFactura,
             $numVisible,
@@ -226,6 +230,15 @@ try {
             }
 
             $receiptResolver->assertMayCreateNew($externalReceiptType);
+
+            $legacySyncService->assertBaselineSynchronized(
+                $transactionDb,
+                $legacyDb,
+                $sourceInscriptionId,
+                $relationIdpag,
+                $targetUuid
+            );
+
             $outstandingBefore = $balanceGuard->assertMayCharge(
                 $transactionDb,
                 $targetUuid,
@@ -281,16 +294,16 @@ try {
         'is_terminal' => false,
     ]);
 
-    $legacyDb = ConnectionFactory::makeLegacy($config);
     $legacyDb->beginTransaction();
     try {
-        $legacySync = (new CourseLegacyPaymentSyncService())->sync(
+        $legacySync = $legacySyncService->syncAfterSifSuccess(
             $db,
             $legacyDb,
-            (int) ($legacySyncContext['idpag'] ?? 0),
             (int) ($legacySyncContext['id_insc'] ?? 0),
+            (int) ($legacySyncContext['idpag'] ?? 0),
             (string) ($legacySyncContext['uuid_factura'] ?? ''),
-            (string) ($legacySyncContext['num_visible'] ?? '')
+            (string) ($legacySyncContext['num_visible'] ?? ''),
+            (string) ($paymentInput['amount'] ?? '')
         );
         $legacyDb->commit();
 
@@ -315,7 +328,20 @@ try {
             'is_terminal' => true,
             'error_code' => claimPaymentErrorCode($legacyException),
         ]);
-        throw $legacyException;
+
+        $result['claim_case_id'] = $claimCaseId;
+        $result['source_inscription_id'] = $sourceInscriptionId;
+        $result['external_receipt_type'] = $externalReceiptType;
+        $result['external_receipt_id'] = $externalReceiptId;
+
+        JsonResponse::send([
+            'ok' => false,
+            'error' => 'El cobrament ha quedat registrat al SIF, però la projecció legacy requereix reconciliació.',
+            'payment_persisted' => true,
+            'requires_reconciliation' => true,
+            'payment' => $result,
+        ], 409);
+        return;
     }
 
     $result['claim_case_id'] = $claimCaseId;
