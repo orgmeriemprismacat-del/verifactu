@@ -11,9 +11,9 @@
 **FINAL:** dades comercials del regal; no confondre-les amb receptor fiscal ni identitat del futur alumne.
 
 ## Pàgina 3 · Previsualització
-**ACTUAL:** `previsualitza_regal.php`; es mostra/crea el codi a la UX.
+**ACTUAL original:** `previsualitza_regal.php` rebia contingut per GET i mostrava/creava el codi a la UX.
 
-**FINAL:** el codi utilitzable s'ha de custodiar com a credencial. La previsualització no ha de permetre fabricar/forçar un codi arbitrari.
+**FINAL candidat:** POST+CSRF de sessió, `Cache-Control: private, no-store`, codi generat server-side, estil validat contra configuració i contingut personal escapat abans d'entrar a HTML. La previsualització no permet fabricar/forçar un codi arbitrari.
 
 ## Pàgina 4 · Dades comprador/receptor fiscal
 **ACTUAL:** formulari de comprador dins del wizard JS.
