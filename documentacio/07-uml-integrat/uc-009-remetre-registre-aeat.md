@@ -187,7 +187,7 @@ else Job reclamat
   Q->>DB: RETRY o DEAD_LETTER
   P-->>Worker: Estat d'error
  else Payload serialitzat
-  P->>T: send(payload) FORA de la transacció de claim
+  P->>T: send(payload + uuid_attempt + evidence_id) FORA de la transacció de claim
   T->>AEAT: SOAP signatura/certificat i XML [si snapshot aeat complet]
   alt Resposta correlacionada
    AEAT-->>T: Resposta de registre individual
@@ -334,7 +334,7 @@ Note over Q,I: REVIEW no té NEXT_RETRY_AT i SerialWorker retorna HEAD_REQUIRES_
 | AE-09-08 | Q marca SENT amb resposta REJECTED | Mostrar remissió acabada i rebuig de línia; tramitar revisió separada, no inventar una fallada de transport. |
 | AE-09-09 | `complete()` rep UUID_FACTURA vàlid però FISCAL_ORDER no existent | Rollback de la transacció completa; conservar error i evidència, no marcar SENT el job incompatible. |
 | AE-09-10 | Dues respostes/estats d'intent incompatibles per la mateixa ordre fiscal | Correlacionar cada intent i resoldre segons evidència, no sobreescriure per ordre d'arribada local. |
-| AE-09-11 | `SoapTransport` ha creat `request.json`/`response.xml` privats però `complete()` falla | Localitzar el mateix `evidence_id` amb `UUID_FACTURA+FISCAL_ORDER`; el PHP actual no garanteix índex SQL de l'intent quan no es confirma `AEAT_RESPONSE_JSON`. |
+| AE-09-11 | `SoapTransport` ha creat evidència privada però la persistència local posterior falla | **RESOLT EN CODI**: `EVIDENCE_ID` es preassigna i persisteix amb l'intent abans de xarxa; una fallada posterior deixa `UNCERTAIN/REVIEW` amb el mateix ID i permet conciliació només si bundle+metadata+resposta validen. |
 
 ## 5. Matriu de persistència i evidències
 
@@ -381,7 +381,7 @@ P->>Q: claimNext()
 Q->>DB: PROCESSING + ATTEMPTS + CLAIM_TOKEN
 P->>Q: assertImmutablePayload()
 P->>A: begin()
-A->>DB: INSERT aeat_submission_attempt STARTED
+A->>DB: INSERT attempt STARTED + REQUEST_HASH + EVIDENCE_ID únic
 P->>T: send(payload)
 T->>X: SOAP/mTLS
 alt resposta correlacionada
@@ -408,11 +408,11 @@ end
 
 Vegeu [UC-009 · Activitats ACTUAL/FINAL](./uc-009-activitats-actual-final.md). Aquest document cobreix worker, claim/fencing, immutabilitat, SOAP, resposta, retry, resultat incert, stale locks, preflight, panell, reconciliació i activació de producció.
 
-### 7.4. Extensió operativa 2026-09-30
+### 7.4. Extensió operativa 2026-09-30 — estat històric
 - panell intranet `sif-registres-aeat.php` amb API interna HMAC i CSRF per mutacions;
 - `AeatReviewReconciliationService` per tancar `REVIEW` només contra un intent terminal del mateix job;
-- cap reconciliació d'un intent `UNCERTAIN`;
-- cap segon SOAP durant la conciliació;
+- **en aquell tall** encara no existia conciliació d'`UNCERTAIN`; el PR #133 posterior afegeix `reconcile_evidence` amb bundle privat verificat;
+- cap segon SOAP durant cap conciliació;
 - incidència del queue marcada `RESOLVED` i nova traça `AEAT_RECONCILED`;
 - document de desplegament a `05-governanca-operacio/uc-009-panell-registres-aeat-desplegament.md`.
 
@@ -427,10 +427,10 @@ Vegeu [UC-009 · Activitats ACTUAL/FINAL](./uc-009-activitats-actual-final.md). 
 ## 8. Revalidació 2026-10-03 contra `main`
 
 - Panell real: `intranet.prisma.cat/sif-registres-aeat.php`, no una ruta UI de `pay.prisma.cat`.
-- API real: `sif/public/api/aeat/operations.php`, protegida amb HMAC, anti-replay i rols separats de lectura/reconciliació.
+- API real: `sif/public/api/aeat/operations.php`, protegida amb HMAC i anti-replay; qualsevol acció exigeix rol de lectura i les mutacions exigeixen lectura + reconciliació.
 - Reconciliació `REVIEW`: implementada i provada; no executa `SoapTransport`.
 - Paquet UML separat afegit: [classes ACTUAL/FINAL](./uc-009-classes-actual-final.md), [seqüències ACTUAL/FINAL](./uc-009-sequencies-actual-final.md) i [auditoria/traçabilitat](./uc-009-auditoria-tracabilitat-2026-10-03.md).
-- Evidència CI vigent de `main`: 917 passades / 6 fallades globals; els tests UC-009/AEAT del log passen. Les sis fallades corresponen a PACK/Redsys i impedeixen afirmar que la suite global actual és verda.
+- Evidència CI històrica del tall 02/10: 917 passades / 6 fallades globals, amb UC-009/AEAT en PASS. No s'ha d'utilitzar com a estat vigent; merge/release depèn del CI actual del `main` i del PR.
 - Continua pendent: desplegament real del panell/menú, rols/secrets d'entorn, certificat i enviament real AEAT de preproducció.
 
 
@@ -486,3 +486,14 @@ Si qualsevol comprovació falla, no es modifica l'intent, la cua continua `REVIE
 Si el transport ja ha retornat una resposta amb `evidence_id` però falla la persistència local de `aeat_submission_attempt`, el processador passa explícitament aquest identificador a `reviewHold()`. L'intent queda `UNCERTAIN` amb `EVIDENCE_ID`, la cua queda `REVIEW` i el worker no torna a enviar.
 
 La prova `testPostResponsePersistenceFailureKeepsEvidenceReferenceAndBlocksResend` força una fallada de serialització local després del resultat remot i verifica aquesta invariant.
+
+
+### 8.3. Hardening d'autorització 2026-10-04
+
+- el shell `sif-registres-aeat.php` no es renderitza si la sessió no té cap rol de `SIF_AEAT_READ_ROLES`;
+- el 403 es produeix abans de generar CSRF o carregar el panell;
+- l'API exigeix rol de lectura per totes les operacions;
+- `reconcile` i `reconcile_evidence` exigeixen simultàniament rol de lectura i rol de reconciliació;
+- `detail` retorna només `capabilities.reconcile`, no la llista de rols;
+- el JS oculta accions de conciliació a perfils només-lectura;
+- HMAC, anti-replay i CSRF continuen sent controls obligatoris independents.
