@@ -20,7 +20,7 @@ final class RedsysGiftPaymentIntentServiceTest
         $legacyDb = new RedsysGiftIntentLegacySpyPdo([$this->giftRow()]);
 
         $result = $this->service()->create($sifDb, $legacyDb, [
-            'gift_code' => 'REGAL-77',
+            'gift_id' => 77,
             'terminal' => '1',
             'ds_order' => '770000000001',
             'created_by' => 'pay-prisma-cat',
@@ -45,6 +45,79 @@ final class RedsysGiftPaymentIntentServiceTest
         Assert::same('120.00', $snapshot['gift']['IMPORT']);
     }
 
+    public function testReusesSinglePendingIntentForSameGift(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new RedsysGiftIntentLegacySpyPdo([
+            $this->giftRow(),
+            $this->giftRow(),
+        ]);
+
+        $first = $this->service()->create($sifDb, $legacyDb, [
+            'gift_id' => 77,
+            'terminal' => '1',
+            'ds_order' => '770000000011',
+            'created_by' => 'pay-prisma-cat',
+        ]);
+        $second = $this->service()->create($sifDb, $legacyDb, [
+            'gift_id' => 77,
+            'terminal' => '1',
+            'created_by' => 'pay-prisma-cat',
+        ]);
+
+        Assert::same('770000000011', $first['ds_order']);
+        Assert::same('770000000011', $second['ds_order']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same(
+            1,
+            (int) $sifDb->query(
+                "SELECT COUNT(*) FROM redsys_payment_intent
+                 WHERE SOURCE_TYPE='REGAL' AND SOURCE_ID='77'"
+            )->fetchColumn()
+        );
+    }
+
+    public function testRejectsNewIntentAfterValidatedPaymentForSameGift(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new RedsysGiftIntentLegacySpyPdo([
+            $this->giftRow(),
+            $this->giftRow(),
+        ]);
+
+        $this->service()->create($sifDb, $legacyDb, [
+            'gift_id' => 77,
+            'terminal' => '1',
+            'ds_order' => '770000000012',
+        ]);
+
+        (new \Prisma\Sif\Repository\RedsysNotificationRepository())->recordReceived(
+            $sifDb,
+            '770000000012',
+            null,
+            '120.00',
+            '0000',
+            true,
+            ['source' => 'gift-intent-test'],
+            'VALIDATED'
+        );
+
+        Assert::throws(SifException::class, function () use ($sifDb, $legacyDb): void {
+            $this->service()->create($sifDb, $legacyDb, [
+                'gift_id' => 77,
+                'terminal' => '1',
+            ]);
+        }, 409);
+
+        Assert::same(
+            1,
+            (int) $sifDb->query(
+                "SELECT COUNT(*) FROM redsys_payment_intent
+                 WHERE SOURCE_TYPE='REGAL' AND SOURCE_ID='77'"
+            )->fetchColumn()
+        );
+    }
+
     public function testRejectsAlreadyInvoicedGift(): void
     {
         $sifDb = TestDatabase::fresh();
@@ -56,7 +129,7 @@ final class RedsysGiftPaymentIntentServiceTest
                 $sifDb,
                 new RedsysGiftIntentLegacySpyPdo([$row]),
                 [
-                    'gift_code' => 'REGAL-77',
+                    'gift_id' => 77,
                     'terminal' => '1',
                     'ds_order' => '770000000002',
                 ]
@@ -74,7 +147,7 @@ final class RedsysGiftPaymentIntentServiceTest
             $this->service()->create(
                 $sifDb,
                 new RedsysGiftIntentLegacySpyPdo([$this->giftRow()]),
-                ['gift_code' => 'REGAL-77', 'terminal' => 'A', 'ds_order' => '770000000003']
+                ['gift_id' => 77, 'terminal' => 'A', 'ds_order' => '770000000003']
             );
         }, 422);
 
@@ -82,7 +155,7 @@ final class RedsysGiftPaymentIntentServiceTest
             $this->service()->create(
                 $sifDb,
                 new RedsysGiftIntentLegacySpyPdo([$this->giftRow()]),
-                ['gift_code' => 'REGAL-77', 'terminal' => '1', 'ds_order' => 'BAD-ORDER']
+                ['gift_id' => 77, 'terminal' => '1', 'ds_order' => 'BAD-ORDER']
             );
         }, 422);
     }
