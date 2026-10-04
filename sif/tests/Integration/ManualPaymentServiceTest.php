@@ -281,7 +281,47 @@ final class ManualPaymentServiceTest
             ]);
         }, 409);
 
-        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+    }
+
+    public function testJointInvoiceParticipantLedgerRejectsMalformedAllocationBeforePaymentMutation(): void
+    {
+        $db = TestDatabase::fresh();
+
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC021|MANUAL|JOINT|MALFORMED',
+                'source_channel' => 'INTRANET',
+                'emesa_abans_cobrament' => 1,
+                'uc004_invoice_before_payment' => 1,
+                'relations' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 31,
+                    'relation_type' => 'ORIGIN',
+                    'visible_alumne' => 0,
+                ]],
+                'lines' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 31,
+                ]],
+            ])
+        );
+
+        Assert::throws(SifException::class, function () use ($db, $invoice): void {
+            $this->service($db, true)->registerByUuid($db, $invoice['uuid_factura'], [
+                'amount' => '120.00',
+                'movement_date' => '2026-10-04 03:15:00',
+                'reference' => 'UC021-JOINT-MALFORMED',
+                'participant_allocations' => [
+                    'not-an-id' => '120.00',
+                ],
+            ]);
+        }, 422);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
     }
 
