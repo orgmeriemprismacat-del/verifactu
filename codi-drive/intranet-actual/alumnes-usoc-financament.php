@@ -1,9 +1,9 @@
 <?php
 include("inc/comprovarSessio.php");
 
-if (!$configOk || !filter_var(getenv('SIF_USOC_UI_ENABLED') ?: '0', FILTER_VALIDATE_BOOLEAN)) {
+if (!$configOk || getenv('SIF_USOC_UI_ENABLED') !== '1') {
     ?>
-    <script>window.location.href = "https://intranet.prisma.cat/"</script>
+    <script>window.location.href = "/"</script>
     <?php
 } else {
     if (empty($_SESSION['csrf_usoc_financament'])) {
@@ -20,10 +20,10 @@ if (!$configOk || !filter_var(getenv('SIF_USOC_UI_ENABLED') ?: '0', FILTER_VALID
     <meta name="csrf-token-usoc-financament" content="<?php echo htmlspecialchars($csrfUsoc, ENT_QUOTES, 'UTF-8'); ?>">
     <title>Finançament USOC | Intranet</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"/>
-    <link rel="stylesheet" href="https://intranet.prisma.cat/css/general.min.css?ver=1.0"/>
-    <link rel="stylesheet" href="https://intranet.prisma.cat/css/forms.min.css?ver=1.0"/>
-    <link rel="stylesheet" href="https://intranet.prisma.cat/css/alerts.min.css?ver=1.0"/>
-    <link rel="stylesheet" href="https://intranet.prisma.cat/css/modals.min.css?ver=1.0"/>
+    <link rel="stylesheet" href="/css/general.min.css?ver=1.0"/>
+    <link rel="stylesheet" href="/css/forms.min.css?ver=1.0"/>
+    <link rel="stylesheet" href="/css/alerts.min.css?ver=1.0"/>
+    <link rel="stylesheet" href="/css/modals.min.css?ver=1.0"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
 </head>
@@ -159,7 +159,7 @@ if (!$configOk || !filter_var(getenv('SIF_USOC_UI_ENABLED') ?: '0', FILTER_VALID
         </div>
     </div>
 </div>
-<script src="https://intranet.prisma.cat/js/alumnes-usoc-financament.js?ver=1.0"></script>
+<script src="/js/alumnes-usoc-financament.js?ver=1.0"></script>
 </body>
 </html>
 <?php } ?>

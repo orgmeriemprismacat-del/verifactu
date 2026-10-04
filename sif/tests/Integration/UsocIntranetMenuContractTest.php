@@ -17,9 +17,15 @@ final class UsocIntranetMenuContractTest
         }
 
         Assert::stringContainsString('SIF_USOC_MENU_ROLES', $source);
+        Assert::stringContainsString('SIF_USOC_UI_ENABLED', $source);
         Assert::stringContainsString('Finançament USOC', $source);
         Assert::stringContainsString('/alumnes-usoc-financament.php', $source);
-        Assert::stringContainsString('$usocMenuRoles !== []', $source);
-        Assert::stringContainsString('in_array(trim((string) $rolUsuari), $usocMenuRoles, true)', $source);
+        Assert::stringContainsString(
+            "\$usocUiEnabled = getenv('SIF_USOC_UI_ENABLED') === '1';",
+            $source
+        );
+        Assert::stringContainsString('$usocUiEnabled && $usocMenuRoles !== []', $source);
+        Assert::stringContainsString('static fn($role) => strtoupper', $source);
+        Assert::stringContainsString('strtoupper(trim((string) $rolUsuari))', $source);
     }
 }

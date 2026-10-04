@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Repository;
 
+use Prisma\Sif\Domain\DecimalAmount;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 
@@ -20,6 +21,8 @@ final class UsocFinancingCaseRepository
         string $entityAmount,
         string $correlationId
     ): array {
+        $studentAmount = $this->positiveMoney($studentAmount);
+        $entityAmount = $this->positiveMoney($entityAmount);
         $existing = $this->findByInscriptionAndIdpag($db, $inscriptionId, $idpag, true);
         if ($existing !== null) {
             $this->assertSameStudentCase($existing, $studentInvoiceUuid, $studentAmount, $entityAmount);
@@ -73,6 +76,8 @@ final class UsocFinancingCaseRepository
         string $studentAmount,
         string $entityAmount
     ): array {
+        $studentAmount = $this->positiveMoney($studentAmount);
+        $entityAmount = $this->positiveMoney($entityAmount);
         $existing = $this->findByInscriptionAndIdpag($db, $inscriptionId, $idpag, true);
         if ($existing === null) {
             throw SifException::conflict('USOC financing case is required before entity invoice');
@@ -92,6 +97,8 @@ final class UsocFinancingCaseRepository
         string $entityAmount,
         string $correlationId
     ): array {
+        $studentAmount = $this->positiveMoney($studentAmount);
+        $entityAmount = $this->positiveMoney($entityAmount);
         $existing = $this->findByInscriptionAndIdpag($db, $inscriptionId, $idpag, true);
         if ($existing === null) {
             $existing = $this->recordStudentInvoice(
@@ -193,6 +200,21 @@ final class UsocFinancingCaseRepository
         return is_array($row) ? $row : null;
     }
 
+    private function positiveMoney(string $value): string
+    {
+        try {
+            $cents = DecimalAmount::cents($value);
+        } catch (\InvalidArgumentException) {
+            throw SifException::validation('Invalid USOC financing case amount');
+        }
+
+        if ($cents <= 0) {
+            throw SifException::validation('Invalid USOC financing case amount');
+        }
+
+        return DecimalAmount::format($cents);
+    }
+
     private function assertSameStudentCase(
         array $existing,
         string $studentInvoiceUuid,
@@ -203,10 +225,15 @@ final class UsocFinancingCaseRepository
             throw SifException::conflict('USOC financing case already references another student invoice');
         }
 
-        if (
-            number_format((float) $existing['STUDENT_AMOUNT'], 2, '.', '') !== number_format((float) $studentAmount, 2, '.', '')
-            || number_format((float) $existing['ENTITY_AMOUNT'], 2, '.', '') !== number_format((float) $entityAmount, 2, '.', '')
-        ) {
+        try {
+            $matches =
+                DecimalAmount::normalize($existing['STUDENT_AMOUNT']) === $studentAmount
+                && DecimalAmount::normalize($existing['ENTITY_AMOUNT']) === $entityAmount;
+        } catch (\InvalidArgumentException) {
+            $matches = false;
+        }
+
+        if (!$matches) {
             throw SifException::conflict('USOC financing case amount mismatch');
         }
     }

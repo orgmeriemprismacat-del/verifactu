@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Domain\DecimalAmount;
 use Prisma\Sif\Exception\SifException;
 
 final class LegacyUsocInvoicePayloadBuilder
@@ -30,7 +31,11 @@ final class LegacyUsocInvoicePayloadBuilder
             'totals' => $this->totals($amounts['import_base'], $amounts['discount_amount'], $studentAmount),
             'lines' => [$this->studentLine($inscription, $course, $inscriptionId, $amounts, $studentAmount)],
             'relations' => [$this->studentRelation($inscription, $inscriptionId, $idpag)],
-            'usoc' => $this->studentMetadata($snapshot, $studentAmount),
+            'usoc' => $this->studentMetadata(
+                $snapshot,
+                $studentAmount,
+                $amounts['discount_amount']
+            ),
         ];
     }
 
@@ -146,7 +151,7 @@ final class LegacyUsocInvoicePayloadBuilder
             'source_id' => $inscriptionId,
         ];
 
-        if ((float) $amounts['discount_amount'] > 0.0) {
+        if (DecimalAmount::cents($amounts['discount_amount']) > 0) {
             $line['discount_origin'] = 'USOC';
             $line['discount_mode'] = 'AMOUNT';
             $line['discount_text'] = 'Descompte USOC';
@@ -198,24 +203,45 @@ final class LegacyUsocInvoicePayloadBuilder
         $discountInput = $this->optional($inscription, ['DESC_IMPORT', 'discount_amount', 'DESCOMPTE', 'descompte'])
             ?? $this->optional($snapshot['usoc'] ?? [], ['discount_amount', 'DISCOUNT_AMOUNT']);
 
+        $studentCents = $this->moneyCents($studentAmount, 'Invalid USOC student amount');
+
         if ($baseInput !== null && $baseInput !== '') {
             $base = $this->positiveMoney($baseInput, 'Invalid USOC base amount');
-            $discount = $discountInput === null || $discountInput === ''
-                ? $this->money((float) $base - (float) $studentAmount)
-                : $this->money($discountInput);
+            $baseCents = $this->moneyCents($base, 'Invalid USOC base amount');
+
+            if ($discountInput === null || $discountInput === '') {
+                $discountCents = $baseCents - $studentCents;
+                if ($discountCents < 0) {
+                    throw SifException::validation('Invalid USOC discount amount');
+                }
+                $discount = DecimalAmount::format($discountCents);
+            } else {
+                $discount = $this->money($discountInput);
+                $discountCents = $this->moneyCents($discount, 'Invalid USOC discount amount');
+            }
         } else {
             $entityAmount = $this->optional($snapshot['usoc'] ?? [], ['entity_amount', 'ENTITY_AMOUNT']);
             if ($entityAmount !== null && $entityAmount !== '') {
                 $discount = $this->positiveMoney($entityAmount, 'Invalid USOC entity amount');
-                $base = $this->money((float) $studentAmount + (float) $discount);
+                $discountCents = $this->moneyCents($discount, 'Invalid USOC entity amount');
+                $baseCents = $studentCents + $discountCents;
+                $base = DecimalAmount::format($baseCents);
             } else {
+                $baseCents = $studentCents;
+                $discountCents = 0;
                 $base = $studentAmount;
                 $discount = '0.00';
             }
         }
 
-        if ((float) $discount < 0.0 || (float) $base < (float) $studentAmount) {
-            throw SifException::validation('Invalid USOC discount amount');
+        if (
+            $discountCents < 0
+            || $baseCents < $studentCents
+            || ($baseCents - $discountCents) !== $studentCents
+        ) {
+            throw SifException::validation(
+                'USOC base, discount and student amount do not reconcile'
+            );
         }
 
         return [
@@ -278,18 +304,31 @@ final class LegacyUsocInvoicePayloadBuilder
         return $relation;
     }
 
-    private function studentMetadata(array $snapshot, string $studentAmount): array
-    {
+    private function studentMetadata(
+        array $snapshot,
+        string $studentAmount,
+        string $entityAmount
+    ): array {
         $usoc = $snapshot['usoc'] ?? [];
         if (!is_array($usoc)) {
             $usoc = [];
+        }
+
+        $snapshotEntity = $this->optional($usoc, ['entity_amount', 'ENTITY_AMOUNT']);
+        if ($snapshotEntity !== null && $snapshotEntity !== '') {
+            $snapshotEntity = $this->money($snapshotEntity);
+            if ($snapshotEntity !== $entityAmount) {
+                throw SifException::conflict(
+                    'USOC snapshot entity amount does not match invoice discount'
+                );
+            }
         }
 
         return [
             'tipus_desc' => 4,
             'valid_desc' => 1,
             'student_amount' => $studentAmount,
-            'entity_amount' => $this->optionalString($usoc, ['entity_amount', 'ENTITY_AMOUNT']),
+            'entity_amount' => $entityAmount,
         ];
     }
 
@@ -300,10 +339,25 @@ final class LegacyUsocInvoicePayloadBuilder
             $usoc = [];
         }
 
+        $snapshotEntity = $this->optional($usoc, ['entity_amount', 'ENTITY_AMOUNT']);
+        if ($snapshotEntity !== null && $snapshotEntity !== '') {
+            $snapshotEntity = $this->money($snapshotEntity);
+            if ($snapshotEntity !== $amount) {
+                throw SifException::conflict(
+                    'USOC snapshot entity amount does not match entity invoice amount'
+                );
+            }
+        }
+
+        $snapshotStudent = $this->optional($usoc, ['student_amount', 'STUDENT_AMOUNT']);
+        $studentAmount = $snapshotStudent === null || $snapshotStudent === ''
+            ? null
+            : $this->money($snapshotStudent);
+
         return [
             'tipus_desc' => 4,
             'valid_desc' => 1,
-            'student_amount' => $this->optionalString($usoc, ['student_amount', 'STUDENT_AMOUNT']),
+            'student_amount' => $studentAmount,
             'entity_amount' => $amount,
             'student_invoice_uuid' => $studentInvoiceUuid,
         ];
@@ -382,7 +436,7 @@ final class LegacyUsocInvoicePayloadBuilder
     private function positiveMoney(mixed $value, string $message): string
     {
         $amount = $this->money($value);
-        if ((float) $amount <= 0.0) {
+        if ($this->moneyCents($amount, $message) <= 0) {
             throw SifException::validation($message);
         }
 
@@ -391,11 +445,20 @@ final class LegacyUsocInvoicePayloadBuilder
 
     private function money(mixed $value): string
     {
-        if (!is_numeric($value)) {
+        try {
+            return DecimalAmount::normalize($value);
+        } catch (\InvalidArgumentException) {
             throw SifException::validation('Invalid money amount');
         }
+    }
 
-        return number_format((float) $value, 2, '.', '');
+    private function moneyCents(mixed $value, string $message): int
+    {
+        try {
+            return DecimalAmount::cents($value);
+        } catch (\InvalidArgumentException) {
+            throw SifException::validation($message);
+        }
     }
 
     private function requiredArray(array $data, string $key): array

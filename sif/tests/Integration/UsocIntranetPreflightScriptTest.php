@@ -35,6 +35,7 @@ final class UsocIntranetPreflightScriptTest
         Assert::stringContainsString('SIF_USOC_READ_ROLES', $script);
         Assert::stringContainsString('SIF_USOC_MANAGE_ROLES', $script);
         Assert::stringContainsString('SIF_LEGACY_DB_DSN', $script);
+        Assert::stringContainsString('preflight-sif-usoc-runtime.php', $script);
 
         Assert::stringContainsString('$ok = !in_array(false, $checks, true);', $script);
     }

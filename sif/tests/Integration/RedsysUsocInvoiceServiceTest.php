@@ -26,6 +26,23 @@ final class RedsysUsocInvoiceServiceTest
         Assert::same('Invalid Redsys USOC entity amount snapshot', $exception->getMessage());
     }
 
+    public function testSnapshotEntryRejectsMoreThanTwoEntityDecimalsInsteadOfRounding(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $notifications = new RedsysNotificationRepository();
+        $service = $this->service($notifications, $sifDb);
+
+        Assert::throws(SifException::class, static function () use ($sifDb, $service): void {
+            $service->issueFromIntentSnapshot(
+                $sifDb,
+                'ORDERUSOCDECIMALS',
+                ['usoc' => ['entity_amount' => '25.005']]
+            );
+        }, 422);
+
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
     public function testIssuesStudentInvoiceAndPaymentFromValidatedNotification(): void
     {
         $sifDb = TestDatabase::fresh();

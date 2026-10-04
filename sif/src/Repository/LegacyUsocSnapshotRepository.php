@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Repository;
 
+use Prisma\Sif\Domain\DecimalAmount;
 use Prisma\Sif\Exception\SifException;
 
 final class LegacyUsocSnapshotRepository
@@ -127,15 +128,16 @@ final class LegacyUsocSnapshotRepository
 
     private function positiveMoney(mixed $value, string $message): string
     {
-        if (!is_numeric($value)) {
+        try {
+            $cents = DecimalAmount::cents($value);
+        } catch (\InvalidArgumentException) {
             throw SifException::validation($message);
         }
 
-        $amount = (float) $value;
-        if ($amount <= 0.0) {
+        if ($cents <= 0) {
             throw SifException::validation($message);
         }
 
-        return number_format($amount, 2, '.', '');
+        return DecimalAmount::format($cents);
     }
 }

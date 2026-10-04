@@ -8,6 +8,11 @@
         allowLegacyClick: false
     };
 
+    function isValidatedUsoc() {
+        return String($('#tipusDesc-registre').text() || '').trim() === '4'
+            && String($('#validDesc-registre').text() || '').trim() === '1';
+    }
+
     function normalizedMoney(value) {
         var text = String(value == null ? '' : value).trim().replace(',', '.');
         if (!/^\d+(?:\.\d{1,2})?$/.test(text)) {
@@ -334,6 +339,10 @@
 
         if (state.allowLegacyClick) {
             state.allowLegacyClick = false;
+            return;
+        }
+
+        if (isValidatedUsoc()) {
             return;
         }
 

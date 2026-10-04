@@ -211,6 +211,69 @@ final class LegacyUsocInvoicePayloadBuilderTest
         Assert::same('27.00', $payload['usoc']['entity_amount']);
     }
 
+    public function testRejectsMoreThanTwoDecimalPlacesInsteadOfRounding(): void
+    {
+        $snapshot = $this->usocSnapshot();
+        $snapshot['usoc']['student_amount'] = '75.005';
+        $snapshot['payment']['amount'] = '75.005';
+
+        Assert::throws(SifException::class, function () use ($snapshot): void {
+            (new LegacyUsocInvoicePayloadBuilder())->buildStudentPayload($snapshot);
+        }, 422);
+    }
+
+    public function testRejectsBaseDiscountThatDoesNotReconcileWithStudentAmount(): void
+    {
+        $snapshot = $this->usocSnapshot();
+        $snapshot['inscription']['IMPORT_BASE'] = '100.00';
+        $snapshot['inscription']['DESC_IMPORT'] = '24.99';
+
+        $exception = Assert::throws(SifException::class, function () use ($snapshot): void {
+            (new LegacyUsocInvoicePayloadBuilder())->buildStudentPayload($snapshot);
+        }, 422);
+
+        Assert::same(
+            'USOC base, discount and student amount do not reconcile',
+            $exception->getMessage()
+        );
+    }
+
+    public function testRejectsSnapshotEntityAmountThatDiffersFromInvoiceDiscount(): void
+    {
+        $snapshot = $this->usocSnapshot();
+        $snapshot['usoc']['entity_amount'] = '24.99';
+
+        $exception = Assert::throws(SifException::class, function () use ($snapshot): void {
+            (new LegacyUsocInvoicePayloadBuilder())->buildStudentPayload($snapshot);
+        }, 409);
+
+        Assert::same(
+            'USOC snapshot entity amount does not match invoice discount',
+            $exception->getMessage()
+        );
+    }
+
+    public function testRejectsEntityInvoiceAmountThatDiffersFromSnapshotEntityAmount(): void
+    {
+        $snapshot = $this->usocSnapshot();
+
+        $exception = Assert::throws(SifException::class, function () use ($snapshot): void {
+            (new LegacyUsocInvoicePayloadBuilder())->buildEntityPayload($snapshot, [
+                'billing' => [
+                    'name' => 'USOC',
+                    'nif' => 'G00000000',
+                ],
+                'amount' => '24.99',
+                'student_invoice_uuid' => '11111111-2222-3333-4444-555555555555',
+            ]);
+        }, 409);
+
+        Assert::same(
+            'USOC snapshot entity amount does not match entity invoice amount',
+            $exception->getMessage()
+        );
+    }
+
     public function testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined(): void
     {
         $snapshot = $this->usocSnapshot();
