@@ -44,9 +44,15 @@ final class AeatEvidenceReconciliationServiceTest
         $requestXml = (new XmlCodec())->request($payload['aeat']);
         $responseXml = AeatFixtures::response($payload['aeat'], 'Correcto');
 
-        [$dir, $evidenceId] = $this->createEvidence($requestXml, $responseXml);
+        $attemptUuid = 'cccccccc-dddd-4eee-8fff-000000000001';
+        [$dir, $evidenceId] = $this->createEvidence(
+            $requestXml,
+            $responseXml,
+            $attemptUuid,
+            (string) $queue['UUID_FACTURA'],
+            (int) $payload['fiscal_order']
+        );
         try {
-            $attemptUuid = 'cccccccc-dddd-4eee-8fff-000000000001';
             $db->exec("UPDATE fiscal_queue SET STATUS = 'REVIEW', LAST_ERROR = 'uncertain delivery'");
             $db->prepare(
                 "INSERT INTO aeat_submission_attempt
@@ -138,9 +144,15 @@ final class AeatEvidenceReconciliationServiceTest
         $requestXml = (new XmlCodec())->request($payload['aeat']);
         $responseXml = AeatFixtures::response($payload['aeat'], 'Correcto');
 
-        [$dir, $evidenceId] = $this->createEvidence('<different-request/>', $responseXml);
+        $attemptUuid = 'dddddddd-eeee-4fff-8000-000000000002';
+        [$dir, $evidenceId] = $this->createEvidence(
+            '<different-request/>',
+            $responseXml,
+            $attemptUuid,
+            (string) $queue['UUID_FACTURA'],
+            (int) $payload['fiscal_order']
+        );
         try {
-            $attemptUuid = 'dddddddd-eeee-4fff-8000-000000000002';
             $db->exec("UPDATE fiscal_queue SET STATUS = 'REVIEW'");
             $db->prepare(
                 "INSERT INTO aeat_submission_attempt
@@ -193,9 +205,15 @@ final class AeatEvidenceReconciliationServiceTest
         $requestXml = (new XmlCodec())->request($payload['aeat']);
         $responseXml = AeatFixtures::response($payload['aeat'], 'Correcto');
 
-        [$dir, $evidenceId] = $this->createEvidence($requestXml, $responseXml);
+        $attemptUuid = 'eeeeeeee-ffff-4000-8111-000000000003';
+        [$dir, $evidenceId] = $this->createEvidence(
+            $requestXml,
+            $responseXml,
+            $attemptUuid,
+            (string) $queue['UUID_FACTURA'],
+            (int) $payload['fiscal_order']
+        );
         try {
-            $attemptUuid = 'eeeeeeee-ffff-4000-8111-000000000003';
             $db->exec("UPDATE fiscal_queue SET STATUS = 'REVIEW'");
             $db->prepare(
                 "INSERT INTO aeat_submission_attempt
@@ -246,9 +264,16 @@ final class AeatEvidenceReconciliationServiceTest
         $requestXml = (new XmlCodec())->request($payload['aeat']);
         $responseXml = AeatFixtures::response($payload['aeat'], 'Correcto');
 
-        [$dir, $evidenceId] = $this->createEvidence($requestXml, $responseXml, 503);
+        $attemptUuid = 'ffffffff-0000-4111-8222-000000000004';
+        [$dir, $evidenceId] = $this->createEvidence(
+            $requestXml,
+            $responseXml,
+            $attemptUuid,
+            (string) $queue['UUID_FACTURA'],
+            (int) $payload['fiscal_order'],
+            503
+        );
         try {
-            $attemptUuid = 'ffffffff-0000-4111-8222-000000000004';
             $db->exec("UPDATE fiscal_queue SET STATUS = 'REVIEW'");
             $db->prepare(
                 "INSERT INTO aeat_submission_attempt
@@ -292,13 +317,21 @@ final class AeatEvidenceReconciliationServiceTest
     private function createEvidence(
         string $requestXml,
         string $responseXml,
+        string $attemptUuid,
+        string $uuidFactura,
+        int $fiscalOrder,
         int $httpStatus = 200
     ): array
     {
         $dir = sys_get_temp_dir() . '/aeat-evidence-reconcile-' . bin2hex(random_bytes(12));
         mkdir($dir, 0700);
         $store = new EvidenceStore($dir);
-        $id = $store->begin($requestXml, ['environment' => 'offline-test']);
+        $id = $store->begin($requestXml, [
+            'environment' => 'offline-test',
+            'submission_attempt_uuid' => $attemptUuid,
+            'uuid_factura' => $uuidFactura,
+            'fiscal_order' => $fiscalOrder,
+        ]);
         $store->response($id, $responseXml, $httpStatus);
 
         return [$dir, $id];
