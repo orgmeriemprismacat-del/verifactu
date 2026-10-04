@@ -52,10 +52,10 @@ final class PackDeploymentParityBoundaryTest
             "'https://sis-t.redsys.es:25443/sis/realizarPago'",
             "\$producto = 'Pack P' . (string) \$validatedPackCheckout['pack_id']",
             "\$redsysTitular = trim(\$nomTitularPag)",
-            '\$urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php";',
-            '\$urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php";',
+            '$urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php";',
+            '$urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php";',
             "if ( \$tipusInsc == 'P' )",
-            '\$url = \$packCallbackUrl;',
+            '$url = $packCallbackUrl;',
         ];
 
         foreach ($paths as $path) {
@@ -85,11 +85,11 @@ final class PackDeploymentParityBoundaryTest
             }
 
             Assert::stringContainsString(
-                '\$urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php";',
+                '$urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php";',
                 $source
             );
             Assert::stringContainsString(
-                '\$urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php";',
+                '$urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php";',
                 $source
             );
         }
