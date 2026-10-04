@@ -97,7 +97,7 @@ Aquests checks són **estàtics**. La marca `[x]` no acredita navegador, BD, sto
 - [ ] AL-17 llegat: 2+ pàgines, fletxes esquerra/dreta funcionals.
 - [ ] AL-18 llegat: download POST inicia un únic PDF sense `ReferenceError`.
 - [ ] Confirmar que no es carrega cap `alumnes-*-sif.js` duplicat a Network/DevTools.
-- [ ] Confirmar cache-busting dels assets 1.3/1.9 en preproducció.
+- [ ] Confirmar cache-busting dels assets 1.4/2.0 en preproducció.
 
 ### Evidència CI del PR #135
 
@@ -136,11 +136,11 @@ El primer run del PR ha executat i aprovat `Uc007IntranetBoundaryTest`, `Invoice
 ## 9. Aïllament dev/pre/prod — 2026-10-04
 
 - [x] JS UC-007 usa `window.location.origin + "/ajax/"`.
-- [x] La pàgina de factures carrega `/js/alumnes-factura.js?ver=1.3`.
-- [x] La fitxa alumne carrega `/js/alumnes-mostrar-alumne.js?ver=1.9`.
+- [x] La pàgina de factures carrega `/js/alumnes-factura.js?ver=1.4`.
+- [x] La fitxa alumne carrega `/js/alumnes-mostrar-alumne.js?ver=2.0`.
 - [x] Boundary test impedeix hardcode de `https://intranet.prisma.cat/ajax/`.
 - [ ] A `intranet-pre.prisma.cat`, Network ha de mostrar totes les crides UC-007 contra `intranet-pre.prisma.cat`, mai contra producció.
-- [ ] Confirmar que els assets 1.3/1.9 existeixen realment al document root de preproducció abans d'activar flags.
+- [ ] Confirmar que els assets 1.4/2.0 existeixen realment al document root de preproducció abans d'activar flags.
 
 ## 10. F02 · comodins de cerca llegada — 2026-10-04
 
