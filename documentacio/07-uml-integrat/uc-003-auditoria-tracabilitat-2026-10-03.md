@@ -124,7 +124,7 @@ Si falla, el cas es tracta com conflicte funcional i deriva a `INCIDENT`.
 ### UC03-FIX-03 — factura UC-004 prèvia + cobrament Redsys
 
 **Problema:** una clau idempotent Redsys no reutilitza una factura UC-004 emesa amb una altra clau.  
-**Correcció:** nou `RedsysCoveredInvoicePaymentService`, precondició transaccional de `PaymentService`, guard específic de `InvoiceService` i lock compartit per origen a `fact_rels`. El ledger CURS accepta ara pagaments parcials contra una factura completa existent, mantenint una sola factura fiscal. L'estat de factura parcial canònic és `PARTIAL`; `PARTIALLY_PAID` queda restringit a la projecció de sincronització llegada.
+**Correcció:** nou `RedsysCoveredInvoicePaymentService`, precondició transaccional de `PaymentService`, guard específic de `InvoiceService` i mutex persistent compartit `invoice_origin_guard` per `(SOURCE_TYPE,SOURCE_ID)`. `fact_rels` continua aportant la relació fiscal/origen, però la mutual exclusion ja no depèn de gap locks ni del nivell d'aïllament de MySQL. Els orígens es deduplicen i ordenen abans de bloquejar-se. El ledger CURS accepta ara pagaments parcials contra una factura completa existent, mantenint una sola factura fiscal. L'estat de factura parcial canònic és `PARTIAL`; `PARTIALLY_PAID` queda restringit a la projecció de sincronització llegada. El resolver, a més, exigeix `CHARGE/REDSYS/REDSYS`, `PAYMENT|REDSYS|ORDER:<DS_ORDER>`, `provider_ref=DS_ORDER`, IDPAG/import coincidents amb snapshot i `movement_date` determinista.
 
 ## 6. Proves
 
@@ -135,7 +135,7 @@ Si falla, el cas es tracta com conflicte funcional i deriva a `INCIDENT`.
 - `RedsysCallbackTest`: duplicat, contradicció, amount mismatch, IDPAG extern, payload normalitzat, cèntims i denegació;
 - `RedsysCallbackWorkerTest`: processament, retry, incidències, rollback, redacció, stale locks i intents màxims.
 
-### Afegides 03/10
+### Afegides 03/10–04/10
 
 1. `testIncompleteSuccessfulResultBecomesIncident`
    - processor retorna `ok=true` però sense `uuid_payment`;
@@ -157,7 +157,7 @@ Per tant, el hardening UC-003 d'aquest PR queda **VERIFICAT EN PROVES ESPECÍFIQ
 
 ### P0 — abans de rollout d'escenaris afectats
 
-**GAP-003-P0-01 · factura fiscal preexistent — IMPLEMENTAT A BRANCA / CI PENDENT.**  
+**GAP-003-P0-01 · factura fiscal preexistent — IMPLEMENTAT I ENDURIT A BRANCA / CI DEL HEAD PENDENT.**  
 Per CURS amb cobertura UC-004, `RedsysCoveredInvoicePaymentService`:
 - resol `invoice_before_payment_coverage` per `INSCRIPCIO`;
 - valida factura `ISSUED`, `EMESA_ABANS_COBRAMENT=1`, total contractual i línia única;
@@ -165,7 +165,10 @@ Per CURS amb cobertura UC-004, `RedsysCoveredInvoicePaymentService`:
 - comprova saldo pendent sota lock i rebutja sobrepagament;
 - suporta 50+70 sobre una factura de 120 sense nova emissió;
 - deixa el guard de cobertura fora del payload/hash fiscal per compatibilitat amb reintents antics;
-- serialitza UC-004 i Redsys sobre l'origen indexat de `fact_rels`; UC-004 fa rollback si ja hi ha factura Redsys `ISSUED`.
+- valida de forma autònoma la identitat del cobrament (`DS_ORDER`, idempotency key, provider_ref, IDPAG, import i semàntica CHARGE/REDSYS/REDSYS);
+- exigeix `movement_date` determinista;
+- serialitza UC-004 i Redsys sobre `invoice_origin_guard`, amb adquisició canònica de locks, i després revalida cobertura/`fact_rels`; UC-004 fa rollback si ja hi ha factura Redsys `ISSUED`;
+- inclou prova de dues connexions MySQL a `READ COMMITTED` perquè la garantia no depengui de gap locks.
 La generalització a altres variants continua sent una decisió específica de cada UC.
 
 ### P0 restant
