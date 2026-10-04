@@ -224,7 +224,7 @@ requestMain.done(function( message ) {
 								esValidBankEvent = "Els cobraments TPV s'han de registrar pel flux Redsys, no com a transferència manual.";
 							}
 							else if ( externalBankEventId == '' ) {
-								esValidBankEvent = "Cal indicar l'ID únic del moviment bancari abans de confirmar la transferència.";
+								esValidBankEvent = "Cal copiar l'identificador únic de l'operació que consta a l'extracte o export bancari.";
 							}
 						}
 
@@ -500,7 +500,7 @@ requestMain.done(function( message ) {
 			var bankHeader = header.find('th').filter(function() {
 				return $(this).text().trim().toUpperCase() == 'BANC';
 			}).first();
-			bankHeader.after("<th class='sif-bank-event-header' style='width: 14%'>ID MOVIMENT BANCARI</th>");
+			bankHeader.after("<th class='sif-bank-event-header' style='width: 14%'>ID OPERACIÓ SEGONS BANC</th>");
 		}
 
 		$('#resultats-cerca table tbody tr').each(function() {
@@ -516,7 +516,7 @@ requestMain.done(function( message ) {
 				bankCell.after(
 					"<td id='bank-event-cell-"+idTipus+"'>" +
 					"<input id='bank-event-"+idTipus+"' type='text' class='form-control text-center' " +
-					"maxlength='80' autocomplete='off' placeholder='ID operació bancària' />" +
+					"maxlength='80' autocomplete='off' placeholder='ID únic de l\'extracte bancari' />" +
 					"</td>"
 				);
 			}
