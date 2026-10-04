@@ -113,6 +113,10 @@ El preflight comprova:
 - `entitats` i `entitats_resp`;
 - endpoint i serveis UC-022 carregables.
 
+## 3.3. Política d'identitat bancària
+
+Abans de T01, aplicar `uc-022-politica-identitat-bancaria.md`: l'ID ha de provenir de l'extracte/detall/export del banc i no pot ser un identificador sintètic construït amb dades internes.
+
 ## 4. Dataset controlat
 
 Utilitzar una factura de prova:
