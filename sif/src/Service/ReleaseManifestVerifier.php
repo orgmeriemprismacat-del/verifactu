@@ -37,6 +37,11 @@ final class ReleaseManifestVerifier
             throw SifException::validation('Release manifest must contain a file hash map');
         }
 
+        $declaredArtifactHash = strtolower(trim((string) ($manifest['artifact_hash'] ?? '')));
+        if (preg_match('/^[0-9a-f]{64}$/D', $declaredArtifactHash) !== 1) {
+            throw SifException::validation('Release manifest artifact hash is missing or invalid');
+        }
+
         ksort($files, SORT_STRING);
         $verified = [];
         $mismatches = [];
@@ -84,10 +89,14 @@ final class ReleaseManifestVerifier
             $files,
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
         );
+        $artifactHash = hash('sha256', $artifactJson);
+        if (!hash_equals($declaredArtifactHash, $artifactHash)) {
+            $mismatches['manifest:artifact_hash'] = 'ARTIFACT_HASH_MISMATCH';
+        }
 
         return [
             'ok' => $mismatches === [],
-            'artifact_hash' => hash('sha256', $artifactJson),
+            'artifact_hash' => $artifactHash,
             'file_count' => count($files),
             'verified_count' => count($verified),
             'mismatches' => $mismatches,
