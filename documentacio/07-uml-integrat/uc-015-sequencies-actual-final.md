@@ -276,7 +276,7 @@ end
 - Checkout → intenció SIF: implementat.
 - Ledger per inscripció: implementat i cablejat al worker.
 - Outbox: implementat i cablejat al worker.
-- Codi/doc intern UC-015: tancat, inclosa la frontera pública configurable. El PR #149 acredita els boundaries actuals amb **971 passed / 0 failed** i s'ha afegit un gate selectiu UC-015. Pendent d'acceptació: executar el verificador/PK-01..PK-11 en preproducció i acreditar el transport/cutover real de l'outbox PACK.
+- Codi/doc intern UC-015: reconciliat, inclosa la frontera de confirmació v2. El PR #149 acredita el **baseline anterior** amb 971/0; el nou codi SEC-015-01 del PR #171 té tests específics però CI pendent. Després cal executar el verificador/PK-01..PK-11 + PK-A04b en preproducció i acreditar el transport/cutover real de l'outbox PACK.
 
 
 ## 7. Reconciliació 2026-10-04
