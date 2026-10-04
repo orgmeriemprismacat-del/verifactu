@@ -123,6 +123,12 @@ El bridge exigeix `POST`, sessió vàlida, `LegacyInvoiceMutationAuthorization::
 
 Els mètodes llegats actualitzen camps de reclamació i creen directament `MailSMTPComvive`. No s'ha acreditat outbox transaccional. Una incidència SMTP pot deixar estat de negoci i comunicació sense una correlació robusta.
 
+### F-024-09B — Factura amb múltiples inscripcions d’origen — BLOQUEIG EXPLÍCIT
+
+La projecció UC-024 actualitza una única fila `inscripcions`. `ClaimPaymentInvoiceLinkRepository` comprova que la factura tingui exactament una relació `INSCRIPCIO/ORIGIN`. Si en té més d’una, retorna conflicte en lloc de repartir implícitament l’import.
+
+**Conseqüència:** packs, grups o factures agregades amb múltiples inscripcions necessiten un flux de repartiment explícit i no queden coberts per aquesta mutació individual.
+
 ### F-024-10 — Errors/bugs llegats localitzats i corregits en aquesta branca — RESOLT A BRANCA
 
 - S’ha eliminat de `facturacio-recordatori-pagament-final.js` el handler mort `#upd-baixes → confirmaReclamacio()`; el flux útil continua a `#confirma-reclamacio → confirmaRecordatori()`.
