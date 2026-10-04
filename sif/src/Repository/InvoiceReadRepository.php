@@ -165,7 +165,7 @@ final class InvoiceReadRepository
             throw SifException::validation('At least one invoice search criterion is required');
         }
 
-        $limit = max(1, min(100, $limit));
+        $limit = max(1, min(101, $limit));
         $sql = 'SELECT f.*
                 FROM factura f
                 WHERE ' . implode(' AND ', $where) . '

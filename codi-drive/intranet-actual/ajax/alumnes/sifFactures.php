@@ -76,6 +76,14 @@ try {
         );
 
         $matchStatus = (int) ($matches['_http_status'] ?? 200);
+        if ($matchStatus < 400 && ($matches['has_more'] ?? false) === true) {
+            http_response_code(422);
+            echo json_encode([
+                'ok' => false,
+                'error' => 'Massa factures coincideixen amb aquesta inscripció; cal revisar-ne les relacions',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
         if ($matchStatus >= 400) {
             $response = $matches;
         } else {
@@ -199,17 +207,17 @@ function enrollmentIdsByIdentity(string $document, string $email): array
 
         if ($document !== '' && $email !== '') {
             $stmt = $connection->prepare(
-                'SELECT ID FROM inscripcions WHERE DNI = ? AND CORREU = ? ORDER BY ID DESC LIMIT 200'
+                'SELECT ID FROM inscripcions WHERE DNI = ? AND CORREU = ? ORDER BY ID DESC LIMIT 201'
             );
             $stmt->bind_param('ss', $document, $email);
         } elseif ($document !== '') {
             $stmt = $connection->prepare(
-                'SELECT ID FROM inscripcions WHERE DNI = ? ORDER BY ID DESC LIMIT 200'
+                'SELECT ID FROM inscripcions WHERE DNI = ? ORDER BY ID DESC LIMIT 201'
             );
             $stmt->bind_param('s', $document);
         } elseif ($email !== '') {
             $stmt = $connection->prepare(
-                'SELECT ID FROM inscripcions WHERE CORREU = ? ORDER BY ID DESC LIMIT 200'
+                'SELECT ID FROM inscripcions WHERE CORREU = ? ORDER BY ID DESC LIMIT 201'
             );
             $stmt->bind_param('s', $email);
         } else {
@@ -222,6 +230,13 @@ function enrollmentIdsByIdentity(string $document, string $email): array
 
         while ($stmt->fetch()) {
             $ids[(int) $id] = true;
+            if (count($ids) > 200) {
+                $connection->closeStmt();
+                throw new InvalidArgumentException(
+                    'Massa inscripcions coincideixen amb la identitat; afegeix un filtre més específic',
+                    422
+                );
+            }
         }
 
         $connection->closeStmt();
@@ -238,11 +253,15 @@ function mergeInvoiceSearchResponses(array $responses, int $limit): array
 {
     $merged = [];
     $status = 200;
+    $hasMore = false;
 
     foreach ($responses as $response) {
         $responseStatus = (int) ($response['_http_status'] ?? 200);
         if ($responseStatus >= 400) {
             return $response;
+        }
+        if (($response['has_more'] ?? false) === true) {
+            $hasMore = true;
         }
 
         foreach (($response['results'] ?? []) as $invoice) {
@@ -273,12 +292,16 @@ function mergeInvoiceSearchResponses(array $responses, int $limit): array
     });
 
     $limit = max(1, min(100, $limit));
+    if (count($results) > $limit) {
+        $hasMore = true;
+    }
     $results = array_slice($results, 0, $limit);
 
     return [
         'ok' => true,
         'results' => $results,
         'count' => count($results),
+        'has_more' => $hasMore,
         '_http_status' => $status,
     ];
 }

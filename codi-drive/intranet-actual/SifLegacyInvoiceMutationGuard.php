@@ -215,9 +215,15 @@ final class SifLegacyInvoiceMutationGuard
 
     private function enabled(): bool
     {
-        return filter_var(
+        $mutationBlock = filter_var(
             getenv('SIF_BLOCK_LEGACY_INVOICE_MUTATIONS') ?: '0',
             FILTER_VALIDATE_BOOLEAN
         );
+        $uc007ReadBoundary = filter_var(
+            getenv('SIF_UC007_QUERY_ENABLED') ?: '0',
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        return $mutationBlock || $uc007ReadBoundary;
     }
 }

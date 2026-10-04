@@ -2,6 +2,7 @@
 
 $root = dirname(__DIR__, 2);
 require_once $root . '/LegacyInvoiceReadContext.php';
+require_once $root . '/LegacyInvoiceMutationAuthorization.php';
 
 $user = null;
 $intranet = null;
@@ -9,10 +10,23 @@ $intranet = null;
 try {
     [$user, $intranet] = LegacyInvoiceReadContext::open();
 
-    $dni = (string) ($_GET['dni'] ?? '');
-    $email = (string) ($_GET['email'] ?? '');
-    $factRel = (string) ($_GET['factRel'] ?? '');
-    $factNum = (string) ($_GET['factNum'] ?? '');
+    $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    if (!in_array($method, ['GET', 'POST'], true)) {
+        throw new RuntimeException('Mètode no permès', 405);
+    }
+    if ($method === 'POST') {
+        LegacyInvoiceMutationAuthorization::assertSameOrigin();
+    }
+    $request = $method === 'POST' ? $_POST : $_GET;
+
+    $dni = (string) ($request['dni'] ?? '');
+    $email = (string) ($request['email'] ?? '');
+    $factRel = (string) ($request['factRel'] ?? '');
+    $factNum = (string) ($request['factNum'] ?? '');
+
+    if (strlen($dni) > 64 || strlen($email) > 190 || strlen($factRel) > 40 || strlen($factNum) > 40) {
+        throw new InvalidArgumentException('Criteri de cerca massa llarg', 422);
+    }
 
     echo $intranet->buscarUsuaris_Factures($dni, $email, $factRel, $factNum);
 } catch (Throwable $exception) {

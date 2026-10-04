@@ -106,6 +106,72 @@ final class InvoiceQueryServiceTest
         Assert::same(0, $deniedSearch['count']);
     }
 
+    public function testSearchByEnrollmentSourceIdsCanReturnMultipleInvoicesAndCombinesCriteriaWithAnd(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+
+        $first = $service->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'QUERY|ENROLLMENT|FIRST',
+            'relations' => [[
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 10,
+                'factura_relacionada' => 501,
+                'idpag' => 201,
+                'ds_order' => 'QUERYENR001',
+                'visible_alumne' => 1,
+            ]],
+        ]));
+        $second = $service->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'QUERY|ENROLLMENT|SECOND',
+            'relations' => [[
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 10,
+                'factura_relacionada' => 502,
+                'idpag' => 202,
+                'ds_order' => 'QUERYENR002',
+                'visible_alumne' => 1,
+            ]],
+        ]));
+
+        $query = new InvoiceQueryService($db, new InvoiceReadRepository(), $this->allowAllPolicy());
+        $all = $query->search(
+            ['actor_id' => 'operator-test'],
+            ['source_type' => 'INSCRIPCIO', 'source_ids' => [10]]
+        );
+        $one = $query->search(
+            ['actor_id' => 'operator-test'],
+            [
+                'source_type' => 'INSCRIPCIO',
+                'source_ids' => [10],
+                'num_visible' => $first['num_visible'],
+            ]
+        );
+        $none = $query->search(
+            ['actor_id' => 'operator-test'],
+            ['source_type' => 'INSCRIPCIO', 'source_ids' => [999]]
+        );
+        $limited = $query->search(
+            ['actor_id' => 'operator-test'],
+            ['source_type' => 'INSCRIPCIO', 'source_ids' => [10]],
+            1
+        );
+
+        Assert::same(2, $all['count']);
+        Assert::same(false, $all['has_more']);
+        Assert::same(
+            [$second['uuid_factura'], $first['uuid_factura']],
+            array_column($all['results'], 'uuid_factura')
+        );
+        Assert::same(1, $one['count']);
+        Assert::same($first['uuid_factura'], $one['results'][0]['uuid_factura']);
+        Assert::same(false, $one['has_more']);
+        Assert::same(0, $none['count']);
+        Assert::same(false, $none['has_more']);
+        Assert::same(1, $limited['count']);
+        Assert::same(true, $limited['has_more']);
+    }
+
     public function testViewKeepsPaymentsAndRectificationAsSeparateRelations(): void
     {
         $db = TestDatabase::fresh();
@@ -195,6 +261,33 @@ final class InvoiceQueryServiceTest
             static fn () => $service->search(
                 ['actor_id' => 'operator-test'],
                 ['factura_relacionada' => '500 OR 1=1']
+            ),
+            422
+        );
+
+        Assert::throws(
+            SifException::class,
+            static fn () => $service->search(
+                ['actor_id' => 'operator-test'],
+                ['source_ids' => [10]]
+            ),
+            422
+        );
+
+        Assert::throws(
+            SifException::class,
+            static fn () => $service->search(
+                ['actor_id' => 'operator-test'],
+                ['source_type' => 'INSCRIPCIO']
+            ),
+            422
+        );
+
+        Assert::throws(
+            SifException::class,
+            static fn () => $service->search(
+                ['actor_id' => 'operator-test'],
+                ['unexpected' => 'value']
             ),
             422
         );

@@ -3,6 +3,7 @@
 $root = dirname(__DIR__, 2);
 require_once $root . '/Date.php';
 require_once $root . '/LegacyInvoiceReadContext.php';
+require_once $root . '/LegacyInvoiceMutationAuthorization.php';
 
 $user = null;
 $intranet = null;
@@ -10,8 +11,21 @@ $intranet = null;
 try {
     [$user, $intranet] = LegacyInvoiceReadContext::open();
 
-    $dni = (string) ($_GET['dni'] ?? '');
-    $cercaPer = (string) ($_GET['cercaPer'] ?? '');
+    $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    if (!in_array($method, ['GET', 'POST'], true)) {
+        throw new RuntimeException('Mètode no permès', 405);
+    }
+    if ($method === 'POST') {
+        LegacyInvoiceMutationAuthorization::assertSameOrigin();
+    }
+    $request = $method === 'POST' ? $_POST : $_GET;
+
+    $dni = (string) ($request['dni'] ?? '');
+    $cercaPer = (string) ($request['cercaPer'] ?? '');
+
+    if (strlen($dni) > 64 || strlen($cercaPer) > 1000) {
+        throw new InvalidArgumentException('Paràmetre de consulta massa llarg', 422);
+    }
 
     echo $intranet->mostrarTotesFacturesUsuari_Factures($dni, $cercaPer);
 } catch (Throwable $exception) {

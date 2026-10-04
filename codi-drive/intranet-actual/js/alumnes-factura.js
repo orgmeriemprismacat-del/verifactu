@@ -1,6 +1,6 @@
 let urlPagina = window.location.pathname.split('?')[0];
 let veureUnaFactura = "";
-let path = "https://intranet.prisma.cat/ajax/";
+let path = window.location.origin + "/ajax/";
 let uc007SearchGeneration = 0;
 let uc007SifSearchRequest = null;
 let uc007LegacySearchRequest = null;
@@ -13,6 +13,15 @@ if ( window.location.hash.split('#')[1]) {
 	hashUrl = window.location.hash.split('#')[1].split('/')[2];
 }
 
+/* Compatibilitat amb enllaços previs ?uuid_factura=...; el format canònic és #/uuid/... */
+if ((hashUrl == null || hashUrl === '') && typeof URLSearchParams !== 'undefined') {
+	var queryUuid = new URLSearchParams(window.location.search).get('uuid_factura');
+	if (queryUuid) {
+		tipusCerca = 'uuid';
+		hashUrl = queryUuid;
+	}
+}
+
 /* Cada vegada que es faci una crida d'un ajax, s'executarà la funció mostrarModalLoading().
 Cada vegada que finalitza la crida d'un ajax, s'executarà la funció amagarLoadingModal(). */
 // $(document).bind("ajaxSend", function(){
@@ -23,7 +32,7 @@ Cada vegada que finalitza la crida d'un ajax, s'executarà la funció amagarLoad
 
 /* Consulta el codi del main */
 var requestMain = $.ajax({
-	url: "https://intranet.prisma.cat/ajax/mostrarMain.php",
+	url: path + "mostrarMain.php",
 	method: "GET",
 	data: { url : urlPagina },
 	dataType: "html"
@@ -260,7 +269,7 @@ window.uc007SifSearch = function(params) {
 			return;
 		}
 
-		uc007RenderResultatsSif(res.results, params.cercaPer);
+		uc007RenderResultatsSif(res.results, params.cercaPer, res.has_more === true);
 	});
 
 	request.fail(function(jqXHR, textStatus) {
@@ -284,7 +293,7 @@ function cercarFacturesLlegat(dni, email, factRel, factNum, generation) {
 
 	var request = $.ajax({
 		url: path + "alumnes/consultaUsuarisFacturaRelacionada.php",
-		method: "GET",
+		method: "POST",
 		data: {
 			dni : dni,
 			email : email,
@@ -345,10 +354,15 @@ function cercarFacturesLlegat(dni, email, factRel, factNum, generation) {
 	});
 }
 
-function uc007RenderResultatsSif(resultats, titol) {
+function uc007RenderResultatsSif(resultats, titol, hasMore) {
 	var html = '<div class="apartat uc007-sif-results">';
 	html += '<div class="apartat-header"><strong>' + uc007EscapeHtml(titol) + '</strong>';
 	html += ' <span class="label label-info">SIF · només lectura</span></div>';
+	if (hasMore === true) {
+		html += '<div class="alert alert-warning mt-2" role="alert">';
+		html += 'La cerca té més resultats dels que es poden mostrar. Afegeix algun filtre per veure un conjunt complet.';
+		html += '</div>';
+	}
 	html += '<div class="table-responsive"><table class="table table-hover">';
 	html += '<thead><tr><th>Factura</th><th>Data</th><th>Receptor</th><th>Total</th><th>Factura</th><th>Cobrament</th><th>AEAT</th><th></th></tr></thead><tbody>';
 
@@ -604,7 +618,7 @@ function mostraLlistatUsuaris(dnies, orderby, asc) {
 
 	var request = $.ajax({
 		url: path + "alumnes/mostrarTaulaUsuaris2.php",
-		method: "GET",
+		method: "POST",
 		data: {
 			dnies : dnies,
 			orderBy : orderby,
@@ -646,7 +660,7 @@ function mostraLlistatUsuaris(dnies, orderby, asc) {
 function cercarUSuari(dniUser) {
 	var request = $.ajax({
 		url: path + "alumnes/mostrarTotesFacturesUsuari_Factures.php",
-		method: "GET",
+		method: "POST",
 		data: {
 			dni : dniUser,
 			cercaPer : cercaPer
@@ -863,7 +877,7 @@ function mostrarModalConsultaInformacio( id ) {
 							htmlMsgError += "<i class='material-icons'>close</i></button>";
 							htmlMsgError += missatgeError + "</div>";
 
-							$('#modalConsultaInformacio #dades-factura').append(htmlMsgError);
+							$('#modalAnulaFactura #dades-factura').append(htmlMsgError);
 						}
 					}
 				}
@@ -944,15 +958,10 @@ function mostrarModalAnulaFactura( id ) {
 			$("#modalAnulaFactura").modal('show');
 
 			$('#modalAnulaFactura').on('click', '.confirma-baixa', function() {
-				console.log('confirma baixa');
 				let idAnul = $('#id-anula-fact').html().trim();
 				let tornarAnul = $('#import-anula-fact').val().trim();
 				let dataAnul = $('#data-pag-anula-fact').val().trim();
 				let obsAnul = $('#obs-anula-fact').val().trim();
-				console.log('idAnul ' + idAnul);
-				console.log('tornarAnul ' + tornarAnul);
-				console.log('dataAnul ' + dataAnul);
-				console.log('obsAnul ' + obsAnul);
 
 				if ( !campBuit(tornarAnul) && !campBuit(dataAnul) && validNumero(tornarAnul)
 				&& validData(dataAnul) ) {
@@ -1017,7 +1026,6 @@ function mostrarModalAnulaFactura( id ) {
 
 						$('#modalConsultaInformacio #dades-factura').append(htmlMsgError);
 					}
-					console.log(missatgeError);
 				}
 
 			});
@@ -1059,50 +1067,24 @@ function mostrarModalPrevisualitzaFactura( id ) {
 			var nclick = 0;
 
 			$('.download-factura').on('click', function() {
-				if ( tePermisEdicio ) {
-					$("#modalPrevisualizaFactura").modal('hide');
-					var idFact = $('#modalPrevisualizaFactura #factura-relacionada-fact').html().trim();
-					var requestDown = $.ajax({
-						url: path + "alumnes/descarregaFactura.php",
-						method: "POST",
-						data: { id : idFact },
-						dataType: "html"
-					});
-
-					requestDown.done(function( resD ) {
-
-						resD = $.trim(resD);
-						if (resD !== '' && !resD.toLowerCase().includes("error")) {
-							var link = document.createElement('a');
-							link.setAttribute("id", "download-fact-" + nclick);
-							link.href = path + "alumnes/" + encodeURIComponent(resD);
-							link.download = resD;
-							document.body.appendChild(link);
-							link.click();
-							link.remove();
-
-							afegirHeaderModalSuccess("Descarregada");
-							afegirTextModalSuccess("S'ha iniciat la descàrrega de la factura");
-							mostrarModalSuccess();
-							nclick++;
-						}
-						else {
-							afegirHeaderModalError("Hi ha hagut un error al generar la descarrega");
-							afegirTextModalError('');
-							mostrarModalError();
-							reloadUrl();
-						}
-					});
-
-					requestDown.fail(function( jqXHRDown, textStatusDown, errorThrownDown ) {
-						errorFunction( jqXHRDown, textStatusDown, errorThrownDown,
-							"Hi ha hagut algun error a l'hora de descarregar la factura: " );
-					});
-				}
-				else {
-				   mostrarModalNoTensPermisos();
-				}
-
+				/* UC-007: la descàrrega és una operació de lectura.
+				   El backend revalida sessió, ROLS_VISUALITZAR, origen i guard SIF. */
+				$("#modalPrevisualizaFactura").modal('hide');
+				var idFact = $('#modalPrevisualizaFactura #factura-relacionada-fact').html().trim();
+				uc007DescarregarFacturaLlegada(
+					idFact,
+					function() {
+						afegirHeaderModalSuccess("Descarregada");
+						afegirTextModalSuccess("S'ha iniciat la descàrrega de la factura");
+						mostrarModalSuccess();
+						nclick++;
+					},
+					function(message) {
+						afegirHeaderModalError("Hi ha hagut un error al generar la descarrega");
+						afegirTextModalError(message || '');
+						mostrarModalError();
+					}
+				);
 			});
 
 			if ($('#factura-num-pagines')) {
@@ -1143,5 +1125,58 @@ function mostrarModalPrevisualitzaFactura( id ) {
 	request.fail(function( jqXHR, textStatus, errorThrown ) {
 		errorFunction( jqXHR, textStatus, errorThrown,
 			"Hi ha hagut algun error al mostrar el modal de previsualitzar la factura: " );
+	});
+}
+
+
+function uc007DescarregarFacturaLlegada(idFactura, onSuccess, onError) {
+	if (typeof fetch !== 'function') {
+		if (typeof onError === 'function')
+			onError("El navegador no permet la descàrrega segura de la factura");
+		return;
+	}
+
+	fetch(path + "alumnes/descarregaFactura.php", {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+			"X-Requested-With": "XMLHttpRequest"
+		},
+		body: "id=" + encodeURIComponent(idFactura)
+	})
+	.then(function(response) {
+		if (!response.ok) {
+			return response.text().then(function(message) {
+				throw new Error((message || "No s'ha pogut descarregar la factura").replace(/^Error:\s*/i, ""));
+			});
+		}
+
+		var disposition = response.headers.get("Content-Disposition") || "";
+		var match = disposition.match(/filename="?([^";]+)"?/i);
+		var filename = match ? match[1] : "factura.pdf";
+
+		return response.blob().then(function(blob) {
+			return { blob: blob, filename: filename };
+		});
+	})
+	.then(function(result) {
+		var objectUrl = URL.createObjectURL(result.blob);
+		var link = document.createElement("a");
+		link.href = objectUrl;
+		link.download = result.filename;
+		document.body.appendChild(link);
+		link.click();
+		link.remove();
+		setTimeout(function() {
+			URL.revokeObjectURL(objectUrl);
+		}, 1000);
+
+		if (typeof onSuccess === 'function')
+			onSuccess(result.filename);
+	})
+	.catch(function(error) {
+		if (typeof onError === 'function')
+			onError(error.message || "No s'ha pogut descarregar la factura");
 	});
 }

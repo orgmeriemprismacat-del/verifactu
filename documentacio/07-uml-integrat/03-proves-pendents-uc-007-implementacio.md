@@ -57,19 +57,103 @@
 
 ## 5. Documents — UC-080
 
-- [ ] READY + bytes/hash correctes → stream exacte.
-- [ ] Metadata sense bytes → unavailable.
-- [ ] Hash incorrecte → denegació + incidència.
-- [ ] Actor/grant/token revocat → denegació.
+- [x] READY/CREATED + bytes/hash correctes → stream exacte en test d'integració amb storage temporal.
+- [x] Metadata amb fitxer absent → unavailable (503) + audit `STORAGE_UNAVAILABLE` en test d'integració.
+- [x] Hash incorrecte → conflicte fail-closed (409) + audit `HASH_MISMATCH` en test d'integració.
+- [x] Scope `MINIMAL`/sense `FULL` → denegació 403 + audit `INVOICE_SCOPE` en test d'integració. Revocació runtime de rol/token continua pendent.
 - [ ] Original i rectificativa → dos documents independents.
 - [ ] Històric original vs reconstruït correctament etiquetat.
 - [ ] Cap document fiscal immutable passa per `eliminarArxiu.php`.
 - [ ] PDF/XML/QR mantenen MIME i extensió correctes.
 - [ ] Proxy intranet sense `X-Requested-With`/origen vàlid → denegació.
-- [ ] `fiscal_document_access` registra ALLOWED/DENIED/FAILED sense path ni secret.
+- [x] `fiscal_document_access` registra ALLOWED/DENIED/FAILED en test d'integració; validació runtime amb identitats/rols reals continua pendent.
 
 ## 6. Llegat pendent de regressió
 
 Conservar les proves LEG-UC007 documentades a l'[auditoria detallada](02-auditoria-detallada-uc-007-consultar-factura-estat-document-2026-09-29.md): F01 rols pare/fill, F02 warnings/wildcards/volum/concurrència, F03 CIF/delimitadors, F04 JOIN/ordenació, F05 agrupació/escaping/affectedRows, F06 original+R, F07 doble GET/fitxer/nom, AL-17 multipàgina i AL-18 cleanup.
 
 **Estat:** PENDENT / AJORNAT. No bloqueja continuar desenvolupant, però sí bloqueja marcar UC-007 com a IMPLEMENTAT I PROVAT.
+
+
+## 7. Revalidació d'asset executable — afegit 2026-10-03
+
+### Verificació estàtica incorporada al runner
+
+- [x] La pàgina `alumnes-factura.php` queda amb una sola implementació UC-007 carregada.
+- [x] La pàgina `alumnes-mostrar-alumne.php` deixa d'executar el minificat 1.6 obsolet.
+- [x] El JS canònic de factura resol `#/uuid/<UUID>` i compatibilitat `?uuid_factura=<UUID>`.
+- [x] El fallback del modal no torna a substituir el DOM després de registrar les fletxes.
+- [x] El font canònic no usa `resD.toLowerCase()` al fallback de factura.
+- [x] Existeix `sif/tests/Integration/Uc007IntranetBoundaryTest.php`.
+- [x] Existeix `sif/tests/Integration/InvoiceDocumentAccessServiceTest.php` per integritat/hash/storage/auditoria UC-080.
+
+Aquests checks són **estàtics**. La marca `[x]` no acredita navegador, BD, storage ni servidor desplegat.
+
+### Runtime/E2E que s'ha d'afegir a la passada de preproducció
+
+- [ ] AL-16: clic al número de factura SIF → `#/uuid/<UUID>` → detall correcte.
+- [ ] AL-17: modal SIF amb 1 factura.
+- [ ] AL-17: selector amb múltiples factures per una inscripció.
+- [ ] AL-17 llegat: 2+ pàgines, fletxes esquerra/dreta funcionals.
+- [ ] AL-18 llegat: download POST inicia un únic PDF sense `ReferenceError`.
+- [ ] Confirmar que no es carrega cap `alumnes-*-sif.js` duplicat a Network/DevTools.
+- [ ] Confirmar cache-busting dels assets 1.4/2.0 en preproducció.
+
+### Evidència CI del PR #135
+
+El primer run del PR ha executat i aprovat `Uc007IntranetBoundaryTest`, `InvoiceQueryServiceTest`, `ResolvedInvoiceVisibilityPolicyTest`, `InternalApiAuthenticatorTest`, `InvoiceQueryScriptTest` i `DocumentsAndIncidentsTest`. La suite global continua vermella per 6 fallades alienes a UC-007 (PACK/Redsys), ja presents al `main` base. El nou `InvoiceDocumentAccessServiceTest` s'ha afegit després d'aquest run i queda pendent del següent resultat CI.
+
+
+## 8. F07 — zero mutació en descàrrega llegada
+
+- [x] `generaFactura(..., true)` ja no executa `updGeneratFactura`.
+- [x] La descàrrega llegada continua generant només el PDF temporal necessari per al fallback.
+- [x] El navegador no exigeix `tePermisEdicio` per una acció de lectura; el backend conserva autorització de consulta.
+- [x] Existeix regressió automatitzada `testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState`.
+- [ ] Executar aquesta regressió al CI del head final.
+- [ ] Verificar en preproducció que N previsualitzacions/descàrregues no alteren `generada` ni cap altre camp de negoci.
+
+
+## 8. Regressió F07-L — marcador `generada`
+
+- [x] El wrapper UC-007 crida `generaFactura(..., true, false)`.
+- [x] La signatura manté `$marcaGenerada = true` per compatibilitat amb altres fluxos.
+- [x] L'UPDATE `updGeneratFactura` queda condicionat per `$marcaGenerada`.
+- [ ] En preproducció: descarregar una factura llegada amb `generada IS NULL` i comprovar abans/després que el camp continua `NULL`.
+
+
+## 8. Contracte binari de descàrrega llegada — 2026-10-04
+
+- [x] Backend respon `Content-Type: application/pdf`.
+- [x] Backend respon `Content-Disposition: attachment` i elimina el temporal abans de finalitzar.
+- [x] `alumnes-factura.js` consumeix la resposta com a `Blob`, no com a HTML/filename.
+- [x] `alumnes-mostrar-alumne.js` consumeix la resposta com a `Blob`, no com a HTML/filename.
+- [x] El navegador crea una URL temporal amb `URL.createObjectURL()` i la revoca.
+- [x] La prova de frontera impedeix reintroduir `dataType: "html"` en aquest contracte.
+- [ ] E2E navegador real: confirmar que el PDF s'obre/descarrega amb nom correcte a preproducció.
+
+
+## 9. Aïllament dev/pre/prod — 2026-10-04
+
+- [x] JS UC-007 usa `window.location.origin + "/ajax/"`.
+- [x] La pàgina de factures carrega `/js/alumnes-factura.js?ver=1.4`.
+- [x] La fitxa alumne carrega `/js/alumnes-mostrar-alumne.js?ver=2.0`.
+- [x] Boundary test impedeix hardcode de `https://intranet.prisma.cat/ajax/`.
+- [ ] A `intranet-pre.prisma.cat`, Network ha de mostrar totes les crides UC-007 contra `intranet-pre.prisma.cat`, mai contra producció.
+- [ ] Confirmar que els assets 1.4/2.0 existeixen realment al document root de preproducció abans d'activar flags.
+
+## 10. F02 · comodins de cerca llegada — 2026-10-04
+
+- [x] `%` introduït per l'usuari s'escapa com a literal.
+- [x] `_` introduït per l'usuari s'escapa com a literal.
+- [x] SQL declara `ESCAPE '='` a les consultes UC-007 amb `LIKE`.
+- [x] El `%` exterior afegit pel sistema continua permetent cerca parcial.
+- [ ] Regressió amb dades reals que continguin `%`, `_` i `=` en camps històrics.
+
+## 11. F07 · concurrència de PDF temporal — 2026-10-04
+
+- [x] Cada petició crea un subdirectori privat aleatori.
+- [x] El PDF ha de resoldre dins del subdirectori de la mateixa petició.
+- [x] Cleanup d'èxit elimina PDF i subdirectori abans de respondre.
+- [x] `finally` intenta cleanup també quan hi ha excepció.
+- [ ] Preproducció: dues descàrregues simultànies de la mateixa factura han de retornar dos PDFs correctes sense 404/500 ni temporals residuals.

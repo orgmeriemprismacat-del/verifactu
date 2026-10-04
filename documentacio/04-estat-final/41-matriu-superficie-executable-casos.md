@@ -111,3 +111,20 @@ Una fila només passarà a `CLOSED` quan s'acrediti:
 
 Fins a completar aquest control, el sistema continua `NO-GO` i el recompte de
 142 fitxes no és una declaració de completitud.
+
+
+## Revalidació específica UC-007 — consolidació 2026-10-04
+
+Referència canònica: `07-uml-integrat/06-auditoria-final-uc-007-2026-10-04.md`.
+
+| Superfície executable | Estat abans revalidació | UC | Frontera FINAL | Estat consolidat |
+| --- | --- | --- | --- | --- |
+| `alumnes-factura.php` + `js/alumnes-factura.js` | `PARTIAL` amb dos JS SIF | UC-007 | una sola UI read-only → bridge SIF | asset canònic 1.1; deep link UUID; hardening F02–F07 |
+| `alumnes-mostrar-alumne.php` + JS | `GAP EXECUTABLE`: minificat 1.6 obsolet | UC-007 | font canònic AL-16/17/18 | asset 1.7; doble implementació eliminada |
+| `ajax/alumnes/sifFactures.php` | `IMPLEMENTED` | UC-007 | sessió vigent → actor/rol → HMAC → query | implementat; rols/flags reals pendents |
+| `ajax/alumnes/sifDocument.php` | `PARTIAL` | UC-007/080 | proxy bytes per `document_id` | implementat; storage real pendent |
+| `InvoiceDocumentAccessService` + store/audit | no tenia prova dedicada | UC-080 | FULL + root/hash + audit | test d'integració afegit; CI head final pendent |
+| wrappers F02–F04 llegats | GET amb PII i límits sobretot client | UC-007 fallback | desaparèixer | camí UC-007 passa a POST + same-origin + límits; GET compatible temporal |
+| `SifLegacyInvoiceMutationGuard.php` | governat només pel flag de mutació | UC-007 fallback | cap bypass de factura SIF | actiu també quan `SIF_UC007_QUERY_ENABLED=1` |
+| `Intranet::generaFactura` | preview/PDF amb valors crus i download mutava `generada` | UC-007 fallback | només representació temporal read-only | valors escapats; UC-007 usa `marcaGenerada=false` |
+| `descarregaFactura.php` | fallback temporal | UC-007 F07/AL-18 | UC-080 | POST + same-origin + read permission + guard; no muta `generada` |
