@@ -19,7 +19,7 @@ UC-024 disposa ara d’una implementació funcional completa en branca darrere f
 | Actor/auditoria transversal de la mutació | Sí | Sí | Sí: `PaymentActionGateway` + `payment_action_event` + `SYNC_LEGACY` | No | PARCIAL |
 | Pantalles de reclamació → ClaimPaymentService | Sí | Sí, bridge + JS feature-flagged | Sí | No | PARCIAL |
 | Autorització de mutació + CSRF | Sí | Sí al bridge nou | Sí: POST, Same-Origin/AJAX, CSRF, permís d’edició, HMAC intern | No | PARCIAL |
-| Outbox per correus | Sí, objectiu | No en les pantalles llegades | Sí: SMTP síncron | No | PENDENT |
+| Outbox per correus | UC-12/UC-43, no requisit de persistència econòmica UC-024 | No en les pantalles llegades | Sí: SMTP síncron | No | FORA D'ABAST UC-024 |
 | Proves unitàries/integració SIF | Sí | Sí | Sí, fitxers presents | pendent d'execució sobre el commit d'aquesta branca | PARCIAL |
 
 ## 2. Inventari real localitzat
