@@ -29,11 +29,12 @@ participant API as POST /api/factures/rectify.php
 participant H as InternalApiAuthenticator
 participant R as InternalRectificationScopeResolver
 participant CMD as RectificationCommandService
+participant R74 as FiscalCorrectionDecisionResolver
 participant G as FiscalCorrectionDecisionGuard
 participant B as ManualRectificationPayloadBuilder
 participant A as SifAuditEventRepository
 participant DB as SIF DB
-C->>API: action=preview + correction + classification
+C->>API: action=preview + correction + classification_event_uuid
 API->>H: HMAC + timestamp + request_id + replay
 H->>DB: claim internal_api_request
 H-->>API: actor autenticat
@@ -176,6 +177,6 @@ X-->>MAP: snapshot AEAT immutable
 ## 7. Garanties i pendents
 
 - **Implementat:** HMAC/replay, rol server-side, preview/confirm, fingerprint doble, `FOR UPDATE`, idempotència, audit terminal dins del COMMIT.
-- **No confiar en el navegador:** el client no pot declarar unilateralment `source_uc=UC-74`; la classificació FINAL ha de néixer al servidor.
+- **No confiar en el navegador:** l'endpoint UC-005 no accepta una classificació inline com a autoritat; exigeix `classification_event_uuid` i resol la decisió persistida a `sif_audit_event`.
 - **Implementat al protocol AEAT:** validació local de `TipoRectificativa=S|I`; S exigeix `ImporteRectificacion`, I el rebutja.
 - **Pendent:** classificador UC-74 executable, mapper AEAT rectificatiu complet, proxy sessió/CSRF, document E2E, concurrència real i preproducció.
