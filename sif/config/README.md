@@ -152,3 +152,10 @@ UC-010 és **fail-closed**. Cap versió queda activable fins que el runtime obse
 7. Cap activació UC-010 modifica factures, registres fiscals, pagaments ni cues històriques.
 
 El fingerprint de configuració persisteix només el SHA-256 final, no la configuració canònica. La política sobre si la rotació de secrets ha de canviar aquest fingerprint queda subjecta a revisió de seguretat abans de producció.
+
+
+### Evidència UC-010 post-activació
+
+- `php sif/scripts/verify-version-governance-evidence.php UUID_VERSION`: verificació read-only de la versió activa, singleton, journal, declaració física, runtime, backup gate i traces audit/operational.
+- En `SIF_ENV=production` queda bloquejada per defecte; només es pot habilitar explícitament amb `SIF_UC010_EVIDENCE_ALLOW_PRODUCTION=1`.
+- La sortida sempre inclou `production_authorized=false`: l'evidència tècnica no substitueix una decisió de go-live.
