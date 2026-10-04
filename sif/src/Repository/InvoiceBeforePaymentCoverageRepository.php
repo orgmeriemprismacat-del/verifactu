@@ -10,10 +10,13 @@ final class InvoiceBeforePaymentCoverageRepository
         \PDO $db,
         array $relations,
         string $uuidFactura,
-        string $idempotencyKey
+        string $idempotencyKey,
+        bool $originAlreadyLocked = false
     ): void {
         $origins = $this->inscriptionOrigins($relations);
-        $linkedInvoices = $this->lockOriginInvoiceRelations($db, $relations);
+        $linkedInvoices = $originAlreadyLocked
+            ? $this->lockedOriginInvoiceRelations($db, $origins)
+            : $this->lockOriginInvoiceRelations($db, $relations);
 
         foreach ($linkedInvoices as $linkedInvoice) {
             if ((string) $linkedInvoice['UUID_FACTURA'] === $uuidFactura) {
@@ -81,6 +84,11 @@ final class InvoiceBeforePaymentCoverageRepository
             $guard->execute([$sourceId]);
         }
 
+        return $this->lockedOriginInvoiceRelations($db, $origins);
+    }
+
+    private function lockedOriginInvoiceRelations(\PDO $db, array $origins): array
+    {
         $placeholders = implode(',', array_fill(0, count($origins), '?'));
 
         $stmt = $db->prepare(
