@@ -69,6 +69,19 @@ final class SifVersionServiceTest
                 409
             );
 
+            Assert::throws(
+                SifException::class,
+                fn () => $service->attachDeclaration(
+                    $actor,
+                    $uuid,
+                    $this->operation('DECL-AFTER-ACTIVE', 'DECLARATION_APPROVAL') + [
+                        'declaration_version' => 'v2',
+                        'storage_key' => 'declaracio-v1.pdf',
+                    ]
+                ),
+                409
+            );
+
             $state = $db->query('SELECT * FROM sif_version_state WHERE ID = 1')->fetch(\PDO::FETCH_ASSOC);
             Assert::same($uuid, $state['ACTIVE_UUID_VERSION']);
             Assert::same('1', (string) $state['LOCK_VERSION']);
