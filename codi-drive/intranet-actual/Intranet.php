@@ -10745,8 +10745,9 @@ class Intranet
  				<th style='width: 7%'>PAGAT</th>
  				<th style='width: 8%'>PAGAMENT</th>
  				<th style='width: 15%'>DATA PAG</th>
- 				<th style='width: 12%'>BANC</th>
- 				<th style='width: 15%'>OBSERVACIONS</th>
+ 				<th style='width: 10%'>BANC</th>
+ 				<th style='width: 10%'>REFERÈNCIA</th>
+ 				<th style='width: 13%'>OBSERVACIONS</th>
  				<th style='width: 9%'>FRACCIO</th>
  				<th style='width: 3%'>ACCIONS</th>
  			</tr>";
@@ -10837,6 +10838,7 @@ class Intranet
  					".$pagamentTD."
  					<td>".$this->__mostrarInput(3, '', '', '', 'dataPag-'.$idCercat, 'text-center dataPag', '')."</td>
  					<td>".$banc."</td>
+ 					<td>".$this->__mostrarInput(2, '', '', '', 'reference-".$idCercat."', 'text-center payment-reference', '')."</td>
  					<td id='pagObs-".$idCercat."'>".$obs."</td>
  					<td id='fraccio-".$idCercat."'>".$textFrac."</td>
  					<td><i id='upd-insc-".$idCercat."' class='material-icons upd-inscripcio pointer'>check_circle</i></td>
@@ -10844,6 +10846,7 @@ class Intranet
  					<td id='tipus-".$idCercat."' class='d-none'>".$tipusI."</td>
  					<td id='efact-".$idCercat."' class='d-none'>".$efact."</td>
  					<td id='numFact-".$idCercat."' class='d-none'>".$numFact."</td>
+ 					<td id='idInsc-".$idCercat."' class='d-none'>".$id."</td>
  				</tr>";
  			}
  			$mostrar .= "</tbody></table></div>
