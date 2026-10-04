@@ -95,6 +95,9 @@ function parseCreditCompensationArgs(array $args): array
     foreach ([
         'notes' => ['--notes=', '--obs=', '--observations='],
         'allocation_type' => ['--allocation-type='],
+        'target_enrollment_id' => ['--target-enrollment-id=', '--id-insc-dest=', '--id-insc-desti='],
+        'correlation_id' => ['--correlation-id='],
+        'uuid_operation' => ['--uuid-operation='],
     ] as $key => $prefixes) {
         $value = optionValue($args, $prefixes);
         if ($value !== null) {
@@ -177,7 +180,7 @@ function usage(string $script): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/{$script}-credit-compensation.php --uuid-credit=UUID (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE [--notes=TEXT]\n"
+        "Usage: php sif/scripts/{$script}-credit-compensation.php --uuid-credit=UUID (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE [--notes=TEXT] [--target-enrollment-id=ID] [--correlation-id=ID] [--uuid-operation=UUID]\n"
     );
     exit(1);
 }
