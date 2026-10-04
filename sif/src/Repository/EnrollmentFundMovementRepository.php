@@ -255,6 +255,97 @@ final class EnrollmentFundMovementRepository
         return $this->result($created, false);
     }
 
+    public function attributedBalanceForEnrollment(
+        \PDO $db,
+        int $idInsc,
+        ?string $uuidFactura = null
+    ): string {
+        if ($idInsc <= 0) {
+            throw SifException::validation('Invalid enrollment ID for fund balance');
+        }
+
+        $invoiceFilter = '';
+        if ($uuidFactura !== null && trim($uuidFactura) !== '') {
+            $invoiceFilter = ' AND COALESCE(m.UUID_FACTURA, reversed.UUID_FACTURA) = ?';
+        }
+
+        $stmt = $db->prepare(
+            "SELECT COALESCE(SUM(
+                CASE
+                    WHEN m.MOVEMENT_TYPE IN ('EXTERNAL_ALLOCATION', 'COMPENSATION_ALLOCATION')
+                         AND m.ID_INSC_DESTI = ? THEN m.IMPORT
+                    WHEN m.MOVEMENT_TYPE = 'INTERNAL_TRANSFER'
+                         AND m.ID_INSC_DESTI = ? THEN m.IMPORT
+                    WHEN m.MOVEMENT_TYPE = 'INTERNAL_TRANSFER'
+                         AND m.ID_INSC_ORIGEN = ? THEN -m.IMPORT
+                    WHEN m.MOVEMENT_TYPE = 'REVERSAL'
+                         AND reversed.ID_INSC_DESTI = ? THEN -reversed.IMPORT
+                    WHEN m.MOVEMENT_TYPE = 'REVERSAL'
+                         AND reversed.ID_INSC_ORIGEN = ? THEN reversed.IMPORT
+                    ELSE 0
+                END
+             ), 0)
+             FROM enrollment_fund_movement m
+             LEFT JOIN enrollment_fund_movement reversed
+               ON reversed.UUID_MOVEMENT = m.REVERSES_UUID_MOVEMENT
+             WHERE (
+                m.ID_INSC_DESTI = ?
+                OR m.ID_INSC_ORIGEN = ?
+                OR reversed.ID_INSC_DESTI = ?
+                OR reversed.ID_INSC_ORIGEN = ?
+             ){$invoiceFilter}"
+        );
+
+        $baseParams = [
+            $idInsc,
+            $idInsc,
+            $idInsc,
+            $idInsc,
+            $idInsc,
+            $idInsc,
+            $idInsc,
+            $idInsc,
+            $idInsc,
+        ];
+        if ($uuidFactura !== null && trim($uuidFactura) !== '') {
+            $baseParams[] = trim($uuidFactura);
+        }
+        $stmt->execute($baseParams);
+
+        return $this->money($stmt->fetchColumn() ?: '0.00');
+    }
+
+    public function movementsForEnrollment(
+        \PDO $db,
+        int $idInsc,
+        ?string $uuidFactura = null
+    ): array {
+        if ($idInsc <= 0) {
+            throw SifException::validation('Invalid enrollment ID for fund movements');
+        }
+
+        $sql =
+            'SELECT UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
+                    UUID_PAYMENT, UUID_FACTURA, ID_FACTURA_LINIA,
+                    ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
+                    UUID_OPERATION, CORRELATION_ID, REVERSES_UUID_MOVEMENT,
+                    NOTES, CREATED_AT
+             FROM enrollment_fund_movement
+             WHERE (ID_INSC_ORIGEN = ? OR ID_INSC_DESTI = ?)';
+        $params = [$idInsc, $idInsc];
+
+        if ($uuidFactura !== null && trim($uuidFactura) !== '') {
+            $sql .= ' AND UUID_FACTURA = ?';
+            $params[] = trim($uuidFactura);
+        }
+
+        $sql .= ' ORDER BY CREATED_AT, ORDRE, ID';
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
     public function findByIdempotencyKey(
         \PDO $db,
         string $key,
