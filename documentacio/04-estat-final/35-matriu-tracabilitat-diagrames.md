@@ -131,21 +131,22 @@ La taula `redsys_callback_queue` només és present a la branca `feature/redsys-
 
 Les 192 files de `03-canvis-pendents/12-matriu-pantalles-abans-despres.md` es conserven com a catàleg individual. El document 33, apartat 22, en demostra la suma per 12 famílies disjuntes: 35 factura/document, 32 consulta/visibilitat, 28 panell SIF, 25 pendents de validar, 16 Redsys/TPV, 14 operacions administratives, 12 comunicacions, 9 URL/estat web, 8 cobraments legacy, 6 descomptes, 4 morositat i 3 factura abans de cobrar.
 
-## 6.2. Traçabilitat dedicada UC-007 — revalidació 2026-10-03
+## 6.2. Traçabilitat dedicada UC-007 — consolidació 2026-10-04
 
 La família genèrica de consulta es concreta ara amb un paquet 1:1 per UC-007:
 
 | Peça | Referència |
 | --- | --- |
 | Fitxa funcional | `06-fitxes-funcionals/uc-007.md` |
-| Auditoria revalidada | `07-uml-integrat/04-auditoria-revalidacio-uc-007-2026-10-03.md` |
+| Auditoria final canònica | `07-uml-integrat/06-auditoria-final-uc-007-2026-10-04.md` |
+| Revalidació històrica | `07-uml-integrat/04-auditoria-revalidacio-uc-007-2026-10-03.md` |
 | Inventari PHP/JS | `07-uml-integrat/uc-007-inventari-codi-php-js-actual-final.md` |
 | Classes ACTUAL/FINAL | `07-uml-integrat/uc-007-classes-actual-final.md` |
 | Seqüències ACTUAL/FINAL | `07-uml-integrat/uc-007-sequencies-actual-final.md` |
 | Activitats per pàgina/apartat | `07-uml-integrat/uc-007-activitats-pagines-actual-final.md` |
 | Matriu requisit→codi→prova | `07-uml-integrat/uc-007-tracabilitat-estats-2026-10-03.md` |
 
-L'estat és **implementat en codi / verificació runtime pendent**; no presentar UC-007 com a provat només per l'existència dels diagrames.
+L'estat consolidat és **documentat + implementat en codi + verificació automatitzada parcial; CI del head final i preproducció pendents**. La referència d'estat és l'auditoria final del 2026-10-04, no només l'existència dels diagrames.
 
 ## 7. Peces pendents que els diagrames no han de presentar com a acabades
 
