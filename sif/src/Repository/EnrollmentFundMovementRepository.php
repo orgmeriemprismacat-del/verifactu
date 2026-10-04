@@ -255,6 +255,122 @@ final class EnrollmentFundMovementRepository
         return $this->result($created, false);
     }
 
+    public function insertOrReuseReversal(
+        \PDO $db,
+        array $movement
+    ): array {
+        foreach ([
+            'idempotency_key',
+            'order',
+            'reverses_uuid_movement',
+            'amount',
+            'correlation_id',
+        ] as $field) {
+            if (!array_key_exists($field, $movement)
+                || $movement[$field] === null
+                || $movement[$field] === ''
+            ) {
+                throw SifException::validation('Missing reversal enrollment fund movement field ' . $field);
+            }
+        }
+
+        $key = trim((string) $movement['idempotency_key']);
+        $existing = $this->findByIdempotencyKey($db, $key, true);
+        if ($existing !== null) {
+            $expectedAmount = $this->money($movement['amount']);
+            if ((string) $existing['MOVEMENT_TYPE'] !== 'REVERSAL'
+                || (string) $existing['REVERSES_UUID_MOVEMENT']
+                    !== trim((string) $movement['reverses_uuid_movement'])
+                || $this->money($existing['IMPORT']) !== $expectedAmount
+            ) {
+                throw SifException::conflict(
+                    'Enrollment fund reversal idempotency key already exists with different payload'
+                );
+            }
+            return $this->result($existing, true);
+        }
+
+        $origin = $this->findByUuidMovement(
+            $db,
+            trim((string) $movement['reverses_uuid_movement']),
+            true
+        );
+        if ($origin === null || (string) $origin['MOVEMENT_TYPE'] === 'REVERSAL') {
+            throw SifException::validation('Reversal origin movement not found or invalid');
+        }
+
+        $amount = $this->money($movement['amount']);
+        if ((float) $amount <= 0) {
+            throw SifException::validation('Reversal amount must be positive');
+        }
+
+        $sumStmt = $db->prepare(
+            "SELECT COALESCE(SUM(IMPORT),0)
+             FROM enrollment_fund_movement
+             WHERE MOVEMENT_TYPE='REVERSAL'
+               AND REVERSES_UUID_MOVEMENT=?"
+        );
+        $sumStmt->execute([$origin['UUID_MOVEMENT']]);
+        $alreadyReversed = $this->money($sumStmt->fetchColumn() ?: '0.00');
+        if ((float) $alreadyReversed + (float) $amount > (float) $this->money($origin['IMPORT']) + 0.0001) {
+            throw SifException::conflict('Enrollment fund reversal exceeds original movement amount');
+        }
+
+        $uuid = $this->uuidGenerator->generate();
+        $db->prepare(
+            'INSERT INTO enrollment_fund_movement (
+                UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
+                UUID_PAYMENT, UUID_FACTURA, ID_FACTURA_LINIA,
+                ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
+                UUID_OPERATION, CORRELATION_ID, REVERSES_UUID_MOVEMENT, NOTES
+             ) VALUES (?, ?, \'REVERSAL\', ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?)'
+        )->execute([
+            $uuid,
+            $key,
+            (int) $movement['order'],
+            $this->optionalString($movement['uuid_payment'] ?? null),
+            $this->optionalString($movement['uuid_factura'] ?? ($origin['UUID_FACTURA'] ?? null)),
+            isset($movement['invoice_line_id'])
+                ? (int) $movement['invoice_line_id']
+                : ($origin['ID_FACTURA_LINIA'] ?? null),
+            $amount,
+            strtoupper(trim((string) ($movement['currency'] ?? ($origin['CURRENCY'] ?? 'EUR')))),
+            $this->optionalString($movement['uuid_operation'] ?? null),
+            trim((string) $movement['correlation_id']),
+            (string) $origin['UUID_MOVEMENT'],
+            $this->optionalString($movement['notes'] ?? null),
+        ]);
+
+        $created = $this->findByIdempotencyKey($db, $key, true);
+        if ($created === null) {
+            throw new \RuntimeException('Created enrollment fund reversal could not be loaded');
+        }
+
+        return $this->result($created, false);
+    }
+
+    public function findByUuidMovement(
+        \PDO $db,
+        string $uuidMovement,
+        bool $forUpdate = false
+    ): ?array {
+        $sql =
+            'SELECT UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
+                    UUID_PAYMENT, UUID_FACTURA, ID_FACTURA_LINIA,
+                    ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
+                    UUID_OPERATION, CORRELATION_ID, REVERSES_UUID_MOVEMENT, NOTES
+             FROM enrollment_fund_movement
+             WHERE UUID_MOVEMENT = ?';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+        $stmt = $db->prepare($sql);
+        $stmt->execute([trim($uuidMovement)]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
     public function attributedBalanceForEnrollment(
         \PDO $db,
         int $idInsc,
@@ -279,9 +395,9 @@ final class EnrollmentFundMovementRepository
                     WHEN m.MOVEMENT_TYPE = 'INTERNAL_TRANSFER'
                          AND m.ID_INSC_ORIGEN = ? THEN -m.IMPORT
                     WHEN m.MOVEMENT_TYPE = 'REVERSAL'
-                         AND reversed.ID_INSC_DESTI = ? THEN -reversed.IMPORT
+                         AND reversed.ID_INSC_DESTI = ? THEN -m.IMPORT
                     WHEN m.MOVEMENT_TYPE = 'REVERSAL'
-                         AND reversed.ID_INSC_ORIGEN = ? THEN reversed.IMPORT
+                         AND reversed.ID_INSC_ORIGEN = ? THEN m.IMPORT
                     ELSE 0
                 END
              ), 0)
