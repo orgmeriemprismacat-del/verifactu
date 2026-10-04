@@ -24,7 +24,7 @@
 - Persistència d'intents: `sif/src/Repository/AeatSubmissionAttemptRepository.php`.
 - Fencing de cua: `fiscal_queue.CLAIM_TOKEN`.
 
-## 3. Evidència automàtica
+## 3. Evidència automàtica històrica del tall 2026-09-30
 
 Resultat CI verificat abans del merge:
 - `SIF PHP MySQL tests`: PASS.
@@ -43,7 +43,7 @@ Resultat CI verificat abans del merge:
 - intent AEAT persistit abans de xarxa;
 - `SENT` separat d'`ACCEPTED/ACCEPTED_WITH_ERRORS/REJECTED`;
 - resultat remot incert → `REVIEW`;
-- `UNCERTAIN` no es reconcilia;
+- **[HISTÒRIC 30/09]** `UNCERTAIN` no es reconciliava; des del PR #133 existeix `reconcile_evidence` amb verificació estricta i sense reenviament;
 - reconciliació només amb l'últim intent del mateix job;
 - `REQUEST_HASH` ha de coincidir amb l'XML del snapshot immutable;
 - reconciliació no fa segon SOAP;
@@ -70,3 +70,58 @@ A partir d'aquest punt, qualsevol feina de codi del UC-009 només s'ha de reobri
 4. apareix un requisit funcional nou.
 
 La resta de passos són de desplegament, configuració i evidència d'entorn.
+
+
+## 7. Revalidació posterior — 2026-10-03
+
+Aquesta secció **no altera** l'evidència històrica anterior; documenta que el repositori ha evolucionat.
+
+Tall revalidat: `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`.
+
+Workflow `SIF PHP MySQL tests`, run `37061206441` del 2026-10-02:
+
+- resultat global: **917 passed / 6 failed**;
+- els tests UC-009/AEAT visibles al log passen;
+- les 6 fallades són de PACK/Redsys, no del worker/panell/reconciliació AEAT.
+
+Per tant:
+
+1. el **558/0** d'aquest document continua sent evidència correcta del tall 30/09;
+2. no s'ha d'utilitzar per afirmar que la suite global del `main` actual és verda;
+3. el UC-009 continua tenint evidència automàtica específica favorable dins el run actual;
+4. la branca `audit/uc-009-revalidacio-2026-10-03` amplia cobertura amb contracte del panell, lint/path de CI, preflight de menú i validació UUID estricta;
+5. la cobertura incorporada després d'aquell tall s'ha de valorar amb el workflow dedicat del head vigent de la branca/PR.
+
+No hi ha encara evidència versionada d'un enviament real al servei AEAT de preproducció.
+
+
+## 8. Evidència automàtica posterior — UC-009 dedicat
+
+El workflow dedicat `UC-009 AEAT audit` sobre el head `fd2db79ac6a13df8f3f0524317aa1bcf3af028b2` va finalitzar amb:
+
+- **57 proves passades / 0 fallades**;
+- lint PHP/JS UC-009: PASS;
+- stale worker `PROCESSING → REVIEW`: PASS;
+- flow wait invàlid preservant resultat terminal: PASS;
+- contracte panell/CSRF/HMAC: PASS;
+- reconciliació de resultat terminal guardat: PASS.
+
+La suite global del mateix tall va quedar en **922 passades / 6 fallades**, totes alienes al UC-009 (PACK/Redsys).
+
+### Nova extensió d'evidència 2026-10-04
+
+Després d'aquest PASS s'ha incorporat la conciliació d'intents `UNCERTAIN` des d'evidència privada estructurada. Aquesta extensió té tests nous i **no s'ha de donar per verificada fins que el workflow dedicat del head final torni a PASS**.
+
+
+### Autorització i ownership d'evidència
+
+Després del tall 57/57 s'han incorporat també:
+- preassignació de `EVIDENCE_ID` abans de xarxa i ús obligatori del mateix ID per `SoapTransport`;
+- stale `STARTED → UNCERTAIN` conservant l'evidència;
+- verificació de metadata `submission_attempt_uuid + UUID_FACTURA + FISCAL_ORDER`;
+- rebuig de bundle amb HTTP diferent de 200;
+- gate local de lectura al PHP intranet;
+- mutacions AEAT autoritzades només amb `read && reconcile`;
+- `capabilities.reconcile` per no mostrar mutacions a rols només-lectura.
+
+Aquestes extensions **no substitueixen** l'evidència de preproducció real i només es poden marcar verificades quan el workflow `UC-009 AEAT audit` del head que les conté acaba en PASS.

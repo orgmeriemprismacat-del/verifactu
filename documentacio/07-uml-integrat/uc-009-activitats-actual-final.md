@@ -1,7 +1,7 @@
 # UC-009 · Diagrames d'activitat ACTUAL / FINAL — remetre registre fiscal a AEAT
 
-**Data d'auditoria:** 2026-09-29  
-**Branca:** `audit/uc-009-completar-implementacio-2026-09-29`  
+**Data d'auditoria:** 2026-10-03  
+**Branca:** `audit/uc-009-revalidacio-2026-10-03`  
 **Criteri:** cada superfície executable o prevista queda separada en ACTUAL i FINAL. Quan una pantalla no existeix, l'ACTUAL ho indica explícitament i el FINAL descriu el comportament que s'ha de construir.
 
 ## 1. Mapa de superfícies i apartats
@@ -17,8 +17,8 @@
 | A09-07 | Resultat remot incert | Abans es podia convertir en RETRY | Estat REVIEW, sense reenviament cec |
 | A09-08 | Stale lock / recuperació | Implementat | Claim token invalidat en recuperar |
 | A09-09 | Preflight | Implementat via CLI | També visible des del panell |
-| A09-10 | Panell `/sif/registres-aeat` | No localitzat / no executable | Llista, detall, incidents, intents i evidència |
-| A09-11 | Reconciliació manual | No hi ha UI específica | Acció protegida sobre un intent REVIEW |
+| A09-10 | Panell `/sif-registres-aeat.php` | Implementat a intranet | Mateix contracte + desplegament/rols verificats |
+| A09-11 | Reconciliació manual | Implementada al panell/API | Mantenir acció protegida només sobre intent terminal REVIEW |
 | A09-12 | Producció AEAT | Bloquejada per codi | Activació només després de qualificació i evidència |
 
 ---
@@ -75,7 +75,7 @@ flowchart TD
 
 El `WHERE ID` no acreditava que el procés que completava continués sent propietari del claim.
 
-### FINAL implementat a la branca
+### FINAL implementat a `main`
 
 ```mermaid
 flowchart TD
@@ -196,7 +196,7 @@ flowchart TD
     D --> E[Risc de reenviament cec]
 ```
 
-### FINAL implementat a la branca
+### FINAL implementat a `main`
 
 ```mermaid
 flowchart TD
@@ -210,6 +210,25 @@ flowchart TD
 
 ---
 
+## 8.1. A09-07b · Flow control després d'una resposta remota terminal
+
+### ACTUAL corregit / FINAL
+
+```mermaid
+flowchart TD
+    A[Resultat remot terminal] --> B{flow_wait_seconds vàlid?}
+    B -- Sí --> C[Persistir espera max 60 / valor AEAT]
+    B -- No --> D[Fallback 60 s]
+    D --> E[requires_review=true]
+    C --> F[Retornar resultat terminal]
+    E --> F
+    F --> G[SENT + ESTAT_AEAT terminal]
+    G --> H{requires_review?}
+    H -- Sí --> I[AEAT_REVIEW]
+    H -- No --> J[Finalitzar]
+    I --> K[Cap segon SOAP del mateix registre]
+```
+
 ## 9. A09-08 · Recuperació de stale lock
 
 ### ACTUAL corregit / FINAL
@@ -219,13 +238,16 @@ flowchart TD
     A[PROCESSING antic] --> B{Lock global del worker disponible}
     B -- No --> C[No recuperar]
     B -- Sí --> D[recoverStaleLocks]
-    D --> E[RETRY]
+    D --> E[REVIEW]
     E --> F[LOCKED_AT=NULL]
     F --> G[CLAIM_TOKEN=NULL]
-    G --> H[Nou claim obté token nou]
+    G --> H[NEXT_RETRY_AT=NULL]
+    H --> I[Incidència AEAT_STALE_PROCESSING]
+    I --> J[HEAD_REQUIRES_REVIEW]
+    J --> K[Cap segon SOAP automàtic]
 ```
 
-Un procés antic no pot completar amb el token anterior.
+Un procés antic no pot completar amb el token anterior i, des de la correcció 03/10, tampoc no es crea automàticament un nou intent de xarxa després de recuperar el lock. La sortida segura és `REVIEW`.
 
 ---
 
@@ -251,14 +273,16 @@ El mateix resultat s'ha d'exposar al panell intern en mode lectura, sense revela
 
 ---
 
-## 11. A09-10 · Panell `pay.prisma.cat/sif/registres-aeat`
+## 11. A09-10 · Panell `intranet.prisma.cat/sif-registres-aeat.php`
 
-### ACTUAL implementat a la branca 2026-09-30
+### ACTUAL — baseline + hardening del PR #133
 
 ```mermaid
 flowchart TD
     A[GET /sif-registres-aeat.php] --> B[Sessió intranet]
-    B --> C[Proxy ajax/sif/sifAeat.php]
+    B --> B1{Rol dins SIF_AEAT_READ_ROLES?}
+    B1 -- No --> B2[HTTP 403]
+    B1 -- Sí --> C[Proxy ajax/sif/sifAeat.php]
     C --> D[HMAC servidor-servidor]
     D --> E[/api/aeat/operations.php]
     E --> F[summary / list / detail / preflight]
@@ -307,9 +331,9 @@ No ha de mostrar:
 
 ## 12. A09-11 · Reconciliació de REVIEW
 
-### ACTUAL implementat a la branca 2026-09-30
+### ACTUAL — reconciliació terminal + evidència al PR #133
 
-La UI mostra «Conciliar sense reenviar» només per un job `REVIEW` amb intent terminal remot `ACCEPTED`, `ACCEPTED_WITH_ERRORS` o `REJECTED`. El backend torna a validar el mateix `FISCAL_QUEUE_ID`, bloqueja files amb `FOR UPDATE`, regenera l'XML des del snapshot fiscal immutable i persisteix el resultat original sense cap segon SOAP. Un intent `UNCERTAIN` continua en `REVIEW`.
+La UI mostra la conciliació terminal només per un job `REVIEW` amb intent terminal remot `ACCEPTED`, `ACCEPTED_WITH_ERRORS` o `REJECTED`. El backend torna a validar el mateix `FISCAL_QUEUE_ID`, bloqueja files amb `FOR UPDATE`, regenera l'XML des del snapshot fiscal immutable i persisteix el resultat original sense cap segon SOAP. Un intent `UNCERTAIN` no entra per aquesta acció; pot usar `reconcile_evidence` només si el bundle privat complet i la metadata coincideixen.
 
 ### FINAL
 
@@ -367,14 +391,100 @@ flowchart TD
 | Evidència privada | `EvidenceStore` |
 | Preflight | `AeatPreflight`, `preflight-aeat-worker.php` |
 | Proves | `AeatWorkflowTest`, `FiscalQueueProcessorTest`, tests AEAT unit/integració |
-| Panell | Implementat a la branca 2026-09-30; alta al menú de l'entorn pendent |
+| Panell | Implementat a `main`; alta/configuració del menú de l'entorn pendent |
 
 ## 15. Estat de tancament
 
 - **Documentat:** sí, inclosos ACTUAL/FINAL.
-- **Implementat backend preproducció:** sí, amb fencing, ledger d'intents i REVIEW incorporats a la branca.
+- **Implementat backend preproducció:** sí, amb fencing, ledger d'intents i REVIEW fusionats a `main`.
 - **Panell web:** implementat; alta/configuració del menú de preproducció pendent.
 - **Proves escrites:** sí; ampliades per intents, resultat incert, fencing, consulta operativa i reconciliació REVIEW.
-- **Proves executades en entorn `sif_test*`:** ✅ CI 2026-09-30 — **558 passed, 0 failed**; lint PHP SIF/intranet UC-009 i sintaxi JS correctes.
+- **Proves UC-009 revalidades:** 558/0 (30/09) i 917/6 global (02/10) són evidències històriques. El workflow dedicat del PR va acreditar posteriorment 57/57 UC-009 PASS abans de les extensions d'evidència/autorització; el head final necessita el seu propi PASS.
 - **Enviament AEAT real de preproducció:** pendent d'evidència.
 - **Producció:** no habilitada.
+
+
+## 15.1. A09-12 · Conciliació d'evidència privada
+
+```mermaid
+flowchart TD
+    A[Queue REVIEW] --> B{Últim attempt UNCERTAIN?}
+    B -- No --> Z[No conciliar]
+    B -- Sí --> C{EVIDENCE_ID estructurat?}
+    C -- No --> Z
+    C -- Sí --> D[Verificar parella privada]
+    D --> E{Integritat completa?}
+    E -- No --> Z
+    E -- Sí --> F[Regenerar request des snapshot]
+    F --> G{Byte exact + REQUEST_HASH?}
+    G -- No --> Z
+    G -- Sí --> H[Parsejar response amb ResponseParser]
+    H --> I{Resultat terminal vàlid?}
+    I -- No --> Z
+    I -- Sí --> J[UNCERTAIN -> terminal]
+    J --> K[REVIEW -> SENT]
+    K --> L[Resoldre incidències]
+    L --> M[Operational event]
+    M --> N[Sense segon SOAP]
+```
+
+**No aplica recuperació heurística:** en el worker normal `EVIDENCE_ID` es preassigna abans de xarxa i un stale `STARTED` passa a `UNCERTAIN` conservant-lo. Un `STARTED` legacy/manual sense referència inequívoca no es concilia per heurística i continua `REVIEW`.
+
+## 16. Revalidació per pàgina i apartat — 2026-10-03
+
+| ID | Pàgina/apartat | ACTUAL | FINAL / pendent |
+| --- | --- | --- | --- |
+| P-AEAT-01 | Shell `sif-registres-aeat.php` | sessió + CSRF + estructura panell | desplegar i validar accés real |
+| P-AEAT-02 | Resum | JS `summary` + API + mètriques | conservar projecció sense secrets |
+| P-AEAT-03 | Cua i filtre | JS `list` + filtre STATUS | validar volum/operació a preprod |
+| P-AEAT-04 | Detall registre | JS `detail` + registre/intents/incidències | mantenir separació SENT/ESTAT_AEAT |
+| P-AEAT-05 | Intents | attempt UUID/número/estat/CSV/timestamps | evidència protegida només amb control d'accés |
+| P-AEAT-06 | Reconciliació | CSRF + HMAC + rol + hash + latest attempt | prova controlada en preproducció |
+| P-AEAT-07 | Preflight modal | booleans segurs de `AeatPreflight` | incorporar al checklist release |
+| P-AEAT-08 | Bridge AJAX | POST + sessió; CSRF per mutació | mantenir secrets només servidor |
+| P-AEAT-09 | API operativa | read/reconcile roles fail-closed | configurar rols reals |
+| P-AEAT-10 | Worker CLI | preproduction + `--send-test` | planificació/operació d'entorn |
+| P-AEAT-11 | Menu `apartats` | no acreditat a l'entorn | preflight read-only + alta idempotent |
+| P-AEAT-12 | Producció | bloquejada per `SoapTransport` | habilitació explícita post-qualificació |
+
+Vegeu també [classes ACTUAL/FINAL](./uc-009-classes-actual-final.md), [seqüències ACTUAL/FINAL](./uc-009-sequencies-actual-final.md) i [auditoria/traçabilitat 03/10](./uc-009-auditoria-tracabilitat-2026-10-03.md).
+
+
+## 17. A09-13 · Preassignar evidència abans de l'enviament
+
+```mermaid
+flowchart TD
+    A[Queue reclamada PROCESSING] --> B[Crear UUID_ATTEMPT]
+    B --> C[Crear EVIDENCE_ID únic]
+    C --> D[INSERT attempt STARTED + REQUEST_HASH + EVIDENCE_ID]
+    D --> E[Commit BD]
+    E --> F[Passar context al transport]
+    F --> G{Context vàlid?}
+    G -- No --> H[No xarxa]
+    G -- Sí --> I[EvidenceStore beginWithId]
+    I --> J[Persistir request.xml + request.json]
+    J --> K[SOAP/mTLS]
+    K --> L[Resposta o incertesa]
+```
+
+En un stale `STARTED`, la recuperació fa `STARTED → UNCERTAIN` conservant `EVIDENCE_ID` abans de posar la cua en `REVIEW`.
+
+
+## 15.2. A09-13 · Autorització del panell i mutacions
+
+```mermaid
+flowchart TD
+    A[Sessió intranet] --> B{Rol READ AEAT?}
+    B -- No --> C[403 abans del panell]
+    B -- Sí --> D[Render shell + CSRF]
+    D --> E[API HMAC]
+    E --> F{Acció mutadora?}
+    F -- No --> G[READ autoritzat]
+    F -- Sí --> H{READ i RECONCILE?}
+    H -- No --> I[403 backend]
+    H -- Sí --> J[Mutació autoritzada]
+    G --> K[detail capabilities.reconcile]
+    K --> L{capability true?}
+    L -- No --> M[No mostrar botons reconcile]
+    L -- Sí --> N[Mostrar accions + CSRF]
+```

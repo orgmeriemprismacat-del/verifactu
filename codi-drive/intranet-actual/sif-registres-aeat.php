@@ -3,7 +3,34 @@ include("inc/comprovarSessio.php");
 
 if (!$configOk) {
     ?>
-    <script>window.location.href = "https://intranet.prisma.cat/"</script>
+    <script>window.location.href = "/"</script>
+    <?php
+    return;
+}
+
+$aeatReadRoles = array_values(array_filter(array_map(
+    static fn ($role) => strtoupper(trim((string) $role)),
+    explode(',', getenv('SIF_AEAT_READ_ROLES') ?: '')
+)));
+$sessionUser = null;
+$sessionRoles = [];
+if (isset($_SESSION['usuari']) && is_string($_SESSION['usuari'])) {
+    $sessionUser = @unserialize($_SESSION['usuari'], ['allowed_classes' => true]);
+    if (is_object($sessionUser) && method_exists($sessionUser, 'getRols')) {
+        $sessionRoles = array_values(array_filter(array_map(
+            static fn ($role) => strtoupper(trim((string) $role)),
+            (array) $sessionUser->getRols()
+        )));
+    }
+}
+if ($aeatReadRoles === [] || array_intersect($sessionRoles, $aeatReadRoles) === []) {
+    http_response_code(403);
+    ?>
+    <!doctype html>
+    <html lang="ca">
+    <head><meta charset="utf-8"><title>Accés denegat</title></head>
+    <body><p>Accés AEAT no autoritzat.</p></body>
+    </html>
     <?php
     return;
 }
@@ -22,14 +49,15 @@ $csrf = htmlspecialchars($_SESSION['sif_aeat_csrf'], ENT_QUOTES, 'UTF-8');
     <title>Registres AEAT | Intranet</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://intranet.prisma.cat/css/general.min.css?ver=1.0">
-    <link rel="stylesheet" href="https://intranet.prisma.cat/css/general_v5.min.css?ver=1.0">
-    <link rel="stylesheet" href="https://intranet.prisma.cat/css/sif-registres-aeat.css?ver=1.0">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="/css/general.min.css?ver=1.0">
+    <link rel="stylesheet" href="/css/general_v5.min.css?ver=1.0">
+    <link rel="stylesheet" href="/css/sif-registres-aeat.css?ver=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+            integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
             integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
             crossorigin="anonymous"></script>
-    <script src="https://kit.fontawesome.com/efc6febcf3.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <div class="contingut">
@@ -59,14 +87,14 @@ $csrf = htmlspecialchars($_SESSION['sif_aeat_csrf'], ENT_QUOTES, 'UTF-8');
                     <p class="text-muted mb-0">Cua fiscal, resultat del registre, intents i incidències.</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="https://intranet.prisma.cat/sif-verifactu.php" class="btn btn-outline-secondary btn-sm">
-                        <i class="fa-solid fa-shield-halved me-1"></i> VERI*FACTU
+                    <a href="/sif-verifactu.php" class="btn btn-outline-secondary btn-sm">
+                        <i class="material-icons me-1" aria-hidden="true">security</i> VERI*FACTU
                     </a>
                     <button id="sif-aeat-preflight" class="btn btn-outline-secondary btn-sm" type="button">
-                        <i class="fa-solid fa-shield-halved me-1"></i> Preflight
+                        <i class="material-icons me-1" aria-hidden="true">security</i> Preflight
                     </button>
                     <button id="sif-aeat-refresh" class="btn btn-primary btn-sm" type="button">
-                        <i class="fa-solid fa-rotate me-1"></i> Actualitzar
+                        <i class="material-icons me-1" aria-hidden="true">refresh</i> Actualitzar
                     </button>
                 </div>
             </div>
@@ -152,7 +180,7 @@ $csrf = htmlspecialchars($_SESSION['sif_aeat_csrf'], ENT_QUOTES, 'UTF-8');
     </div>
 </div>
 
-<script src="https://intranet.prisma.cat/js/general_v5.js?ver=1.0"></script>
-<script src="https://intranet.prisma.cat/js/sif-registres-aeat.js?ver=1.0"></script>
+<script src="/js/general_v5.js?ver=1.0"></script>
+<script src="/js/sif-registres-aeat.js?ver=1.0"></script>
 </body>
 </html>

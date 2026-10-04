@@ -3,7 +3,7 @@
 namespace Prisma\Sif\Tests\Unit;
 
 use Prisma\Sif\Aeat\{ClientCertificate, EvidenceStore, SoapTransport};
-use Prisma\Sif\Tests\Support\Assert;
+use Prisma\Sif\Tests\Support\{AeatFixtures, Assert};
 
 final class AeatSecurityTest
 {
@@ -23,6 +23,9 @@ final class AeatSecurityTest
             if (!$cert || !openssl_pkcs12_export_to_file($cert, $path, $key, $password)) {
                 throw new \RuntimeException('Could not generate synthetic test certificate.');
             }
+            if (PHP_OS_FAMILY !== 'Windows') {
+                chmod($path, 0600);
+            }
             $reader = new ClientCertificate($path, $password);
             $metadata = $reader->inspect();
             Assert::matchesRegularExpression('/^[a-f0-9]{64}$/', $metadata['fingerprint_sha256']);
@@ -31,6 +34,27 @@ final class AeatSecurityTest
             Assert::throws(\RuntimeException::class, fn () => (new ClientCertificate($path, 'WRONG'))->inspect());
             Assert::throws(\RuntimeException::class, fn () => $reader->inspect(time() + 3 * 86400));
             Assert::throws(\RuntimeException::class, fn () => $reader->inspect(0));
+
+            if (PHP_OS_FAMILY !== 'Windows') {
+                chmod($path, 0644);
+                Assert::throws(
+                    \RuntimeException::class,
+                    fn () => (new ClientCertificate($path, $password))->inspect()
+                );
+                chmod($path, 0600);
+
+                $link = $path . '-link';
+                if (@symlink($path, $link)) {
+                    try {
+                        Assert::throws(
+                            \RuntimeException::class,
+                            fn () => (new ClientCertificate($link, $password))->inspect()
+                        );
+                    } finally {
+                        unlink($link);
+                    }
+                }
+            }
         } finally {
             if (is_file($path)) {
                 unlink($path);
@@ -67,15 +91,114 @@ final class AeatSecurityTest
         }
     }
 
+
+    public function testPreassignedEvidenceIdIsImmutableAndTransportRequiresAttemptContext(): void
+    {
+        $dir = sys_get_temp_dir() . '/aeat-preassigned-evidence-' . bin2hex(random_bytes(12));
+        mkdir($dir, 0700);
+        $id = EvidenceStore::generateId();
+
+        try {
+            $store = new EvidenceStore($dir);
+            Assert::same(
+                $id,
+                $store->beginWithId(
+                    $id,
+                    '<preassigned-request/>',
+                    ['environment' => 'offline-test']
+                )
+            );
+            Assert::same(
+                '<preassigned-request/>',
+                file_get_contents($dir . '/' . $id . '/request.xml')
+            );
+
+            Assert::throws(
+                \RuntimeException::class,
+                fn () => $store->beginWithId(
+                    $id,
+                    '<second-request/>',
+                    ['environment' => 'offline-test']
+                )
+            );
+
+            $transport = new SoapTransport(
+                new ClientCertificate('/nonexistent', ''),
+                $store
+            );
+            Assert::throws(
+                \RuntimeException::class,
+                fn () => $transport->send(['aeat' => AeatFixtures::snapshot()])
+            );
+            Assert::same(
+                1,
+                count(glob($dir . '/*', GLOB_ONLYDIR) ?: [])
+            );
+        } finally {
+            foreach (['request.xml', 'request.json', 'response.xml', 'response.json', 'failure.json'] as $name) {
+                if (is_file($dir . '/' . $id . '/' . $name)) {
+                    unlink($dir . '/' . $id . '/' . $name);
+                }
+            }
+            if (is_dir($dir . '/' . $id)) {
+                rmdir($dir . '/' . $id);
+            }
+            if (is_dir($dir)) {
+                rmdir($dir);
+            }
+        }
+    }
+
     public function testRejectsRepositoryStorageAndProductionEndpoint(): void
     {
         $repo = dirname(__DIR__, 3);
         Assert::throws(\RuntimeException::class, fn () => new EvidenceStore($repo));
-        Assert::throws(\RuntimeException::class,
-            fn () => (new ClientCertificate($repo . '/config/sif.php', ''))->inspect());
-        $store = new EvidenceStore(sys_get_temp_dir());
-        Assert::throws(\InvalidArgumentException::class, fn () => new SoapTransport(
-            new ClientCertificate('/nonexistent', ''), $store,
-            'https://www1.agenciatributaria.gob.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP'));
+        Assert::throws(
+            \RuntimeException::class,
+            fn () => (new ClientCertificate($repo . '/config/sif.php', ''))->inspect()
+        );
+
+        $privateDir = sys_get_temp_dir() . '/aeat-private-store-' . bin2hex(random_bytes(12));
+        mkdir($privateDir, 0700);
+        if (PHP_OS_FAMILY !== 'Windows') {
+            chmod($privateDir, 0700);
+        }
+
+        try {
+            $store = new EvidenceStore($privateDir);
+            Assert::throws(
+                \InvalidArgumentException::class,
+                fn () => new SoapTransport(
+                    new ClientCertificate('/nonexistent', ''),
+                    $store,
+                    'https://www1.agenciatributaria.gob.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP'
+                )
+            );
+
+            if (PHP_OS_FAMILY !== 'Windows') {
+                chmod($privateDir, 0777);
+                Assert::throws(
+                    \RuntimeException::class,
+                    fn () => new EvidenceStore($privateDir)
+                );
+                chmod($privateDir, 0700);
+
+                $link = $privateDir . '-link';
+                if (@symlink($privateDir, $link)) {
+                    try {
+                        Assert::throws(
+                            \RuntimeException::class,
+                            fn () => new EvidenceStore($link)
+                        );
+                    } finally {
+                        unlink($link);
+                    }
+                }
+            }
+        } finally {
+            if (is_dir($privateDir)) {
+                rmdir($privateDir);
+            }
+        }
     }
 }

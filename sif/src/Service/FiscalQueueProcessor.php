@@ -49,20 +49,91 @@ final class FiscalQueueProcessor
         }
 
         $attemptUuid = null;
+        $attemptEvidenceId = null;
         if ($this->attempts !== null) {
             try {
-                $attemptUuid = $this->transactions->run(
-                    fn (\PDO $db): string => $this->attempts->begin($db, $item, $payload)
+                $attemptContext = $this->transactions->run(
+                    fn (\PDO $db): array => $this->attempts->begin($db, $item, $payload)
                 );
+                $attemptUuid = (string) ($attemptContext['uuid_attempt'] ?? '');
+                $attemptEvidenceId = (string) ($attemptContext['evidence_id'] ?? '');
+                if ($attemptUuid === '' || $attemptEvidenceId === '') {
+                    throw new \RuntimeException('AEAT attempt context is incomplete.');
+                }
             } catch (\Throwable $exception) {
                 return $this->failure($item, $exception);
             }
         }
 
+        $transportPayload = $payload;
+        if ($attemptUuid !== null && $attemptEvidenceId !== null) {
+            $transportPayload['_sif_submission_attempt'] = [
+                'uuid_attempt' => $attemptUuid,
+                'evidence_id' => $attemptEvidenceId,
+            ];
+        }
+
         try {
-            $transportResult = $this->transport->send($payload);
+            $transportResult = $this->transport->send($transportPayload);
         } catch (AeatDeliveryUncertainException $exception) {
-            return $this->reviewHold($item, $attemptUuid, $exception, 'AEAT_DELIVERY_UNCERTAIN', true);
+            $exceptionEvidenceId = $exception->evidenceId();
+            if ($attemptEvidenceId !== null
+                && $exceptionEvidenceId !== null
+                && !hash_equals($attemptEvidenceId, $exceptionEvidenceId)
+            ) {
+                return $this->reviewHold(
+                    $item,
+                    $attemptUuid,
+                    new \RuntimeException(
+                        'AEAT evidence reference differs from the preassigned submission attempt.'
+                    ),
+                    'AEAT_EVIDENCE_REFERENCE_MISMATCH',
+                    true,
+                    $attemptEvidenceId
+                );
+            }
+
+            if ($attemptUuid !== null
+                && $attemptEvidenceId !== null
+                && $exception->responseSha256() !== null
+                && $exception->httpStatus() !== null
+            ) {
+                try {
+                    $this->transactions->run(
+                        function (\PDO $db) use (
+                            $attemptUuid,
+                            $attemptEvidenceId,
+                            $exception
+                        ): void {
+                            $this->attempts->anchorEvidenceResponse(
+                                $db,
+                                $attemptUuid,
+                                $attemptEvidenceId,
+                                (string) $exception->responseSha256(),
+                                (int) $exception->httpStatus()
+                            );
+                        }
+                    );
+                } catch (\Throwable $anchorError) {
+                    return $this->reviewHold(
+                        $item,
+                        $attemptUuid,
+                        $anchorError,
+                        'AEAT_EVIDENCE_ANCHOR_ERROR',
+                        true,
+                        $attemptEvidenceId
+                    );
+                }
+            }
+
+            return $this->reviewHold(
+                $item,
+                $attemptUuid,
+                $exception,
+                'AEAT_DELIVERY_UNCERTAIN',
+                true,
+                $attemptEvidenceId
+            );
         } catch (\Throwable $exception) {
             if ($attemptUuid !== null) {
                 try {
@@ -78,6 +149,69 @@ final class FiscalQueueProcessor
             return $this->failure($item, $exception);
         }
 
+        $transportResponse = $transportResult['response'] ?? null;
+        $transportEvidenceId = is_array($transportResponse)
+            ? ($transportResponse['evidence_id'] ?? null)
+            : null;
+
+        if ($attemptEvidenceId !== null
+            && is_string($transportEvidenceId)
+            && !hash_equals($attemptEvidenceId, $transportEvidenceId)
+        ) {
+            return $this->reviewHold(
+                $item,
+                $attemptUuid,
+                new \RuntimeException(
+                    'AEAT evidence reference differs from the preassigned submission attempt.'
+                ),
+                'AEAT_EVIDENCE_REFERENCE_MISMATCH',
+                true,
+                $attemptEvidenceId
+            );
+        }
+
+        $transportResponseSha256 = is_array($transportResponse)
+            ? ($transportResponse['response_sha256'] ?? null)
+            : null;
+        $transportHttpStatus = is_array($transportResponse)
+            ? ($transportResponse['evidence_http_status'] ?? null)
+            : null;
+
+        if ($attemptUuid !== null
+            && $attemptEvidenceId !== null
+            && is_string($transportResponseSha256)
+            && preg_match('/^[a-f0-9]{64}$/D', $transportResponseSha256) === 1
+            && is_int($transportHttpStatus)
+        ) {
+            try {
+                $this->transactions->run(
+                    function (\PDO $db) use (
+                        $attemptUuid,
+                        $attemptEvidenceId,
+                        $transportResponseSha256,
+                        $transportHttpStatus
+                    ): void {
+                        $this->attempts->anchorEvidenceResponse(
+                            $db,
+                            $attemptUuid,
+                            $attemptEvidenceId,
+                            $transportResponseSha256,
+                            $transportHttpStatus
+                        );
+                    }
+                );
+            } catch (\Throwable $anchorError) {
+                return $this->reviewHold(
+                    $item,
+                    $attemptUuid,
+                    $anchorError,
+                    'AEAT_EVIDENCE_ANCHOR_ERROR',
+                    true,
+                    $attemptEvidenceId
+                );
+            }
+        }
+
         $status = strtoupper((string) ($transportResult['status'] ?? ''));
         if (!in_array($status, ['ACCEPTED', 'ACCEPTED_WITH_ERRORS', 'REJECTED'], true)) {
             return $this->reviewHold(
@@ -85,10 +219,11 @@ final class FiscalQueueProcessor
                 $attemptUuid,
                 new \RuntimeException('Invalid AEAT transport status.'),
                 'AEAT_REMOTE_RESULT_INVALID',
-                true
+                true,
+                is_string($transportEvidenceId) ? $transportEvidenceId : null
             );
         }
-        $response = $transportResult['response'] ?? null;
+        $response = $transportResponse;
         if (!is_array($response)) {
             return $this->reviewHold(
                 $item,
@@ -107,7 +242,14 @@ final class FiscalQueueProcessor
                     }
                 );
             } catch (\Throwable $exception) {
-                return $this->reviewHold($item, $attemptUuid, $exception, 'AEAT_REMOTE_RESULT_NOT_PERSISTED', true);
+                return $this->reviewHold(
+                    $item,
+                    $attemptUuid,
+                    $exception,
+                    'AEAT_REMOTE_RESULT_NOT_PERSISTED',
+                    true,
+                    $attemptEvidenceId
+                );
             }
         }
 
@@ -171,9 +313,61 @@ final class FiscalQueueProcessor
         $now ??= new \DateTimeImmutable('now');
         $lockedBefore = $now->modify('-' . $olderThanSeconds . ' seconds')->format('Y-m-d H:i:s');
 
-        return $this->transactions->run(
-            fn (\PDO $db): int => $this->queue->recoverStaleLocks($db, $lockedBefore)
-        );
+        return $this->transactions->run(function (\PDO $db) use ($lockedBefore): int {
+            $stmt = $db->prepare(
+                "SELECT ID, UUID_FACTURA
+                 FROM fiscal_queue
+                 WHERE STATUS = 'PROCESSING' AND LOCKED_AT IS NOT NULL AND LOCKED_AT < ?
+                 ORDER BY ID
+                 FOR UPDATE"
+            );
+            $stmt->execute([$lockedBefore]);
+            $stale = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            if ($this->attempts !== null) {
+                $attempt = $db->prepare(
+                    'SELECT UUID_ATTEMPT, STATUS
+                     FROM aeat_submission_attempt
+                     WHERE FISCAL_QUEUE_ID = ?
+                     ORDER BY ATTEMPT_NO DESC, ID DESC
+                     LIMIT 1
+                     FOR UPDATE'
+                );
+                foreach ($stale as $item) {
+                    $attempt->execute([(int) $item['ID']]);
+                    $latest = $attempt->fetch(\PDO::FETCH_ASSOC);
+                    if (is_array($latest)
+                        && strtoupper((string) $latest['STATUS']) === 'STARTED'
+                    ) {
+                        $this->attempts->markStartedUncertain(
+                            $db,
+                            (string) $latest['UUID_ATTEMPT'],
+                            'Stale PROCESSING recovered to REVIEW; remote delivery outcome is uncertain'
+                        );
+                    }
+                }
+            }
+
+            $recovered = $this->queue->recoverStaleLocks($db, $lockedBefore);
+            foreach ($stale as $item) {
+                (new IncidentRepository())->openDetailed($db, [
+                    'uuid_factura' => (string) $item['UUID_FACTURA'],
+                    'resource_type' => 'FISCAL_QUEUE',
+                    'resource_id' => (string) $item['ID'],
+                    'source_type' => 'AEAT_WORKER',
+                    'source_id' => (string) $item['ID'],
+                    'type' => 'AEAT_STALE_PROCESSING',
+                    'message' => 'Queue ID ' . $item['ID']
+                        . ': stale PROCESSING moved to REVIEW; delivery outcome must be reconciled before resend',
+                    'severity' => 'HIGH',
+                    'correlation_id' => 'FISCAL_QUEUE:' . $item['ID'],
+                    'idempotency_key' => 'AEAT_STALE_PROCESSING|QUEUE:' . $item['ID'],
+                    'reason_code' => 'STALE_DELIVERY_REQUIRES_REVIEW',
+                ]);
+            }
+
+            return $recovered;
+        });
     }
 
     private function integrityFailure(array $item, \Throwable $exception): array
@@ -274,18 +468,24 @@ final class FiscalQueueProcessor
         ?string $attemptUuid,
         \Throwable $exception,
         string $incidentType,
-        bool $markAttemptUncertain
+        bool $markAttemptUncertain,
+        ?string $evidenceIdOverride = null
     ): array {
         $message = $exception->getMessage();
+        $evidenceId = $evidenceIdOverride;
+        if ($evidenceId === null && $exception instanceof AeatDeliveryUncertainException) {
+            $evidenceId = $exception->evidenceId();
+        }
         $incident = $this->transactions->run(function (\PDO $db) use (
             $item,
             $attemptUuid,
             $message,
             $incidentType,
-            $markAttemptUncertain
+            $markAttemptUncertain,
+            $evidenceId
         ): array {
             if ($attemptUuid !== null && $markAttemptUncertain && $this->attempts !== null) {
-                $this->attempts->fail($db, $attemptUuid, 'UNCERTAIN', $message);
+                $this->attempts->fail($db, $attemptUuid, 'UNCERTAIN', $message, $evidenceId);
             }
             $this->queue->holdForReview($db, $item, $message);
 

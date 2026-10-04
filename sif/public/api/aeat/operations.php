@@ -5,8 +5,19 @@ require dirname(__DIR__, 3) . '/src/autoload.php';
 use Prisma\Sif\Database\{ConnectionFactory, TransactionRunner};
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
-use Prisma\Sif\Repository\{AeatOperationsReadRepository, FiscalQueueRepository, IncidentRepository, InternalApiRequestRepository};
-use Prisma\Sif\Service\{AeatPreflight, AeatReviewReconciliationService, InternalApiAuthenticator};
+use Prisma\Sif\Repository\{
+    AeatOperationsReadRepository,
+    AeatSubmissionAttemptRepository,
+    FiscalQueueRepository,
+    IncidentRepository,
+    InternalApiRequestRepository
+};
+use Prisma\Sif\Service\{
+    AeatEvidenceReconciliationService,
+    AeatPreflight,
+    AeatReviewReconciliationService,
+    InternalApiAuthenticator
+};
 
 if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
     JsonResponse::send(['ok' => false, 'error' => 'Method not allowed'], 405);
@@ -56,14 +67,18 @@ try {
     )));
 
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
-    $isReconcile = $action === 'reconcile';
-    $requiredRoles = $isReconcile ? $reconcileRoles : $readRoles;
-    if ($requiredRoles === [] || array_intersect($roles, $requiredRoles) === []) {
-        throw SifException::forbidden(
-            $isReconcile
-                ? 'AEAT reconciliation role is not authorized'
-                : 'AEAT operations role is not authorized'
-        );
+    $isReconcile = in_array($action, ['reconcile', 'reconcile_evidence'], true);
+    $hasReadRole = $readRoles !== [] && array_intersect($roles, $readRoles) !== [];
+    $effectiveReconcileRoles = array_values(array_intersect($roles, $reconcileRoles));
+    $hasReconcileRole = $reconcileRoles !== [] && $effectiveReconcileRoles !== [];
+    $canReconcile = $hasReadRole && $hasReconcileRole;
+    $effectiveReconcileRole = $canReconcile ? (string) $effectiveReconcileRoles[0] : null;
+
+    if (!$hasReadRole) {
+        throw SifException::forbidden('AEAT operations role is not authorized');
+    }
+    if ($isReconcile && !$canReconcile) {
+        throw SifException::forbidden('AEAT reconciliation role is not authorized');
     }
 
     $repository = new AeatOperationsReadRepository();
@@ -82,6 +97,9 @@ try {
         JsonResponse::send([
             'ok' => true,
             'data' => $repository->detail($db, (int) ($payload['queue_id'] ?? 0)),
+            'capabilities' => [
+                'reconcile' => $canReconcile,
+            ],
         ]);
         return;
     }
@@ -90,6 +108,23 @@ try {
             'ok' => true,
             'data' => (new AeatPreflight())->check((array) ($config['aeat'] ?? [])),
         ]);
+        return;
+    }
+
+    if ($action === 'reconcile_evidence') {
+        $service = new AeatEvidenceReconciliationService(
+            new TransactionRunner($db),
+            new FiscalQueueRepository(),
+            new IncidentRepository(),
+            new AeatSubmissionAttemptRepository(),
+            (string) ($config['aeat']['evidence_directory'] ?? '')
+        );
+        JsonResponse::send($service->reconcile(
+            (int) ($payload['queue_id'] ?? 0),
+            (string) ($payload['attempt_uuid'] ?? ''),
+            (string) ($actor['actor_id'] ?? ''),
+            $effectiveReconcileRole
+        ));
         return;
     }
     if ($action === 'reconcile') {
@@ -101,7 +136,8 @@ try {
         JsonResponse::send($service->reconcile(
             (int) ($payload['queue_id'] ?? 0),
             (string) ($payload['attempt_uuid'] ?? ''),
-            (string) ($actor['actor_id'] ?? '')
+            (string) ($actor['actor_id'] ?? ''),
+            $effectiveReconcileRole
         ));
         return;
     }

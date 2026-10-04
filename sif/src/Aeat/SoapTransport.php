@@ -25,16 +25,36 @@ final class SoapTransport implements AeatTransport
         if (!is_array($snapshot)) {
             throw new \RuntimeException('Legacy/internal payload cannot be sent to AEAT.');
         }
+
+        $attemptContext = $fiscalPayload['_sif_submission_attempt'] ?? null;
+        if (!is_array($attemptContext)) {
+            throw new \RuntimeException(
+                'AEAT transport requires a preassigned submission attempt context.'
+            );
+        }
+        $attemptUuid = strtolower(trim((string) ($attemptContext['uuid_attempt'] ?? '')));
+        $evidenceId = trim((string) ($attemptContext['evidence_id'] ?? ''));
+        if (preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/D',
+            $attemptUuid
+        ) !== 1 || preg_match('/^\d{8}T\d{6}Z-[a-f0-9]{24}$/D', $evidenceId) !== 1) {
+            throw new \RuntimeException('AEAT submission attempt context is invalid.');
+        }
+
         $request = (new XmlCodec())->request($snapshot);
         $certificateInfo = $this->certificate->inspect();
         if (!extension_loaded('curl')) {
             throw new \RuntimeException('AEAT transport requires cURL.');
         }
-        $attempt = $this->evidence->begin($request, [
-            'created_at_utc' => gmdate('c'), 'environment' => 'preproduction',
-            'endpoint' => $this->endpoint, 'fiscal_order' => $fiscalPayload['fiscal_order'] ?? null,
+        $attempt = $this->evidence->beginWithId($evidenceId, $request, [
+            'created_at_utc' => gmdate('c'),
+            'environment' => 'preproduction',
+            'endpoint' => $this->endpoint,
+            'fiscal_order' => $fiscalPayload['fiscal_order'] ?? null,
             'uuid_factura' => $fiscalPayload['uuid_factura'] ?? null,
-            'record_hash' => $snapshot['record']['Huella'], 'certificate' => $certificateInfo,
+            'submission_attempt_uuid' => $attemptUuid,
+            'record_hash' => $snapshot['record']['Huella'],
+            'certificate' => $certificateInfo,
         ]);
         $curl = curl_init($this->endpoint);
         $raw = '';
@@ -59,13 +79,17 @@ final class SoapTransport implements AeatTransport
             $ok = curl_exec($curl);
             $http = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
             $errno = curl_errno($curl);
+            $responseSha256 = hash('sha256', $raw);
             try {
                 $this->evidence->response($attempt, $raw, $http);
             } catch (\Throwable $error) {
                 throw new AeatDeliveryUncertainException(
                     'AEAT response evidence could not be persisted; evidence=' . $attempt,
                     0,
-                    $error
+                    $error,
+                    $attempt,
+                    $responseSha256,
+                    $http
                 );
             }
             if ($ok === false || $http !== 200) {
@@ -74,7 +98,14 @@ final class SoapTransport implements AeatTransport
                 } catch (\Throwable) {
                     // The protected request/response attempt id still identifies the uncertain delivery.
                 }
-                throw new AeatDeliveryUncertainException('AEAT delivery uncertain; evidence=' . $attempt);
+                throw new AeatDeliveryUncertainException(
+                    'AEAT delivery uncertain; evidence=' . $attempt,
+                    0,
+                    null,
+                    $attempt,
+                    $responseSha256,
+                    $http
+                );
             }
             try {
                 $result = (new ResponseParser())->parse($raw, $snapshot);
@@ -84,10 +115,19 @@ final class SoapTransport implements AeatTransport
                 } catch (\Throwable) {
                     // Preserve the original parsing failure as the cause of the uncertain outcome.
                 }
-                throw new AeatDeliveryUncertainException('AEAT response requires review; evidence=' . $attempt, 0, $error);
+                throw new AeatDeliveryUncertainException(
+                    'AEAT response requires review; evidence=' . $attempt,
+                    0,
+                    $error,
+                    $attempt,
+                    $responseSha256,
+                    $http
+                );
             }
             $result['request_xml'] = $request;
             $result['response']['evidence_id'] = $attempt;
+            $result['response']['evidence_http_status'] = $http;
+            $result['response']['response_sha256'] = $responseSha256;
             return $result;
         } finally {
             curl_close($curl);

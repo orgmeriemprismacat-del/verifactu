@@ -63,6 +63,82 @@ final class EvidenceVerifier
             'hashes' => $hashes, 'errors' => $errors, 'aeat_acceptance_verified' => false];
     }
 
+
+    public function readVerifiedPair(string $directory, string $id): array
+    {
+        $verification = $this->verify($directory, $id);
+        if (($verification['integrity_ok'] ?? false) !== true
+            || ($verification['state'] ?? '') !== 'RESPONSE_RECORDED'
+        ) {
+            throw new \RuntimeException('AEAT evidence is not a complete verified response pair.');
+        }
+
+        $root = realpath($directory);
+        $attempt = $root === false ? false : realpath($root . '/' . $id);
+        if ($root === false || $attempt === false || !is_dir($attempt)
+            || is_link($root . '/' . $id)
+            || dirname($attempt) !== $root
+        ) {
+            throw new \RuntimeException('AEAT evidence attempt is unavailable.');
+        }
+
+        $request = $this->readVerifiedFile(
+            $attempt . '/request.xml',
+            $attempt,
+            (string) ($verification['hashes']['request'] ?? '')
+        );
+        $response = $this->readVerifiedFile(
+            $attempt . '/response.xml',
+            $attempt,
+            (string) ($verification['hashes']['response'] ?? '')
+        );
+        $this->assertFile($attempt . '/request.json', $attempt);
+        $requestMetadata = $this->metadata($attempt . '/request.json');
+        if (!hash_equals(
+            (string) ($verification['hashes']['request'] ?? ''),
+            (string) ($requestMetadata['request_sha256'] ?? '')
+        )) {
+            throw new \RuntimeException('AEAT evidence request metadata changed after verification.');
+        }
+
+        $this->assertFile($attempt . '/response.json', $attempt);
+        $responseMetadata = $this->metadata($attempt . '/response.json');
+        $httpStatus = $responseMetadata['http_status'] ?? null;
+        if (!is_int($httpStatus) || $httpStatus < 100 || $httpStatus > 599) {
+            throw new \RuntimeException('AEAT evidence response HTTP status is invalid.');
+        }
+
+        return [
+            'attempt_id' => $id,
+            'request_xml' => $request,
+            'response_xml' => $response,
+            'response_http_status' => $httpStatus,
+            'submission_attempt_uuid' => $requestMetadata['submission_attempt_uuid'] ?? null,
+            'uuid_factura' => $requestMetadata['uuid_factura'] ?? null,
+            'fiscal_order' => $requestMetadata['fiscal_order'] ?? null,
+            'request_sha256' => hash('sha256', $request),
+            'response_sha256' => hash('sha256', $response),
+        ];
+    }
+
+    private function readVerifiedFile(string $file, string $attempt, string $expectedHash): string
+    {
+        $this->assertFile($file, $attempt);
+        if (preg_match('/^[a-f0-9]{64}$/D', $expectedHash) !== 1) {
+            throw new \RuntimeException('AEAT evidence expected hash is invalid.');
+        }
+
+        $contents = file_get_contents($file, false, null, 0, 8 * 1024 * 1024 + 1);
+        if ($contents === false || strlen($contents) > 8 * 1024 * 1024) {
+            throw new \RuntimeException('AEAT evidence file is unreadable or too large.');
+        }
+        if (!hash_equals($expectedHash, hash('sha256', $contents))) {
+            throw new \RuntimeException('AEAT evidence changed after verification.');
+        }
+
+        return $contents;
+    }
+
     private function assertFile(string $file, string $attempt): void
     {
         $real = realpath($file);

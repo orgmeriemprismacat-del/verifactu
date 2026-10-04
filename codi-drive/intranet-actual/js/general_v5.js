@@ -23,11 +23,11 @@ let tePermisEdicio = false;
 /* ############################ ACCIONS GENERALS ############################ */
 
 setTimeout(function() {
-	window.location.href = "https://intranet.prisma.cat/";
+	window.location.href = "/";
 }, 7200000);
 
 let urlPaginaG = window.location.pathname.split('?')[0];
-let pathG = "https://intranet.prisma.cat";
+let pathG = window.location.origin;
 let nTooltipGlobal = 0;
 
 /* ############################ ACCIONS DE FORMS ############################ */
@@ -42,7 +42,7 @@ $('body').on('blur', '.form-control', function() {
 /* ############################    REQUEST MENÚ    ############################ */
 /* Es busca l'estructura del menu lateral*/
 var requestMenu = $.ajax({
-	url: "https://intranet.prisma.cat/ajax/mostrarSideBar.php",
+	url: "/ajax/mostrarSideBar.php",
 	method: "GET",
 	dataType: "html"
 });
@@ -54,7 +54,7 @@ requestMenu.done(function( message ) {
 
 	/* Consultem el bloc de l'usuari del menú lateral */
 	var requestBlocUser = $.ajax({
-		url: "https://intranet.prisma.cat/ajax/mostrarSideBarUser.php",
+		url: "/ajax/mostrarSideBarUser.php",
 		method: "GET",
 		dataType: "html"
 	});
@@ -64,14 +64,14 @@ requestMenu.done(function( message ) {
 		$('.user').html(blocUsuari);
 
 		$('.sidebar').on('click', '.logout', function() {
-			window.location.href = "https://intranet.prisma.cat/";
+			window.location.href = "/";
 		});
 
 		$('.sidebar').on('click', '.photo', function() {
-			window.location.href = "https://intranet.prisma.cat/perfil/mostra-perfil/";
+			window.location.href = "/perfil/mostra-perfil/";
 		});
 		$('.sidebar').on('click', '.user-info', function() {
-			window.location.href = "https://intranet.prisma.cat/perfil/mostra-perfil/";
+			window.location.href = "/perfil/mostra-perfil/";
 		});
 
 		$('body').on('click', '.btn-menu', function() {
@@ -90,7 +90,7 @@ requestMenu.done(function( message ) {
 			}
 
 			var updActualitzaPassword = $.ajax({
-				url: "https://intranet.prisma.cat/ajax/actualitzarDesplegableMenu.php",
+				url: "/ajax/actualitzarDesplegableMenu.php",
 				method: "POST",
 				data: {
 					menuExt : menuExt
@@ -100,7 +100,7 @@ requestMenu.done(function( message ) {
 
 			updActualitzaPassword.done(function( resUpd ) {
 				var requestMenuApartats = $.ajax({
-					url: "https://intranet.prisma.cat/ajax/mostrarSideBarMenu_v5.php",
+					url: "/ajax/mostrarSideBarMenu_v5.php",
 					method: "GET",
 					data: { url : urlPaginaG },
 					dataType: "html"
@@ -179,7 +179,7 @@ requestMenu.done(function( message ) {
 
 	/* Consultem els apartats del menú lateral */
 	var requestMenuApartats = $.ajax({
-		url: "https://intranet.prisma.cat/ajax/mostrarSideBarMenu_v5.php",
+		url: "/ajax/mostrarSideBarMenu_v5.php",
 		method: "GET",
 		data: { url : urlPaginaG },
 		dataType: "html"
@@ -250,7 +250,7 @@ requestMenu.done(function( message ) {
 	});
 
 	var reqMenuExt = $.ajax({
-		url: "https://intranet.prisma.cat/ajax/consultaMenuLateralDesplegat.php",
+		url: "/ajax/consultaMenuLateralDesplegat.php",
 		method: "GET",
 		dataType: "html"
 	});
@@ -267,7 +267,7 @@ requestMenu.done(function( message ) {
 	});
 
 	var reqRolsEdicio = $.ajax({
-		url: "https://intranet.prisma.cat/ajax/consultaRolsEdicio.php",
+		url: "/ajax/consultaRolsEdicio.php",
 		method: "GET",
 		data: { url : window.location.pathname.split('?')[0] },
 		dataType: "html"
@@ -277,7 +277,7 @@ requestMenu.done(function( message ) {
 		rolsPageEdicio = res;
 
 		var reqRolsEdicio = $.ajax({
-			url: "https://intranet.prisma.cat/ajax/consultaRolsUsuari.php",
+			url: "/ajax/consultaRolsUsuari.php",
 			method: "GET",
 			dataType: "html"
 		});

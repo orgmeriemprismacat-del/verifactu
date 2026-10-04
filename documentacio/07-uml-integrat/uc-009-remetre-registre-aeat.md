@@ -1,12 +1,12 @@
 # UC-09 · Remetre un registre fiscal a AEAT — fitxa i UML integrats
 
-**Àmbit:** enviar un registre **ja emès i congelat** al SIF. L'emissió i l'encadenament són UC-01/05/30/31; la remissió d'una tasca de `fiscal_queue` és UC-09. **Estat contrastat:** el backend de preproducció és executable (`SerialWorker`, `FiscalQueueProcessor`, `FiscalQueueRepository`, `FlowControlledTransport`, `SoapTransport` de proves, validació de resposta i evidència). La branca d'auditoria 2026-09-29 hi afegeix `CLAIM_TOKEN`, persistència real a `aeat_submission_attempt`, estat `REVIEW` i API interna de consulta. Això **no acredita enviament real acceptat per AEAT ni desplegament de producció**.
+**Àmbit:** enviar un registre **ja emès i congelat** al SIF. L'emissió i l'encadenament són UC-01/05/30/31; la remissió d'una tasca de `fiscal_queue` és UC-09. **Estat contrastat:** el backend de preproducció és executable (`SerialWorker`, `FiscalQueueProcessor`, `FiscalQueueRepository`, `FlowControlledTransport`, `SoapTransport` de proves, validació de resposta i evidència). El `main` actual incorpora `CLAIM_TOKEN`, persistència real a `aeat_submission_attempt`, estat `REVIEW`, API interna de consulta i reconciliació protegida des del panell intranet. Això **no acredita enviament real acceptat per AEAT ni desplegament de producció**.
 
 ## 1. Fitxa del cas
 
 | Camp | Descripció específica i estat |
 | --- | --- |
-| Actor inicial | Procés automàtic SIF/worker; AEAT és un sistema extern que respon. Responsable tècnica pot activar/revisar el procés segons política i permisos del panell pendent. |
+| Actor inicial | Procés automàtic SIF/worker; AEAT és un sistema extern que respon. Responsable tècnica pot consultar/reconciliar segons els rols configurats del panell intranet; l'activació de l'enviament extern continua separada al worker. |
 | Disparador | Una entrada `fiscal_queue` `PENDING` o `RETRY` ha arribat a `NEXT_RETRY_AT` i no ha esgotat intents. |
 | Precondicions de l'enviament real | Registre fiscal congelat, payload AEAT complet, configuració del servei de proves, certificat usable, dependències XML/cURL i directori privat d'evidències; `AeatPreflight` comprova diverses condicions locals però no prova confiança de l'AEAT ni bona representació fiscal. |
 | Resultat del worker | `processed=false` si no hi ha job; si se'n reclama un, estat d'AEAT `ACCEPTED`, `ACCEPTED_WITH_ERRORS` o `REJECTED`, o `RETRY`/`DEAD_LETTER` davant fallada. |
@@ -21,7 +21,7 @@
 4. L'implementació SOAP de proves genera XML amb `XmlCodec`, inspecciona el certificat amb `ClientCertificate`, crea evidència privada via `EvidenceStore`, envia amb cURL/mTLS i processa `ResponseParser`. El constructor rebutja qualsevol endpoint diferent de `TEST_ENDPOINT`.
 5. `ResponseParser` comprova el registre respost (identitat de factura i operació) i distingeix `ACCEPTED`, `ACCEPTED_WITH_ERRORS` i `REJECTED`, amb indicadors de duplicat i revisió. **Els tests amb transport simulat no proven que un endpoint real hagi acceptat una petició.**
 6. `FiscalQueueRepository::complete()` marca la cua `SENT`, desa XML i resposta al registre fiscal corresponent a `UUID_FACTURA` + `FISCAL_ORDER`, i actualitza `factura.ESTAT_AEAT` segons el resultat. La confirmació de la cua i dels estats de BD passa en una transacció **diferent** de l'enviament extern.
-7. Davant error, `failure()` programa `RETRY` amb retard exponencial limitat; en esgotar intents, `DEAD_LETTER`, `ERROR` al registre/factura i informació de l'error. `recoverStaleLocks()` reprèn jobs en `PROCESSING` massa antics.
+7. Davant error, `failure()` programa `RETRY` amb retard exponencial limitat; en esgotar intents, `DEAD_LETTER`, `ERROR` al registre/factura i informació de l'error. `recoverStaleLocks()` posa qualsevol `PROCESSING` massa antic en `REVIEW`, anul·la el retry automàtic i exigeix conciliació abans de qualsevol reenviament.
 
 ### 1.2. Alternatives, incidències i riscos identificats
 
@@ -36,19 +36,19 @@
 | Evidència de certificat | `ClientCertificate::inspect()` verifica localment lectura, desxifrat, parella clau/certificat i dates, però no estableix per si sola revocació o capacitat representativa. |
 | Estat `[DISSENY]` del catàleg | Es conserva com a etiqueta documental històrica fins a revisió; el codi actual té processador i transport de **proves**, no es pot inferir disponibilitat en producció. |
 
-**Proves localitzades, NO executades ara:** `FiscalQueueProcessorTest` cobreix resposta simulada acceptada, errors, reintents, `DEAD_LETTER`, lots i locks; `AeatPreflightTest` comprova requisits locals. Falta evidència aquí d'un enviament real del certificat/endpoint requerits i del comportament davant resposta externa incerta.
+**Proves revalidades al CI de `main` del 2026-10-02:** els tests AEAT/UC-009 de `FiscalQueueProcessorTest`, `AeatWorkflowTest`, `AeatOperationsReadRepositoryTest`, `AeatReviewReconciliationServiceTest` i els tests AEAT unitaris consten com a PASS. El run global acaba amb 917 passades / 6 fallades alienes al UC-009 (PACK/Redsys). Continua faltant evidència d'un enviament real amb certificat/endpoint de preproducció.
 
-### 1.3. Distingir la resposta del registre del resultat del transport — contrast amb el panell previst
+### 1.3. Distingir la resposta del registre del resultat del transport — contrast amb el panell implementat
 
-**Tres identificadors i tres estats independents.** La factura ja emesa té `UUID_FACTURA` i número visible; el registre fiscal concret s'identifica amb `UUID_FACTURA` **i `FISCAL_ORDER`**; el treball de transport amb `fiscal_queue.ID`. En el panell previst `pay.prisma.cat/sif/registres-aeat` la consulta ha de mostrar **l'estat del job**, **el resultat AEAT de cada registre** i **l'estat resum de la factura**, sense transformar un `SENT` de transport en `ACCEPTED` fiscal. Una factura pot tenir diversos registres al llarg de la seva història i la resposta d'un no es pot imputar a tots pel sol `UUID_FACTURA`.
+**Tres identificadors i tres estats independents.** La factura ja emesa té `UUID_FACTURA` i número visible; el registre fiscal concret s'identifica amb `UUID_FACTURA` **i `FISCAL_ORDER`**; el treball de transport amb `fiscal_queue.ID`. En el panell implementat `https://intranet.prisma.cat/sif-registres-aeat.php` la consulta mostra **l'estat del job**, **el resultat AEAT de cada registre** i **l'estat resum de la factura**, sense transformar un `SENT` de transport en `ACCEPTED` fiscal. Una factura pot tenir diversos registres al llarg de la seva història i la resposta d'un no es pot imputar a tots pel sol `UUID_FACTURA`.
 
 **Resposta amb errors o rebuig.** `FiscalQueueRepository::complete()` marca la cua `SENT` i desa la resposta de la línia sobre el registre del `FISCAL_ORDER` corresponent, també quan `ResponseParser` indica `ACCEPTED_WITH_ERRORS` o `REJECTED`. Aquesta situació requereix mostrar codi i detall de resposta i obrir revisió de l'operació, **no** tractar-la com un timeout que s'hagi de reenviar indefinidament ni modificar directament el document A/R inicial. El cas fiscal següent es classifica per UC-74/30/31 segons causa i evidència, no per la sola etiqueta `REJECTED`.
 
-**Resposta remota incerta.** El transport opera **fora** de la transacció que reclama el job; si AEAT ha rebut l'XML però el procés cau abans de confirmar `complete()`, el registre local pot continuar `PROCESSING` i després `RETRY`. Recuperar el lock no acredita que el servidor remot **no** hagi registrat la petició. La política objectiu és preservar payload/XML, identitat de registre i evidència de cada intent, investigar el resultat extern i autoritzar un eventual reenviament del **mateix registre**, mai emetre una altra factura amb un nou número per «recuperar» la remissió.
+**Resposta remota incerta.** El transport opera **fora** de la transacció que reclama el job; si AEAT ha rebut l'XML però el procés cau abans de confirmar `complete()`, el registre local pot continuar `PROCESSING`. La revalidació 03/10 elimina el reenviament cec: un `PROCESSING` caducat passa a `REVIEW`, sense `NEXT_RETRY_AT`, amb incidència `AEAT_STALE_PROCESSING`. Recuperar el lock no acredita que el servidor remot **no** hagi registrat la petició; qualsevol reenviament posterior exigeix conciliació explícita.
 
 **Preproducció i producció.** `SoapTransport` consultat restringeix el constructor a l'endpoint de proves. El panell pot mostrar mètriques locals i estats de transport, però ni un preflight local favorable ni un resultat amb transport simulat documenten recepció real ni disponibilitat productiva. Diferenciar clarament evidència de test, de resposta externa i de codi pendent d'adaptar abans de desplegar.
 
-### 1.4. Proves de frontera entre emissió, transport i resultat (no executades)
+### 1.4. Proves de frontera entre emissió, transport i resultat
 
 | ID | Escenari | Resultat exigible |
 | --- | --- | --- |
@@ -187,7 +187,7 @@ else Job reclamat
   Q->>DB: RETRY o DEAD_LETTER
   P-->>Worker: Estat d'error
  else Payload serialitzat
-  P->>T: send(payload) FORA de la transacció de claim
+  P->>T: send(payload + uuid_attempt + evidence_id) FORA de la transacció de claim
   T->>AEAT: SOAP signatura/certificat i XML [si snapshot aeat complet]
   alt Resposta correlacionada
    AEAT-->>T: Resposta de registre individual
@@ -218,7 +218,7 @@ T-->>P: Acceptació externa [pot haver arribat]
 Note over P,DB: El procés pot fallar abans de guardar la resposta en BD
 P-xQ: Pèrdua de confirmació / caiguda
 Q->>DB: Job continua PROCESSING fins recuperació
-Q->>DB: recoverStaleLocks() → RETRY
+Q->>DB: recoverStaleLocks() → REVIEW\n+ CLAIM_TOKEN=NULL + NEXT_RETRY_AT=NULL
 Note over Q,T: Reenviament sense conciliació podria duplicar un intent extern, criteri de recuperació pendent de validar
 ```
 
@@ -228,7 +228,7 @@ Note over Q,T: Reenviament sense conciliació podria duplicar un intent extern, 
 
 **Auditoria inicial:** `complete()` només filtrava per `ID` i una fallada local posterior al SOAP podia acabar en el mateix camí de retry que un error de transport.
 
-**Correcció implementada a la branca UC-009:** cada claim genera `CLAIM_TOKEN`; `complete()`, `fail()` i la quarantena d'integritat exigeixen `ID + STATUS=PROCESSING + CLAIM_TOKEN`. Abans de sortir a xarxa es crea un `aeat_submission_attempt` amb `ATTEMPT_NO` i `REQUEST_HASH`.
+**Correcció fusionada a `main` del UC-009:** cada claim genera `CLAIM_TOKEN`; `complete()`, `fail()` i la quarantena d'integritat exigeixen `ID + STATUS=PROCESSING + CLAIM_TOKEN`. Abans de sortir a xarxa es crea un `aeat_submission_attempt` amb `ATTEMPT_NO` i `REQUEST_HASH`.
 
 ```plantuml
 @startuml
@@ -277,7 +277,7 @@ Q->>DB: UPDATE factura_registres per UUID_FACTURA + FISCAL_ORDER
 Q->>DB: UPDATE factura.ESTAT_AEAT
 ```
 
-### 4.3. Acció independent: tractar una fallada local després de rebre resposta remota — REVIEW implementat / reconciliació operativa pendent
+### 4.3. Acció independent: tractar una fallada local després de rebre resposta remota — REVIEW i reconciliació implementats
 
 **Actor/disparador:** l'enviament pot haver arribat a AEAT però el SIF no disposa encara d'un resultat local consolidat, o bé s'ha rebut una resposta però falla la persistència posterior.
 
@@ -286,7 +286,7 @@ Q->>DB: UPDATE factura.ESTAT_AEAT
 2. resultat remot incert → `UNCERTAIN` + `REVIEW`;
 3. resposta remota certa que no es pot consolidar localment → intent preservat + `REVIEW`.
 
-`REVIEW` bloqueja el head i evita reenviaments automàtics. Continua pendent l'acció operativa que permeti conciliar i tancar el job sense un segon SOAP.
+`REVIEW` bloqueja el head i evita reenviaments automàtics. `AeatReviewReconciliationService` i el panell intranet permeten conciliar un resultat terminal ja persistit del mateix job sense un segon SOAP; un intent `UNCERTAIN` continua bloquejat en revisió.
 
 ```plantuml
 @startuml
@@ -334,7 +334,7 @@ Note over Q,I: REVIEW no té NEXT_RETRY_AT i SerialWorker retorna HEAD_REQUIRES_
 | AE-09-08 | Q marca SENT amb resposta REJECTED | Mostrar remissió acabada i rebuig de línia; tramitar revisió separada, no inventar una fallada de transport. |
 | AE-09-09 | `complete()` rep UUID_FACTURA vàlid però FISCAL_ORDER no existent | Rollback de la transacció completa; conservar error i evidència, no marcar SENT el job incompatible. |
 | AE-09-10 | Dues respostes/estats d'intent incompatibles per la mateixa ordre fiscal | Correlacionar cada intent i resoldre segons evidència, no sobreescriure per ordre d'arribada local. |
-| AE-09-11 | `SoapTransport` ha creat `request.json`/`response.xml` privats però `complete()` falla | Localitzar el mateix `evidence_id` amb `UUID_FACTURA+FISCAL_ORDER`; el PHP actual no garanteix índex SQL de l'intent quan no es confirma `AEAT_RESPONSE_JSON`. |
+| AE-09-11 | `SoapTransport` ha creat evidència privada però la persistència local posterior falla | **RESOLT EN CODI**: `EVIDENCE_ID` es preassigna i persisteix amb l'intent abans de xarxa; una fallada posterior deixa `UNCERTAIN/REVIEW` amb el mateix ID i permet conciliació només si bundle+metadata+resposta validen. |
 
 ## 5. Matriu de persistència i evidències
 
@@ -381,7 +381,7 @@ P->>Q: claimNext()
 Q->>DB: PROCESSING + ATTEMPTS + CLAIM_TOKEN
 P->>Q: assertImmutablePayload()
 P->>A: begin()
-A->>DB: INSERT aeat_submission_attempt STARTED
+A->>DB: INSERT attempt STARTED + REQUEST_HASH + EVIDENCE_ID únic
 P->>T: send(payload)
 T->>X: SOAP/mTLS
 alt resposta correlacionada
@@ -408,11 +408,11 @@ end
 
 Vegeu [UC-009 · Activitats ACTUAL/FINAL](./uc-009-activitats-actual-final.md). Aquest document cobreix worker, claim/fencing, immutabilitat, SOAP, resposta, retry, resultat incert, stale locks, preflight, panell, reconciliació i activació de producció.
 
-### 7.4. Extensió operativa 2026-09-30
+### 7.4. Extensió operativa 2026-09-30 — estat històric
 - panell intranet `sif-registres-aeat.php` amb API interna HMAC i CSRF per mutacions;
 - `AeatReviewReconciliationService` per tancar `REVIEW` només contra un intent terminal del mateix job;
-- cap reconciliació d'un intent `UNCERTAIN`;
-- cap segon SOAP durant la conciliació;
+- **en aquell tall** encara no existia conciliació d'`UNCERTAIN`; el PR #133 posterior afegeix `reconcile_evidence` amb bundle privat verificat;
+- cap segon SOAP durant cap conciliació;
 - incidència del queue marcada `RESOLVED` i nova traça `AEAT_RECONCILED`;
 - document de desplegament a `05-governanca-operacio/uc-009-panell-registres-aeat-desplegament.md`.
 
@@ -422,3 +422,78 @@ Vegeu [UC-009 · Activitats ACTUAL/FINAL](./uc-009-activitats-actual-final.md). 
 - no s'afirma certificat productiu qualificat;
 - l'alta del nou apartat a la BD de menú de preproducció no s'ha executat des del repositori;
 - no s'afirma producció habilitada.
+
+
+## 8. Revalidació 2026-10-03 contra `main`
+
+- Panell real: `intranet.prisma.cat/sif-registres-aeat.php`, no una ruta UI de `pay.prisma.cat`.
+- API real: `sif/public/api/aeat/operations.php`, protegida amb HMAC i anti-replay; qualsevol acció exigeix rol de lectura i les mutacions exigeixen lectura + reconciliació.
+- Reconciliació `REVIEW`: implementada i provada; no executa `SoapTransport`.
+- Paquet UML separat afegit: [classes ACTUAL/FINAL](./uc-009-classes-actual-final.md), [seqüències ACTUAL/FINAL](./uc-009-sequencies-actual-final.md) i [auditoria/traçabilitat](./uc-009-auditoria-tracabilitat-2026-10-03.md).
+- Evidència CI històrica del tall 02/10: 917 passades / 6 fallades globals, amb UC-009/AEAT en PASS. No s'ha d'utilitzar com a estat vigent; merge/release depèn del CI actual del `main` i del PR.
+- Continua pendent: desplegament real del panell/menú, rols/secrets d'entorn, certificat i enviament real AEAT de preproducció.
+
+
+### 8.1. Correcció crítica 2026-10-03 — stale worker sense reenviament cec
+
+La versió anterior de `FiscalQueueRepository::recoverStaleLocks()` convertia un `PROCESSING` antic en `RETRY`. Això era insuficient: el procés podia haver enviat el SOAP i morir abans del commit local.
+
+A la branca d'auditoria:
+- `PROCESSING` caducat → `REVIEW`, mai `RETRY`;
+- `CLAIM_TOKEN` i `LOCKED_AT` s'alliberen;
+- `NEXT_RETRY_AT=NULL`;
+- s'obre incidència idempotent `AEAT_STALE_PROCESSING`;
+- el worker retorna `HEAD_REQUIRES_REVIEW`;
+- el transport **no** es torna a invocar automàticament;
+- el panell exposa `LAST_ERROR` per facilitar la revisió.
+
+Aquesta correcció tanca el risc AE-09-04 de segon SOAP automàtic després d'una caiguda del worker.
+
+
+### 8.2. Correcció crítica 2026-10-03 — resposta terminal + flow control invàlid
+
+La versió anterior de `FlowControlledTransport` podia rebre un resultat remot terminal i, si `flow_wait_seconds` era invàlid, llançar una excepció genèrica. `FiscalQueueProcessor` la tractava com a error retryable, amb risc de segon SOAP.
+
+Contracte corregit:
+- abans de xarxa es persisteix una espera conservadora de 60 s;
+- timeout/error abans d'obtenir resultat remot continua sent retryable;
+- després que el transport subjacent retorna un resultat, cap anomalia de flow control converteix el registre en `RETRY`;
+- un `flow_wait_seconds` invàlid usa fallback de 60 s i marca `requires_review=true`;
+- una fallada de persistència de l'espera posterior preserva el resultat remot i marca revisió;
+- el registre original queda `SENT` amb el seu `ESTAT_AEAT`, i el worker obre `AEAT_REVIEW`.
+
+
+### 8.3. Extensió 2026-10-04 — recuperar UNCERTAIN des d'evidència íntegra
+
+La conciliació normal continua acceptant només intents terminals ja persistits. Addicionalment, un intent `UNCERTAIN` pot tancar-se sense reenviament quan existeix `EVIDENCE_ID` estructurat i únic.
+
+La via d'evidència exigeix simultàniament:
+1. queue en `REVIEW`;
+2. últim attempt del queue;
+3. attempt en `UNCERTAIN`;
+4. `EVIDENCE_ID` vàlid i associat a aquell attempt;
+5. evidence store privat configurat;
+6. `request.xml` i `response.xml` amb hashes íntegres;
+7. request d'evidència idèntic a l'XML regenerat des del snapshot immutable i al `REQUEST_HASH`;
+8. resposta validada per `ResponseParser` contra emissor, factura, operació i flags;
+9. estat terminal `ACCEPTED|ACCEPTED_WITH_ERRORS|REJECTED`.
+
+Si qualsevol comprovació falla, no es modifica l'intent, la cua continua `REVIEW` i no existeix cap fallback de reenviament.
+
+
+### 8.4. Conservació de l'evidència si falla la persistència post-resposta
+
+Si el transport ja ha retornat una resposta amb `evidence_id` però falla la persistència local de `aeat_submission_attempt`, el processador passa explícitament aquest identificador a `reviewHold()`. L'intent queda `UNCERTAIN` amb `EVIDENCE_ID`, la cua queda `REVIEW` i el worker no torna a enviar.
+
+La prova `testPostResponsePersistenceFailureKeepsEvidenceReferenceAndBlocksResend` força una fallada de serialització local després del resultat remot i verifica aquesta invariant.
+
+
+### 8.3. Hardening d'autorització 2026-10-04
+
+- el shell `sif-registres-aeat.php` no es renderitza si la sessió no té cap rol de `SIF_AEAT_READ_ROLES`;
+- el 403 es produeix abans de generar CSRF o carregar el panell;
+- l'API exigeix rol de lectura per totes les operacions;
+- `reconcile` i `reconcile_evidence` exigeixen simultàniament rol de lectura i rol de reconciliació;
+- `detail` retorna només `capabilities.reconcile`, no la llista de rols;
+- el JS oculta accions de conciliació a perfils només-lectura;
+- HMAC, anti-replay i CSRF continuen sent controls obligatoris independents.

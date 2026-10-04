@@ -44,6 +44,12 @@ final class AeatIntegrityTest
             $before = hash_file('sha256', $dir . '/' . $id . '/response.xml');
             $result = ScriptRunner::run('scripts/verify-aeat-evidence.php', [], $args);
             Assert::same(0, $result['exit_code']);
+            $pair = $verifier->readVerifiedPair($dir, $id);
+            Assert::same('<private-synthetic-request/>', $pair['request_xml']);
+            Assert::same('<private-synthetic-response/>', $pair['response_xml']);
+            Assert::same(200, $pair['response_http_status']);
+            Assert::matchesRegularExpression('/^[a-f0-9]{64}$/', $pair['request_sha256']);
+            Assert::matchesRegularExpression('/^[a-f0-9]{64}$/', $pair['response_sha256']);
             $output = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
             Assert::same('RESPONSE_RECORDED', $output['state']);
             Assert::same(false, $output['aeat_acceptance_verified']);
@@ -51,6 +57,10 @@ final class AeatIntegrityTest
             Assert::same($before, hash_file('sha256', $dir . '/' . $id . '/response.xml'));
             file_put_contents($dir . '/' . $id . '/response.xml', 'ALTERED');
             Assert::same(['RESPONSE_INTEGRITY_FAILED'], $verifier->verify($dir, $id)['errors']);
+            Assert::throws(
+                \RuntimeException::class,
+                fn () => $verifier->readVerifiedPair($dir, $id)
+            );
             Assert::same(1, ScriptRunner::run('scripts/verify-aeat-evidence.php', [], $args)['exit_code']);
         });
     }

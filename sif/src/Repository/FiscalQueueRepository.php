@@ -12,8 +12,8 @@ final class FiscalQueueRepository
     {
         $stmt = $db->prepare(
             "UPDATE fiscal_queue
-             SET STATUS = 'RETRY', LOCKED_AT = NULL, CLAIM_TOKEN = NULL, NEXT_RETRY_AT = NULL,
-                 LAST_ERROR = 'Recovered stale worker lock'
+             SET STATUS = 'REVIEW', LOCKED_AT = NULL, CLAIM_TOKEN = NULL, NEXT_RETRY_AT = NULL,
+                 LAST_ERROR = 'Recovered stale worker lock; delivery outcome requires review before resend'
              WHERE STATUS = 'PROCESSING' AND LOCKED_AT IS NOT NULL AND LOCKED_AT < ?"
         );
         $stmt->execute([$lockedBefore]);

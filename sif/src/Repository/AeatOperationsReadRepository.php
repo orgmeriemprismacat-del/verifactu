@@ -36,7 +36,7 @@ final class AeatOperationsReadRepository
         }
 
         $sql = 'SELECT q.ID, q.UUID_FACTURA, f.NUM_VISIBLE, q.STATUS, q.ATTEMPTS,
-                       q.AEAT_CSV, q.AEAT_ERROR_CODE, q.AEAT_ERROR_MESSAGE,
+                       q.AEAT_CSV, q.AEAT_ERROR_CODE, q.AEAT_ERROR_MESSAGE, q.LAST_ERROR,
                        q.FLOW_WAIT_SECONDS, q.NEXT_RETRY_AT, q.LOCKED_AT, q.SENT_AT, q.CREATED_AT
                 FROM fiscal_queue q
                 INNER JOIN factura f ON f.UUID_FACTURA = q.UUID_FACTURA';
@@ -60,7 +60,7 @@ final class AeatOperationsReadRepository
 
         $queue = $db->prepare(
             'SELECT q.ID, q.UUID_FACTURA, f.NUM_VISIBLE, q.STATUS, q.ATTEMPTS,
-                    q.AEAT_CSV, q.AEAT_ERROR_CODE, q.AEAT_ERROR_MESSAGE,
+                    q.AEAT_CSV, q.AEAT_ERROR_CODE, q.AEAT_ERROR_MESSAGE, q.LAST_ERROR,
                     q.FLOW_WAIT_SECONDS, q.NEXT_RETRY_AT, q.LOCKED_AT, q.SENT_AT, q.CREATED_AT,
                     JSON_UNQUOTE(JSON_EXTRACT(q.PAYLOAD_JSON, \'$.fiscal_order\')) AS FISCAL_ORDER
              FROM fiscal_queue q
@@ -75,6 +75,10 @@ final class AeatOperationsReadRepository
 
         $attempts = $db->prepare(
             'SELECT UUID_ATTEMPT, ATTEMPT_NO, ENVIRONMENT, ENDPOINT_CODE, REQUEST_HASH,
+                    EVIDENCE_ID,
+                    CASE WHEN EVIDENCE_RESPONSE_SHA256 IS NOT NULL
+                              AND EVIDENCE_HTTP_STATUS = 200
+                         THEN 1 ELSE 0 END AS EVIDENCE_RECONCILABLE,
                     RESPONSE_CODE, RESPONSE_CSV, STATUS, ERROR_CODE, ERROR_DETAIL,
                     STARTED_AT, FINISHED_AT, CREATED_AT
              FROM aeat_submission_attempt

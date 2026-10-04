@@ -28,7 +28,7 @@ Objectiu per UC, quan aplica: fitxa funcional + fitxa integrada + classes A/F + 
 | UC-06 | Registrar devolució, saldo o compensació | pagaments i conciliació | `[PARCIAL]` | [uc-006.md](./uc-006.md) |
 | UC-07 | Consultar factura, estat i document | documents, accés i comunicacions | `[DISSENY]` | [uc-007.md](./uc-007.md) |
 | UC-08 | Gestionar incidència | governança i operació | `[PARCIAL]` | [uc-008.md](./uc-008.md) |
-| UC-09 | Remetre registre a AEAT | governança i operació | `[DISSENY]` | [uc-009.md](./uc-009.md) |
+| UC-09 | Remetre registre a AEAT | governança i operació | `[REVIEWED/IMPLEMENTAT/PREPROD PENDENT]` | [uc-009.md](./uc-009.md) |
 | UC-10 | Gestionar configuració i versió | governança i operació | `[DISSENY]` | [uc-010.md](./uc-010.md) |
 | UC-11 | Importar factura històrica | facturació i registre fiscal | `[BASE]` | [uc-011.md](./uc-011.md) |
 | UC-12 | Gestionar el cicle de morositat i reclamació | integració SIF | `[PARCIAL]` | [uc-012.md](./uc-012.md) |

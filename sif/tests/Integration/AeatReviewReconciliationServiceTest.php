@@ -66,7 +66,8 @@ final class AeatReviewReconciliationServiceTest
         ))->reconcile(
             (int) $queue['ID'],
             '11111111-2222-4333-8444-555555555555',
-            'tester'
+            'tester',
+            'AEAT_RECONCILER'
         );
 
         Assert::same(true, $result['ok']);
@@ -95,6 +96,14 @@ final class AeatReviewReconciliationServiceTest
                  WHERE OPERATION_TYPE = 'AEAT_RECONCILE'
                    AND REASON_CODE = 'AEAT_RECONCILED'
                    AND STATUS = 'COMPLETED'"
+            )->fetchColumn()
+        );
+        Assert::same(
+            'AEAT_RECONCILER',
+            $db->query(
+                "SELECT ACTOR_ROLE FROM operational_event
+                 WHERE OPERATION_TYPE = 'AEAT_RECONCILE'
+                 ORDER BY ID DESC LIMIT 1"
             )->fetchColumn()
         );
     }
@@ -173,6 +182,26 @@ final class AeatReviewReconciliationServiceTest
         );
 
         Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+    }
+
+
+    public function testRejectsMalformedAttemptUuidBeforeDatabaseReconciliation(): void
+    {
+        $db = TestDatabase::fresh();
+
+        Assert::throws(
+            SifException::class,
+            fn () => (new AeatReviewReconciliationService(
+                new TransactionRunner($db),
+                new FiscalQueueRepository(),
+                new IncidentRepository()
+            ))->reconcile(
+                1,
+                '------------------------------------',
+                'tester'
+            ),
+            422
+        );
     }
 
 }

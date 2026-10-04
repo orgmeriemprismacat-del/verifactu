@@ -1,0 +1,101 @@
+name: UC-009 AEAT audit
+
+on:
+  pull_request:
+    paths:
+      - "sif/src/Aeat/**"
+      - "sif/src/Exception/AeatDeliveryUncertainException.php"
+      - "sif/src/Service/AeatReviewReconciliationService.php"
+      - "sif/src/Service/AeatEvidenceReconciliationService.php"
+      - "sif/src/Service/FiscalQueueProcessor.php"
+      - "sif/src/Repository/AeatOperationsReadRepository.php"
+      - "sif/src/Repository/AeatSubmissionAttemptRepository.php"
+      - "sif/src/Repository/FiscalQueueRepository.php"
+      - "sif/public/api/aeat/**"
+      - "sif/config/sif.php"
+      - "sif/database/migrations/2026_10_04_000033_add_aeat_attempt_evidence_id.sql"
+      - "sif/database/migrations/2026_10_04_000034_anchor_aeat_evidence_response.sql"
+      - "sif/scripts/*aeat*"
+      - "sif/tests/**/*Aeat*Test.php"
+      - "sif/tests/Integration/FiscalQueue*Test.php"
+      - "sif/tests/Integration/InternalApiAuthenticatorTest.php"
+      - "sif/tests/Integration/PayloadIdempotencyFlowTest.php"
+      - "sif/tests/run-uc009-tests.php"
+      - "codi-drive/intranet-actual/sif-registres-aeat.php"
+      - "codi-drive/intranet-actual/SifInternalAeatClient.php"
+      - "codi-drive/intranet-actual/ajax/sif/sifAeat.php"
+      - "codi-drive/intranet-actual/js/sif-registres-aeat.js"
+      - "codi-drive/intranet-actual/js/general_v5.js"
+      - "codi-drive/intranet-actual/css/sif-registres-aeat.css"
+      - "codi-drive/intranet-actual/preflight-sif-registres-aeat-menu.php"
+      - "documentacio/06-fitxes-funcionals/uc-009.md"
+      - "documentacio/07-uml-integrat/uc-009-*"
+      - ".github/workflows/uc-009-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  uc009-aeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_test;charset=utf8mb4
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+      SIF_LEGACY_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_legacy_test;charset=utf8mb4
+      SIF_LEGACY_DB_USER: root
+      SIF_LEGACY_DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 extensions
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, openssl, mbstring
+          coverage: none
+
+      - name: Prepare legacy test DB
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot             -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+      - name: Lint UC-009 PHP and JavaScript
+        run: |
+          php -l codi-drive/intranet-actual/sif-registres-aeat.php
+          php -l codi-drive/intranet-actual/SifInternalAeatClient.php
+          php -l codi-drive/intranet-actual/ajax/sif/sifAeat.php
+          php -l codi-drive/intranet-actual/preflight-sif-registres-aeat-menu.php
+          php -l sif/src/Service/AeatReviewReconciliationService.php
+          php -l sif/src/Service/AeatEvidenceReconciliationService.php
+          php -l sif/src/Aeat/EvidenceVerifier.php
+          php -l sif/src/Aeat/EvidenceStore.php
+          php -l sif/src/Aeat/ClientCertificate.php
+          php -l sif/src/Aeat/SoapTransport.php
+          php -l sif/src/Aeat/FlowControlledTransport.php
+          php -l sif/src/Repository/AeatSubmissionAttemptRepository.php
+          php -l sif/src/Exception/AeatDeliveryUncertainException.php
+          php -l sif/public/api/aeat/operations.php
+          node --check codi-drive/intranet-actual/js/sif-registres-aeat.js
+          node --check codi-drive/intranet-actual/js/general_v5.js
+
+      - name: Run UC-009 focused suite
+        run: php sif/tests/run-uc009-tests.php

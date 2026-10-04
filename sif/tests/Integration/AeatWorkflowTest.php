@@ -7,7 +7,7 @@ use Prisma\Sif\Contract\AeatTransport;
 use Prisma\Sif\Exception\AeatDeliveryUncertainException;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\HashCalculator;
-use Prisma\Sif\Repository\{FiscalRecordRepository, ManualPaymentInvoiceRepository};
+use Prisma\Sif\Repository\{AeatSubmissionAttemptRepository, FiscalRecordRepository, ManualPaymentInvoiceRepository};
 use Prisma\Sif\Service\{FiscalRecordService, FiscalRecordPayloadBuilder};
 use Prisma\Sif\Tests\Support\{Assert, Fixtures, AeatFixtures, TestDatabase};
 
@@ -78,8 +78,16 @@ final class AeatWorkflowTest
             public int $calls = 0;
             public function send(array $payload): array {
                 $this->calls++;
-                return ['status' => 'ACCEPTED', 'response' => ['flow_wait_seconds' => 120],
-                    'request_xml' => (new XmlCodec())->request($payload['aeat'])];
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'flow_wait_seconds' => 120,
+                        'evidence_id' => (string) ($payload['_sif_submission_attempt']['evidence_id'] ?? ''),
+                        'response_sha256' => hash('sha256', 'synthetic-worker-wait'),
+                        'evidence_http_status' => 200,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
             }
         };
         $worker = new SerialWorker($db, $transport);
@@ -100,8 +108,16 @@ final class AeatWorkflowTest
                 public function __construct(private string $flag) {}
                 public function send(array $payload): array {
                     $this->calls++;
-                    return ['status' => 'ACCEPTED', 'response' => [$this->flag => true],
-                        'request_xml' => (new XmlCodec())->request($payload['aeat'])];
+                    return [
+                        'status' => 'ACCEPTED',
+                        'response' => [
+                            $this->flag => true,
+                            'evidence_id' => (string) ($payload['_sif_submission_attempt']['evidence_id'] ?? ''),
+                            'response_sha256' => hash('sha256', 'synthetic-review-' . $this->flag),
+                            'evidence_http_status' => 200,
+                        ],
+                        'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                    ];
                 }
             };
             $worker = new SerialWorker($db, $transport);
@@ -142,32 +158,85 @@ final class AeatWorkflowTest
 
     public function testFailedDeliveryRestartsGlobalWaitAndSurvivesWorkerRestart(): void
     {
-        foreach (['timeout', 'invalid_wait'] as $failure) {
-            $db = TestDatabase::fresh();
-            IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload());
-            $transport = new class($db, $failure) implements AeatTransport {
-                public int $calls = 0;
-                public function __construct(private \PDO $db, private string $failure) {}
-                public function send(array $payload): array {
-                    $this->calls++;
-                    // Simulate the initial deadline expiring during network I/O, without sleeping.
-                    $this->db->exec('UPDATE aeat_worker_state SET NEXT_SEND_AT = DATE_SUB(NOW(), INTERVAL 1 SECOND)');
-                    if ($this->failure === 'timeout') {
-                        throw new \RuntimeException('Synthetic timeout');
-                    }
-                    return ['status' => 'ACCEPTED', 'response' => ['flow_wait_seconds' => -1]];
-                }
-            };
-            $result = (new SerialWorker($db, $transport))->runOnce();
-            Assert::same('RETRY', $result['queue_status']);
-            Assert::same($failure === 'timeout' ? 'Synthetic timeout' : 'Invalid AEAT flow wait.', $result['error']);
-            Assert::same(1, (int) $db->query('SELECT NEXT_SEND_AT >= DATE_ADD(NOW(), INTERVAL 55 SECOND) FROM aeat_worker_state WHERE ID = 1')->fetchColumn());
-            // Make the per-record retry due: the persisted global wait must still stop it.
-            $db->exec('UPDATE fiscal_queue SET NEXT_RETRY_AT = NULL');
-            Assert::same('WAIT', (new SerialWorker($db, $transport))->runOnce()['reason']);
-            Assert::same(1, $transport->calls);
-            Assert::same(1, (int) $db->query('SELECT ATTEMPTS FROM fiscal_queue')->fetchColumn());
-        }
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload());
+        $transport = new class($db) implements AeatTransport {
+            public int $calls = 0;
+            public function __construct(private \PDO $db) {}
+            public function send(array $payload): array {
+                $this->calls++;
+                // Simulate the initial deadline expiring during network I/O, without sleeping.
+                $this->db->exec('UPDATE aeat_worker_state SET NEXT_SEND_AT = DATE_SUB(NOW(), INTERVAL 1 SECOND)');
+                throw new \RuntimeException('Synthetic timeout');
+            }
+        };
+
+        $result = (new SerialWorker($db, $transport))->runOnce();
+
+        Assert::same('RETRY', $result['queue_status']);
+        Assert::same('Synthetic timeout', $result['error']);
+        Assert::same(
+            1,
+            (int) $db->query(
+                'SELECT NEXT_SEND_AT >= DATE_ADD(NOW(), INTERVAL 55 SECOND) FROM aeat_worker_state WHERE ID = 1'
+            )->fetchColumn()
+        );
+        $db->exec('UPDATE fiscal_queue SET NEXT_RETRY_AT = NULL');
+        Assert::same('WAIT', (new SerialWorker($db, $transport))->runOnce()['reason']);
+        Assert::same(1, $transport->calls);
+        Assert::same(1, (int) $db->query('SELECT ATTEMPTS FROM fiscal_queue')->fetchColumn());
+    }
+
+    public function testInvalidRemoteFlowWaitKeepsTerminalResultAndRequiresReviewWithoutResend(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload());
+        IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload('AEAT-FLOW-FOLLOWING'));
+        $transport = new class($db) implements AeatTransport {
+            public int $calls = 0;
+            public function __construct(private \PDO $db) {}
+            public function send(array $payload): array {
+                $this->calls++;
+                $this->db->exec('UPDATE aeat_worker_state SET NEXT_SEND_AT = DATE_SUB(NOW(), INTERVAL 1 SECOND)');
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'flow_wait_seconds' => -1,
+                        'evidence_id' => (string) ($payload['_sif_submission_attempt']['evidence_id'] ?? ''),
+                        'response_sha256' => hash('sha256', 'synthetic-invalid-flow-wait'),
+                        'evidence_http_status' => 200,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
+            }
+        };
+
+        $worker = new SerialWorker($db, $transport);
+        $result = $worker->runOnce();
+
+        Assert::same(true, $result['ok']);
+        Assert::same('ACCEPTED', $result['aeat_status']);
+        Assert::same(true, $result['requires_review']);
+        Assert::same('SENT', $db->query('SELECT STATUS FROM fiscal_queue ORDER BY ID LIMIT 1')->fetchColumn());
+        Assert::same(
+            'ACCEPTED',
+            $db->query('SELECT ESTAT_AEAT FROM factura_registres ORDER BY FISCAL_ORDER LIMIT 1')->fetchColumn()
+        );
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_REVIEW'"
+            )->fetchColumn()
+        );
+        Assert::same(
+            1,
+            (int) $db->query(
+                'SELECT NEXT_SEND_AT >= DATE_ADD(NOW(), INTERVAL 55 SECOND) FROM aeat_worker_state WHERE ID = 1'
+            )->fetchColumn()
+        );
+        Assert::same('WAIT', $worker->runOnce()['reason']);
+        Assert::same(1, $transport->calls);
+        Assert::same('PENDING', $db->query('SELECT STATUS FROM fiscal_queue ORDER BY ID DESC LIMIT 1')->fetchColumn());
     }
 
     public function testResponseProjectionKeepsFullUnicodeEvidenceInRecord(): void
@@ -176,10 +245,19 @@ final class AeatWorkflowTest
         IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload());
         $transport = new class implements AeatTransport {
             public function send(array $payload): array {
-                return ['status' => 'ACCEPTED_WITH_ERRORS', 'response' => [
-                    'csv' => 'SYNTHETIC-CSV', 'error_code' => 'TEST',
-                    'error_message' => str_repeat('ó', 600), 'flow_wait_seconds' => 90],
-                    'request_xml' => (new XmlCodec())->request($payload['aeat'])];
+                return [
+                    'status' => 'ACCEPTED_WITH_ERRORS',
+                    'response' => [
+                        'csv' => 'SYNTHETIC-CSV',
+                        'error_code' => 'TEST',
+                        'error_message' => str_repeat('ó', 600),
+                        'flow_wait_seconds' => 90,
+                        'evidence_id' => (string) ($payload['_sif_submission_attempt']['evidence_id'] ?? ''),
+                        'response_sha256' => hash('sha256', 'synthetic-unicode-response'),
+                        'evidence_http_status' => 200,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
             }
         };
         Assert::same('ACCEPTED_WITH_ERRORS', (new SerialWorker($db, $transport))->runOnce()['aeat_status']);
@@ -219,12 +297,68 @@ final class AeatWorkflowTest
             $release = $owner->prepare('SELECT RELEASE_LOCK(?)');
             $release->execute([$lock]);
         }
-        Assert::same('ACCEPTED', (new SerialWorker($db, $transport))->runOnce(true)['aeat_status']);
-        Assert::same(1, $transport->calls);
-        Assert::same(2, (int) $db->query('SELECT ATTEMPTS FROM fiscal_queue')->fetchColumn());
+        Assert::same('HEAD_REQUIRES_REVIEW', (new SerialWorker($db, $transport))->runOnce(true)['reason']);
+        Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same(0, $transport->calls);
+        Assert::same(1, (int) $db->query('SELECT ATTEMPTS FROM fiscal_queue')->fetchColumn());
+        Assert::same(
+            1,
+            (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_STALE_PROCESSING'")
+                ->fetchColumn()
+        );
     }
 
-    public function testRecoveredExhaustedAttemptBlocksFollowingRecordWithoutDelivery(): void
+
+    public function testStaleStartedAttemptBecomesUncertainWithSamePreassignedEvidenceId(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-STALE-STARTED-EVIDENCE')
+        );
+
+        $db->exec(
+            "UPDATE fiscal_queue
+             SET STATUS = 'PROCESSING', ATTEMPTS = 1,
+                 LOCKED_AT = DATE_SUB(NOW(), INTERVAL 30 MINUTE)"
+        );
+        $queue = $db->query('SELECT * FROM fiscal_queue LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+        $payload = json_decode((string) $queue['PAYLOAD_JSON'], true);
+        $context = (new AeatSubmissionAttemptRepository())->begin($db, $queue, $payload);
+
+        $transport = new class implements AeatTransport {
+            public int $calls = 0;
+
+            public function send(array $payload): array
+            {
+                $this->calls++;
+                throw new \RuntimeException('Transport must not run during stale recovery review.');
+            }
+        };
+
+        $worker = new SerialWorker($db, $transport);
+        $result = $worker->runOnce(true);
+
+        Assert::same('HEAD_REQUIRES_REVIEW', $result['reason']);
+        Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same(
+            'UNCERTAIN',
+            $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            $context['evidence_id'],
+            $db->query('SELECT EVIDENCE_ID FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(0, $transport->calls);
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE TIPUS_INCIDENCIA = 'AEAT_STALE_PROCESSING'"
+            )->fetchColumn()
+        );
+    }
+
+    public function testRecoveredExhaustedAttemptRequiresReviewAndBlocksFollowingRecordWithoutDelivery(): void
     {
         $db = TestDatabase::fresh();
         IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload());
@@ -243,15 +377,221 @@ final class AeatWorkflowTest
         Assert::same('PROCESSING', $db->query('SELECT STATUS FROM fiscal_queue ORDER BY ID LIMIT 1')->fetchColumn());
         Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce(true)['reason']);
         $rows = $db->query('SELECT STATUS, ATTEMPTS, LOCKED_AT FROM fiscal_queue ORDER BY ID')->fetchAll(\PDO::FETCH_ASSOC);
-        Assert::same('DEAD_LETTER', $rows[0]['STATUS']);
+        Assert::same('REVIEW', $rows[0]['STATUS']);
         Assert::same(3, (int) $rows[0]['ATTEMPTS']);
         Assert::same(null, $rows[0]['LOCKED_AT']);
         Assert::same('PENDING', $rows[1]['STATUS']);
         Assert::same(0, (int) $rows[1]['ATTEMPTS']);
         Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce(true)['reason']);
         Assert::same(0, $transport->calls);
-        Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DEAD_LETTER'")->fetchColumn());
-        Assert::same('ERROR', $db->query('SELECT ESTAT_AEAT FROM factura_registres ORDER BY FISCAL_ORDER LIMIT 1')->fetchColumn());
+        Assert::same(0, (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DEAD_LETTER'")->fetchColumn());
+        Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_STALE_PROCESSING'")->fetchColumn());
+        Assert::same('PENDING', $db->query('SELECT ESTAT_AEAT FROM factura_registres ORDER BY FISCAL_ORDER LIMIT 1')->fetchColumn());
+    }
+
+
+    public function testWorkerPassesPreassignedAttemptAndEvidenceContextToTransport(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-PREASSIGNED-EVIDENCE-CONTEXT')
+        );
+
+        $transport = new class implements AeatTransport {
+            public array $context = [];
+
+            public function send(array $payload): array
+            {
+                $this->context = (array) ($payload['_sif_submission_attempt'] ?? []);
+
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'csv' => 'PREASSIGNED-CONTEXT',
+                        'flow_wait_seconds' => 60,
+                        'evidence_id' => $this->context['evidence_id'] ?? null,
+                        'response_sha256' => hash('sha256', 'synthetic-preassigned-context'),
+                        'evidence_http_status' => 200,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
+            }
+        };
+
+        $result = (new SerialWorker($db, $transport))->runOnce();
+        $attempt = $db->query(
+            'SELECT UUID_ATTEMPT, EVIDENCE_ID, STATUS FROM aeat_submission_attempt LIMIT 1'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('ACCEPTED', $result['aeat_status']);
+        Assert::same((string) $attempt['UUID_ATTEMPT'], (string) ($transport->context['uuid_attempt'] ?? ''));
+        Assert::same((string) $attempt['EVIDENCE_ID'], (string) ($transport->context['evidence_id'] ?? ''));
+        Assert::matchesRegularExpression(
+            '/^\d{8}T\d{6}Z-[a-f0-9]{24}$/',
+            (string) $attempt['EVIDENCE_ID']
+        );
+        Assert::same('ACCEPTED', $attempt['STATUS']);
+    }
+
+
+    public function testMismatchedTransportEvidenceReferenceIsQuarantinedWithoutReplacingPreassignedId(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-EVIDENCE-REFERENCE-MISMATCH')
+        );
+        $differentEvidenceId = '20261004T010000Z-abcdefabcdefabcdefabcdef';
+
+        $transport = new class($differentEvidenceId) implements AeatTransport {
+            public int $calls = 0;
+
+            public function __construct(private string $differentEvidenceId) {}
+
+            public function send(array $payload): array
+            {
+                $this->calls++;
+
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'csv' => 'MUST-NOT-COMMIT',
+                        'flow_wait_seconds' => 60,
+                        'evidence_id' => $this->differentEvidenceId,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
+            }
+        };
+
+        $worker = new SerialWorker($db, $transport);
+        $result = $worker->runOnce();
+        $attempt = $db->query(
+            'SELECT STATUS, EVIDENCE_ID FROM aeat_submission_attempt LIMIT 1'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same(false, $result['ok']);
+        Assert::same('REVIEW', $result['queue_status']);
+        Assert::same('UNCERTAIN', $attempt['STATUS']);
+        Assert::same(false, hash_equals($differentEvidenceId, (string) $attempt['EVIDENCE_ID']));
+        Assert::matchesRegularExpression(
+            '/^\d{8}T\d{6}Z-[a-f0-9]{24}$/',
+            (string) $attempt['EVIDENCE_ID']
+        );
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE TIPUS_INCIDENCIA = 'AEAT_EVIDENCE_REFERENCE_MISMATCH'"
+            )->fetchColumn()
+        );
+        Assert::same('PENDING', $db->query('SELECT ESTAT_AEAT FROM factura_registres')->fetchColumn());
+        Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce()['reason']);
+        Assert::same(1, $transport->calls);
+    }
+
+    public function testTerminalResultWithoutEvidenceAnchorMovesToReviewWithoutResend(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-TERMINAL-WITHOUT-EVIDENCE-ANCHOR')
+        );
+
+        $transport = new class implements AeatTransport {
+            public int $calls = 0;
+
+            public function send(array $payload): array
+            {
+                $this->calls++;
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'csv' => 'MUST-NOT-COMMIT',
+                        'flow_wait_seconds' => 60,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
+            }
+        };
+
+        $worker = new SerialWorker($db, $transport);
+        $result = $worker->runOnce();
+
+        Assert::same(false, $result['ok']);
+        Assert::same('REVIEW', $result['queue_status']);
+        Assert::same(true, $result['requires_review']);
+        Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same(
+            'UNCERTAIN',
+            $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            null,
+            $db->query('SELECT EVIDENCE_RESPONSE_SHA256 FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            'PENDING',
+            $db->query('SELECT ESTAT_AEAT FROM factura_registres')->fetchColumn()
+        );
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE TIPUS_INCIDENCIA = 'AEAT_REMOTE_RESULT_NOT_PERSISTED'"
+            )->fetchColumn()
+        );
+
+        Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce()['reason']);
+        Assert::same(1, $transport->calls);
+    }
+
+    public function testAttemptRepositoryRejectsTerminalResponseThatDoesNotMatchAnchoredHash(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-LEDGER-ANCHOR-MISMATCH')
+        );
+
+        $queue = $db->query('SELECT * FROM fiscal_queue LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+        $payload = json_decode((string) $queue['PAYLOAD_JSON'], true);
+        $attempts = new AeatSubmissionAttemptRepository();
+        $context = $attempts->begin($db, $queue, $payload);
+
+        $uuid = (string) $context['uuid_attempt'];
+        $evidenceId = (string) $context['evidence_id'];
+        $anchored = hash('sha256', 'anchored-response');
+        $different = hash('sha256', 'different-response');
+
+        $attempts->anchorEvidenceResponse(
+            $db,
+            $uuid,
+            $evidenceId,
+            $anchored,
+            200
+        );
+
+        Assert::throws(
+            \RuntimeException::class,
+            fn () => $attempts->complete(
+                $db,
+                $uuid,
+                'ACCEPTED',
+                [
+                    'csv' => 'MUST-NOT-COMMIT',
+                    'evidence_id' => $evidenceId,
+                    'response_sha256' => $different,
+                    'evidence_http_status' => 200,
+                ]
+            )
+        );
+
+        Assert::same(
+            'STARTED',
+            $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            $anchored,
+            $db->query('SELECT EVIDENCE_RESPONSE_SHA256 FROM aeat_submission_attempt')->fetchColumn()
+        );
     }
 
     public function testPersistsSubmissionAttemptBeforeAndAfterAcceptedDelivery(): void
@@ -260,9 +600,17 @@ final class AeatWorkflowTest
         IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload('AEAT-ATTEMPT-LEDGER'));
         $transport = new class implements AeatTransport {
             public function send(array $payload): array {
-                return ['status' => 'ACCEPTED', 'response' => [
-                    'csv' => 'LEDGER-CSV', 'flow_wait_seconds' => 60
-                ], 'request_xml' => (new XmlCodec())->request($payload['aeat'])];
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'csv' => 'LEDGER-CSV',
+                        'flow_wait_seconds' => 60,
+                        'evidence_id' => (string) ($payload['_sif_submission_attempt']['evidence_id'] ?? ''),
+                        'response_sha256' => hash('sha256', 'synthetic-ledger-response'),
+                        'evidence_http_status' => 200,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
             }
         };
 
@@ -283,9 +631,22 @@ final class AeatWorkflowTest
         IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload('AEAT-UNCERTAIN'));
         $transport = new class implements AeatTransport {
             public int $calls = 0;
-            public function send(array $payload): array {
+            public string $evidenceId = '';
+
+            public function send(array $payload): array
+            {
                 $this->calls++;
-                throw new AeatDeliveryUncertainException('Synthetic remote outcome uncertain; evidence=test');
+                $this->evidenceId = (string) (
+                    $payload['_sif_submission_attempt']['evidence_id'] ?? ''
+                );
+                throw new AeatDeliveryUncertainException(
+                    'Synthetic remote outcome uncertain; evidence=' . $this->evidenceId,
+                    0,
+                    null,
+                    $this->evidenceId,
+                    hash('sha256', 'synthetic-remote-response'),
+                    200
+                );
             }
         };
         $worker = new SerialWorker($db, $transport);
@@ -297,6 +658,22 @@ final class AeatWorkflowTest
         Assert::same(true, $result['requires_review']);
         Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
         Assert::same('UNCERTAIN', $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn());
+        Assert::matchesRegularExpression(
+            '/^\d{8}T\d{6}Z-[a-f0-9]{24}$/',
+            $transport->evidenceId
+        );
+        Assert::same(
+            $transport->evidenceId,
+            $db->query('SELECT EVIDENCE_ID FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            hash('sha256', 'synthetic-remote-response'),
+            $db->query('SELECT EVIDENCE_RESPONSE_SHA256 FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            200,
+            (int) $db->query('SELECT EVIDENCE_HTTP_STATUS FROM aeat_submission_attempt')->fetchColumn()
+        );
         Assert::same(1, (int) $db->query(
             "SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DELIVERY_UNCERTAIN'"
         )->fetchColumn());
@@ -311,6 +688,71 @@ final class AeatWorkflowTest
         Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce()['reason']);
         Assert::same(1, $transport->calls);
         Assert::same(1, (int) $db->query('SELECT ATTEMPTS FROM fiscal_queue')->fetchColumn());
+    }
+
+
+    public function testPostResponsePersistenceFailureKeepsEvidenceReferenceAndBlocksResend(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-REMOTE-RESULT-PERSISTENCE-FAIL')
+        );
+        $transport = new class implements AeatTransport {
+            public int $calls = 0;
+            public string $evidenceId = '';
+
+            public function send(array $payload): array
+            {
+                $this->calls++;
+                $this->evidenceId = (string) (
+                    $payload['_sif_submission_attempt']['evidence_id'] ?? ''
+                );
+
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'csv' => 'REMOTE-RESULT-EXISTS',
+                        'flow_wait_seconds' => 60,
+                        'evidence_id' => $this->evidenceId,
+                        'response_sha256' => hash('sha256', 'synthetic-remote-response'),
+                        'evidence_http_status' => 200,
+                        // Deliberately invalid UTF-8: attempt JSON persistence fails
+                        // after the remote result has already been returned.
+                        'error_message' => "\xB1\x31",
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
+            }
+        };
+
+        $worker = new SerialWorker($db, $transport);
+        $result = $worker->runOnce();
+
+        Assert::same(false, $result['ok']);
+        Assert::same('REVIEW', $result['queue_status']);
+        Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same(
+            'UNCERTAIN',
+            $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::matchesRegularExpression(
+            '/^\d{8}T\d{6}Z-[a-f0-9]{24}$/',
+            $transport->evidenceId
+        );
+        Assert::same(
+            $transport->evidenceId,
+            $db->query('SELECT EVIDENCE_ID FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE TIPUS_INCIDENCIA = 'AEAT_REMOTE_RESULT_NOT_PERSISTED'"
+            )->fetchColumn()
+        );
+
+        Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce()['reason']);
+        Assert::same(1, $transport->calls);
     }
 
 }
