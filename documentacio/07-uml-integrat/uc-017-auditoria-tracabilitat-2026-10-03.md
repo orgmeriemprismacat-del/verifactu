@@ -2,14 +2,15 @@
 
 ## 1. Conclusió executiva
 
-UC-017 (**Comprar regal**) existeix documentalment i disposa de core SIF específic, però el flux web actiu continua executant la compra i la facturació principalment al llegat.
+UC-017 (**Comprar regal**) té dos estats que cal distingir. La **còpia llegada ACTUAL** continua descrivint el circuit històric de pagament/facturació, mentre que la **branca candidata FINAL** ja implementa el tall web/pay-prisma -> intenció SIF -> callback validat -> worker -> factura/pagament -> dret GIFT -> outbox -> estat autoritatiu.
 
-**Estat global:** PARCIAL · NO TANCAT.
+**Estat global:** CANDIDAT IMPLEMENTAT · NO TANCAT FINS A PREPRODUCCIÓ.
 
-- **Documentat:** SÍ. Fitxa funcional, UML integrat i regles bàsiques existents.
-- **Implementat:** PARCIAL. Core SIF de factura/cobrament i emissió del dret de regal implementats; canal web encara no talla cap al SIF.
-- **Verificat:** PARCIAL. Existeixen proves automatitzades del servei SIF; no hi ha evidència d'execució end-to-end sobre preproducció del flux web real.
-- **Pendent:** integració web -> intenció Redsys SIF -> callback validat -> worker -> factura/pagament/dret; retirada d'escriptures fiscals llegades; seguretat de callbacks, secrets i URLs; evidència de preproducció.
+- **Documentat:** SÍ. Fitxa funcional, inventari PHP/JS i UML ACTUAL/FINAL complets per l'abast auditat.
+- **Implementat:** SÍ EN BRANCA CANDIDATA. El tall Redsys/SIF, idempotència, recovery, outbox, projecció llegada i snapshot AEAT fail-closed estan implementats.
+- **Verificat en repositori:** PARCIAL. Hi ha proves específiques, E2E de worker/replay i controls estàtics; els runners del PR encara han de finalitzar.
+- **Verificat en entorn:** PENDENT. Falta desplegament controlat, configuració real, compra E2E i evidència conservada.
+- **Pendent real:** activar/configurar el candidat en test/preproducció, validar classificació AEAT real, executar preflight/verificador, callback duplicat/retry i confirmar el drenatge del callback llegat.
 
 ## 2. Fonts revisades
 
@@ -134,22 +135,27 @@ El llegat propaga `import` entre formularis/URL. El FINAL ha de recalcular/recup
 
 El llegat envia confirmacions directament des del callback. El FINAL necessita outbox/retry i separació entre factura del comprador i lliurament del codi.
 
+### F-017-13 · Snapshot fiscal AEAT específic del regal
+**Severitat original:** BLOQUEJANT PER PREPRODUCCIÓ.
+
+El builder de regal no podia inferir jurídicament impost, règim o causa d'exempció a partir d'un simple estat intern. La candidata incorpora `GiftAeatInvoicePayloadEnricher`, exigeix configuració explícita en PREPROD/PRODUCTION i falla tancada si falta. **Queda pendent validar i configurar els valors fiscals reals; no queda pendent programació coneguda.**
+
 ## 6. Matriu documentat / implementat / verificat / pendent
 
 | Peça | Documentat | Implementat | Verificat | Pendent |
 | --- | --- | --- | --- | --- |
-| Wizard compra regal | Sí | Sí, llegat | Revisió estàtica | Migrar adaptador |
-| Intenció Redsys SIF | Sí | Infraestructura general | No E2E UC-017 | Connectar web |
-| Callback validat SIF | Sí | Infraestructura general | Parcial | Retirar callback llegat |
-| Factura REGAL SIF | Sí | Sí | Test específic existent | Prova MySQL/pre |
-| Pagament Redsys | Sí | Sí al servei | Test específic existent | E2E |
-| Dret GIFT | Sí | Sí | Cobert al test del servei | Recovery E2E |
-| Idempotència | Sí | Sí al core | Test duplicat del servei | Duplicat real callback/worker |
-| Numeració fiscal central | Sí | Sí al core SIF | No al canal web | Tallar numeració llegat |
-| PDF/QR segur | Sí | Parcial | No | Evitar exposar codi |
-| Correus/outbox | Sí | Llegat directe | No | Implementar outbox |
-| Sincronització llegat | Sí | Retornada com a proposta | No | Worker/adaptador |
-| Preproducció | Sí | Scripts | No acreditat | Evidència executable |
+| Wizard compra regal | Sí | Sí; reserva/preview server-bound en candidata | Proves de frontera | Evidència navegador/pre |
+| Intenció Redsys SIF | Sí | Sí: servei + endpoint + client signat | Tests servei/boundary | E2E desplegat |
+| Callback validat SIF | Sí | Sí: callback/queue/worker comú | Tests async/replay | Callback real/sandbox |
+| Factura REGAL SIF | Sí | Sí | Tests MySQL de servei/E2E | Evidència preproducció |
+| Pagament Redsys | Sí | Sí | Tests callback/worker | E2E entorn |
+| Dret GIFT | Sí | Sí | Test entitlement + replay | Evidència MySQL/pre |
+| Idempotència | Sí | Sí | Callback duplicat + worker replay | Repetició controlada en pre |
+| Numeració fiscal central | Sí | Sí via InvoiceService | Verificació repositori | Confirmar cutover/drain |
+| PDF/QR segur | Sí | Codi retirat del detall fiscal; AEAT snapshot fail-closed | Tests payload | Verificar PDF/QR generat |
+| Correus/outbox | Sí | Sí al camí SIF | Test idempotència/sense codi | Provar consumidor/plantilla |
+| Sincronització llegat | Sí | Sí, posterior a SIF | Tests projecció | Evidència preproducció |
+| Preproducció | Sí | Preflight + go/no-go + verificador + plantilla evidència | Estructura testada | Executar i conservar evidència |
 
 ## 7. Proves mínimes per tancament
 
