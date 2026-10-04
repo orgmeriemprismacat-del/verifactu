@@ -446,3 +446,23 @@ flowchart TD
 | P-AEAT-12 | Producció | bloquejada per `SoapTransport` | habilitació explícita post-qualificació |
 
 Vegeu també [classes ACTUAL/FINAL](./uc-009-classes-actual-final.md), [seqüències ACTUAL/FINAL](./uc-009-sequencies-actual-final.md) i [auditoria/traçabilitat 03/10](./uc-009-auditoria-tracabilitat-2026-10-03.md).
+
+
+## 17. A09-13 · Preassignar evidència abans de l'enviament
+
+```mermaid
+flowchart TD
+    A[Queue reclamada PROCESSING] --> B[Crear UUID_ATTEMPT]
+    B --> C[Crear EVIDENCE_ID únic]
+    C --> D[INSERT attempt STARTED + REQUEST_HASH + EVIDENCE_ID]
+    D --> E[Commit BD]
+    E --> F[Passar context al transport]
+    F --> G{Context vàlid?}
+    G -- No --> H[No xarxa]
+    G -- Sí --> I[EvidenceStore beginWithId]
+    I --> J[Persistir request.xml + request.json]
+    J --> K[SOAP/mTLS]
+    K --> L[Resposta o incertesa]
+```
+
+En un stale `STARTED`, la recuperació fa `STARTED → UNCERTAIN` conservant `EVIDENCE_ID` abans de posar la cua en `REVIEW`.
