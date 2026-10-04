@@ -66,14 +66,26 @@ Per tant, el sistema ha de fallar tancat si no disposa d'un snapshot fiscal prou
 - `RegistrationSnapshot` incorpora qualsevol `aeat_fields` validat al snapshot congelat.
 - `ManualRectificationPayloadBuilder` ja impedeix interpretar `amount` com base+total en factures subjectes a IVA sense bloc fiscal explícit.
 
+### Implementat en la branca UC-005
+
+- `AeatRectificationMapper` recupera `factura_registres.PAYLOAD_JSON.aeat` i valida que la identitat AEAT correspongui a la factura i a l'emissor SIF configurat;
+- `TipoRectificativa` es deriva de `DIFERENCIES → I` i `SUBSTITUCIO → S`;
+- `FacturasRectificadas` usa la identitat congelada del snapshot original;
+- `ImporteRectificacion` de `SUBSTITUCIO` deriva base i quota originals;
+- R1/R2/R3/R4/R5 és obligatori a la decisió UC-74 i el `type` enviat pel caller s'ignora;
+- `SistemaInformatico` es reconstrueix amb configuració server-side, no amb dades del request;
+- per un únic `DetalleDesglose`, el mapper conserva el perfil AEAT original i aplica la nova base/quota;
+- al `confirm` es torna a llegir el snapshot fiscal sota lock i es recalcula el fingerprint, de manera que un canvi posterior al preview invalida la confirmació;
+- el snapshot final continua passant per `RecordFactory` i `XmlCodec`, que validen les regles i XSD suportades.
+
 ### Encara pendent
 
-- recuperar, des de `factura_registres.PAYLOAD_JSON.aeat`, el snapshot AEAT original com a font d'identitat;
-- construir server-side `TipoRectificativa` i `FacturasRectificadas`;
-- construir `ImporteRectificacion` per `SUBSTITUCIO` des del snapshot original;
-- exigir `Desglose` AEAT complet i coherent en casos no trivials;
-- determinar R1/R2/R3/R4/R5 mitjançant criteri fiscal/UC-74, no des del client;
-- prova XSD amb `XmlCodec`;
+- múltiples `DetalleDesglose` o diversos tipus/règims dins la mateixa factura;
+- recàrrec d'equivalència;
+- canvi de tipus impositiu o de perfil fiscal respecte l'original;
+- ISP, no-subjecció i altres variants que necessiten regles fiscals específiques;
+- productor/classificador UC-74 genèric amb criteris aprovats;
+- conclusió CI de les noves proves de mapping i revalidació;
 - prova d'enviament en entorn extern/preproducció i conservació d'evidència.
 
 ## 6. Decisió tècnica
