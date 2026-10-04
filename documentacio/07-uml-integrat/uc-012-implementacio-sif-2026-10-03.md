@@ -124,7 +124,7 @@ S'ha afegit una frontera nova, desactivada per defecte amb `SIF_DEBT_CLAIM_UI_EN
 - `js/sif-debt-claim-bridge.js`: helper de navegador amb `operation_id` estable per retries;
 - les quatre pantalles de morositat creen `csrf_debt_claim` i exposen el meta `csrf-token-debt-claim`.
 
-El pont exigeix exactament `UUID_FACTURA` o `NUM_VISIBLE`. **No converteix automàticament `ID_INSC` en factura**, perquè una inscripció pot estar coberta per una factura d'empresa o per relacions que no siguin 1:1.
+El pont admet exactament un selector entre `UUID_FACTURA`, `NUM_VISIBLE` o `ID_INSC`. Quan arriba `ID_INSC`, la resolució es fa **al servidor** mitjançant les relacions SIF i només continua si hi ha una factura aplicable inequívoca; si hi ha més d'una factura pendent candidata, retorna conflicte `409`. Per tant, `ID_INSC` no és autoritat econòmica per si mateix ni es transforma de manera cega.
 
 Els endpoints antics `updDadesRecordatoriPagament.php`, `updDadesPrimeraReclamacio.php`, `updLastClaimPay.php` i variants de morosos continuen sense ser substituïts. Això és deliberat fins al cutover.
 
@@ -156,3 +156,17 @@ No s'ha activat cap canvi productiu ni s'ha redirigit cap POST legacy.
 ### Reconciliació d'avisos després de pagament
 
 Un cobrament confirmat, encara que sigui **parcial**, invalida l'import incorporat als avisos `PENDING`. Per això `reconcileAfterPayment()` cancel·la els avisos pendents de la factura en qualsevol reconciliació de pagament. Els missatges ja `SENT` no es modifiquen. Si encara queda saldo, l'expedient continua obert amb el saldo recalculat i qualsevol avís posterior es generarà amb un snapshot nou.
+
+
+## Bloqueig de cutover confirmat per codi legacy
+
+La simple inclusió de `sif-debt-claim-bridge.js` **no significa que les pantalles hagin fet cutover**. Els quatre JavaScript actuals continuen cridant els endpoints legacy:
+
+- recordatori final → `updDadesRecordatoriPagament.php`;
+- primera reclamació → `updDadesPrimeraReclamacio.php`;
+- reclamació final → `updLastClaimPay.php`;
+- control de morosos → handlers `upd*ClaimPayDefaulter.php`.
+
+A més, `updateSendMsg_LastClaimPay()` no és només una reclamació: segons el cas deriva a `updateSendMsg_LastClaimPay_noApprove()/approve()`, pot executar `__donarBaixaMoodleNou()` i `updCampInscripcioBaixaMorosBD()`. Per això **P-MOR-04 no es pot commutar cegament** a `FINAL_CLAIM`; primer s'ha de separar la reclamació de la baixa acadèmica (UC-72/95/96) i definir la projecció legacy posterior al commit SIF.
+
+També s'ha corregit una incidència existent del recordatori legacy: `updateSendMsg_Facturacio_Recordatori_Pagament()` passava `$reclamatM` a `updClaimRecPag` sense inicialitzar-lo a `Intranet.php`, mentre `IntranetProva.php` sí contenia la lògica correcta. La branca ara preserva el valor anterior de `reclamat` i hi afegeix «Reclamat fi de curs», amb prova de regressió.
