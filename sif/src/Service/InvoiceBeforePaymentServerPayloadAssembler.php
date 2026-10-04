@@ -6,6 +6,10 @@ use Prisma\Sif\Exception\SifException;
 
 final class InvoiceBeforePaymentServerPayloadAssembler
 {
+    public function __construct(private ?InvoiceBeforePaymentAeatPayloadEnricher $aeat = null)
+    {
+    }
+
     public function buildInput(array $selection, array $billingParty, array $context = []): array
     {
         if ($selection === []) {
@@ -84,6 +88,7 @@ final class InvoiceBeforePaymentServerPayloadAssembler
                 'discount_amount' => '0.00',
                 'taxable_base' => $amount,
                 'iva_regim' => 'EXEMPT',
+                'exemption_reason' => 'E1',
                 'iva_pct' => '0.00',
                 'iva_import' => '0.00',
                 'total' => $amount,
@@ -161,7 +166,7 @@ final class InvoiceBeforePaymentServerPayloadAssembler
         $legacyConcept2 = $this->editionText($course['month'], $course['year']);
         $total = $this->centsToMoney($totalCents);
 
-        return [
+        $payload = [
             'idempotency_key' => $idempotencyKey,
             'series' => 'A',
             'year' => $fiscalYear,
@@ -175,6 +180,7 @@ final class InvoiceBeforePaymentServerPayloadAssembler
                 'discount' => '0.00',
                 'taxable_base' => $total,
                 'iva_regim' => 'EXEMPT',
+                'exemption_reason' => 'E1',
                 'iva_pct' => '0.00',
                 'iva_import' => '0.00',
                 'total' => $total,
@@ -194,6 +200,8 @@ final class InvoiceBeforePaymentServerPayloadAssembler
                 'pricing_source' => 'legacy.inscripcions.A_PAGAR',
             ],
         ];
+
+        return $this->aeat === null ? $payload : $this->aeat->enrich($payload);
     }
 
     private function fiscalYear(mixed $value): int
