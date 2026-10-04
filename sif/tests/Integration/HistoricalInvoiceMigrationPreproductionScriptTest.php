@@ -17,6 +17,7 @@ final class HistoricalInvoiceMigrationPreproductionScriptTest
         Assert::stringContainsString('/src/autoload.php', $source);
         Assert::stringContainsString('PHP_SAPI !== \'cli\'', $source);
         Assert::stringContainsString('SIF_ENV=production', $source);
+        Assert::stringContainsString("['prod', 'production']", $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
         Assert::stringContainsString('new HistoricalInvoiceMigrationService(', $source);
         Assert::stringContainsString('new HistoricalInvoicePayloadBuilder()', $source);

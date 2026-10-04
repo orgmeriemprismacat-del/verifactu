@@ -61,6 +61,148 @@ final class HistoricalInvoicePayloadBuilderTest
         }, 422);
     }
 
+    public function testRequiresOriginalIssueDate(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'issue_date' => '',
+            ]));
+        }, 422);
+    }
+
+    public function testRejectsPersistenceKeysThatExceedSchemaLimits(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'idempotency_key' => str_repeat('X', 101),
+            ]));
+        }, 422);
+
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'created_by' => str_repeat('U', 81),
+            ]));
+        }, 422);
+
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'num_visible' => 'A2024/' . str_repeat('9', 25),
+            ]));
+        }, 422);
+    }
+
+    public function testRejectsVisibleNumberComponentMismatch(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'num_visible' => 'A2024/000123',
+                'series' => 'R',
+            ]));
+        }, 422);
+    }
+
+    public function testForcesHistoricalStatusAndDefaultsVisibilityToPrivate(): void
+    {
+        $payload = (new HistoricalInvoicePayloadBuilder())->build($this->input([
+            'invoice_status' => 'ISSUED',
+        ]));
+
+        Assert::same('HISTORICAL', $payload['invoice_status']);
+        Assert::same(0, $payload['relations'][0]['visible_alumne']);
+    }
+
+    public function testValidatesBillingLineAndDateBeforePersistence(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'billing' => ['name' => ''],
+            ]));
+        }, 422);
+
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'lines' => [[
+                    'concept' => 'Factura historica',
+                    'quantity' => 'not-a-number',
+                    'unit_price' => '100.00',
+                    'base' => '100.00',
+                    'total' => '100.00',
+                ]],
+            ]));
+        }, 422);
+
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'issue_date' => '2024-99-99',
+            ]));
+        }, 422);
+    }
+
+    public function testNormalizesIssuerAndHistoricalFiscalFields(): void
+    {
+        $payload = (new HistoricalInvoicePayloadBuilder())->build($this->input([
+            'emissor_nif' => 'B12345678',
+            'emissor_nom' => 'Emissor Historic SL',
+            'descripcio_operacio' => 'Formació històrica',
+            'totals' => [
+                'recarrec_equivalencia_pct' => '5.20',
+                'recarrec_equivalencia_import' => '5.20',
+            ],
+            'lines' => [[
+                'concept' => 'Factura historica',
+                'detail' => 'Servei migrat',
+                'quantity' => '1.00',
+                'unit_price' => '100.00',
+                'base' => '100.00',
+                'import_base' => '100.00',
+                'taxable_base' => '100.00',
+                'iva_regim' => 'GENERAL',
+                'iva_pct' => '21.00',
+                'iva_import' => '21.00',
+                'recarrec_equivalencia_pct' => '5.20',
+                'recarrec_equivalencia_import' => '5.20',
+                'total' => '126.20',
+            ]],
+        ]));
+
+        Assert::same('B12345678', $payload['issuer']['nif']);
+        Assert::same('Emissor Historic SL', $payload['issuer']['name']);
+        Assert::same('Formació històrica', $payload['operation_description']);
+        Assert::same('5.20', $payload['totals']['rec_equivalence_pct']);
+        Assert::same('5.20', $payload['lines'][0]['rec_equivalence_import']);
+        Assert::same(0, $payload['totals']['inversion_subjecte_passiu']);
+    }
+
+    public function testRejectsInvalidExplicitRelation(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'relations' => [['source_type' => '', 'visible_alumne' => 2]],
+            ]));
+        }, 422);
+    }
+
+    public function testValidatesHistoricalExemptionReason(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'totals' => [
+                    'iva_regim' => 'GENERAL',
+                    'exemption_reason' => 'E1',
+                ],
+            ]));
+        }, 422);
+
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'totals' => [
+                    'iva_regim' => 'EXEMPT',
+                    'exemption_reason' => 'INVALID',
+                ],
+            ]));
+        }, 422);
+    }
+
     private function input(array $overrides = []): array
     {
         return array_replace_recursive([

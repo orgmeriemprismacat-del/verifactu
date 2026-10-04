@@ -17,7 +17,8 @@ if (PHP_SAPI !== 'cli') {
 
 $config = require dirname(__DIR__) . '/config/sif.php';
 
-if (($config['env'] ?? 'local') === 'production') {
+$environment = strtolower(trim((string) ($config['env'] ?? 'local')));
+if (in_array($environment, ['prod', 'production'], true)) {
     fwrite(STDERR, "Refusing to process historical invoice migrations with SIF_ENV=production.\n");
     exit(1);
 }

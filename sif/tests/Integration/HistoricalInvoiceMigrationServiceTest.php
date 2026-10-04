@@ -7,6 +7,7 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\HistoricalInvoiceMigrationRepository;
 use Prisma\Sif\Service\HistoricalInvoiceMigrationService;
 use Prisma\Sif\Service\HistoricalInvoicePayloadBuilder;
+use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\TestDatabase;
 
@@ -65,6 +66,145 @@ final class HistoricalInvoiceMigrationServiceTest
         Assert::same('/historic/factures/A2024-000123.pdf', $document['PATH_FITXER']);
         Assert::same(str_repeat('b', 64), $document['HASH_FITXER']);
         Assert::same('ARCHIVED', $document['ESTAT']);
+    }
+
+    public function testRejectsSameIdempotencyKeyWithDifferentPayload(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $input = $this->input();
+
+        $service->importHistoricalInvoice($input);
+
+        $conflicting = $input;
+        $conflicting['billing']['name'] = 'Client Historic Changed';
+
+        Assert::throws(SifException::class, function () use ($service, $conflicting): void {
+            $service->importHistoricalInvoice($conflicting);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
+    public function testStoresIdempotencyPayloadHash(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+
+        $service->importHistoricalInvoice($this->input());
+
+        $hash = (string) $db->query('SELECT IDEMPOTENCY_PAYLOAD_HASH FROM factura')->fetchColumn();
+        Assert::matchesRegularExpression('/^[a-f0-9]{64}$/', $hash);
+    }
+
+    public function testDefaultsHistoricalRelationVisibilityToPrivate(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $input = $this->input();
+        unset($input['visible_alumne']);
+
+        $service->importHistoricalInvoice($input);
+
+        Assert::same(0, (int) $db->query('SELECT VISIBLE_ALUMNE FROM fact_rels')->fetchColumn());
+    }
+
+    public function testEquivalentAliasPayloadReusesSameHistoricalInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $firstInput = $this->input();
+
+        $first = $service->importHistoricalInvoice($firstInput);
+
+        $aliasInput = $this->input();
+        $aliasInput['num_factura'] = $aliasInput['num_visible'];
+        unset($aliasInput['num_visible']);
+        $aliasInput['data_emissio'] = $aliasInput['issue_date'];
+        unset($aliasInput['issue_date']);
+
+        $second = $service->importHistoricalInvoice($aliasInput);
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($first['uuid_factura'], $second['uuid_factura']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
+    public function testEquivalentPersistedFormatsReuseSameHistoricalInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $firstInput = $this->input();
+        $firstInput['issue_date'] = '2024-03-15';
+        $firstInput['totals']['import_base'] = 100;
+        $firstInput['totals']['taxable_base'] = 100;
+        $firstInput['totals']['total'] = 100;
+        $firstInput['lines'][0]['quantity'] = 1;
+        $firstInput['lines'][0]['unit_price'] = 100;
+        $firstInput['lines'][0]['base'] = 100;
+        $firstInput['lines'][0]['import_base'] = 100;
+        $firstInput['lines'][0]['taxable_base'] = 100;
+        $firstInput['lines'][0]['total'] = 100;
+
+        $first = $service->importHistoricalInvoice($firstInput);
+        $secondInput = $this->input();
+        $secondInput['issue_date'] = '2024-03-15 00:00:00';
+        $second = $service->importHistoricalInvoice($secondInput);
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($first['uuid_factura'], $second['uuid_factura']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
+    public function testPersistsIssuerOperationAndHistoricalFiscalFields(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $input = $this->input();
+        $input['issuer'] = [
+            'nif' => 'B12345678',
+            'name' => 'Emissor Historic SL',
+        ];
+        $input['operation_description'] = 'Formació històrica amb recàrrec';
+        $input['totals']['iva_regim'] = 'GENERAL';
+        $input['totals']['iva_pct'] = '21.00';
+        $input['totals']['iva_import'] = '21.00';
+        $input['totals']['rec_equivalence_pct'] = '5.20';
+        $input['totals']['rec_equivalence_import'] = '5.20';
+        $input['totals']['total'] = '126.20';
+
+        $input['lines'][0]['iva_regim'] = 'GENERAL';
+        $input['lines'][0]['iva_pct'] = '21.00';
+        $input['lines'][0]['iva_import'] = '21.00';
+        $input['lines'][0]['rec_equivalence_pct'] = '5.20';
+        $input['lines'][0]['rec_equivalence_import'] = '5.20';
+        $input['lines'][0]['total'] = '126.20';
+
+        $service->importHistoricalInvoice($input);
+
+        $invoice = $db->query(
+            'SELECT EMISSOR_NIF, EMISSOR_NOM, DESCRIPCIO_OPERACIO,
+                    INVERSIO_SUBJECTE_PASSIU, RECARREC_EQUIVALENCIA_PCT,
+                    RECARREC_EQUIVALENCIA_IMPORT
+             FROM factura'
+        )->fetch(\PDO::FETCH_ASSOC);
+        $line = $db->query(
+            'SELECT INVERSIO_SUBJECTE_PASSIU, RECARREC_EQUIVALENCIA_PCT,
+                    RECARREC_EQUIVALENCIA_IMPORT
+             FROM factura_linia'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('B12345678', $invoice['EMISSOR_NIF']);
+        Assert::same('Emissor Historic SL', $invoice['EMISSOR_NOM']);
+        Assert::same('Formació històrica amb recàrrec', $invoice['DESCRIPCIO_OPERACIO']);
+        Assert::same(0, (int) $invoice['INVERSIO_SUBJECTE_PASSIU']);
+        Assert::same('5.20', $invoice['RECARREC_EQUIVALENCIA_PCT']);
+        Assert::same('5.20', $invoice['RECARREC_EQUIVALENCIA_IMPORT']);
+        Assert::same(0, (int) $line['INVERSIO_SUBJECTE_PASSIU']);
+        Assert::same('5.20', $line['RECARREC_EQUIVALENCIA_PCT']);
+        Assert::same('5.20', $line['RECARREC_EQUIVALENCIA_IMPORT']);
     }
 
     private function service(\PDO $db): HistoricalInvoiceMigrationService
