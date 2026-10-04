@@ -78,8 +78,16 @@ final class AeatWorkflowTest
             public int $calls = 0;
             public function send(array $payload): array {
                 $this->calls++;
-                return ['status' => 'ACCEPTED', 'response' => ['flow_wait_seconds' => 120],
-                    'request_xml' => (new XmlCodec())->request($payload['aeat'])];
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'flow_wait_seconds' => 120,
+                        'evidence_id' => (string) ($payload['_sif_submission_attempt']['evidence_id'] ?? ''),
+                        'response_sha256' => hash('sha256', 'synthetic-worker-wait'),
+                        'evidence_http_status' => 200,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
             }
         };
         $worker = new SerialWorker($db, $transport);
@@ -100,8 +108,16 @@ final class AeatWorkflowTest
                 public function __construct(private string $flag) {}
                 public function send(array $payload): array {
                     $this->calls++;
-                    return ['status' => 'ACCEPTED', 'response' => [$this->flag => true],
-                        'request_xml' => (new XmlCodec())->request($payload['aeat'])];
+                    return [
+                        'status' => 'ACCEPTED',
+                        'response' => [
+                            $this->flag => true,
+                            'evidence_id' => (string) ($payload['_sif_submission_attempt']['evidence_id'] ?? ''),
+                            'response_sha256' => hash('sha256', 'synthetic-review-' . $this->flag),
+                            'evidence_http_status' => 200,
+                        ],
+                        'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                    ];
                 }
             };
             $worker = new SerialWorker($db, $transport);
@@ -184,7 +200,12 @@ final class AeatWorkflowTest
                 $this->db->exec('UPDATE aeat_worker_state SET NEXT_SEND_AT = DATE_SUB(NOW(), INTERVAL 1 SECOND)');
                 return [
                     'status' => 'ACCEPTED',
-                    'response' => ['flow_wait_seconds' => -1],
+                    'response' => [
+                        'flow_wait_seconds' => -1,
+                        'evidence_id' => (string) ($payload['_sif_submission_attempt']['evidence_id'] ?? ''),
+                        'response_sha256' => hash('sha256', 'synthetic-invalid-flow-wait'),
+                        'evidence_http_status' => 200,
+                    ],
                     'request_xml' => (new XmlCodec())->request($payload['aeat']),
                 ];
             }
@@ -224,10 +245,19 @@ final class AeatWorkflowTest
         IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload());
         $transport = new class implements AeatTransport {
             public function send(array $payload): array {
-                return ['status' => 'ACCEPTED_WITH_ERRORS', 'response' => [
-                    'csv' => 'SYNTHETIC-CSV', 'error_code' => 'TEST',
-                    'error_message' => str_repeat('ó', 600), 'flow_wait_seconds' => 90],
-                    'request_xml' => (new XmlCodec())->request($payload['aeat'])];
+                return [
+                    'status' => 'ACCEPTED_WITH_ERRORS',
+                    'response' => [
+                        'csv' => 'SYNTHETIC-CSV',
+                        'error_code' => 'TEST',
+                        'error_message' => str_repeat('ó', 600),
+                        'flow_wait_seconds' => 90,
+                        'evidence_id' => (string) ($payload['_sif_submission_attempt']['evidence_id'] ?? ''),
+                        'response_sha256' => hash('sha256', 'synthetic-unicode-response'),
+                        'evidence_http_status' => 200,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
             }
         };
         Assert::same('ACCEPTED_WITH_ERRORS', (new SerialWorker($db, $transport))->runOnce()['aeat_status']);
@@ -380,6 +410,8 @@ final class AeatWorkflowTest
                         'csv' => 'PREASSIGNED-CONTEXT',
                         'flow_wait_seconds' => 60,
                         'evidence_id' => $this->context['evidence_id'] ?? null,
+                        'response_sha256' => hash('sha256', 'synthetic-preassigned-context'),
+                        'evidence_http_status' => 200,
                     ],
                     'request_xml' => (new XmlCodec())->request($payload['aeat']),
                 ];
@@ -463,9 +495,17 @@ final class AeatWorkflowTest
         IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload('AEAT-ATTEMPT-LEDGER'));
         $transport = new class implements AeatTransport {
             public function send(array $payload): array {
-                return ['status' => 'ACCEPTED', 'response' => [
-                    'csv' => 'LEDGER-CSV', 'flow_wait_seconds' => 60
-                ], 'request_xml' => (new XmlCodec())->request($payload['aeat'])];
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'csv' => 'LEDGER-CSV',
+                        'flow_wait_seconds' => 60,
+                        'evidence_id' => (string) ($payload['_sif_submission_attempt']['evidence_id'] ?? ''),
+                        'response_sha256' => hash('sha256', 'synthetic-ledger-response'),
+                        'evidence_http_status' => 200,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
             }
         };
 
