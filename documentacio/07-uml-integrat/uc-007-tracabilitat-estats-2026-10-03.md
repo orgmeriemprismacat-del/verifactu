@@ -46,8 +46,8 @@
 
 | Invariant | Codi | Prova | Estat |
 | --- | --- | --- | --- |
-| Descarregar no modifica `GENERAT` | `Intranet::generaFactura(..., true)` | `Uc007IntranetBoundaryTest::testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState` | CORREGIT EN BRANCA / CI HEAD FINAL PENDENT |
+| Descarregar no modifica `generada` | `Intranet::generaFactura(..., true)` | `Uc007IntranetBoundaryTest::testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState` | CORREGIT EN BRANCA / CI HEAD FINAL PENDENT |
 | Download llegat és lectura, no edició | `alumnes-factura.js` + `descarregaFactura.php` | `testLegacyInvoiceDownloadUsesReadBoundaryNotClientSideEditPermission` | CORREGIT EN BRANCA / CI HEAD FINAL PENDENT |
 
 
-| Descàrrega llegada no muta `GENERAT` | `Intranet::generaFactura(...,$marcaGenerada)` + `descarregaFactura.php` | activitat fallback/F07 | `Uc007IntranetBoundaryTest::testLegacyDownloadDoesNotMutateGeneratedMarker` | CORREGIT / CI PENDENT HEAD FINAL |
+| Descàrrega llegada no muta `generada` | `Intranet::generaFactura(...,$marcaGenerada)` + `descarregaFactura.php` | activitat fallback/F07 | `Uc007IntranetBoundaryTest::testLegacyDownloadDoesNotMutateGeneratedMarker` | CORREGIT / CI PENDENT HEAD FINAL |
