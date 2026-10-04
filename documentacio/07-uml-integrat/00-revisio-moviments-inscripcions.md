@@ -82,6 +82,7 @@ Després de les tres files, l'atribució neta al curs A és 0 € i al curs B é
 ## 4. Invariants que cal exigir abans de donar els casos per acabats
 
 - **Conservació:** cada reassignació té import sortint i entrant igual; el total de fons cobrats **no creix** quan es canvia d'inscripció.
+- **Limitació física actual:** la primitiva `INTERNAL_TRANSFER` implementada conserva saldo agregat A/B però encara no persisteix `UUID_PAYMENT_ORIGIN`/`UUID_ORIGIN_MOVEMENT`; si A barreja diversos cobraments, cal particionar el transfer per origen o ampliar el model abans de declarar proveniència completa.
 - **No doble comptatge:** separar `UUID_PAYMENT_MOVEMENT` (nou fet de caixa) de `UUID_PAYMENT_ORIGIN` (traça); els reports de caixa sumen només `payment_transaction` confirmats, no tots els imports de `enrollment_fund_movement`.
 - **Reconciliació:** suma de les atribucions inicials per pagament/assignació = import efectivament distribuït; suma de sortides i entrades per inscripció = atribució actual derivada, amb controls de saldos negatius. Una factura que cobreix N alumnes exigeix N quantitats explícites, no un repartiment implícit per nombre de participants.
 - **Concurrència/idempotència:** el registre del pagament, les seves assignacions i les atribucions **han de confirmar-se conjuntament quan comparteixen la BD SIF**. Els traspassos han de bloquejar i validar la disponibilitat d'origen; si hi ha BD llegades diferents, cal comanda idempotent, estat intermedi, reintent i conciliació: no fingir una transacció SQL única entre sistemes.
