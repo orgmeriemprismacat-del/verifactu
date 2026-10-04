@@ -129,3 +129,33 @@ classDiagram
 ```
 
 `ACTIVE_ID_INSC = ID_INSC` únicament per `STATE=REQUESTED`; en estats terminals és `NULL`. Això permet conservar l'històric i, simultàniament, impedir dues decisions actives sobre la mateixa inscripció.
+
+
+## Denegació USOC — flux ACTUAL reconciliat
+
+```mermaid
+sequenceDiagram
+    actor G as Gestió
+    participant UI as JS intranet
+    participant E as Endpoint
+    participant S as SIF validation
+    participant L as Legacy Intranet
+    participant DB as Legacy DB
+
+    G->>UI: Denegar USOC
+    UI->>UI: reutilitzar requestId persistent
+    UI->>E: POST idInsc, desired=2, requestId
+    E->>E: recordar requestId com USOC
+    E->>S: begin(requestId, desired=2)
+    S-->>E: REQUESTED / should_apply_legacy=true
+    E->>L: sendMsgValidatCurosDescomptes()
+    L->>DB: TIPUS_DESC=0/1, VALID_DESC=2, A_PAGAR recalculat
+    L-->>E: correus enviats / OK
+    E->>S: complete(requestId)
+    S->>S: accepta reclassificació si desired=2 i VALID_DESC=2
+    S-->>E: COMMITTED
+    E-->>UI: èxit
+    UI->>UI: elimina requestId persistent
+```
+
+Una aprovació continua exigint `TIPUS_DESC=4`; només la denegació admet la reclassificació llegada 4 → 0/1.
