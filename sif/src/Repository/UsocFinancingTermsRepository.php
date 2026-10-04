@@ -61,7 +61,8 @@ final class UsocFinancingTermsRepository
                 $idInsc,
                 $idpag,
                 $studentAmount,
-                $entityAmount
+                $entityAmount,
+                $legacyHash
             );
 
             return $this->result($existingRequest, true);
@@ -110,7 +111,7 @@ final class UsocFinancingTermsRepository
                 throw $exception;
             }
 
-            $this->assertSame($raced, $idInsc, $idpag, $studentAmount, $entityAmount);
+            $this->assertSame($raced, $idInsc, $idpag, $studentAmount, $entityAmount, $legacyHash);
             return $this->result($raced, true);
         }
 
@@ -127,7 +128,8 @@ final class UsocFinancingTermsRepository
         int $idInsc,
         int $idpag,
         string $studentAmount,
-        string $entityAmount
+        string $entityAmount,
+        string $legacyHash
     ): void {
         if ((int) $existing['ID_INSC'] !== $idInsc || (int) $existing['IDPAG'] !== $idpag) {
             throw SifException::conflict(
@@ -141,6 +143,12 @@ final class UsocFinancingTermsRepository
         ) {
             throw SifException::conflict(
                 'USOC financing terms already exist with different amounts'
+            );
+        }
+
+        if (!hash_equals((string) $existing['LEGACY_STATE_HASH'], $legacyHash)) {
+            throw SifException::conflict(
+                'USOC financing terms belong to a different legacy course state'
             );
         }
     }
