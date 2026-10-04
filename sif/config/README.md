@@ -19,6 +19,24 @@ Famílies que s'han de mantenir documentades a mesura que creix el projecte:
 
 Una variable documentada no acredita que estigui configurada en preproducció o producció.
 
+## Entorns SIF desplegats
+
+La topologia operativa acordada és:
+
+| Entorn | SIF_ENV | Domini SIF | Base de dades |
+| --- | --- | --- | --- |
+| Desenvolupament | `development` | `pay-dev.prisma.cat` | `sif_dev` |
+| Test | `test` | `pay-test.prisma.cat` | `sif_test` |
+| Preproducció | `preproduction` | `pay-pre.prisma.cat` | `sif_pre` |
+| Producció | `production` | `pay.prisma.cat` | BD SIF de producció |
+
+`local` es conserva només per compatibilitat amb eines locals existents; no identifica cap domini desplegat.
+
+Els entorns no han de compartir credencials, sessions, logs, documents, secrets HMAC, claus Redsys ni configuració AEAT. Cada usuari MySQL operatiu ha de quedar limitat a la base de dades del seu entorn.
+
+El mapa complet de canals i les regles de promoció entre DEV, TEST, PRE i PROD es manté a [ENVIRONMENTS.md](ENVIRONMENTS.md).
+
+
 ## Consulta interna de factures — UC-007
 
 La consulta HTTP de factures és **fail-closed**. Sense aquestes variables no s'ha d'activar el pont de la intranet.
