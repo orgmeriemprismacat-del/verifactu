@@ -42,14 +42,19 @@ final class InstallmentPaymentAuditTrail
         $operationId = trim((string) ($input['operation_id'] ?? ''));
         $correlationId = $operationId !== '' ? $operationId : $requestId;
 
+        $actorType = strtoupper(trim((string) ($actor['actor_type'] ?? 'HUMAN')));
+        $sourceChannel = strtoupper(trim((string) (
+            $actor['audit_source_channel'] ?? 'INTRANET'
+        )));
+
         return [
             'request_id' => $requestId,
             'correlation_id' => substr($correlationId, 0, 120),
             'actor_id' => $actorId,
             'actor_role' => substr($actorRole, 0, 80),
-            'actor_type' => 'HUMAN',
+            'actor_type' => $actorType,
             'source_environment' => $this->environment,
-            'source_channel' => 'INTRANET',
+            'source_channel' => $sourceChannel,
             'occurred_at' => $this->now(),
             'inscription_id' => (int) ($input['id_insc'] ?? 0),
             'amount' => trim((string) ($input['amount'] ?? '')),
