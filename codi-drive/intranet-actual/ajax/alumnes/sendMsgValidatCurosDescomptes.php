@@ -46,6 +46,9 @@ try {
 		throw new Exception('Error: token CSRF no vàlid.');
 	}
 
+	$rolsVigents = (string) $_SESSION['intranet']->consultaRolsUsuari();
+	$_SESSION['usuari']->replaceRols($rolsVigents);
+
 	$rolsEdicio = (string) $_SESSION['intranet']->consultaRolsEdiicio('/alumnes/validar-descomptes/');
 	if ($rolsEdicio === '' || !$_SESSION['usuari']->tePermisVisualitzacio($rolsEdicio)) {
 		http_response_code(403);
