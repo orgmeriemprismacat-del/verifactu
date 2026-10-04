@@ -60,9 +60,6 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString("['aeat']['read_roles']", $api);
         Assert::stringContainsString("['aeat']['reconcile_roles']", $api);
         Assert::stringContainsString('AeatReviewReconciliationService', $api);
-        Assert::stringContainsString('reconciled_without_resend', $evidenceService);
-        Assert::stringContainsString('readVerifiedPair', $evidenceService);
-        Assert::stringContainsString('ResponseParser', $evidenceService);
         Assert::stringContainsString('AeatEvidenceReconciliationService', $api);
         Assert::stringContainsString('AeatPreflight', $api);
         Assert::stringContainsString("'evidence_directory' => getenv('SIF_AEAT_EVIDENCE_DIR')", $config);
@@ -113,6 +110,9 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString('REQUEST_HASH', $service);
         Assert::stringContainsString('Only the latest AEAT submission attempt', $service);
         Assert::stringContainsString('AeatReviewReconciliationService', $api);
+        Assert::stringContainsString('reconciled_without_resend', $evidenceService);
+        Assert::stringContainsString('readVerifiedPair', $evidenceService);
+        Assert::stringContainsString('ResponseParser', $evidenceService);
 
         foreach (['SoapTransport', 'run-aeat-worker.php', '--send-test'] as $forbidden) {
             if (str_contains($js, $forbidden)
