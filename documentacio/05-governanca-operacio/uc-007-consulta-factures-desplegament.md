@@ -151,3 +151,10 @@ No retirar-lo fins que:
 - UC-080 tingui storage privat estable;
 - la matriu de proves ajornada estigui executada;
 - no hi hagi rutes operatives que depenguin de `generaFactura()` per una factura SIF.
+
+## Directori temporal privat del fallback llegat
+
+- Variable opcional: `SIF_LEGACY_INVOICE_TEMP_ROOT`.
+- Si no es defineix, s'utilitza `sys_get_temp_dir()/prisma-uc007-invoices`.
+- El procés PHP ha de poder crear/escriure el directori; no ha de quedar sota el document root públic.
+- A preproducció, verificar que el PDF temporal no és accessible per HTTP i que s'elimina després de cada resposta.
