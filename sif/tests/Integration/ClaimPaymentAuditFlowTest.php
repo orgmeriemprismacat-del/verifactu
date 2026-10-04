@@ -119,6 +119,54 @@ final class ClaimPaymentAuditFlowTest
         )->fetchColumn());
     }
 
+    public function testClaimCaseIsAuditedSeparatelyFromExternalReceiptIdentity(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|AUDIT|SEPARATED_IDENTITIES',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        $claim = $this->claimService($db);
+        $gateway = $this->gateway($db);
+        $audit = $this->audit('req-uc024-3', 'corr-uc024-3');
+        $audit['changeset'] = [
+            'claim_case_id' => 'CLAIM-7',
+            'external_receipt_id' => 'BAN-101',
+        ];
+
+        $result = $gateway->run(
+            $audit,
+            fn (\PDO $tx): array => $claim->registerByUuidInTransaction(
+                $tx,
+                $invoice['uuid_factura'],
+                [
+                    'amount' => '40.00',
+                    'movement_date' => '2026-10-04 02:20:00',
+                    'external_receipt_id' => 'BAN-101',
+                    'created_by' => 'gestio-test',
+                ]
+            )
+        );
+
+        Assert::same('CLAIM|RECEIPT:BAN-101', $result['payment_idempotency_key']);
+        Assert::same('BAN-101', (string) $db->query(
+            'SELECT REFERENCIA_BANCARIA FROM payment_transaction'
+        )->fetchColumn());
+
+        $changeset = json_decode(
+            (string) $db->query(
+                "SELECT CHANGESET_JSON FROM payment_action_event
+                 WHERE RESULT = 'SUCCEEDED' ORDER BY ID DESC LIMIT 1"
+            )->fetchColumn(),
+            true
+        );
+        Assert::same('CLAIM-7', $changeset['claim_case_id'] ?? null);
+        Assert::same('BAN-101', $changeset['external_receipt_id'] ?? null);
+    }
+
     private function claimService(\PDO $db): ClaimPaymentService
     {
         return new ClaimPaymentService(
