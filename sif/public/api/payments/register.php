@@ -11,6 +11,7 @@ use Prisma\Sif\Http\JsonResponse;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Service\ExistingInvoiceLegacyProjectionService;
 use Prisma\Sif\Service\ExistingInvoicePaymentCommandService;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\ManualPaymentPayloadBuilder;
@@ -84,7 +85,8 @@ try {
                 new ManualPaymentInvoiceRepository(),
                 new ManualPaymentPayloadBuilder(),
                 $service
-            )
+            ),
+            new ExistingInvoiceLegacyProjectionService()
         ))->register($db, $payload);
     } elseif ($action === '') {
         // Backwards-compatible low-level registration for trusted internal callers.
