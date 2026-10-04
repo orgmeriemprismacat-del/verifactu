@@ -60,7 +60,7 @@ El vell `generaFacturaElectronica_Factures.php` queda **410 Gone** i ja no carre
 
 El FINAL no necessita una segona arquitectura. Necessita completar:
 
-- assembler AEAT server-side complet per UC-004 en PREPROD/PROD;
+- perfil fiscal UC-004 versionat + assembler AEAT server-side complet en PREPROD/PROD; `aeat_fields` i `aeat_header` aportats pel caller són rebutjats;
 - circuit documental SIF per UUID i renderer fiscal versionat PDF/QR/XML;
 - validació visual/normativa del document;
 - classificador de cobertura entre canals/pagadors;
@@ -204,6 +204,8 @@ No es torna a executar UC-004 i no es crea un segon registre fiscal `ALTA`.
 - [Inventari](uc-004-inventari-artefactes.md)
 - [Fitxa funcional](../06-fitxes-funcionals/uc-004.md)
 - [Tancament d'auditoria 2026-10-04](uc-004-tancament-auditoria-2026-10-04.md)
+- [Recuperació selectiva del pipeline documental](uc-004-recuperacio-pipeline-documental-2026-10-04.md)
+- [Contracte AEAT pendent](uc-004-contracte-aeat-pendent-2026-10-04.md)
 
 ## 11. Criteri de tancament
 
