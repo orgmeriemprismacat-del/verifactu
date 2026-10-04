@@ -92,7 +92,6 @@ final class EnrollmentFundMovementRepository
 
         if ($normalized['order'] <= 0
             || $normalized['invoice_line_id'] <= 0
-            || $normalized['invoice_line_id'] <= 0
             || $normalized['id_insc'] <= 0
             || (float) $normalized['amount'] <= 0
         ) {
@@ -194,6 +193,7 @@ final class EnrollmentFundMovementRepository
         if ($normalized['idempotency_key'] === ''
             || strlen($normalized['idempotency_key']) > 160
             || $normalized['order'] <= 0
+            || $normalized['invoice_line_id'] <= 0
             || $normalized['id_insc'] <= 0
             || (float) $normalized['amount'] <= 0
             || $normalized['correlation_id'] === ''
