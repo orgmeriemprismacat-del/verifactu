@@ -4,6 +4,7 @@ namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 use Prisma\Sif\Service\RedsysCoursePaymentIntentService;
@@ -42,6 +43,50 @@ final class RedsysCoursePaymentIntentServiceTest
         Assert::same('100.00', $snapshot['payment']['amount']);
         Assert::same('20.00', $snapshot['payment']['paid_before']);
         Assert::same('120.00', $snapshot['payment']['contract_total']);
+    }
+
+    public function testRejectsNewCourseIntentWhenUc021AlreadyCoversInscription(): void
+    {
+        $sifDb = TestDatabase::fresh();
+
+        $beforePayment = new \Prisma\Sif\Service\InvoiceBeforePaymentService(
+            new \Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder(),
+            IssueInvoiceTest::serviceFor($sifDb)
+        );
+        $beforePayment->issueBeforePayment(\Prisma\Sif\Tests\Support\Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|FACTURA_ABANS_COBRAR|UC021:710',
+            'source_channel' => 'INTRANET',
+            'relations' => [[
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 710,
+                'relation_type' => 'ORIGIN',
+                'visible_alumne' => 0,
+            ]],
+        ]));
+
+        $service = new RedsysCoursePaymentIntentService(
+            new LegacyCourseSnapshotRepository(),
+            new RedsysPaymentIntentService(
+                new RedsysPaymentIntentRepository(),
+                new UuidGenerator()
+            ),
+            new RedsysDsOrderGenerator(),
+            null,
+            null,
+            new InvoiceBeforePaymentCoverageRepository()
+        );
+
+        Assert::throws(SifException::class, function () use ($service, $sifDb): void {
+            $service->create($sifDb, $this->legacyDb(false), [
+                'idpag' => 700,
+                'requested_amount' => '100.00',
+                'terminal' => '1',
+                'ds_order' => '700000000010',
+            ]);
+        }, 409);
+
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
     }
 
     public function testRejectsPartialAmountWhenEnrollmentIsNotFractional(): void

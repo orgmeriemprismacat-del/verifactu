@@ -6,6 +6,7 @@ use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\InvoiceBeforePaymentBillingPartyRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentSelectionRepository;
+use Prisma\Sif\Service\InvoiceBeforePaymentAeatPayloadEnricher;
 use Prisma\Sif\Service\InvoiceBeforePaymentCommandService;
 use Prisma\Sif\Service\InvoiceBeforePaymentLegacyPreparationService;
 use Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder;
@@ -38,7 +39,13 @@ try {
     $preparation = new InvoiceBeforePaymentLegacyPreparationService(
         new InvoiceBeforePaymentSelectionRepository(),
         new InvoiceBeforePaymentBillingPartyRepository(),
-        new InvoiceBeforePaymentServerPayloadAssembler(),
+        new InvoiceBeforePaymentServerPayloadAssembler(
+            new InvoiceBeforePaymentAeatPayloadEnricher(
+                (string) ($config['env'] ?? 'local'),
+                (array) ($config['issuer'] ?? []),
+                (array) ($config['aeat'] ?? [])
+            )
+        ),
         new InvoiceBeforePaymentPayloadBuilder(),
         new PayloadIdempotencyValidator()
     );

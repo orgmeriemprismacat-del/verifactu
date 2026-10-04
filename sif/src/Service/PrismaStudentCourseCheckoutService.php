@@ -7,6 +7,8 @@ namespace Prisma\Sif\Service;
 use Prisma\Sif\Domain\PrismaStudentDiscountPolicy;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\EnrollmentPaymentFlowLockRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\LegacyPrismaStudentHistoryRepository;
 
 /**
@@ -22,7 +24,9 @@ final class PrismaStudentCourseCheckoutService
         private LegacyPrismaStudentHistoryRepository $history,
         private PrismaStudentDiscountPolicy $policy,
         private RedsysPaymentIntentService $intents,
-        private UuidGenerator $uuids
+        private UuidGenerator $uuids,
+        private ?EnrollmentPaymentFlowLockRepository $paymentFlowLocks = null,
+        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null
     ) {
     }
 
@@ -58,6 +62,22 @@ final class PrismaStudentCourseCheckoutService
 
         $sifDb->beginTransaction();
         try {
+            if ($this->paymentFlowLocks !== null) {
+                $this->paymentFlowLocks->lockInscription($sifDb, $enrollmentId);
+            }
+            if ($this->beforePaymentCoverage !== null) {
+                $claims = $this->beforePaymentCoverage->findClaims($sifDb, [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => $enrollmentId,
+                    'relation_type' => 'ORIGIN',
+                ]]);
+                if ($claims !== []) {
+                    throw SifException::conflict(
+                        "Course inscription {$enrollmentId} is already covered by an invoice-before-payment operation."
+                    );
+                }
+            }
+
             $existing = $this->one(
                 $sifDb,
                 'SELECT UUID_OPERATION, STATUS, NET_AMOUNT, PRICE_SNAPSHOT_JSON, UUID_INTENT

@@ -58,6 +58,8 @@ final class InvoiceBeforePaymentLegacyPreparationServiceTest
         Assert::same(11, $first['payload']['relations'][0]['source_id']);
         Assert::same(12, $first['payload']['relations'][1]['source_id']);
         Assert::same('ORIGIN', $first['payload']['relations'][0]['relation_type']);
+        Assert::same(0, $first['payload']['relations'][0]['visible_alumne']);
+        Assert::same(0, $first['payload']['relations'][1]['visible_alumne']);
         Assert::same('INSCRIPCIO', $first['payload']['lines'][0]['source_type']);
         Assert::same('80.00', $first['payload']['lines'][0]['total']);
         Assert::same('120.00', $first['payload']['lines'][1]['total']);

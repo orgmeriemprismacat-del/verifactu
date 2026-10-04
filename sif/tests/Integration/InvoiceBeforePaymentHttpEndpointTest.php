@@ -27,6 +27,8 @@ final class InvoiceBeforePaymentHttpEndpointTest
         Assert::stringContainsString('$commands->confirm(', $source);
         Assert::stringContainsString("(string) \$actor['actor_id']", $source);
         Assert::stringContainsString('new InvoiceBeforePaymentCoverageRepository()', $source);
+        Assert::stringContainsString('InvoiceBeforePaymentAeatPayloadEnricher', $source);
+        Assert::stringContainsString("(array) (\$config['aeat'] ?? [])", $source);
 
         if (str_contains($source, "payload['created_by']")) {
             Assert::fail('HTTP endpoint must not trust created_by from the request payload.');

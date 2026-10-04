@@ -1,0 +1,78 @@
+name: UC-021 company responsible flow
+
+on:
+  pull_request:
+    paths:
+      - "sif/**"
+      - "codi-drive/intranet-actual/SifInvoiceBeforePaymentAccess.php"
+      - "codi-drive/intranet-actual/alumnes-genera-factura-abans-pagar.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifFacturaAbansPagar.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifFacturaAbansPagarEntitats.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifFacturaAbansPagarToken.php"
+      - "codi-drive/intranet-actual/js/alumnes-genera-factura-abans-pagar.js"
+      - "documentacio/06-fitxes-funcionals/uc-021.md"
+      - "documentacio/07-uml-integrat/uc-021-empresa-responsable-paga-inscripcions.md"
+      - "documentacio/07-uml-integrat/auditoria-uc-021-2026-10-03.md"
+      - ".github/workflows/uc021-sif-flow.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  uc021:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_test;charset=utf8mb4
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+      SIF_LEGACY_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_legacy_test;charset=utf8mb4
+      SIF_LEGACY_DB_USER: root
+      SIF_LEGACY_DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 amb extensions SIF
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, openssl, mbstring
+          coverage: none
+
+      - name: Preparar BD legacy de proves
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot \
+            -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+      - name: Lint UC-021
+        run: |
+          php -l sif/src/Repository/EnrollmentPaymentFlowLockRepository.php
+          php -l sif/src/Repository/InvoiceBeforePaymentRedsysGuardRepository.php
+          php -l sif/src/Service/InvoiceBeforePaymentAeatPayloadEnricher.php
+          php -l sif/src/Service/JointInvoiceEnrollmentFundAllocationService.php
+          php -l sif/src/Service/InvoiceService.php
+          php -l sif/src/Service/RedsysCoursePaymentIntentService.php
+          php -l sif/src/Service/RedsysCourseInvoiceService.php
+          php -l sif/tests/Support/ConcurrentUc021RedsysWorker.php
+          php -l sif/tests/run-uc021-tests.php
+
+      - name: Executar suite UC-021
+        run: php sif/tests/run-uc021-tests.php

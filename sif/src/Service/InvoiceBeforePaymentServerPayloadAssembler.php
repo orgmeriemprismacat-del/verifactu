@@ -6,6 +6,10 @@ use Prisma\Sif\Exception\SifException;
 
 final class InvoiceBeforePaymentServerPayloadAssembler
 {
+    public function __construct(private ?InvoiceBeforePaymentAeatPayloadEnricher $aeat = null)
+    {
+    }
+
     public function buildInput(array $selection, array $billingParty, array $context = []): array
     {
         if ($selection === []) {
@@ -84,6 +88,7 @@ final class InvoiceBeforePaymentServerPayloadAssembler
                 'discount_amount' => '0.00',
                 'taxable_base' => $amount,
                 'iva_regim' => 'EXEMPT',
+                'exemption_reason' => 'E1',
                 'iva_pct' => '0.00',
                 'iva_import' => '0.00',
                 'total' => $amount,
@@ -99,7 +104,10 @@ final class InvoiceBeforePaymentServerPayloadAssembler
                 'source_type' => 'INSCRIPCIO',
                 'source_id' => $id,
                 'relation_type' => 'ORIGIN',
-                'visible_alumne' => 1,
+                // A joint invoice is addressed to the billing entity/responsible, not to each participant.
+                // Participant-level access to the full fiscal document must be granted explicitly by a separate
+                // authorization rule; the relation itself must not expose the joint invoice by default.
+                'visible_alumne' => 0,
             ];
 
             $idpag = $row['IDPAG'] ?? null;
@@ -158,7 +166,7 @@ final class InvoiceBeforePaymentServerPayloadAssembler
         $legacyConcept2 = $this->editionText($course['month'], $course['year']);
         $total = $this->centsToMoney($totalCents);
 
-        return [
+        $payload = [
             'idempotency_key' => $idempotencyKey,
             'series' => 'A',
             'year' => $fiscalYear,
@@ -172,6 +180,7 @@ final class InvoiceBeforePaymentServerPayloadAssembler
                 'discount' => '0.00',
                 'taxable_base' => $total,
                 'iva_regim' => 'EXEMPT',
+                'exemption_reason' => 'E1',
                 'iva_pct' => '0.00',
                 'iva_import' => '0.00',
                 'total' => $total,
@@ -191,6 +200,8 @@ final class InvoiceBeforePaymentServerPayloadAssembler
                 'pricing_source' => 'legacy.inscripcions.A_PAGAR',
             ],
         ];
+
+        return $this->aeat === null ? $payload : $this->aeat->enrich($payload);
     }
 
     private function fiscalYear(mixed $value): int

@@ -8,14 +8,17 @@ use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
+use Prisma\Sif\Repository\EnrollmentPaymentFlowLockRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentBillingPartyRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentRedsysGuardRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentSelectionRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\InternalInvoiceBeforePaymentScopeResolver;
+use Prisma\Sif\Service\InvoiceBeforePaymentAeatPayloadEnricher;
 use Prisma\Sif\Service\InvoiceBeforePaymentCommandService;
 use Prisma\Sif\Service\InvoiceBeforePaymentLegacyPreparationService;
 use Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder;
@@ -95,7 +98,13 @@ try {
     $preparation = new InvoiceBeforePaymentLegacyPreparationService(
         new InvoiceBeforePaymentSelectionRepository(),
         new InvoiceBeforePaymentBillingPartyRepository(),
-        new InvoiceBeforePaymentServerPayloadAssembler(),
+        new InvoiceBeforePaymentServerPayloadAssembler(
+            new InvoiceBeforePaymentAeatPayloadEnricher(
+                (string) ($config['env'] ?? 'local'),
+                (array) ($config['issuer'] ?? []),
+                (array) ($config['aeat'] ?? [])
+            )
+        ),
         new InvoiceBeforePaymentPayloadBuilder(),
         $fingerprints
     );
@@ -108,7 +117,12 @@ try {
         null,
         null,
         $fingerprints,
-        new InvoiceBeforePaymentCoverageRepository()
+        new InvoiceBeforePaymentCoverageRepository(),
+        null,
+        null,
+        null,
+        new InvoiceBeforePaymentRedsysGuardRepository(),
+        new EnrollmentPaymentFlowLockRepository()
     );
 
     $commands = new InvoiceBeforePaymentCommandService(

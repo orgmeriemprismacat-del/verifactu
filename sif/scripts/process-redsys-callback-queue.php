@@ -8,8 +8,10 @@ use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
+use Prisma\Sif\Repository\EnrollmentPaymentFlowLockRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\IncidentRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacyGiftSnapshotRepository;
@@ -92,7 +94,14 @@ try {
         new FiscalSequenceRepository(),
         new InvoiceRepository(new UuidGenerator(), new HashCalculator()),
         new PaymentPayloadValidator(),
-        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator()),
+        null,
+        new InvoiceBeforePaymentCoverageRepository(),
+        null,
+        null,
+        null,
+        null,
+        new EnrollmentPaymentFlowLockRepository()
     );
     $redsysPayloads = new RedsysInvoicePayloadBuilder($notifications);
     $noviceLinks = new NovicePromotionInvoiceLinkService();
@@ -113,7 +122,8 @@ try {
             (string) ($noviceConfig['key_version'] ?? 'v1'),
             new CourseEnrollmentFundAllocationService(
                 new EnrollmentFundMovementRepository(new UuidGenerator())
-            )
+            ),
+            new InvoiceBeforePaymentCoverageRepository()
         ),
         new RedsysPackInvoiceService(
             $notifications,

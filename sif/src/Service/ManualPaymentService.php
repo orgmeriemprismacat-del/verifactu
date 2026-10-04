@@ -10,7 +10,8 @@ final class ManualPaymentService
     public function __construct(
         private ManualPaymentInvoiceRepository $invoices,
         private ManualPaymentPayloadBuilder $manualPayments,
-        private PaymentService $payments
+        private PaymentService $payments,
+        private ?JointInvoiceEnrollmentFundAllocationService $participantFunds = null
     ) {
     }
 
@@ -26,7 +27,7 @@ final class ManualPaymentService
             throw SifException::validation('SIF invoice not found for manual payment');
         }
 
-        return $this->registerForInvoice($invoice, $input);
+        return $this->registerForInvoice($sifDb, $invoice, $input);
     }
 
     public function registerByNumVisible(\PDO $sifDb, string $numVisible, array $input): array
@@ -44,13 +45,37 @@ final class ManualPaymentService
         return $this->registerForInvoice($invoice, $input);
     }
 
-    private function registerForInvoice(array $invoice, array $input): array
+    private function registerForInvoice(\PDO $sifDb, array $invoice, array $input): array
     {
+        $preparedParticipantAllocations = null;
+        if (array_key_exists('participant_allocations', $input)) {
+            if (!is_array($input['participant_allocations']) || $this->participantFunds === null) {
+                throw SifException::validation(
+                    'Participant allocations require the UC-021 allocation service'
+                );
+            }
+
+            $preparedParticipantAllocations = $this->participantFunds->validateRequest(
+                $input['participant_allocations'],
+                $input['amount'] ?? null
+            );
+        }
+
         $input['num_visible'] = $input['num_visible'] ?? ($invoice['NUM_VISIBLE'] ?? null);
         $payload = $this->manualPayments->forExistingInvoice((string) $invoice['UUID_FACTURA'], $input);
         $result = $this->payments->registerPayment($payload);
         $result['uuid_factura'] = $invoice['UUID_FACTURA'];
         $result['num_visible'] = $invoice['NUM_VISIBLE'];
+
+        if ($preparedParticipantAllocations !== null) {
+            $result['participant_allocations'] = $this->participantFunds->allocate(
+                $sifDb,
+                (string) $result['uuid_payment'],
+                (string) $invoice['UUID_FACTURA'],
+                $preparedParticipantAllocations,
+                'MANUAL_PAYMENT|' . (string) $result['uuid_payment']
+            );
+        }
 
         return $result;
     }

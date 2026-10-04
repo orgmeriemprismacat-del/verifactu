@@ -7,8 +7,10 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\CommercialOperationRepository;
+use Prisma\Sif\Repository\EnrollmentPaymentFlowLockRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentRedsysGuardRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
@@ -27,7 +29,9 @@ final class InvoiceService
         private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null,
         private ?OperationalEventRepository $operationalEvents = null,
         private ?SifAuditEventRepository $auditEvents = null,
-        private ?CommercialOperationRepository $commercialOperations = null
+        private ?CommercialOperationRepository $commercialOperations = null,
+        private ?InvoiceBeforePaymentRedsysGuardRepository $beforePaymentRedsysGuard = null,
+        private ?EnrollmentPaymentFlowLockRepository $paymentFlowLocks = null
     ) {
         $this->idempotency ??= new PayloadIdempotencyValidator();
         $this->operationalEvents ??= new OperationalEventRepository(new UuidGenerator());
@@ -74,6 +78,35 @@ final class InvoiceService
             $existing = $this->invoices->findByIdempotencyKey($db, $payload['idempotency_key'], true);
             if ($existing !== null) {
                 return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
+            }
+
+            if ($this->paymentFlowLocks !== null && $this->hasInscriptionOrigins($payload)) {
+                $this->paymentFlowLocks->lockRelations($db, $payload['relations'] ?? []);
+            }
+
+            if ($this->requiresBeforePaymentCoverage($payload) && $this->beforePaymentRedsysGuard !== null) {
+                $this->beforePaymentRedsysGuard->assertNoExistingSifInvoices(
+                    $db,
+                    $payload['relations'] ?? [],
+                    true
+                );
+                $this->beforePaymentRedsysGuard->assertNoBlockingCourseIntents(
+                    $db,
+                    $payload['relations'] ?? [],
+                    true
+                );
+            }
+
+            if ($this->isRedsysCourseInvoice($payload) && $this->beforePaymentCoverage !== null) {
+                $claims = $this->beforePaymentCoverage->findClaims(
+                    $db,
+                    $payload['relations'] ?? []
+                );
+                if ($claims !== []) {
+                    throw SifException::conflict(
+                        'Redsys course invoice conflicts with an existing invoice-before-payment coverage'
+                    );
+                }
             }
 
             $year = (int) ($payload['year'] ?? date('Y'));
@@ -492,6 +525,32 @@ final class InvoiceService
             'uuid_factura' => $existing['UUID_FACTURA'],
             'num_visible' => $existing['NUM_VISIBLE'],
         ];
+    }
+
+    private function isRedsysCourseInvoice(array $payload): bool
+    {
+        return strtoupper(trim((string) ($payload['source_channel'] ?? ''))) === 'REDSYS'
+            && str_starts_with(
+                strtoupper(trim((string) ($payload['idempotency_key'] ?? ''))),
+                'REDSYS|CURS|'
+            );
+    }
+
+    private function hasInscriptionOrigins(array $payload): bool
+    {
+        foreach (($payload['relations'] ?? []) as $relation) {
+            if (!is_array($relation)) {
+                continue;
+            }
+            if (strtoupper(trim((string) ($relation['source_type'] ?? ''))) !== 'INSCRIPCIO') {
+                continue;
+            }
+            if (strtoupper(trim((string) ($relation['relation_type'] ?? 'ORIGIN'))) === 'ORIGIN') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function requiresBeforePaymentCoverage(array $payload): bool
