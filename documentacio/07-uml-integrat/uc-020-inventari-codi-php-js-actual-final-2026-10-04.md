@@ -62,11 +62,13 @@ El JS extreu el token de la ruta i carrega:
 `mostrar_confirmacio_inscripcio_automatic.php`:
 
 1. recupera la clau de xifrat servidor;
-2. descodifica AES-128-CBC;
-3. valida HMAC amb `hash_equals`;
-4. resol `IDPAG` des de `inscripcions`;
-5. instancia `PagamentCursAutomatic`;
-6. executa `mostrarPaginaConfirmacio()`.
+2. rep `keyEncr` com a paràmetre estructurat i el delega a `LegacyPaymentToken::decode()`;
+3. el decoder fa base64 estricte, longitud mínima i HMAC `hash_equals` **abans** del desxifrat AES-128-CBC;
+4. exigeix identificador enter positiu;
+5. resol `IDPAG` des de `inscripcions`;
+6. instancia `PagamentCursAutomatic` i executa `mostrarPaginaConfirmacio()`.
+
+Els JS de confirmació/pagament fan `encodeURIComponent(keyEncr)`; ja no es talla `REQUEST_URI` ni es depèn del cache-buster jQuery.
 
 L'import no es deriva del JS.
 
@@ -143,6 +145,8 @@ Per AP: `VALID_DESC=1`, tarifa autoritativa, operació `BILLABLE`, snapshot, val
 - `PrismaStudentCourseCheckoutServiceTest`
 - `PrismaStudentCommercialSnapshotImmutabilityTest`
 - `LegacyPrismaStudentPaymentStateBoundaryTest`
+- `LegacyPaymentTokenTest`
+- `LegacyIdpagAllocatorSecurityTest`
 - `PaymentLinkServiceTest`
 - callbacks Redsys compartits.
 
