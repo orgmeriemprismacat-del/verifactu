@@ -13,6 +13,7 @@ final class AeatWorkerPreflightScriptTest
             Assert::fail('Could not read AEAT worker preflight script');
         }
 
+        Assert::stringContainsString("config/load-runtime-secrets.php", $source);
         Assert::stringContainsString('new AeatPreflight()', $source);
         Assert::stringContainsString('new FiscalQueueMetricsRepository()', $source);
         Assert::stringContainsString('DEAD_LETTER_THRESHOLD', $source);
