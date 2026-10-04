@@ -53,6 +53,12 @@ $checks = [
     'redsys_merchant_key_configured' => (string) ($config['redsys']['merchant_key'] ?? '') !== '',
     'aeat_issuer_name_present' => trim((string) ($config['issuer']['name'] ?? '')) !== '',
     'aeat_issuer_nif_present' => trim((string) ($config['issuer']['nif'] ?? '')) !== '',
+    'aeat_issuer_nif_matches_registration_config' =>
+        trim((string) ($config['issuer']['nif'] ?? '')) !== ''
+        && hash_equals(
+            trim((string) ($config['issuer']['nif'] ?? '')),
+            trim((string) ($config['aeat']['issuer_nif'] ?? ''))
+        ),
     'aeat_system_name_present' => trim((string) ($config['aeat']['system_name'] ?? '')) !== '',
     'aeat_system_id_valid' => preg_match(
         '/^[A-Za-z0-9]{1,2}$/D',
@@ -98,6 +104,7 @@ $checks = [
     'gift_entitlement_service_present' => is_file($root . '/src/Service/GiftEntitlementIssuerService.php'),
     'gift_aeat_enricher_present' => is_file($root . '/src/Service/GiftAeatInvoicePayloadEnricher.php'),
     'fiscal_chain_state_seeded' => false,
+    'fiscal_chain_official_compatible' => false,
     'legacy_regal_table' => false,
     'legacy_regal_observacions_column' => false,
     'legacy_gift_codes_unique' => false,
@@ -123,6 +130,7 @@ try {
         $sifDb,
         'SELECT COUNT(*) FROM fiscal_chain_state WHERE ID = 1'
     );
+    $checks['fiscal_chain_official_compatible'] = officialChainCompatible($sifDb);
 } catch (\Throwable $exception) {
     $errors['sif_database'] = $exception->getMessage();
 }
@@ -201,4 +209,36 @@ function duplicateGiftCodeCount(\PDO $db): int
     );
 
     return $stmt === false ? -1 : (int) $stmt->fetchColumn();
+}
+
+
+function officialChainCompatible(\PDO $db): bool
+{
+    $state = $db->query(
+        'SELECT LAST_FISCAL_ORDER FROM fiscal_chain_state WHERE ID = 1'
+    );
+    if ($state === false) {
+        return false;
+    }
+
+    $lastOrder = (int) $state->fetchColumn();
+    if ($lastOrder === 0) {
+        return true;
+    }
+
+    $stmt = $db->prepare(
+        'SELECT PAYLOAD_JSON FROM factura_registres WHERE FISCAL_ORDER = ? LIMIT 1'
+    );
+    $stmt->execute([$lastOrder]);
+    $json = $stmt->fetchColumn();
+    if (!is_string($json) || trim($json) === '') {
+        return false;
+    }
+
+    $payload = json_decode($json, true);
+
+    return is_array($payload)
+        && isset($payload['aeat'])
+        && is_array($payload['aeat'])
+        && ($payload['aeat']['type'] ?? '') === 'RegistroAlta';
 }
