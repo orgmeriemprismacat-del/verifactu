@@ -63,6 +63,10 @@ final class ManualRefundPayloadBuilder
             }
         }
 
+        if (mb_strlen((string) $payload['idempotency_key'], 'UTF-8') > 160) {
+            throw SifException::validation('Refund idempotency key is too long');
+        }
+
         if (isset($payload['correlation_id'])
             && mb_strlen((string) $payload['correlation_id'], 'UTF-8') > 120
         ) {
