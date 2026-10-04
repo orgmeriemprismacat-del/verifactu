@@ -19,7 +19,8 @@ final class ClaimPaymentReceiptResolver
         string $type,
         string $externalReceiptId,
         string $uuidFactura,
-        string $expectedAmount
+        string $expectedAmount,
+        int $expectedIdpag
     ): ?array {
         $type = $this->type($type);
         $externalReceiptId = trim($externalReceiptId);
@@ -42,6 +43,18 @@ final class ClaimPaymentReceiptResolver
             (string) $existing['UUID_PAYMENT'],
             $uuidFactura
         );
+
+        if ($expectedIdpag <= 0) {
+            throw SifException::validation('Invalid claim payment IDPAG');
+        }
+        if (
+            !isset($existing['IDPAG'])
+            || (int) $existing['IDPAG'] !== $expectedIdpag
+        ) {
+            throw SifException::conflict(
+                'External receipt IDPAG does not match claim inscription'
+            );
+        }
 
         if (
             $this->money((string) ($existing['IMPORT'] ?? ''))
