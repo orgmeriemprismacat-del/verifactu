@@ -10,6 +10,8 @@ require_once $root . '/SifLegacyInvoiceMutationGuard.php';
 
 $user = null;
 $intranet = null;
+$requestTempRoot = null;
+$generated = null;
 
 if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
     http_response_code(405);
@@ -45,8 +47,21 @@ try {
     }
 
     $tempRoot = realpath($configuredTempRoot);
-    if ($tempRoot === false || !is_dir($tempRoot) || !is_writable($tempRoot) || !chdir($tempRoot)) {
+    if ($tempRoot === false || !is_dir($tempRoot) || !is_writable($tempRoot)) {
         throw new RuntimeException('No es pot resoldre el directori temporal privat de factures', 500);
+    }
+
+    $requestTempRoot = $tempRoot . DIRECTORY_SEPARATOR . bin2hex(random_bytes(16));
+    if (!mkdir($requestTempRoot, 0700, false)) {
+        throw new RuntimeException('No es pot crear el directori temporal privat de la petició', 500);
+    }
+    $requestTempRoot = realpath($requestTempRoot);
+    if ($requestTempRoot === false
+        || !is_dir($requestTempRoot)
+        || !is_writable($requestTempRoot)
+        || !str_starts_with($requestTempRoot, rtrim($tempRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
+        || !chdir($requestTempRoot)) {
+        throw new RuntimeException('No es pot aïllar el directori temporal de la petició', 500);
     }
 
     $filename = trim((string) $intranet->generaFactura((int) $id, true, false));
@@ -56,10 +71,10 @@ try {
         throw new RuntimeException('El generador ha retornat un nom de fitxer no vàlid', 500);
     }
 
-    $generated = realpath($tempRoot . DIRECTORY_SEPARATOR . $filename);
+    $generated = realpath($requestTempRoot . DIRECTORY_SEPARATOR . $filename);
     if ($generated === false
         || !is_file($generated)
-        || !str_starts_with($generated, rtrim($tempRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)) {
+        || !str_starts_with($generated, rtrim($requestTempRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)) {
         throw new RuntimeException('El PDF no s’ha pogut generar correctament', 500);
     }
 
@@ -73,6 +88,12 @@ try {
     if (!unlink($generated)) {
         throw new RuntimeException('No s’ha pogut eliminar el PDF temporal', 500);
     }
+    $generated = null;
+
+    if (!rmdir($requestTempRoot)) {
+        throw new RuntimeException('No s’ha pogut eliminar el directori temporal de la petició', 500);
+    }
+    $requestTempRoot = null;
 
     http_response_code(200);
     header('Content-Type: application/pdf');
@@ -87,5 +108,11 @@ try {
     http_response_code($code >= 400 && $code <= 599 ? $code : 500);
     echo 'Error: ' . $exception->getMessage();
 } finally {
+    if (is_string($generated) && $generated !== '' && is_file($generated)) {
+        @unlink($generated);
+    }
+    if (is_string($requestTempRoot) && $requestTempRoot !== '' && is_dir($requestTempRoot)) {
+        @rmdir($requestTempRoot);
+    }
     LegacyInvoiceReadContext::persist($user, $intranet);
 }
