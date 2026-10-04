@@ -62,6 +62,8 @@ El merchant code/key del pont i del callback SIF han de correspondre al mateix c
 
 ## 3. NORMAL — abans de DRAIN
 
+En NORMAL, el checkout candidat conserva el circuit llegat i **no crea `redsys_payment_intent`**. Les proves d'intenció SIF prèvies al tall es fan amb l'endpoint/scripts de prova, no amb un checkout NORMAL.
+
 Flags:
 
 ```dotenv
