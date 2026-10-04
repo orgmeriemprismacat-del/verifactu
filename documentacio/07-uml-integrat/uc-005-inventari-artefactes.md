@@ -85,7 +85,7 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 3. **AEAT PARCIAL:** mapper server-side implementat per un únic desglossament compatible; pendents perfils fiscals complexos, XSD/worker E2E i evidència d'enviament real.
 4. **PENDENT DECISIÓ:** correccions sense variació d'import; el builder continua rebutjant total zero fins que el criteri fiscal ho defineixi.
 5. **IMPLEMENTAT:** emissió R + `factura_rectificacio` + estat original + audit terminal comparteixen la transacció d'`InvoiceService`.
-6. **IMPLEMENTAT:** `FOR UPDATE` i revalidació del snapshot original abans del COMMIT; falta prova de concurrència E2E amb dues sessions.
+6. **IMPLEMENTAT:** `FOR UPDATE` i revalidació del snapshot original abans del COMMIT; la prova multiprocés amb dues connexions ja està escrita i queda pendent d'execució.
 7. **IMPLEMENTAT:** `sif_audit_event` i `operational_event` del command, amb `REQUESTED/SUCCEEDED/REUSED/FAILED`.
 8. **CONCURRÈNCIA:** `ManualRectificationConcurrencyTest` + worker multiprocés implementats; pendent execució CI. Verifiquen una sola R sota dues connexions i reintent posterior idempotent.
 9. **PENDENT E2E:** productor UC-74 → read model/pantalla → preview → confirm → R → document → consulta.
@@ -98,7 +98,7 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 - **Codi SIF de rectificació manual:** IMPLEMENTAT PARCIALMENT.
 - **Pantalla UC-005:** CONSUMIDOR IMPLEMENTAT EN BRANCA; mostra la decisió i la correcció aprovades i només permet preview/confirm. No inclou selector fiscal manual.
 - **Fiscalitat local SIF:** IMPLEMENTADA EN MODE FAIL-CLOSED · AEAT específic pendent.
-- **Atomicitat del nucli UC-005:** IMPLEMENTADA I PASSADA A LA SUITE ESPECÍFICA · pendent concurrència/preproducció.
+- **Atomicitat del nucli UC-005:** IMPLEMENTADA I PASSADA A LA SUITE ESPECÍFICA · prova multiprocés afegida; pendent la seva execució i preproducció.
 - **Command backend segur:** IMPLEMENTAT · endpoint intern signat, rols explícits i preview/confirm.
 - **Classificador UC-74:** PENDENT com a productor; consum de decisió persistida, R1-R5 i fingerprint de la correcció ja implementats.
 - **Proxy/panell intranet UC-005:** IMPLEMENTAT EN BRANCA (sessió, edit permission, same-origin, CSRF, HMAC, decisió UC-74 al read model, preview/confirm).
