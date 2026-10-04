@@ -80,8 +80,14 @@ UC022_PHP_FILES=(
   export SIF_DB_PASSWORD="${DB_PASSWORD}"
 
   echo
-  echo "== Full SIF suite =="
-  "${PHP_BIN}" sif/tests/run-tests.php
+  echo "== Focused UC-022 suite =="
+  "${PHP_BIN}" sif/tests/run-uc022-tests.php
+
+  if [[ "${RUN_FULL_SIF_SUITE:-0}" == "1" ]]; then
+    echo
+    echo "== Optional full SIF suite =="
+    "${PHP_BIN}" sif/tests/run-tests.php
+  fi
 
   echo
   echo "== UC-022 test inventory present in output tree =="
@@ -92,8 +98,11 @@ UC022_PHP_FILES=(
     sif/tests/Integration/ManualTransferHttpEndpointTest.php \
     sif/tests/Integration/ManualTransferIntranetAdapterTest.php \
     sif/tests/Integration/ManualTransferNotificationServiceTest.php \
+    sif/tests/Integration/ManualTransferPreproductionPreflightTest.php \
     sif/tests/Unit/ManualPaymentPayloadBuilderTest.php \
-    sif/tests/Unit/GeneratedInvoiceLegacyPaymentSyncServiceTest.php
+    sif/tests/Unit/GeneratedInvoiceLegacyPaymentSyncServiceTest.php \
+    sif/scripts/preflight-uc022-manual-transfer.php \
+    sif/scripts/verify-uc022-preproduction.php
   do
     test -f "${file}"
     echo "present=${file}"
