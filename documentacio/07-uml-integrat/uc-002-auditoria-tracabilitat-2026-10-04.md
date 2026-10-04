@@ -6,7 +6,7 @@ UC-002 **no estava complet** a `main`. El repositori sí contenia el nucli SIF d
 
 L'auditoria ha recuperat i inspeccionat el `Intranet.php` real com a blob gran, ha separat el cobrament d'una factura existent (`efact=1`) de la facturació llegada durant el cobrament (`efact=0`) i ha corregit defectes de seguretat i consistència que podien afectar el cobrament.
 
-**Conclusió actualitzada:** el nucli SIF és sòlid i el pont Intranet → SIF autoritatiu ja està implementat darrere de `SIF_UC002_AUTHORITATIVE`, amb CSRF, HMAC, request UUID estable i sync llegat post-commit basat en projecció absoluta. UC-002 continua **PARCIAL / NO TANCAT** perquè falta validar-lo E2E/preproducció, connectar l'auditoria funcional genèrica, acreditar l'evidència externa del cobrament i moure notificacions/correus a post-commit.
+**Conclusió actualitzada:** el nucli SIF és sòlid i el pont Intranet → SIF autoritatiu ja està implementat darrere de `SIF_UC002_AUTHORITATIVE`, amb CSRF, HMAC, request UUID estable i sync llegat post-commit basat en projecció absoluta. UC-002 continua **PARCIAL / NO TANCAT** perquè falta validar-lo E2E/preproducció, acreditar l'evidència externa del cobrament i moure notificacions/correus a post-commit. El command autoritatiu ja està connectat a `payment_action_event` i al ledger per `ID_INSC`.
 
 ## 1. Fonts revisades
 
@@ -256,7 +256,7 @@ Al tall:
 | R-12 | fraccions acumulatives | Intranet | LegacyExistingInvoiceTest | IMPLEMENTAT branca |
 | R-13 | recalcular estat cobrament | repository + calculator | integration/unit | IMPLEMENTAT |
 | R-14 | audit event del command | PaymentActionGateway + payment_action_event | ExistingInvoicePaymentAuditFlowTest | IMPLEMENTAT / CI PENDENT |
-| R-15 | imputació per ID_INSC | fund movement infra | fluxos específics | PARCIAL |
+| R-15 | imputació per ID_INSC | ExistingInvoiceEnrollmentFundAllocationService + enrollment_fund_movement | split + retry | IMPLEMENTAT / CI PENDENT |
 | R-16 | evidència externa | — genèric | — | PENDENT |
 | R-17 | intranet -> SIF | client HMAC + proxy + command | bridge boundary + command tests | IMPLEMENTAT FLAGGED |
 | R-18 | sync legacy post-commit | projection service + applier absolut | projection + boundary tests | IMPLEMENTAT FLAGGED / E2E PENDENT |
@@ -298,8 +298,6 @@ Al tall:
 ### PENDENT
 
 - activar i validar `SIF_UC002_AUTHORITATIVE=1` a test/preproducció;
-- PaymentActionGateway/`payment_action_event` al flux genèric;
-- ledger econòmic genèric `enrollment_fund_movement` per ID_INSC quan sigui exigible;
 - reconciliació d'evidència externa bancària/TPV;
 - outbox/notificacions post-commit;
 - E2E de parcial, complet, retry, pèrdua de resposta, conflicte i sobrepagament;
@@ -339,7 +337,7 @@ Al tall:
 
 **UC-002 NO es declara tancat.**
 
-Es pot declarar **“nucli SIF implementat + fronteres corregides + documentació reconciliada”**, però el tancament funcional requereix que la pantalla real faci el cobrament contra SIF i que el resultat es sincronitzi al llegat sense duplicar diners.
+Es pot declarar **“circuit autoritatiu UC-002 implementat darrere flag + audit trail + ledger per inscripció + sync llegat idempotent”**. El tancament funcional encara requereix CI/E2E de preproducció, evidència externa del cobrament i notificacions post-commit.
 
 ## 7. Ordre recomanat de continuació
 
