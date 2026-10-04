@@ -14,8 +14,10 @@ final class RedsysCoursePaymentIntentService
         private RedsysDsOrderGenerator $orders,
         private ?PrismaStudentCourseCheckoutService $prismaStudentCheckout = null,
         private ?LegacyPrismaStudentPriceSnapshotResolver $prismaStudentPrices = null,
-        private ?UsocFinancingTermsRepository $usocTerms = null
+        private ?UsocFinancingTermsRepository $usocTerms = null,
+        private ?UsocFinancingTermsStateHasher $usocTermsStateHasher = null
     ) {
+        $this->usocTermsStateHasher ??= new UsocFinancingTermsStateHasher();
     }
 
     public function create(\PDO $sifDb, \PDO $legacyDb, array $input): array
@@ -89,6 +91,14 @@ final class RedsysCoursePaymentIntentService
             if ($terms === null) {
                 throw SifException::conflict(
                     'USOC financing terms must be prepared before payment.'
+                );
+            }
+
+            $storedHash = trim((string) ($terms['LEGACY_STATE_HASH'] ?? ''));
+            $currentHash = $this->usocTermsStateHasher->hash($inscription);
+            if ($storedHash === '' || !hash_equals($storedHash, $currentHash)) {
+                throw SifException::conflict(
+                    'Prepared USOC financing terms no longer match the current course state.'
                 );
             }
 
