@@ -34,8 +34,8 @@ final class ClaimPaymentIntranetBoundaryTest
         Assert::stringContainsString('LegacyInvoiceMutationAuthorization::assertCanEdit', $bridge);
         Assert::stringContainsString('SifAuthenticatedActor::fromUser', $bridge);
         Assert::stringContainsString('SifInternalClaimPaymentClient', $bridge);
-        Assert::stringContainsString("'LEGACY-INSC:' . $idInsc . ':' . $claimPhase", $bridge);
-        Assert::stringContainsString("'source_inscription_id' => $sourceInscriptionId", $client);
+        Assert::stringContainsString("'LEGACY-INSC:' . \$idInsc . ':' . \$claimPhase", $bridge);
+        Assert::stringContainsString("'source_inscription_id' => \$sourceInscriptionId", $client);
 
         foreach ([
             '/facturacio/primera-reclamacio/',
