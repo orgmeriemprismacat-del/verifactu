@@ -99,6 +99,21 @@ final class GiftReservationBoundaryTest
         }
     }
 
+    public function testReservationSubmitValidatesServerSideFieldBounds(): void
+    {
+        $submit = $this->read('codi-drive/web-actual/ajax/enviarInscripcioRegal.php');
+
+        Assert::stringContainsString('uc017GiftRequiredText($nom, 80', $submit);
+        Assert::stringContainsString('uc017GiftRequiredText($cog, 120', $submit);
+        Assert::stringContainsString('uc017GiftRequiredText($dni, 30', $submit);
+        Assert::stringContainsString('uc017GiftRequiredText($adreca, 150', $submit);
+        Assert::stringContainsString('uc017GiftOptionalText($comentaris, 2000', $submit);
+        Assert::stringContainsString('uc017GiftRequiredText($desti, 120', $submit);
+        Assert::stringContainsString('filter_var($email, FILTER_VALIDATE_EMAIL)', $submit);
+        Assert::stringContainsString("preg_match('/^estil-[1-9][0-9]?\$/D', \$estilRegal)", $submit);
+        Assert::stringContainsString("mb_strlen(\$value, 'UTF-8')", $submit);
+    }
+
     public function testReservationRepricesSerializesAndPersistsBeforeMail(): void
     {
         $source = $this->read('codi-drive/web-actual/RegalCurs.php');
