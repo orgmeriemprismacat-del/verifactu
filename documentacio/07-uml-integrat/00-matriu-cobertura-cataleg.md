@@ -56,7 +56,7 @@ Per a cadascuna de les 185 targetes mare i les 192 pantalles/estats, conservar r
 | UC-07 | Consultar factura, estat i document | `[DISSENY]` | [uc-007.md](../06-fitxes-funcionals/uc-007.md) | [Fitxa i diagrames](uc-007-consultar-factura-estat-document.md) |
 | UC-08 | Gestionar incidència | `[PARCIAL]` | [uc-008.md](../06-fitxes-funcionals/uc-008.md) | [Fitxa i diagrames](uc-008-gestionar-incidencia-sif.md) |
 | UC-09 | Remetre registre a AEAT | `[DISSENY]` | [uc-009.md](../06-fitxes-funcionals/uc-009.md) | [Fitxa i diagrames](uc-009-remetre-registre-aeat.md) |
-| UC-10 | Gestionar configuració i versió | `[DISSENY]` | [uc-010.md](../06-fitxes-funcionals/uc-010.md) | [Fitxa i diagrames](uc-010-gestionar-configuracio-versio.md) |
+| UC-10 | Gestionar configuració i versió | `[IMPLEMENTAT EN BRANCA · CI/E2E PENDENT]` | [uc-010.md](../06-fitxes-funcionals/uc-010.md) | [UML](uc-010-gestionar-configuracio-versio.md) · [classes A/F](uc-010-classes-actual-final.md) · [seqüències A/F](uc-010-sequencies-actual-final.md) · [activitats](uc-010-activitats-pagines-actual-final.md) · [auditoria 04/10](uc-010-auditoria-detallada-2026-10-04.md) |
 | UC-11 | Importar factura històrica | `[BASE]` | [uc-011.md](../06-fitxes-funcionals/uc-011.md) | [Fitxa i diagrames](uc-011-importar-factura-historica.md) |
 | UC-12 | Gestionar el cicle de morositat i reclamació | `[PARCIAL]` | [uc-012.md](../06-fitxes-funcionals/uc-012.md) | [Fitxa i diagrames](uc-012-morositat-reclamacio.md) |
 | UC-13 | Orquestrar la doble facturació USOC | `[PARCIAL]` | [uc-013.md](../06-fitxes-funcionals/uc-013.md) | [Fitxa i diagrames](uc-013-orquestrar-doble-facturacio-usoc.md) |
