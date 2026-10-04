@@ -75,7 +75,8 @@ final class UsocFinancingTermsRepository
                 $idInsc,
                 $idpag,
                 $studentAmount,
-                $entityAmount
+                $entityAmount,
+                $legacyHash
             );
 
             return $this->result($existingTerms, true);
