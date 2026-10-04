@@ -768,3 +768,14 @@ Quan Secretaria denega el dret documental:
 6. si no és AP: conservar estat no pagable/ordinari segons decisió.
 
 **Transferència:** és informativa/offline, però ara només es mostra quan `VALID_DESC=1`, igual que la targeta.
+
+
+### 13.5. P02 — error de càlcul fail-closed
+
+- iniciar càlcul → `pending=true`, `valid=false`;
+- callback vigent correcte → `pending=false`, `valid=true`;
+- callback antic → ignorat;
+- error del càlcul vigent → `pending=false`, `valid=false`;
+- submit amb `pending=true` o `valid=false` → bloquejat.
+
+Això tanca AP-30 a la frontera UI sense dependre d'un preu anterior.
