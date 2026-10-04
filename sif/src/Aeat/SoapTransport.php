@@ -25,16 +25,36 @@ final class SoapTransport implements AeatTransport
         if (!is_array($snapshot)) {
             throw new \RuntimeException('Legacy/internal payload cannot be sent to AEAT.');
         }
+
+        $attemptContext = $fiscalPayload['_sif_submission_attempt'] ?? null;
+        if (!is_array($attemptContext)) {
+            throw new \RuntimeException(
+                'AEAT transport requires a preassigned submission attempt context.'
+            );
+        }
+        $attemptUuid = strtolower(trim((string) ($attemptContext['uuid_attempt'] ?? '')));
+        $evidenceId = trim((string) ($attemptContext['evidence_id'] ?? ''));
+        if (preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/D',
+            $attemptUuid
+        ) !== 1 || preg_match('/^\d{8}T\d{6}Z-[a-f0-9]{24}$/D', $evidenceId) !== 1) {
+            throw new \RuntimeException('AEAT submission attempt context is invalid.');
+        }
+
         $request = (new XmlCodec())->request($snapshot);
         $certificateInfo = $this->certificate->inspect();
         if (!extension_loaded('curl')) {
             throw new \RuntimeException('AEAT transport requires cURL.');
         }
-        $attempt = $this->evidence->begin($request, [
-            'created_at_utc' => gmdate('c'), 'environment' => 'preproduction',
-            'endpoint' => $this->endpoint, 'fiscal_order' => $fiscalPayload['fiscal_order'] ?? null,
+        $attempt = $this->evidence->beginWithId($evidenceId, $request, [
+            'created_at_utc' => gmdate('c'),
+            'environment' => 'preproduction',
+            'endpoint' => $this->endpoint,
+            'fiscal_order' => $fiscalPayload['fiscal_order'] ?? null,
             'uuid_factura' => $fiscalPayload['uuid_factura'] ?? null,
-            'record_hash' => $snapshot['record']['Huella'], 'certificate' => $certificateInfo,
+            'submission_attempt_uuid' => $attemptUuid,
+            'record_hash' => $snapshot['record']['Huella'],
+            'certificate' => $certificateInfo,
         ]);
         $curl = curl_init($this->endpoint);
         $raw = '';
