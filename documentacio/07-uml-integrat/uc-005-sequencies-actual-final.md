@@ -118,32 +118,46 @@ sequenceDiagram
 autonumber
 actor O as Operador
 participant UI as alumnes-factura-sif.js
+participant Q as SIF query
 participant PX as Proxy intranet UC-005
-participant AUTH as Sessió + permís + CSRF
-participant CL as UC-74 Classifier [PENDENT productor]
+participant AUTH as Sessió + permís + same-origin + CSRF
 participant API as SIF rectify.php
+participant R74 as FiscalCorrectionDecisionResolver
 participant CMD as RectificationCommandService
-participant DOC as Document/AEAT
-O->>UI: proposar correcció
-UI->>PX: dades proposades + CSRF
-PX->>AUTH: validar sessió, rol i same-origin
-AUTH-->>PX: OK
-PX->>CL: classificar amb estat fiscal real
-CL-->>PX: RECTIFICATION / SUBSANATION / ANNULMENT / NONE
-alt RECTIFICATION
-  PX->>API: POST intern signat preview + classification_event_uuid
+participant DB as SIF DB
+participant CL as UC-74 producer [PENDENT]
+
+Note over CL,DB: UC-74 crea abans un event immutable FISCAL_CORRECTION_CLASSIFIED
+CL->>DB: classification + correction_fingerprint + correction snapshot
+
+O->>UI: obrir factura SIF
+UI->>Q: view(uuid)
+Q->>DB: factura + darrera decisió UC-74 aprovada
+DB-->>Q: read model complet
+Q-->>UI: fiscal_correction_decision
+alt sense decisió executable
+  UI-->>O: pendent classificació fiscal; cap acció UC-005
+else RECTIFICATION + correction snapshot
+  UI-->>O: mostrar decisió/correcció read-only
+  O->>UI: previsualitzar
+  UI->>PX: preview + event_uuid + correction + CSRF
+  PX->>AUTH: validar sessió/permís/origen/CSRF
+  AUTH-->>PX: OK
+  PX->>API: POST intern HMAC preview
+  API->>R74: resoldre event i fingerprint
+  R74->>DB: validar event mateixa factura + correction_fingerprint
+  R74-->>API: classificació fiable R1-R5 + S/I
   API->>CMD: preview
-  CMD-->>PX: before/after + fingerprint
-  PX-->>UI: mostrar preview + fingerprint
+  CMD-->>PX: totals/billing/lines + fingerprint
+  PX-->>UI: preview
   O->>UI: confirmar
-  UI->>PX: confirm mateixa correction + event_uuid + CSRF + fingerprint
-  PX->>API: POST intern signat confirm
+  UI->>PX: confirm mateixa correction + event_uuid + fingerprint
+  PX->>API: POST intern HMAC confirm
+  API->>R74: revalidar evidència
   API->>CMD: confirm
+  CMD->>DB: COMMIT R + vincle + audit
   CMD-->>PX: CREATED/REUSED
-  PX->>DOC: document + cua/estat AEAT
-  DOC-->>UI: resultat final
-else altra decisió
-  PX-->>UI: derivar al UC corresponent
+  PX-->>UI: resultat final
 end
 ```
 
