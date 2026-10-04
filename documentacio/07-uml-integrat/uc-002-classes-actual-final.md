@@ -192,7 +192,7 @@ CourseEnrollmentFundAllocationService --> EnrollmentFundMovementRepository
 PaymentRepository ..> EnrollmentFundMovementRepository : no integrat genèricament
 ~~~
 
-La infraestructura existeix i és utilitzada en fluxos específics, però no hi ha una atribució genèrica UC-002 des de `payment_allocation` cap a `ID_INSC`.
+`register_existing_invoice` ja connecta `ExistingInvoiceEnrollmentFundAllocationService` amb `EnrollmentFundMovementRepository`: cada `CHARGE` manual queda atribuït idempotentment a les línies `INSCRIPCIO` i a `ID_INSC`, reutilitzant els mateixos moviments en retry.
 
 ## 6. ACTUAL — pont autoritatiu Intranet → SIF darrere feature flag
 
