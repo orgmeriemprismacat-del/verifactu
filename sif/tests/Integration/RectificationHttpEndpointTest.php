@@ -36,7 +36,7 @@ final class RectificationHttpEndpointTest
         Assert::stringContainsString('SIF_UC005_RECTIFICATION_ENABLED', $config);
         Assert::stringContainsString("?: '0'", $config);
 
-        if (str_contains($endpoint, "$payload['classification']")) {
+        if (str_contains($endpoint, "\$payload['classification']")) {
             Assert::fail('UC-005 endpoint must not trust inline fiscal classification from the request body');
         }
 
