@@ -141,6 +141,78 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same('UC020ORDER2A', (string) $db->query('SELECT DS_ORDER FROM redsys_payment_intent')->fetchColumn());
     }
 
+    public function testRetryRejectsChangedParticipantSnapshot(): void
+    {
+        $db = $this->fixture(true);
+        $service = $this->service();
+        $request = [
+            'ds_order' => 'UC020ORDERPARTY1',
+            'terminal' => '1',
+            'created_by' => 'web-checkout',
+        ];
+
+        $service->stageAndCreateIntent(
+            $db,
+            $db,
+            200,
+            'student:canonical:12345678Z',
+            $this->price(),
+            $request
+        );
+
+        $db->exec("UPDATE inscripcions SET NOM = 'Nom Alterat' WHERE ID = 200");
+
+        Assert::throws(SifException::class, function () use ($db, $service, $request): void {
+            $service->stageAndCreateIntent(
+                $db,
+                $db,
+                200,
+                'student:canonical:12345678Z',
+                $this->price(),
+                $request
+            );
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation_party')->fetchColumn());
+        Assert::same(
+            'Maria Exemple',
+            (string) $db->query('SELECT NOM_RAO FROM commercial_operation_party LIMIT 1')->fetchColumn()
+        );
+    }
+
+    public function testRetryRejectsChangedCanonicalParticipantKey(): void
+    {
+        $db = $this->fixture(true);
+        $service = $this->service();
+        $request = [
+            'ds_order' => 'UC020ORDERPARTY2',
+            'terminal' => '1',
+            'created_by' => 'web-checkout',
+        ];
+
+        $service->stageAndCreateIntent(
+            $db,
+            $db,
+            200,
+            'student:canonical:12345678Z',
+            $this->price(),
+            $request
+        );
+
+        Assert::throws(SifException::class, function () use ($db, $service, $request): void {
+            $service->stageAndCreateIntent(
+                $db,
+                $db,
+                200,
+                'student:canonical:OTHER',
+                $this->price(),
+                $request
+            );
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation_party')->fetchColumn());
+    }
+
     public function testIneligibleEnrollmentCreatesNoCommercialState(): void
     {
         $db = $this->fixture(false);
