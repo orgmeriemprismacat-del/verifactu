@@ -61,7 +61,7 @@
 | AP-27 | INT | Canviar d'edició amb tarifes diferents. | L'oferta usa la tarifa exacta de l'edició final. | PENDENT_EXECUCIO |
 | AP-28 | CONC | Dues confirmacions simultànies de la mateixa inscripció. | No duplicar inscripció ni operació comercial. | PENDENT_EXECUCIO |
 | AP-29 | CONC | Dues altes simultànies requereixen nou `IDPAG`. | Identificadors inequívocs; cap col·lisió de l'allocator. | IMPLEMENTAT_GET_LOCK · TEST_EXISTENT_LEGACY_IDPAG · PENDENT_CI_HEAD |
-| AP-30 | INT | Error tècnic durant el càlcul de preu. | Cap confirmació amb oferta indeterminada; resposta estructurada d'error. | PENDENT_EXECUCIO |
+| AP-30 | INT | Error tècnic durant el càlcul de preu. | Cap confirmació amb oferta indeterminada; el darrer càlcul ha de quedar invàlid. | IMPLEMENTAT_UI_FAIL_CLOSED · TEST_NOU_PENDENT_CI |
 | AP-31 | INT | Descompte pendent o denegat en obrir confirmació/pagament. | Pantalles mostren el mateix estat comercial i només mètodes autoritzats. | IMPLEMENTAT_BOUNDARY_VALID_DESC · TEST_NOU_PENDENT_CI |
 | AP-32 | SEC | Manipular l'import enviat al formulari de pagament. | El servidor usa import autoritzat/persistent, no el valor manipulat. | TEST_NOU_PENDENT_CI_AMOUNT_AUTHORITY |
 | AP-33 | E2E | Callback amb ordre o import diferent de la intenció. | Rebuig/incidència; cap cobrament atribuït incorrectament. | VERIFICAT_CI_AMOUNT_MISMATCH_0c1825c · TEST_ORDER_PENDENT_CI |
