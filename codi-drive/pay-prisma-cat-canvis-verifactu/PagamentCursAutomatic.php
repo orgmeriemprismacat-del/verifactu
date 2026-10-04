@@ -330,7 +330,8 @@ class PagamentCursAutomatic {
           }
           else {
             $mostrar .= $this->__mostrarPagamentTargeta(1);
-            $mostrar .= $this->__mostrarPagamentTransferencia(1);
+            if ( $this->validDesc == 1 )
+               $mostrar .= $this->__mostrarPagamentTransferencia(1);
             }
          $mostrar .= $this->__modalError();
          $mostrar .= $this->__modalSuccess();
