@@ -87,6 +87,7 @@ class FiscalQueueRepository {
 }
 class AeatSubmissionAttemptRepository {
   +begin(db,item,payload) array
+  +anchorEvidenceResponse(db,uuid,evidenceId,responseHash,httpStatus) void
   +complete(db,uuid,status,response) void
   +fail(db,uuid,status,detail,evidenceId) void
   +markStartedUncertain(db,uuid,detail) void
@@ -286,3 +287,13 @@ SoapTransport --> EvidenceStore : beginWithId(EVIDENCE_ID)
 ```
 
 `EVIDENCE_ID` és `UNIQUE` a BD i immutable després de crear l'intent. `SoapTransport` rebutja enviaments sense context preassignat.
+
+
+### 6.1. Àncora de resposta fora del bundle
+
+`aeat_submission_attempt` incorpora, mitjançant la migració `2026_10_04_000034_anchor_aeat_evidence_response.sql`:
+
+- `EVIDENCE_RESPONSE_SHA256 CHAR(64) NULL`;
+- `EVIDENCE_HTTP_STATUS INT NULL`.
+
+Aquests camps són la referència independent usada per `AeatEvidenceReconciliationService`. El panell no els exposa: `AeatOperationsReadRepository` només projecta `EVIDENCE_RECONCILABLE=0|1`.
