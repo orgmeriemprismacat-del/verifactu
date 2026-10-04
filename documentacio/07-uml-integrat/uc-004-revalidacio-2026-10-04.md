@@ -128,24 +128,18 @@ El navegador no és autoritat fiscal dels imports ni del receptor.
 | Seqüència/hash/registre/cua | Sí | **Sí** | suite | preproducció |
 | Auditoria transaccional | Sí | **Sí al main** | codi/suite | inspecció evidència |
 | Mutador llegat | Sí | **RETIRAT 410 en aquesta branca** | static test nou | desplegament |
-| `aeat_fields` oficials UC-004 | Sí com a requisit | **NO** | fail-closed detectat | **P0** |
+| `aeat_fields` oficials UC-004 | Sí | **SÍ A #166 · server-side i configurables** | prova XSD versionada, CI HEAD pendent | mapping fiscal real + PREPROD/AEAT |
 | Document SIF per UUID | Sí FINAL | **PARCIAL MOLT AVANÇAT A #166**: schema/download + jobs/snapshot/queue/processor/storage writer; no wired | proves D1/D2 versionades, CI HEAD pendent | **P0/P1** renderer + worker entrypoint/wiring + E2E |
 | Cobrament posterior mateix UUID | Sí | servei existeix | test de servei | E2E canal |
 | E2E pantalla→SIF→document→cobrament | Sí | parcial | no | **PENDENT** |
 
-## 7. Bloqueig P0 detectat el 04/10: `aeat_fields`
+## 7. P0 AEAT reclassificat: builder implementat, configuració fiscal pendent
 
-`InvoiceService::issueInvoice()` exigeix `aeat_fields` quan l'entorn és `PREPROD/PREPRODUCTION/PROD/PRODUCTION`.
+`InvoiceService::issueInvoice()` continua exigint `aeat_fields` en entorns qualificats. El PR #166 incorpora ara `InvoiceBeforePaymentAeatInputPolicy`, executada després de reconstruir selecció/receptor/imports i abans de calcular el fingerprint.
 
-El payload que construeix avui:
+La política construeix `aeat_header`, `DescripcionOperacion`, `Desglose` i `SistemaInformatico` des de dades/configuració de servidor, i rebutja qualsevol intent del caller d'injectar camps AEAT. No codifica per defecte cap causa d'exempció legal: `SIF_UC004_AEAT_TAX_CODE`, `SIF_UC004_AEAT_REGIME_KEY` i `SIF_UC004_AEAT_EXEMPTION_REASON` són obligatoris en PREPROD/PROD.
 
-`InvoiceBeforePaymentSelectionRepository -> InvoiceBeforePaymentServerPayloadAssembler -> InvoiceBeforePaymentPayloadBuilder`
-
-no incorpora `aeat_fields`.
-
-Conseqüència: **UC-004 pot ser funcional en LOCAL/DEV/TEST i fallar tancat en PREPROD/PROD abans d'emetre**.
-
-Abans d'acceptació operativa cal un assembler server-side que construeixi l'snapshot AEAT oficial a partir del snapshot fiscal UC-004 i de la identitat SIF configurada; no s'ha d'acceptar aquest bloc des del navegador.
+Per tant el P0 tècnic queda implementat, però l'acceptació operativa continua bloquejada fins validar/configurar el mapping fiscal real i executar PREPROD/AEAT.
 
 ## 8. Auditoria real
 
@@ -224,8 +218,8 @@ UC-004 només pot passar a **VERIFICAT** quan:
 ## 12. Veredicte
 
 - **DOCUMENTAT:** **SÍ · COMPLET per l'abast demanat.**
-- **IMPLEMENTAT:** **PARCIAL AVANÇAT.** Ruta segura d'emissió, idempotència, coverage UC-004 i auditoria sí; snapshot AEAT qualificat i document UUID no.
+- **IMPLEMENTAT:** **PARCIAL MOLT AVANÇAT.** Ruta segura d'emissió, idempotència, coverage, auditoria i construcció AEAT server-side sí; pipeline documental avançat versionat però encara sense renderer/wiring complet.
 - **VERIFICAT:** **PARCIAL.** Inspecció estàtica + evidència històrica; no hi ha encara CI del nou HEAD ni E2E/preproducció.
-- **PENDENT:** `aeat_fields`, document per UUID, cobertura transversal, E2E/concurrència, cobrament real i evidència d'entorn.
+- **PENDENT:** validar/configurar mapping fiscal AEAT real, renderer/wiring documental, cobertura transversal, E2E/concurrència, cobrament real i evidència d'entorn.
 
 Per tant UC-004 queda **tancat com a auditoria documental/de repositori**, però **NO tancat com a acceptació operativa o de producció**.
