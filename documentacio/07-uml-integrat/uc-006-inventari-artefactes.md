@@ -86,7 +86,7 @@ Moviments disponibles al model actual de la branca:
 - `REFUND_EXIT`: inscripció → exterior, vinculat a REFUND confirmat;
 - `COMPENSATION_ALLOCATION`: `credit_balance`/COMPENSATION → factura/línia/inscripció;
 - `INTERNAL_TRANSFER`: **IMPLEMENTAT com a primitiva** amb `EnrollmentFundTransferService`, builder, repositori, CLI i proves;
-- `REVERSAL`: admès per esquema, encara sense orquestració UC-006.
+- `REVERSAL`: **IMPLEMENTAT de forma restringida** per `INTERNAL_TRANSFER`; reús idempotent, guard de saldo destí i rebuig d'altres tipus.
 
 El repositori també implementa `availableAmountForInscription()` i impedeix que les sortides `CREDIT_CREATE`/`REFUND_EXIT` superin el dret net atribuït. Les sortides i el moviment econòmic corresponent comparteixen transacció quan el caller identifica la inscripció.
 
@@ -123,6 +123,7 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 | C-10 | Wiring de `PaymentActionGateway` | FALTA UC-006 |
 | C-11 | Wiring amb baixa | FALTA |
 | C-12 | Primitiva `INTERNAL_TRANSFER` | **IMPLEMENTADA** · builder + servei + repo + CLI + proves |
+| C-12c | `REVERSAL` de transfer | **IMPLEMENTAT RESTRINGIT** · només `INTERNAL_TRANSFER`, amb guard de disponible |
 | C-12b | Wiring amb canvi curs / coordinator | FALTA |
 | C-13 | Separació definitiva UI “A TORNAR” | FALTA |
 | C-14 | Sync llegat post-COMMIT | FALTA / CAL VALIDAR |
@@ -151,6 +152,9 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 - atribució inicial de curs per inscripció, reintent i fraccions.
 - transferència A→B, reintent amb correlació nova, K contradictòria i sobretraspàs;
 - cadena A→B→C sense nou CHARGE;
+- reversió idempotent d'A→B quan B conserva el valor;
+- bloqueig de reversió si B ja ha gastat part del transfer;
+- rebuig de reversió d'una `EXTERNAL_ALLOCATION` amb el servei de transfer;
 
 ### Falten per tancament UC-006
 
