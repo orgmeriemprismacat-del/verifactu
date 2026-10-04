@@ -28,6 +28,9 @@ on:
       - "codi-drive/intranet-actual/Intranet.php"
       - "codi-drive/intranet-actual/alumnes-factura.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sifFactures.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/consultaUsuarisFacturaRelacionada.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/mostrarTaulaUsuaris2.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/mostrarTotesFacturesUsuari_Factures.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sifDocument.php"
       - "codi-drive/intranet-actual/SifInternalApiClient.php"
       - "codi-drive/intranet-actual/SifInternalDocumentClient.php"
@@ -67,6 +70,9 @@ on:
       - "codi-drive/intranet-actual/Intranet.php"
       - "codi-drive/intranet-actual/alumnes-factura.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sifFactures.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/consultaUsuarisFacturaRelacionada.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/mostrarTaulaUsuaris2.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/mostrarTotesFacturesUsuari_Factures.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sifDocument.php"
       - "codi-drive/intranet-actual/SifInternalApiClient.php"
       - "codi-drive/intranet-actual/SifInternalDocumentClient.php"
@@ -155,6 +161,9 @@ jobs:
           php -l codi-drive/intranet-actual/Intranet.php
           php -l codi-drive/intranet-actual/alumnes-factura.php
           php -l codi-drive/intranet-actual/ajax/alumnes/sifFactures.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/consultaUsuarisFacturaRelacionada.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/mostrarTaulaUsuaris2.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/mostrarTotesFacturesUsuari_Factures.php
           php -l codi-drive/intranet-actual/ajax/alumnes/sifDocument.php
           php -l codi-drive/intranet-actual/SifInternalApiClient.php
           php -l codi-drive/intranet-actual/SifInternalDocumentClient.php
