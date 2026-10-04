@@ -208,5 +208,5 @@ G --> H[Mostrar estat AEAT/document]
 | Proxy intranet sessió+CSRF UC-005 | **IMPLEMENTAT** |
 | `RecordFactory` AEAT S/I | **IMPLEMENTAT** |
 | Mapper AEAT rectificatiu R1-R5 | **PARCIAL / FAIL-CLOSED** |
-| Suite MySQL UC-005 | **DEFINIDA; revalidació CI EN CUA** |
+| Suite MySQL UC-005 | **DEFINIDA; inclou concurrència multiprocés; revalidació CI EN CUA** |
 | E2E/preproducció | **PENDENT** |
