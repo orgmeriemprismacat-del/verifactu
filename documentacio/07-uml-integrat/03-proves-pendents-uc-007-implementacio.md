@@ -112,3 +112,11 @@ El primer run del PR ha executat i aprovat `Uc007IntranetBoundaryTest`, `Invoice
 - [x] Existeix regressió automatitzada `testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState`.
 - [ ] Executar aquesta regressió al CI del head final.
 - [ ] Verificar en preproducció que N previsualitzacions/descàrregues no alteren `GENERAT` ni cap altre camp de negoci.
+
+
+## 8. Regressió F07-L — marcador `GENERAT`
+
+- [x] El wrapper UC-007 crida `generaFactura(..., true, false)`.
+- [x] La signatura manté `$marcaGenerada = true` per compatibilitat amb altres fluxos.
+- [x] L'UPDATE `updGeneratFactura` queda condicionat per `$marcaGenerada`.
+- [ ] En preproducció: descarregar una factura llegada amb `GENERAT IS NULL` i comprovar abans/després que el camp continua `NULL`.
