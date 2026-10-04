@@ -89,7 +89,7 @@ final class Uc007IntranetBoundaryTest
         ] as $wrapper) {
             $source = $this->readIntranet($wrapper);
             Assert::stringContainsString("LegacyInvoiceMutationAuthorization::assertSameOrigin()", $source);
-            Assert::stringContainsString("$request = $method === 'POST' ? $_POST : $_GET;", $source);
+            Assert::stringContainsString("\$request = \$method === 'POST' ? \$_POST : \$_GET;", $source);
         }
     }
 
