@@ -154,11 +154,17 @@ final class InvoiceQueryService
             && $sourceUc === 'UC-74'
             && in_array($invoiceType, ['R1', 'R2', 'R3', 'R4', 'R5'], true)
             && in_array($mode, ['DIFERENCIES', 'SUBSTITUCIO'], true);
+        $projectedFingerprintValid = $correction !== null
+            && hash_equals(
+                $fingerprint,
+                (new RectificationDecisionFingerprint())->calculate($correction)
+            );
 
         return [
             'event_uuid' => strtolower((string) $event['UUID_EVENT']),
             'eligible_for_uc005' => $eligible,
-            'ready_for_uc005_ui' => $eligible && $correction !== null,
+            'correction_fingerprint_valid' => $projectedFingerprintValid,
+            'ready_for_uc005_ui' => $eligible && $projectedFingerprintValid,
             'reason_code' => strtoupper(trim((string) ($event['REASON_CODE'] ?? ''))),
             'correction_fingerprint' => $fingerprint,
             'correction' => $correction,
