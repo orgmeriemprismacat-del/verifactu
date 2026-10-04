@@ -202,9 +202,9 @@ Aquests tests estan **creats però no es declaren verificats** fins que s'execut
 ### 7.3. Buits que continuen oberts
 
 1. `PrismaStudentDiscountPolicy` ja existeix sota `ALUMNE_PRISMA_LEGACY_V1`; continuen pendents de ratificació `UC20-DEC-001…006` i qualsevol canvi requerirà una nova versió.
-2. Adaptador web/intranet llegat → `CommercialOfferService` / `PrismaStudentCourseCheckoutService`.
+2. El checkout actiu de `pay.prisma.cat` ja entra per `SifRedsysCourseIntentClient` → `/api/redsys/course-intent.php` → `RedsysCoursePaymentIntentService` → `PrismaStudentCourseCheckoutService`. Continuen pendents els altres canals llegats.
 3. Substitució de les rutes llegades de confirmació/pagament per `PaymentLinkService` i/o operació servidor autoritativa.
-4. El nucli `PrismaStudentCourseCheckoutService → RedsysPaymentIntentService → commercial_operation.UUID_INTENT` està implementat; resta integrar-lo al canal real i coordinar-lo amb `payment_link`.
+4. El nucli `PrismaStudentCourseCheckoutService → RedsysPaymentIntentService → commercial_operation.UUID_INTENT` està implementat **i connectat al checkout real de curs**; resta harmonitzar-lo amb `payment_link` i els altres canals.
 5. Política completa de múltiples intents Redsys sobre una mateixa operació i substitució/revocació de links.
 6. E2E historial → oferta/operació AP → intent → callback → factura i evidència de preproducció.
 
@@ -219,7 +219,7 @@ Aquests tests estan **creats però no es declaren verificats** fins que s'execut
 | `LegacyPrismaStudentHistoryRepository` | IMPLEMENTAT | Recupera fets d'historial per document sense decidir elegibilitat. |
 | `CourseIntentSnapshotValidator` | IMPLEMENTAT | Valida source, inscripció, IDPAG, import i coherència del descompte per intencions CURS. |
 | `LegacyPrismaStudentPriceSnapshotResolver` | IMPLEMENTAT | Obté snapshot de preu autoritatiu des de dades llegades. |
-| `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_NUCLI | Orquestra historial → policy → operació/validació → snapshot → intenció → vincle d'intent. |
+| `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_CONNECTAT | Orquestra historial → policy → operació/participant/línia/validació → snapshot → intenció → vincle i és consumit pel checkout actiu de curs. |
 | `RedsysCoursePaymentIntentService` / `RedsysPaymentIntentService` | MODIFICAT | Consumeixen i validen el contracte CURS/AP abans del TPV. |
 
 Aquesta capa és **complementària**, no substitutiva, de la infraestructura comercial general descrita a 7.1 (`CommercialOfferService`, repositoris comercials i `PaymentLinkService`).
@@ -247,3 +247,51 @@ La implementació no modifica silenciosament la política de negoci. Es mantenen
 El tall original del PR #54 havia passat els tres workflows i la suite MySQL amb **716 passed / 0 failed**. Aquesta evidència és històrica del commit anterior a l'actualització amb `main`.
 
 Després d'integrar el `main` actual, el criteri per autoritzar el merge és tornar a executar els workflows sobre el nou HEAD i exigir-los verds. L'E2E navegador → oferta/operació server-side → Redsys → factura i la preproducció continuen fora de l'abast d'aquesta evidència.
+
+
+## 9. Reconciliació 04/10/2026
+
+### 9.1. Estat executable confirmat
+
+El checkout actiu de curs segueix aquesta cadena:
+
+```text
+pay.prisma.cat
+  -> SifRedsysCourseIntentClient
+  -> POST signat /api/redsys/course-intent.php
+  -> RedsysCoursePaymentIntentService
+  -> TIPUS_DESC=1 ?
+       -> LegacyPrismaStudentPriceSnapshotResolver
+       -> PrismaStudentCourseCheckoutService
+       -> PrismaStudentDiscountPolicy
+       -> commercial_operation
+       -> commercial_operation_party
+       -> commercial_operation_line
+       -> discount_validation
+       -> RedsysPaymentIntentService
+       -> redsys_payment_intent
+  -> import autoritatiu retornat al formulari Redsys
+```
+
+Per tant, ja **no és correcte** classificar la connexió AP → checkout CURS com a pendent.
+
+### 9.2. Refactor de persistència
+
+El tall del 04/10/2026 encapsula la persistència específica que encara era SQL directe:
+
+- `CommercialOperationRepository`: operació, vincle d'intenció i estat.
+- `CommercialOperationPartyRepository`: participant de l'operació.
+- `CommercialOperationLineRepository`: línia comercial immutable.
+- `DiscountValidationRepository`: decisió versionada.
+- `RedsysPaymentIntentRepository`: lookup de la intenció ja vinculada.
+
+`PrismaStudentCourseCheckoutService` manté la mateixa transacció atòmica però delega la persistència als repositories. Els reintents validen també participant i línia, no només operació/import.
+
+### 9.3. Pendents reals
+
+1. Ratificar `UC20-DEC-001…006` i publicar una nova `RULE_VERSION` si canvia la regla legacy.
+2. Definir el model de pagament fraccionat/reprès amb Alumne PrisMa; actualment falla tancat.
+3. Harmonitzar `payment_link` i `CommercialOfferService` amb el checkout CURS per evitar dues capes d'orquestració.
+4. Retirar completament l'autoritat dels imports/tipus del navegador en l'alta llegat, no només en el pagament.
+5. Executar i conservar evidència E2E/preproducció completa.
+6. Les sis fallades de la suite global observades el 04/10/2026 són alienes al UC-020: cinc PACK i una expectativa de `RedsysSignatureValidatorTest`.
