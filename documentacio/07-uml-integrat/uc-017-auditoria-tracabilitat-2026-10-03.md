@@ -133,7 +133,7 @@ El llegat propaga `import` entre formularis/URL. El FINAL ha de recalcular/recup
 ### F-017-12 · Correus directes fora d'outbox
 **Severitat:** ALTA.
 
-El llegat envia confirmacions directament des del callback. El FINAL necessita outbox/retry i separació entre factura del comprador i lliurament del codi.
+El llegat enviava confirmacions directament tant des del callback com des de la reserva prèvia al cobrament. **RESOLTA EN CANDIDATA:** la confirmació postpagament usa `GiftPaymentNotificationService`; la reserva usa `GiftReservationNotificationService` + endpoint signat `enqueue/claim/complete`. Els tres avisos interns redundants només es conserven amb `cutover=0`.
 
 ### F-017-13 · Snapshot fiscal AEAT específic del regal
 **Severitat original:** BLOQUEJANT PER PREPRODUCCIÓ.
@@ -154,6 +154,16 @@ Destinatari, origen, dedicatòria i estil arribaven a fragments HTML sense escap
 **Severitat:** ALTA.
 
 El pas anterior a la previsualització enviava destinatari, origen, dedicatòria, hores, preu i percentatge a `mostrar_formulari_afortunat_regal.php` mitjançant GET. **RESOLTA EN CANDIDATA:** l'endpoint només accepta POST+CSRF, rep únicament el codi de curs, recalcula preu/hores/descompte al servidor i el JS repobla els camps personals des de l'estat local.
+
+### F-017-17 · Reserva sense outbox/recovery
+**Severitat:** ALTA.
+
+La reserva web enviava cinc correus directament després de l'INSERT llegat; un error SMTP podia deixar la reserva creada sense retry fiable. **RESOLTA EN CANDIDATA:** el FINAL redueix la reserva a dos missatges governats (comprador + gestió), encolats idempotentment al SIF i lliurats sota `claim/complete`; una execució ambigua queda `SENDING` i requereix reconciliació.
+
+### F-017-18 · Validació server-side incompleta del submit
+**Severitat:** MITJANA/ALTA.
+
+El submit confiava en `maxlength`/validació del navegador per diversos camps personals. **RESOLTA EN CANDIDATA:** límits explícits UTF-8, correu validat, estil validat i camps obligatoris comprovats abans de crear la reserva.
 
 ## 6. Matriu documentat / implementat / verificat / pendent
 
@@ -220,7 +230,7 @@ candidata els canvis descrits a
 | F-017-09 dret de regal | IMPLEMENTAT |
 | F-017-10 dues transaccions consecutives | **MITIGADA**: retry del worker + idempotència de factura/entitlement/outbox; prova de frontera creada |
 | F-017-11 codi al detall de factura | **CORREGIDA EN CANDIDAT**: la línia fiscal usa `Val regal`; el codi queda fora del detall de factura |
-| F-017-12 correus directes | **RESOLT EN CAMÍ FINAL** amb `GiftPaymentNotificationService`; transport final pendent de prova |
+| F-017-12 correus directes | **RESOLT EN CAMÍ FINAL**: pagament amb `GiftPaymentNotificationService`; reserva amb `GiftReservationNotificationService` + delivery governat; transport real pendent de prova |
 
 ### 9.2. Nous components
 
@@ -274,6 +284,8 @@ Aquesta secció és l'estat vigent de les troballes F-017-01..12 després del ha
 | F-017-14 Preview GET/PII | **RESOLTA EN CANDIDATA** | preview passa a POST, CSRF de sessió, no-store/no-referrer; el JS ja no posa dedicatòria/destinatari a URL | prova navegador/preproducció |
 | F-017-15 HTML preview/PDF | **RESOLTA EN CANDIDATA** | `htmlspecialchars`/`nl2br`, allowlist d'estils i PDF prepagament bloquejat amb cutover | verificar render visual i PDF final |
 | F-017-16 Formulari destinatari GET/PII/preu | **RESOLTA EN CANDIDATA** | `mostrar_formulari_afortunat_regal.php` POST+CSRF; request només `codi`; pricing rellegit server-side | prova navegador/preproducció |
+| F-017-17 Reserva sense outbox/recovery | **RESOLTA EN CANDIDATA** | `GiftReservationNotificationService` + API signada + client web + `claim/complete`; direct mail només `cutover=0` | provar SMTP/ambigüitat en preproducció |
+| F-017-18 Validació submit incompleta | **RESOLTA EN CANDIDATA** | límits server-side, `FILTER_VALIDATE_EMAIL`, allowlist d'estil | fuzz/formulari real |
 
 ### 10.1 Estat de tancament resultant
 
