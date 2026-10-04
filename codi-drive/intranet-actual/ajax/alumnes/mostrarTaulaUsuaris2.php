@@ -23,6 +23,14 @@ try {
     $orderBy = (string) ($request['orderBy'] ?? '');
     $asc = (string) ($request['asc'] ?? '');
 
+    $dniCandidates = array_values(array_filter(
+        array_map('trim', explode('|', $dnies)),
+        static fn (string $value): bool => $value !== ''
+    ));
+    if (count($dniCandidates) > 2000 || strlen($dnies) > 128000) {
+        throw new InvalidArgumentException('Massa candidats de factura', 422);
+    }
+
     echo $intranet->mostrarTaulaUsuaris2_Alumnes($dnies, $orderBy, $asc);
 } catch (Throwable $exception) {
     $code = (int) $exception->getCode();
