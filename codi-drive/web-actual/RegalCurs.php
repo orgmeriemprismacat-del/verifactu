@@ -757,7 +757,14 @@ class RegalCurs{
          htmlspecialchars((string) $dedicatoria, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
          false
       );
-      $safeCodiRegal = htmlspecialchars((string) $codiRegal, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $giftPreviewCutoverEnabled = filter_var(
+         getenv('SIF_REDSYS_GIFT_CUTOVER_ENABLED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
+      $displayGiftCode = $giftPreviewCutoverEnabled
+         ? 'CODI DISPONIBLE DESPRÉS DEL PAGAMENT'
+         : (string) $codiRegal;
+      $safeCodiRegal = htmlspecialchars($displayGiftCode, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
       $safeNomCurs = htmlspecialchars((string) $nomCurs, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
       $classNomCurs = $this->__mostrarClaseTamanyNomCurs($nomCurs);
 
@@ -1220,6 +1227,15 @@ class RegalCurs{
       $giftReservationNotificationClient = null;
       $giftReservationNotifications = [];
 
+      $paymentReference = $giftCutoverEnabled
+         ? 'REGAL-' . (int) $idInserit
+         : $codiRegalBD;
+      $htmlPaymentReference = htmlspecialchars(
+         $paymentReference,
+         ENT_QUOTES | ENT_SUBSTITUTE,
+         'UTF-8'
+      );
+
       if ($giftCutoverEnabled) {
          require_once __DIR__ . '/inc/SifGiftReservationNotificationClient.php';
          $giftReservationNotificationClient = new SifGiftReservationNotificationClient();
@@ -1329,7 +1345,7 @@ class RegalCurs{
 
       $msg = $templates->getTemplate_Inscripcions_Pagaments_MissatgeTextManeresPagar2();
    	$names_template = array("[URL_PAGAMENT]", "[TITOL]", "[CODI]", "[TYPE]");
-   	$names_function   = array($urlIdPag, $htmlNomCursBD, $htmlCodiRegalBD, "regal");
+   	$names_function   = array($urlIdPag, $htmlNomCursBD, $htmlPaymentReference, "regal");
    	$textManeresPagar = str_replace($names_template, $names_function, $msg);
 
       $msg = $templates->getTemplate_Inscripcions_EnviamentRegal($codiCurs, $percentatgeBD);
