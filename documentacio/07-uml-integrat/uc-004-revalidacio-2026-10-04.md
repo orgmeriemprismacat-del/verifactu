@@ -160,7 +160,7 @@ Reús idempotent: `reason_code=INVOICE_IDEMPOTENCY_REUSED`.
 
 A diferència del PR #134, el main actual no usa `ISSUE_INVOICE_BEFORE_PAYMENT` com a nom específic i no evita crear un event d'auditoria de reús; això no duplica la factura ni el registre fiscal, però sí deixa traça de cada reintent.
 
-`InternalApiAuthenticator` conserva el `request_id` anti-replay. Encara falta propagar aquest request id fins al payload fiscal UC-004 si es vol correlació 1:1 entre request HTTP i audit event; avui `InvoiceService` pot usar la clau idempotent com a fallback.
+`InternalApiAuthenticator` conserva el `request_id` anti-replay. **No s'ha de propagar directament al payload fiscal UC-004**: preview, confirm i retry tenen UUID de request diferents i el payload participa en fingerprint/idempotència. La correlació 1:1 HTTP → factura s'ha de resoldre com a metadada d'auditoria/causació separada; avui `InvoiceService` usa la clau idempotent estable com a fallback.
 
 ## 9. Document fiscal
 
