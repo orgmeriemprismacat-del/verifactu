@@ -702,3 +702,27 @@ La infraestructura `PaymentLinkService` ja no es limita a token/expiració/impor
 - També es rellegeix el pagament origen i es recalcula el pendent abans del preview SIF i abans de `realitzarCanviCurs_modalCanviCurs()`.
 - El preview SIF continua permetent ajustos manuals per als altres casos només amb `manual_price_reason`; AP no entra en aquest bypass perquè el preu proposat ja s'ha substituït pel servidor.
 - **Pendent transversal:** la política d'elegibilitat llegada de P06 encara no compta `GENERAT=1`; per tant AP-73 (mateixa policy web/intranet) continua obert.
+
+
+## 13. Revalidació P01–P06 — 04/10/2026
+
+| Superfície | ACTUAL revalidat | FINAL revalidat | Estat |
+| --- | --- | --- | --- |
+| P01 | contingut públic, sense mutació | dades comercials derivades de font comuna | DOCUMENTAT; migració transversal pendent |
+| P02 | AJAX preview + globals JS; confirmació AP hardenitzada a servidor | oferta immutable `offer_id` | HARDENING AP IMPLEMENTAT; FINAL canònic pendent |
+| P03 | confirmació per matrícula/token llegat | `payment_link` + operació pagable | INFRA IMPLEMENTADA; wiring pendent |
+| P04 | intenció CURS/AP activa i autoritativa | mateix snapshot + reintent immutable | IMPLEMENTAT; E2E real pendent |
+| P05 | POST + permís + CSRF + requestId de sessió | idempotència/versionat persistent | SEGURETAT ACTUAL IMPLEMENTADA; multioperador pendent |
+| P06 | AP rellegit/recalculat a servidor | policy v2 comuna + impacte fiscal/econòmic | HARDENING AP IMPLEMENTAT; AP-73 pendent |
+
+### 13.1. P04 — reintent immutable
+
+1. recuperar operació per clau idempotent amb lock;
+2. contrastar import i snapshot;
+3. recuperar un únic participant i contrastar identitat/producte/import;
+4. recuperar una única línia `ORDRE=1` i contrastar producte/participant/import/regla;
+5. contrastar la intenció/DS_ORDER ja vinculada;
+6. davant qualsevol divergència: 409 + rollback;
+7. només si tot coincideix: reutilització idempotent.
+
+No s'ha detectat cap pàgina/apartat P01–P06 sense secció ACTUAL/FINAL al document.
