@@ -145,6 +145,7 @@ Això implica:
 | GAP09-18 | `UNCERTAIN` només conservava l'evidence id dins text/error i no tenia reconciliació verificable | operatiu/fiscal | `EVIDENCE_ID` únic + `AeatEvidenceReconciliationService` + request/response íntegres + `ResponseParser` |
 | GAP09-19 | caiguda abrupta podia deixar `STARTED` sense una vinculació inequívoca a l'evidència | fiscal/recuperació | **TANCAT EN CODI**: `EVIDENCE_ID` es preassigna i persisteix amb l'intent abans de xarxa; stale `STARTED → UNCERTAIN` conserva el mateix ID |
 | GAP09-20 | resultat remot retornat però fallada local en persistir l'intent podia perdre l'evidence id | fiscal/recuperació | `reviewHold(... evidenceIdOverride)` conserva `EVIDENCE_ID`; prova específica bloqueja reenviament |
+| GAP09-21 | transport/excepció podia intentar substituir l'`EVIDENCE_ID` preassignat | integritat/fiscal | relació intent↔evidència immutable; divergència → `AEAT_EVIDENCE_REFERENCE_MISMATCH` + `REVIEW` |
 
 ## 7. Traçabilitat requisit → implementació → prova
 
@@ -232,3 +233,15 @@ En recuperació stale:
 - no hi ha transport;
 - una evidència completa pot ser conciliada posteriorment;
 - una evidència absent/incompleta manté el bloqueig.
+
+
+### 9.5. Immutabilitat de la referència d'evidència
+
+Un cop creat l'intent:
+- `EVIDENCE_ID` no es modifica a `complete()` ni `fail()`;
+- una resposta amb `evidence_id` ha de coincidir amb el preassignat;
+- una `AeatDeliveryUncertainException` amb referència diferent no pot substituir-la;
+- una divergència crea `AEAT_EVIDENCE_REFERENCE_MISMATCH`, deixa l'intent `UNCERTAIN` i la cua `REVIEW`;
+- el resultat fiscal no es consolida i no es torna a enviar automàticament.
+
+Aquesta invariant evita que un adaptador defectuós, una prova sintètica o una resposta mal correlacionada desvinculin la custòdia privada de l'intent que la va reservar.
