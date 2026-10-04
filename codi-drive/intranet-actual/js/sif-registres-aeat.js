@@ -145,6 +145,7 @@
                 && String(attempt.STATUS) === 'UNCERTAIN'
                 && isLatest
                 && String(attempt.EVIDENCE_ID || '') !== ''
+                && Number(attempt.EVIDENCE_RECONCILABLE || 0) === 1
                 ? '<button class="btn btn-sm btn-outline-warning sif-aeat-reconcile-evidence ms-1" data-attempt="' +
                     esc(attempt.UUID_ATTEMPT) + '">Validar evidència i conciliar</button>'
                 : '';
