@@ -1045,9 +1045,14 @@ class RegalCurs{
       $htmlCodiRegalBD = htmlspecialchars((string) $codiRegalBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
       $htmlNomCursBD = htmlspecialchars((string) $nomCursBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
       if ($textComentaris != null)
-      $observacionsBD = $textComentaris->obtenirText();
+         $observacionsBD = $textComentaris->obtenirText();
       else
-      $observacionsBD = '';
+         $observacionsBD = '';
+      $htmlTelfBD = htmlspecialchars((string) $telfBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $htmlObservacionsBD = nl2br(
+         htmlspecialchars((string) $observacionsBD, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+         false
+      );
 
       /* ############################### CONNEXIÓ A BD ######################### */
 
@@ -1208,6 +1213,39 @@ class RegalCurs{
          $connexio->closeStmt();
       }
 
+      $giftCutoverEnabled = filter_var(
+         getenv('SIF_REDSYS_GIFT_CUTOVER_ENABLED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
+      $giftReservationNotificationClient = null;
+      $giftReservationNotifications = [];
+
+      if ($giftCutoverEnabled) {
+         require_once __DIR__ . '/inc/SifGiftReservationNotificationClient.php';
+         $giftReservationNotificationClient = new SifGiftReservationNotificationClient();
+         $reservationBundle = $giftReservationNotificationClient->enqueue((int) $idInserit);
+         foreach ((array) ($reservationBundle['notifications'] ?? []) as $notification) {
+            if (!is_array($notification)) {
+               continue;
+            }
+            $messageCode = trim((string) ($notification['message_code'] ?? ''));
+            $uuidNotification = trim((string) ($notification['uuid_notification'] ?? ''));
+            if ($messageCode !== '' && $uuidNotification !== '') {
+               $giftReservationNotifications[$messageCode] = $uuidNotification;
+            }
+         }
+         foreach ([
+            'GIFT_RESERVATION_BUYER_CONFIRMATION',
+            'GIFT_RESERVATION_INTERNAL_CONFIRMATION',
+         ] as $requiredMessageCode) {
+            if (!isset($giftReservationNotifications[$requiredMessageCode])) {
+               throw new RuntimeException(
+                  'INCOMPLETE_GIFT_RESERVATION_NOTIFICATION_BUNDLE'
+               );
+            }
+         }
+      }
+
       /* ############################# ENVIAR MSG CURT ########################## */
       $templates = new Template();
 
@@ -1218,36 +1256,38 @@ class RegalCurs{
    		"[POBLACIO_ALUMNE]", "[CODI_CURS]", "[TITOL]", "[DATA_ACTUAL]",
    		"[PAY]", "[DESTI]", "[DEDICATORIA]", "[ORIGEN]", "[ESTIL]",
          "[COMENTARIS_ALUMNE]", "[URL_PAGAMENT]");
-   	$names_function   = array($nomBD, $cogBD, $dniBD, $emailBD, $telfBD, $adrecaBD,
-      	$cpBD, $pobleBD, $codiCurs, $nomCursBD, date("d/m/Y"), $preuRealBD,
-         $destiBD, $dedicatoriaBD, $origenBD, $estilBD, $observacionsBD, $urlIdPag);
+   	$names_function   = array($htmlNomBD, $htmlCogBD, $htmlDniBD, $htmlEmailBD, $htmlTelfBD, $htmlAdrecaBD,
+      	$htmlCpBD, $htmlPobleBD, $codiCurs, $htmlNomCursBD, date("d/m/Y"), $preuRealBD,
+         $htmlDestiBD, $htmlDedicatoriaBD, $htmlOrigenBD, $estilBD, $htmlObservacionsBD, $urlIdPag);
    	$msg = str_replace($names_template, $names_function, $msg);
 
       $subjectMail = "Curs regal: ".$codiRegalBD;
 
-      $mailCurtGestio = new Mail();
-      $mailCurtGestio->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
-      $mailCurtGestio->addSubject($subjectMail);
-      $mailCurtGestio->addTo('gestio@prisma.cat');
-      // $mailCurtGestio->addTo('meriem.prisma.cat@gmail.com');
-      $mailCurtGestio->addMissatge($msg);
-      if ($reservationCreated) $mailCurtGestio->sendMessage();
-
-      $mailCurtBotiga = new Mail();
-   	$mailCurtBotiga->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
-   	$mailCurtBotiga->addSubject($subjectMail);
-   	$mailCurtBotiga->addTo('botiga@prisma.cat');
-   	// $mailCurtBotiga->addTo('meriem.prisma.cat@gmail.com');
-   	$mailCurtBotiga->addMissatge($msg);
-   	if ($reservationCreated) $mailCurtBotiga->sendMessage();
-
-      $mailCurtWebMaster = new Mail();
-   	$mailCurtWebMaster->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
-   	$mailCurtWebMaster->addSubject($subjectMail);
-   	$mailCurtWebMaster->addTo('webmaster@prisma.cat');
-   	// $mailCurtWebMaster->addTo('meriem.prisma.cat@gmail.com');
-   	$mailCurtWebMaster->addMissatge($msg);
-   	if ($reservationCreated) $mailCurtWebMaster->sendMessage();
+      if (!$giftCutoverEnabled && $reservationCreated) {
+         $mailCurtGestio = new Mail();
+         $mailCurtGestio->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
+         $mailCurtGestio->addSubject($subjectMail);
+         $mailCurtGestio->addTo('gestio@prisma.cat');
+         // $mailCurtGestio->addTo('meriem.prisma.cat@gmail.com');
+         $mailCurtGestio->addMissatge($msg);
+         if ($reservationCreated) $mailCurtGestio->sendMessage();
+   
+         $mailCurtBotiga = new Mail();
+      	$mailCurtBotiga->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
+      	$mailCurtBotiga->addSubject($subjectMail);
+      	$mailCurtBotiga->addTo('botiga@prisma.cat');
+      	// $mailCurtBotiga->addTo('meriem.prisma.cat@gmail.com');
+      	$mailCurtBotiga->addMissatge($msg);
+      	if ($reservationCreated) $mailCurtBotiga->sendMessage();
+   
+         $mailCurtWebMaster = new Mail();
+      	$mailCurtWebMaster->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
+      	$mailCurtWebMaster->addSubject($subjectMail);
+      	$mailCurtWebMaster->addTo('webmaster@prisma.cat');
+      	// $mailCurtWebMaster->addTo('meriem.prisma.cat@gmail.com');
+      	$mailCurtWebMaster->addMissatge($msg);
+      	if ($reservationCreated) $mailCurtWebMaster->sendMessage();
+      }
 
       /* ############### BUSCAR USERNME I PASSWORD AUTENTIFICACIÓ ############# */
 
@@ -1289,25 +1329,112 @@ class RegalCurs{
 
       $msg = $templates->getTemplate_Inscripcions_Pagaments_MissatgeTextManeresPagar2();
    	$names_template = array("[URL_PAGAMENT]", "[TITOL]", "[CODI]", "[TYPE]");
-   	$names_function   = array($urlIdPag, $titolCurs, $codiRegalBD, "regal");
+   	$names_function   = array($urlIdPag, $htmlNomCursBD, $htmlCodiRegalBD, "regal");
    	$textManeresPagar = str_replace($names_template, $names_function, $msg);
 
       $msg = $templates->getTemplate_Inscripcions_EnviamentRegal($codiCurs, $percentatgeBD);
       $names_template = array("[NOM_ALUMNE]", "[CODI_CURS]", "[TITOL]",
          "[PAY_ORIG]", "[PAY]",
          "[TEXT_ALERT_CONF_INSCR]", "[TEXT_MANERES_PAGAR]");
-      $names_function   = array($nom, $codiCurs, $nomCursBD, $preuBD, $preuRealBD,
+      $names_function   = array($htmlNomBD, $codiCurs, $htmlNomCursBD, $preuBD, $preuRealBD,
          $textAlertaConfirmacioInscripcio, $textManeresPagar);
       $missatge = str_replace($names_template, $names_function, $msg);
 
-      if ($reservationCreated) {
+      if ($giftCutoverEnabled) {
+         if (!$giftReservationNotificationClient instanceof SifGiftReservationNotificationClient) {
+            throw new RuntimeException('GIFT_RESERVATION_NOTIFICATION_CLIENT_NOT_READY');
+         }
+
+         $reservationMailIssues = [];
+         $sendGovernedReservationMail = static function(
+            string $messageCode,
+            callable $factory
+         ) use (
+            $giftReservationNotificationClient,
+            $giftReservationNotifications,
+            &$reservationMailIssues
+         ): void {
+            $uuidNotification = $giftReservationNotifications[$messageCode] ?? null;
+            if (!is_string($uuidNotification) || trim($uuidNotification) === '') {
+               $reservationMailIssues[] = $messageCode . ':MISSING_NOTIFICATION';
+               return;
+            }
+
+            $claim = $giftReservationNotificationClient->claim($uuidNotification);
+            if (($claim['should_send'] ?? false) !== true) {
+               if (strtoupper((string) ($claim['status'] ?? '')) !== 'SENT') {
+                  $reservationMailIssues[] = $messageCode . ':'
+                     . (string) ($claim['reason'] ?? 'NOT_SENDABLE');
+               }
+               return;
+            }
+
+            $uuidAttempt = trim((string) ($claim['uuid_delivery_attempt'] ?? ''));
+            if ($uuidAttempt === '') {
+               $reservationMailIssues[] = $messageCode . ':MISSING_ATTEMPT';
+               return;
+            }
+
+            try {
+               $mailer = $factory();
+               $accepted = $mailer instanceof MailSMTPComvive && $mailer->enviat();
+               $giftReservationNotificationClient->complete(
+                  $uuidNotification,
+                  $uuidAttempt,
+                  $accepted
+               );
+               if (!$accepted) {
+                  $reservationMailIssues[] = $messageCode . ':SMTP_SEND_FAILED';
+               }
+            }
+            catch (Throwable $mailException) {
+               // El claim queda SENDING i exigeix reconciliació manual.
+               $reservationMailIssues[] = $messageCode . ':AMBIGUOUS_SENDING';
+            }
+         };
+
+         $sendGovernedReservationMail(
+            'GIFT_RESERVATION_BUYER_CONFIRMATION',
+            static function() use (
+               $username, $password, $nomFromHead, $correuFromHead,
+               $nomReplyHead, $correuReplyHead, $nomCognoms, $emailBD,
+               $subject, $missatge
+            ) {
+               return new MailSMTPComvive(
+                  $username, $password, $nomFromHead, $correuFromHead,
+                  $nomReplyHead, $correuReplyHead, $nomCognoms, $emailBD,
+                  $subject, $missatge
+               );
+            }
+         );
+
+         $sendGovernedReservationMail(
+            'GIFT_RESERVATION_INTERNAL_CONFIRMATION',
+            static function() use (
+               $username, $password, $nomFromHead, $correuFromHead,
+               $nomReplyHead, $correuReplyHead, $subject, $missatge
+            ) {
+               return new MailSMTPComvive(
+                  $username, $password, $nomFromHead, $correuFromHead,
+                  $nomReplyHead, $correuReplyHead, 'PrisMa Gestio',
+                  'gestio@prisma.cat', $subject, $missatge
+               );
+            }
+         );
+
+         if ($reservationMailIssues !== []) {
+            throw new RuntimeException(
+               'GIFT_RESERVATION_NOTIFICATIONS_REQUIRE_RECONCILIATION'
+            );
+         }
+      }
+      elseif ($reservationCreated) {
          $mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
             $nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
             $subject, $missatge);
 
          $nomTo = 'PrisMa Gestio';
          $correuTo = 'gestio@prisma.cat';
-         // $correuTo = 'meriem.prisma.cat@gmail.com';
          $mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
             $nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
             $subject, $missatge);
@@ -1582,10 +1709,6 @@ class RegalCurs{
       // Compatibilitat llegat: el PDF públic només es pre-genera mentre
       // UC-017 encara NO ha fet el tall SIF. En el camí final el document
       // bescanviable s'ha de generar/servir després del cobrament confirmat.
-      $giftCutoverEnabled = filter_var(
-         getenv('SIF_REDSYS_GIFT_CUTOVER_ENABLED') ?: '0',
-         FILTER_VALIDATE_BOOLEAN
-      );
       if (!$giftCutoverEnabled && $reservationCreated) {
          $options_digital = new \Dompdf\Options();
          $options_digital->set('isRemoteEnabled', true);
