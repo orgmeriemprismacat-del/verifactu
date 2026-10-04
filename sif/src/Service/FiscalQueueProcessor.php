@@ -92,6 +92,40 @@ final class FiscalQueueProcessor
                     $attemptEvidenceId
                 );
             }
+
+            if ($attemptUuid !== null
+                && $attemptEvidenceId !== null
+                && $exception->responseSha256() !== null
+                && $exception->httpStatus() !== null
+            ) {
+                try {
+                    $this->transactions->run(
+                        function (\PDO $db) use (
+                            $attemptUuid,
+                            $attemptEvidenceId,
+                            $exception
+                        ): void {
+                            $this->attempts->anchorEvidenceResponse(
+                                $db,
+                                $attemptUuid,
+                                $attemptEvidenceId,
+                                (string) $exception->responseSha256(),
+                                (int) $exception->httpStatus()
+                            );
+                        }
+                    );
+                } catch (\Throwable $anchorError) {
+                    return $this->reviewHold(
+                        $item,
+                        $attemptUuid,
+                        $anchorError,
+                        'AEAT_EVIDENCE_ANCHOR_ERROR',
+                        true,
+                        $attemptEvidenceId
+                    );
+                }
+            }
+
             return $this->reviewHold(
                 $item,
                 $attemptUuid,
@@ -134,6 +168,48 @@ final class FiscalQueueProcessor
                 true,
                 $attemptEvidenceId
             );
+        }
+
+        $transportResponseSha256 = is_array($transportResponse)
+            ? ($transportResponse['response_sha256'] ?? null)
+            : null;
+        $transportHttpStatus = is_array($transportResponse)
+            ? ($transportResponse['evidence_http_status'] ?? null)
+            : null;
+
+        if ($attemptUuid !== null
+            && $attemptEvidenceId !== null
+            && is_string($transportResponseSha256)
+            && preg_match('/^[a-f0-9]{64}$/D', $transportResponseSha256) === 1
+            && is_int($transportHttpStatus)
+        ) {
+            try {
+                $this->transactions->run(
+                    function (\PDO $db) use (
+                        $attemptUuid,
+                        $attemptEvidenceId,
+                        $transportResponseSha256,
+                        $transportHttpStatus
+                    ): void {
+                        $this->attempts->anchorEvidenceResponse(
+                            $db,
+                            $attemptUuid,
+                            $attemptEvidenceId,
+                            $transportResponseSha256,
+                            $transportHttpStatus
+                        );
+                    }
+                );
+            } catch (\Throwable $anchorError) {
+                return $this->reviewHold(
+                    $item,
+                    $attemptUuid,
+                    $anchorError,
+                    'AEAT_EVIDENCE_ANCHOR_ERROR',
+                    true,
+                    $attemptEvidenceId
+                );
+            }
         }
 
         $status = strtoupper((string) ($transportResult['status'] ?? ''));
