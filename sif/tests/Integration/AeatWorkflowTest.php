@@ -486,10 +486,16 @@ final class AeatWorkflowTest
         IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload('AEAT-UNCERTAIN'));
         $transport = new class implements AeatTransport {
             public int $calls = 0;
-            public function send(array $payload): array {
+            public string $evidenceId = '';
+
+            public function send(array $payload): array
+            {
                 $this->calls++;
+                $this->evidenceId = (string) (
+                    $payload['_sif_submission_attempt']['evidence_id'] ?? ''
+                );
                 throw new AeatDeliveryUncertainException(
-                    'Synthetic remote outcome uncertain; evidence=20261003T220000Z-0123456789abcdef01234567'
+                    'Synthetic remote outcome uncertain; evidence=' . $this->evidenceId
                 );
             }
         };
@@ -502,8 +508,12 @@ final class AeatWorkflowTest
         Assert::same(true, $result['requires_review']);
         Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
         Assert::same('UNCERTAIN', $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn());
+        Assert::matchesRegularExpression(
+            '/^\d{8}T\d{6}Z-[a-f0-9]{24}$/',
+            $transport->evidenceId
+        );
         Assert::same(
-            '20261003T220000Z-0123456789abcdef01234567',
+            $transport->evidenceId,
             $db->query('SELECT EVIDENCE_ID FROM aeat_submission_attempt')->fetchColumn()
         );
         Assert::same(1, (int) $db->query(
