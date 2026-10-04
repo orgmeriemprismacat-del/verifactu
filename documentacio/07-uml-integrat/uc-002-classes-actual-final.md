@@ -179,7 +179,70 @@ PaymentRepository ..> EnrollmentFundMovementRepository : no integrat genèricame
 
 La infraestructura existeix i és utilitzada en fluxos específics, però no hi ha una atribució genèrica UC-002 des de `payment_allocation` cap a `ID_INSC`.
 
-## 6. FINAL — arquitectura objectiu
+## 6. ACTUAL — pont autoritatiu Intranet → SIF darrere feature flag
+
+~~~mermaid
+classDiagram
+direction LR
+class AlumnesPagamentsJS {
+  +initializeSecureUc002Payment()
+  +aplicarPagamentSif(...)
+  +uc002PaymentRequestId(storageKey)
+}
+class SifExistingInvoicePaymentAccess {
+  +resolve(user,intranet) actor
+  +csrfToken() string
+  +assertCsrf(server) void
+  +authoritativeEnabled() bool
+}
+class SifInternalApiClient {
+  +registerExistingInvoicePayment(actor,roles,selector,payment) array
+}
+class SifPaymentProxy {
+  <<sifPagamentFactura.php>>
+  +POST JSON
+  +CSRF
+  +request UUID v4
+  +manual bank policy
+}
+class ExistingInvoicePaymentCommandService {
+  +register(db,command) array
+}
+class ManualPaymentService
+class PaymentService
+class ExistingInvoiceLegacyProjectionService {
+  +build(db,uuidFactura) array
+}
+class Uc002LegacyPaymentProjectionApplier {
+  +apply(projection,movementDate,uuidPayment) array
+}
+
+AlumnesPagamentsJS --> SifExistingInvoicePaymentAccess : token/flag
+AlumnesPagamentsJS --> SifPaymentProxy
+SifPaymentProxy --> SifExistingInvoicePaymentAccess
+SifPaymentProxy --> SifInternalApiClient
+SifInternalApiClient --> ExistingInvoicePaymentCommandService : HMAC API
+ExistingInvoicePaymentCommandService --> ManualPaymentService
+ManualPaymentService --> PaymentService
+ExistingInvoicePaymentCommandService --> ExistingInvoiceLegacyProjectionService
+SifPaymentProxy --> Uc002LegacyPaymentProjectionApplier : post-commit
+~~~
+
+### Garanties implementades
+
+- `SIF_UC002_AUTHORITATIVE` és desactivat per defecte.
+- La UI conserva el mateix UUID de request a `sessionStorage` durant un retry.
+- La clau econòmica és `INTRANET|UC002|REQ:<uuid>`.
+- El vell endpoint `efectuarPagament.php` falla amb 409 per `efact=1` quan el mode autoritatiu està actiu.
+- La projecció llegada és **absoluta** (`PAGAMENT = projectat`), no incremental.
+- Una fallada de projecció/sync després del commit retorna `PENDING_RETRY`; no genera un segon `CHARGE`.
+- `Caixa` i `BBVA` es tracten com transferència manual. `tpv` falla tancat i s'ha de resoldre pel flux Redsys autoritatiu.
+
+### Límit transversal encara obert
+
+La cerca llegada de `/alumnes/pagaments/` continua depenent de `inscripcions.FACTURA_RELACIONADA` i la taula `factures` antiga. Una factura SIF-only (per exemple emesa per UC-004 sense projecció llegada de relació) pot existir i ser cobrable pel command SIF, però **encara no és descobrible automàticament per aquesta cerca llegada**. Cal un fallback de cerca SIF complet (inclosa confirmació) o una projecció d'índex segura; no s'ha creat una pseudo-factura llegada per resoldre-ho.
+
+## 7. FINAL — arquitectura objectiu
 
 ~~~mermaid
 classDiagram
@@ -220,7 +283,7 @@ PaymentCommandService --> LegacyPaymentSync
 PaymentCommandService --> PaymentNotificationOutbox
 ~~~
 
-## 7. Invariants FINAL
+## 8. Invariants FINAL
 
 1. Cap mutació econòmica via GET.
 2. Actor/rol/request-id autenticats abans de mutar.
