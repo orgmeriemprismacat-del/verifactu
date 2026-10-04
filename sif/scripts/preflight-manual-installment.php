@@ -37,6 +37,9 @@ $checks = [
     'payment_allocation_table' => false,
     'payment_external_receipt_claim_table' => false,
     'internal_api_request_table' => false,
+    'sif_audit_event_table' => false,
+    'operational_event_table' => false,
+    'payment_action_event_table' => false,
     'external_receipt_claim_unique_key' => false,
     'external_receipt_claim_delete_cascade' => false,
 ];
@@ -56,6 +59,9 @@ try {
         'payment_allocation',
         'payment_external_receipt_claim',
         'internal_api_request',
+        'payment_action_event',
+        'operational_event',
+        'sif_audit_event',
     ] as $table) {
         $checks[$table . '_table'] = tableExists($db, $table);
     }
