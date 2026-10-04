@@ -171,7 +171,7 @@ S --> T[COMMIT]
 ```mermaid
 flowchart TD
 A[CLI] --> B[Llegir SIF_RELEASE_MANIFEST_PATH]
-B --> C{directori existeix i fora public?}
+B --> C{directori existeix i manifest fora del release?}
 C -->|No| D[exit 1]
 C -->|Sí i fora de tot l'arbre sif| E[Recórrer roots release]
 E --> F[SHA-256 de cada fitxer]
