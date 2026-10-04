@@ -260,7 +260,7 @@ erDiagram
 - `SifVersionRepository::activate()` comprova `STATUS=DRAFT` abans de supersedir cap versió.
 - `ReleaseManifestVerifier` considera invàlid un manifest ubicat dins del mateix arbre del release.
 - `SifVersionService::activate()` serialitza primer amb `sif_version_state FOR UPDATE`; després fa la comprovació idempotent autoritativa i bloqueja candidata/ACTIVE rows.
-- `MigrationRunner::inspect()` acredita ledger, hashes de migració i presència de taules/columnes declarades; no acredita tots els índexs/constraints/tipus SQL.
+- `MigrationRunner::inspect()` acredita ledger, hashes de migració i presència de taules/columnes declarades. `RuntimeVersionInspector` hi afegeix verificació explícita dels invariants físics crítics UC-010 (ACTIVE únic, CHECKs i triggers); continua sense pretendre auditar tots els índexs/constraints/tipus de tot el SIF.
 - `BackupRestoreEvidenceRepository` és només un reader del contracte persistent UC-85. UC-85 continua sense servei executable complet, per tant aquesta relació és una dependència pendent d'entorn/governança.
 
 
