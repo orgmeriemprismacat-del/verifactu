@@ -17,6 +17,7 @@ $checks = [
     'sif_database' => false,
     'usoc_financing_case_table' => false,
     'usoc_validation_decision_table' => false,
+    'usoc_validation_active_unique_index' => false,
     'usoc_lifecycle_execution_table' => false,
     'internal_api_key_id' => false,
     'internal_api_secret' => false,
@@ -35,6 +36,11 @@ try {
     $checks['sif_database'] = true;
     $checks['usoc_financing_case_table'] = tableExists($db, 'usoc_financing_case');
     $checks['usoc_validation_decision_table'] = tableExists($db, 'usoc_validation_decision');
+    $checks['usoc_validation_active_unique_index'] = uniqueIndexExists(
+        $db,
+        'usoc_validation_decision',
+        'uq_usoc_validation_active_inscription'
+    );
     $checks['usoc_lifecycle_execution_table'] = tableExists($db, 'usoc_lifecycle_execution');
 } catch (Throwable $exception) {
     $databaseError = $exception->getMessage();
@@ -118,4 +124,20 @@ function normalizedRoles(array $roles): array
         static fn (mixed $role): string => strtoupper(trim((string) $role)),
         $roles
     )));
+}
+
+
+function uniqueIndexExists(PDO $db, string $table, string $index): bool
+{
+    $stmt = $db->prepare(
+        'SELECT COUNT(*)
+         FROM information_schema.statistics
+         WHERE table_schema = DATABASE()
+           AND table_name = ?
+           AND index_name = ?
+           AND non_unique = 0'
+    );
+    $stmt->execute([$table, $index]);
+
+    return (int) $stmt->fetchColumn() >= 1;
 }
