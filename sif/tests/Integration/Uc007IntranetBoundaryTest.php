@@ -322,7 +322,7 @@ final class Uc007IntranetBoundaryTest
         $page = $this->readIntranet('alumnes-mostrar-alumne.php');
         $js = $this->readIntranet('js/alumnes-mostrar-alumne.js');
 
-        Assert::stringContainsString('/js/alumnes-mostrar-alumne.js?ver=2.0', $page);
+        Assert::stringContainsString('/js/alumnes-mostrar-alumne.js?ver=2.1', $page);
         if (str_contains($page, 'SIF_INVOICE_QUERY_UI_ENABLED')) {
             Assert::fail('Obsolete no-op UC-007 UI flag must not remain in the student page template.');
         }
@@ -333,7 +333,11 @@ final class Uc007IntranetBoundaryTest
             Assert::fail('UC-007 student page must not execute a second SIF implementation.');
         }
 
-        Assert::stringContainsString('alumnes/factura/#/uuid/', $js);
+        Assert::stringContainsString("window.location.origin + '/alumnes/factura/#/uuid/'", $js);
+        Assert::stringContainsString("window.location.origin + '/alumnes/factura/#/factRel/'", $js);
+        if (str_contains($js, 'https://intranet.prisma.cat/alumnes/factura/')) {
+            Assert::fail('UC-007 student deep links must not jump from pre/dev to production.');
+        }
         Assert::stringContainsString('action: "view_by_enrollment"', $js);
         Assert::stringContainsString('mostrarModalConsultaFacturaLlegat(id)', $js);
         Assert::stringContainsString('url: path + "alumnes/descarregaFactura.php"', $js);
