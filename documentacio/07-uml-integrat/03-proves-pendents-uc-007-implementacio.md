@@ -141,3 +141,11 @@ El primer run del PR ha executat i aprovat `Uc007IntranetBoundaryTest`, `Invoice
 - [x] Boundary test impedeix hardcode de `https://intranet.prisma.cat/ajax/`.
 - [ ] A `intranet-pre.prisma.cat`, Network ha de mostrar totes les crides UC-007 contra `intranet-pre.prisma.cat`, mai contra producció.
 - [ ] Confirmar que els assets 1.3/1.9 existeixen realment al document root de preproducció abans d'activar flags.
+
+## 10. F02 · comodins de cerca llegada — 2026-10-04
+
+- [x] `%` introduït per l'usuari s'escapa com a literal.
+- [x] `_` introduït per l'usuari s'escapa com a literal.
+- [x] SQL declara `ESCAPE '='` a les consultes UC-007 amb `LIKE`.
+- [x] El `%` exterior afegit pel sistema continua permetent cerca parcial.
+- [ ] Regressió amb dades reals que continguin `%`, `_` i `=` en camps històrics.
