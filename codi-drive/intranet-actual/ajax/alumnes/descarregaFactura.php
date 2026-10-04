@@ -31,9 +31,22 @@ try {
         (int) $id
     );
 
-    $tempRoot = realpath(__DIR__);
-    if ($tempRoot === false || !chdir($tempRoot)) {
-        throw new RuntimeException('No es pot resoldre el directori temporal de factures', 500);
+    $configuredTempRoot = trim((string) (
+        getenv('SIF_LEGACY_INVOICE_TEMP_ROOT')
+            ?: (sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prisma-uc007-invoices')
+    ));
+    if ($configuredTempRoot === '') {
+        throw new RuntimeException('No hi ha directori temporal privat configurat', 500);
+    }
+    if (!is_dir($configuredTempRoot)
+        && !mkdir($configuredTempRoot, 0700, true)
+        && !is_dir($configuredTempRoot)) {
+        throw new RuntimeException('No es pot crear el directori temporal privat de factures', 500);
+    }
+
+    $tempRoot = realpath($configuredTempRoot);
+    if ($tempRoot === false || !is_dir($tempRoot) || !is_writable($tempRoot) || !chdir($tempRoot)) {
+        throw new RuntimeException('No es pot resoldre el directori temporal privat de factures', 500);
     }
 
     $filename = trim((string) $intranet->generaFactura((int) $id, true, false));
