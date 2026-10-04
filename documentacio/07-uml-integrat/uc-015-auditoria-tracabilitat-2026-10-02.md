@@ -608,6 +608,7 @@ En revalidar el `main` posterior al PR #102 s'ha comprovat que `verify-redsys-pa
 - worker productiu executable per `runOneForDsOrder()`;
 - CLI de cua amb `--ds-order=`;
 - `verify-redsys-pack-preproduction.php --execute` executa el worker real, exigeix un job reclamat/processat i després llança el verificador persistent;
+- `--execute` i `--diagnostic-process` es rebutgen si apareixen junts abans de qualsevol operació;
 - preflight + preview formen una porta fail-closed prèvia: si qualsevol check falla, no s'executa ni worker ni processador diagnòstic;
 - el processador manual queda sota `--diagnostic-process`;
 - prova amb dos callbacks en cua que acredita que el mode dirigit no consumeix el callback no objectiu.
