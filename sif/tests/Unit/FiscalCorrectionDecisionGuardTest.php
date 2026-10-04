@@ -15,6 +15,7 @@ final class FiscalCorrectionDecisionGuardTest
             'source_uc' => 'UC-74',
             'reason_code' => 'AMOUNT_DECREASE',
             'policy_version' => '2026-10',
+            'invoice_type' => 'R1',
             'rectification_mode' => 'DIFERENCIES',
         ], [
             'mode' => 'DIFERENCIES',
