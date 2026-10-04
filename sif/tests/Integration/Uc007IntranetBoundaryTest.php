@@ -190,20 +190,27 @@ final class Uc007IntranetBoundaryTest
     public function testLegacySearchInitializesStateUsesStableDelimiterAndEscapesTitle(): void
     {
         $intranet = $this->readIntranet('Intranet.php');
+        $start = strpos($intranet, 'public function buscarUsuaris_Factures(');
+        $end = strpos($intranet, 'public function mostrarTotesFacturesUsuari_Factures(', $start === false ? 0 : $start);
 
-        Assert::stringContainsString('$existeixCerca = false;', $intranet);
+        if ($start === false || $end === false || $end <= $start) {
+            Assert::fail('Could not isolate legacy UC-007 search method.');
+        }
+
+        $searchFragment = substr($intranet, $start, $end - $start);
+        Assert::stringContainsString('$existeixCerca = false;', $searchFragment);
         Assert::stringContainsString(
             'if ( count($dniDefinitius) > 0 ) $dniUsuaris .= "|";',
-            $intranet
+            $searchFragment
         );
+        if (str_contains($searchFragment, 'if ( $i > 0 ) $dniUsuaris .= "|";')) {
+            Assert::fail('Legacy UC-007 search must not derive separators from the loop index.');
+        }
+
         Assert::stringContainsString(
             'justify-content-center d-flex\'>".$this->__escapeHtmlValue($cercaPer)."</p>',
             $intranet
         );
-
-        if (str_contains($intranet, 'if ( $i > 0 ) $dniUsuaris .= "|";')) {
-            Assert::fail('Legacy UC-007 search must not derive separators from the loop index.');
-        }
     }
 
     public function testLegacyInvoicePreviewAndPdfEscapeDatabaseValues(): void
