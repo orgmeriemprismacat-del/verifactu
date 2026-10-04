@@ -1,6 +1,7 @@
 <?php
 
 require dirname(__DIR__) . '/src/autoload.php';
+require dirname(__DIR__) . '/config/load-runtime-secrets.php';
 
 use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Repository\FiscalQueueMetricsRepository;
