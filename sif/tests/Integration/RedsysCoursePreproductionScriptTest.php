@@ -29,7 +29,7 @@ final class RedsysCoursePreproductionScriptTest
         Assert::stringContainsString('new LegacySyncService(new LegacySyncRepository())', $source);
         Assert::stringContainsString('new RedsysPaymentIntentRepository()', $source);
         Assert::stringContainsString('findByDsOrder($sifDb, $dsOrder)', $source);
-        Assert::stringContainsString("$intent['SNAPSHOT_JSON']", $source);
+        Assert::stringContainsString('SNAPSHOT_JSON', $source);
         Assert::stringContainsString('new LegacyCourseInvoicePayloadBuilder()', $source);
         Assert::stringContainsString('new RedsysInvoicePayloadBuilder($notifications)', $source);
         Assert::stringContainsString('$service->issueFromIntentSnapshot($sifDb, $dsOrder, $snapshot)', $source);

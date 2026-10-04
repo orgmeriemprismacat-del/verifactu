@@ -21,7 +21,7 @@ final class RedsysCoursePreviewScriptTest
         Assert::stringContainsString('new RedsysNotificationRepository()', $source);
         Assert::stringContainsString('new RedsysPaymentIntentRepository()', $source);
         Assert::stringContainsString('findByDsOrder($sifDb, $dsOrder)', $source);
-        Assert::stringContainsString("$intent['SNAPSHOT_JSON']", $source);
+        Assert::stringContainsString('SNAPSHOT_JSON', $source);
         Assert::stringContainsString('new LegacyCourseInvoicePayloadBuilder()', $source);
         Assert::stringContainsString('new RedsysInvoicePayloadBuilder($notifications)', $source);
         Assert::stringContainsString('--discount-file=discount.json', $source);

@@ -12,6 +12,7 @@ use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
+use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
 use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\PaymentRepository;
@@ -82,6 +83,7 @@ try {
     if ($discountSnapshot !== null) {
         $snapshot['discount'] = $discountSnapshot;
     }
+    $legacySnapshots = new LegacyCourseSnapshotRepository();
     $beforePaymentCoverage = new InvoiceBeforePaymentCoverageRepository();
     $paymentService = new PaymentService(
         new TransactionRunner($sifDb),
