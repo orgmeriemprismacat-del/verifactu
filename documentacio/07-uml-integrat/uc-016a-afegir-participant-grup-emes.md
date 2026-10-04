@@ -110,8 +110,9 @@ flowchart LR
 classDiagram
 direction LR
 class GroupParticipantAdditionCoordinator {
- <<DISSENY: confirm no implementat>>
- +confirm(command) result
+ <<PHP implementat>>
+ +preview(db,uuidFactura,candidate) array
+ +confirm(sifDb,legacyDb,...) array
 }
 class GroupParticipantAdditionPreviewService {
  <<PHP implementat>>
@@ -216,3 +217,8 @@ La fase `confirm` continua fail-closed perquè afegir una persona pot canviar el
 3. cobrament posterior real.
 
 No registra cap pagament en planificar l'alta. Si la política és `KEEP_EXISTING_MEMBER_PRICES` i l'acció és `SUPPLEMENTAL_INVOICE_PARTICIPANT`, genera un pla nominal pel total del candidat; si cal repricing del grup, crea una acció separada que exigeix classificació fiscal.
+
+
+## 8. Saga implementada
+
+`GroupParticipantAdditionCoordinator` persisteix execució i passos, valida fingerprint i reprèn retries sense repetir l'alta. El pas acadèmic és executable via gateway; el pas fiscal queda `WAITING_EXTERNAL` fins disposar d'un executor fiscal específic aprovat.
