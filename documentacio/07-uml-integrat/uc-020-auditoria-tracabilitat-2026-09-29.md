@@ -416,3 +416,22 @@ Aquesta ampliació no canvia la policy de negoci; converteix comportaments ja im
 | UC020-122 | P06 rebia `TIPUS_DESC`, `VALID_DESC`, `A_PAGAR`, `PAGAT` i `PENDENT` des del navegador. | TANCAT PER AP | Tipus/estat es rellegeixen sempre de BD; per AP, tarifa/pagat/pendent es recalculen al servidor abans de preview i mutació. |
 | UC020-123 | La branca AP de `buscarPreuAPagar_modalCanviCurs` seleccionava `TIPUS=1` només per `ID_PREU`, sense curs/hores/mes ni unicitat. | TANCAT PER BYPASS AP AUTORITATIU | Nou resolver P06 filtra `ID_PREU + CURS/HORES + MES + vigència`, exigeix una fila i valida contra preu base. |
 | UC020-124 | L'elegibilitat llegada de canvi de curs exclou ID actual i historial posterior, però no compta `GENERAT=1`, a diferència de `ALUMNE_PRISMA_WEB_LEGACY_V2`. | PENDENT MIGRACIÓ POLICY | AP-73 continua obert; no s'ha canviat semàntica de negoci de P06 sense migració explícita. |
+
+
+## 20. Revalidació exhaustiva — 04/10/2026
+
+| ID | Troballa | Estat | Evidència/destí |
+| --- | --- | --- | --- |
+| UC020-125 | Participant no revalidat explícitament en reintents d'una operació ja existent. | TANCAT CODI · TESTS NOUS · PENDENT CI HEAD | `CommercialOperationPartyRepository::findByOperationAndRole`, `ensureParticipant()`, tests de nom i clau canònica alterats. |
+| UC020-126 | SQL directe de `commercial_operation_line` dins l'orquestrador. | TANCAT REFACTOR · PENDENT CI HEAD | `CommercialOperationLineRepository`. |
+| UC020-127 | #158 conté millores però també regressions respecte #112. | TANCAT DECISIÓ | integració selectiva; es preserven exclusió matrícula actual, `DATA_INSC` i `BILLABLE`. |
+| UC020-128 | HEAD nou sense resultat CI encara. | PENDENT VERIFICACIÓ | workflows creats i en cua el 04/10. |
+
+### 20.1. Estat per eix
+
+- **DOCUMENTAT:** complet per a l'abast UC-020 requerit.
+- **IMPLEMENTAT:** hardening AP i guards de reintent codificats a PR #112.
+- **VERIFICAT:** evidència CI històrica només per commits citats + inspecció estàtica del HEAD.
+- **PENDENT:** CI del HEAD, E2E real/preproducció, cutover/drain, `offer_id/payment_link`, transferència, idempotència persistent P05, POST/CSRF general de l'alta, fraccionament AP i policy P06 comuna.
+
+Document de tall: [revalidació 04/10](uc-020-revalidacio-2026-10-04.md).
