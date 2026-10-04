@@ -20,7 +20,7 @@ final class JasomNovicePaymentGate
         }
 
         $stmt = $db->prepare(
-            "SELECT i.ID, i.CURS, i.A_PAGAR, i.PAGAMENT, i.FRACCIONAT, r.ID, r.VALIDAT
+            "SELECT i.ID, i.CURS, i.A_PAGAR, i.PAGAMENT, i.FRACCIONAT, i.TIPUS_DESC, i.VALID_DESC, r.ID, r.VALIDAT
              FROM inscripcions i
              LEFT JOIN recent_titulat r ON r.ID_INSC = i.ID
              WHERE i.IDPAG = ?
@@ -36,7 +36,7 @@ final class JasomNovicePaymentGate
             throw new RuntimeException('PAYMENT_NOT_AVAILABLE');
         }
 
-        $stmt->bind_result($enrollmentId, $courseCode, $coursePrice, $alreadyPaid, $fractional, $noviceRowId, $noviceDecision);
+        $stmt->bind_result($enrollmentId, $courseCode, $coursePrice, $alreadyPaid, $fractional, $discountType, $discountStatus, $noviceRowId, $noviceDecision);
         $stmt->fetch();
         $stmt->close();
 
@@ -46,6 +46,8 @@ final class JasomNovicePaymentGate
             'course_price' => $coursePrice,
             'already_paid' => $alreadyPaid,
             'fractional' => (int) $fractional,
+            'discount_type' => (int) $discountType,
+            'discount_status' => (int) $discountStatus,
             'novice_row_present' => $noviceRowId !== null,
             'novice_decision' => $noviceDecision,
         ], $post);
@@ -74,6 +76,15 @@ final class JasomNovicePaymentGate
         $requested = self::cents($requestedRaw);
         $pending = $total - $paid;
         $fractional = (int) ($enrollment['fractional'] ?? 0) === 1;
+        $discountType = (int) ($enrollment['discount_type'] ?? 0);
+        $discountStatus = (int) ($enrollment['discount_status'] ?? 1);
+
+        // UC-020: Alumne PrisMa is payable only after validation and is
+        // deliberately fail-closed for fractional payments until the fiscal
+        // model represents the total offer and each payment separately.
+        if ($discountType === 1 && ($discountStatus !== 1 || $fractional)) {
+            throw new RuntimeException('PAYMENT_NOT_AVAILABLE');
+        }
 
         if ($total <= 0 || $paid < 0 || $paid >= $total || $requested <= 0
             || $requested > $pending
