@@ -6,6 +6,8 @@ include '../../Usuari.php';
 include '../../SifPaymentSessionGuard.php';
 include '../../SifInternalApiClient.php';
 include '../../SifManualTransferGateway.php';
+include '../../SifLegacyPaymentProjection.php';
+include '../../ConnexioWeb.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -17,6 +19,7 @@ try {
 
     $guard = new SifPaymentSessionGuard();
     $actor = $guard->actor();
+    $guard->assertAnyRole((array) $actor['roles'], $guard->configuredManualTransferRoles());
     $guard->assertCsrf((string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''));
 
     $payload = json_decode(file_get_contents('php://input') ?: '', true);
@@ -53,7 +56,30 @@ try {
         $notes !== '' ? $notes : null
     );
 
-    http_response_code(($result['status'] ?? '') === 'PENDING_RETRY' ? 202 : 200);
+    try {
+        $legacyProjection = (new SifLegacyPaymentProjection(new ConnexioWeb()))->apply(
+            $externalBankEventId,
+            $numFact,
+            $amount,
+            $movementDate
+        );
+        $result['legacy_sync'] = $legacyProjection['status'];
+    } catch (Throwable $projectionError) {
+        http_response_code(202);
+        echo json_encode([
+            'ok' => true,
+            'status' => 'PENDING_RETRY',
+            'payment_status' => (string) ($result['status'] ?? ''),
+            'uuid_payment' => $result['uuid_payment'] ?? null,
+            'uuid_factura' => $result['uuid_factura'] ?? null,
+            'request_id' => $result['request_id'] ?? null,
+            'legacy_sync' => 'FAILED',
+            'error' => $projectionError->getMessage(),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return;
+    }
+
+    http_response_code(200);
     echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $exception) {
     $code = (int) $exception->getCode();
