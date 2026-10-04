@@ -325,21 +325,28 @@ final class EnrollmentFundMovementRepository
         }
 
         $sql =
-            'SELECT UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
-                    UUID_PAYMENT, UUID_FACTURA, ID_FACTURA_LINIA,
-                    ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
-                    UUID_OPERATION, CORRELATION_ID, REVERSES_UUID_MOVEMENT,
-                    NOTES, CREATED_AT
-             FROM enrollment_fund_movement
-             WHERE (ID_INSC_ORIGEN = ? OR ID_INSC_DESTI = ?)';
-        $params = [$idInsc, $idInsc];
+            'SELECT m.UUID_MOVEMENT, m.IDEMPOTENCY_KEY, m.MOVEMENT_TYPE, m.ORDRE,
+                    m.UUID_PAYMENT, m.UUID_FACTURA, m.ID_FACTURA_LINIA,
+                    m.ID_INSC_ORIGEN, m.ID_INSC_DESTI, m.IMPORT, m.CURRENCY,
+                    m.UUID_OPERATION, m.CORRELATION_ID, m.REVERSES_UUID_MOVEMENT,
+                    m.NOTES, m.CREATED_AT
+             FROM enrollment_fund_movement m
+             LEFT JOIN enrollment_fund_movement reversed
+               ON reversed.UUID_MOVEMENT = m.REVERSES_UUID_MOVEMENT
+             WHERE (
+                m.ID_INSC_ORIGEN = ?
+                OR m.ID_INSC_DESTI = ?
+                OR reversed.ID_INSC_ORIGEN = ?
+                OR reversed.ID_INSC_DESTI = ?
+             )';
+        $params = [$idInsc, $idInsc, $idInsc, $idInsc];
 
         if ($uuidFactura !== null && trim($uuidFactura) !== '') {
-            $sql .= ' AND UUID_FACTURA = ?';
+            $sql .= ' AND COALESCE(m.UUID_FACTURA, reversed.UUID_FACTURA) = ?';
             $params[] = trim($uuidFactura);
         }
 
-        $sql .= ' ORDER BY CREATED_AT, ORDRE, ID';
+        $sql .= ' ORDER BY m.CREATED_AT, m.ORDRE, m.ID';
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
 
