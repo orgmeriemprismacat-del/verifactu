@@ -404,3 +404,24 @@ stop
 ## Traçabilitat
 
 [UC-016 fitxa](../06-fitxes-funcionals/uc-016.md) · [UC-016 UML](uc-016-facturar-grup.md) · [UC-016A](uc-016a-afegir-participant-grup-emes.md) · [UC-016B](uc-016b-treure-participant-grup-emes.md) · [UC-118 activitats](uc-118-activitats-pagines-grup-actual-final.md) · [UC-091 trams](uc-091-descompte-grup-per-trams.md) · [auditoria](../../00-control/auditoria-uc-016-2026-10-03.md).
+
+
+## P10 — API interna UC-016A/B — preview i planificació
+
+**Fitxer:** `sif/public/api/groups/participants.php`
+
+Flux FINAL:
+1. POST JSON signat amb HMAC.
+2. `InternalApiAuthenticator` valida clau, timestamp, request-id, actor i rols.
+3. `preview_add` / `plan_add`: es recalculen factura i candidat al servidor, es genera fingerprint i, si cal, pla.
+4. `preview_remove` / `plan_remove`: es rellegeixen factura, línia i ledger, es genera fingerprint i, si cal, pla.
+5. Es retorna JSON no destructiu.
+6. `confirm` no s'exposa fins que existeixi un adaptador acadèmic productiu auditat.
+
+## P11 — Preflight UC-016A/B
+
+**Fitxer:** `sif/scripts/preflight-group-participant-change.php`
+
+Comprova configuració HMAC, path signat, rols, connectivitat SIF i taules `factura`, `factura_linia`, `fact_rels`, `enrollment_fund_movement`, `group_participant_change_execution`, `group_participant_change_step` i `internal_api_request`.
+
+El resultat separa `ok` per preview/plan i `mutation_confirm_ready=false` mentre falti el gateway acadèmic productiu.
