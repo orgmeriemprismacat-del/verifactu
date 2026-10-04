@@ -31,6 +31,10 @@ final class LegacyUsocDiscountValidationSecurityTest
         Assert::stringContainsString("tePermisVisualitzacio", $endpoint);
         Assert::stringContainsString("FILTER_VALIDATE_INT", $endpoint);
         Assert::stringContainsString("validar_descomptes_requests", $endpoint);
+        Assert::stringContainsString("validar_descomptes_usoc_requests", $endpoint);
+        Assert::stringContainsString("'id_insc' => $idInsc", $endpoint);
+        Assert::stringContainsString("'desired_valid_desc' => $desiredValidDesc", $endpoint);
+        Assert::stringContainsString("requestId reutilitzat amb una operació diferent", $endpoint);
         Assert::stringContainsString("LegacyDiscountValidationLookup", $endpoint);
         Assert::stringContainsString('->isUsoc($idInsc)', $endpoint);
         Assert::stringContainsString("beginValidationDecision", $endpoint);
@@ -43,7 +47,10 @@ final class LegacyUsocDiscountValidationSecurityTest
 
         Assert::stringContainsString('method: "POST"', $js);
         Assert::stringContainsString('csrfToken: obtenirCsrfValidarDescomptes()', $js);
-        Assert::stringContainsString('requestId: nouRequestIdValidarDescompte()', $js);
+        Assert::stringContainsString('requestId: obtenirRequestIdValidarDescompte(idInsc, valid)', $js);
+        Assert::stringContainsString('window.sessionStorage.getItem', $js);
+        Assert::stringContainsString('window.sessionStorage.setItem', $js);
+        Assert::stringContainsString('completarRequestValidarDescompte(idInsc, valid)', $js);
 
         Assert::stringContainsString('csrf_validar_descomptes', $page);
         Assert::stringContainsString('csrf-token-validar-descomptes', $page);
