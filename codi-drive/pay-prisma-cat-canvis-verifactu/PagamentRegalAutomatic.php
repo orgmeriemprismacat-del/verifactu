@@ -251,10 +251,11 @@ class PagamentRegal {
       $mostrar .= "<div class='d-flex flex-column algin-items-center justify-content-center'>";
       $mostrar .= "<form id='frm' name='frm' action='https://www.prisma.cat/regal/efectuarPagament/' method='post'>";
 
-      $mostrar .= "<input type='hidden' id='codiCurs' name='codiCurs' value='".$codiCurs."'>";
-      $mostrar .= "<input type='hidden' id='codiRegal' name='codiRegal' value='".$codiRegal."'>";
-      $mostrar .= "<input type='hidden' id='titol' name='titol' value=\"".$titol."\">";
-      $mostrar .= "<input type='hidden' id='email' name='email' value='".$correu."'>";
+      $mostrar .= "<input type='hidden' id='giftId' name='giftId' value='".$giftId."'>";
+      $mostrar .= "<input type='hidden' id='codiCurs' name='codiCurs' value='".
+         htmlspecialchars((string) $codiCurs, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')."'>";
+      $mostrar .= "<input type='hidden' id='titol' name='titol' value=\"".
+         htmlspecialchars((string) $titol, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')."\">";
 
       $mostrar .= "<div class='d-flex flex-column flex-md-row align-items-center justify-content-center w-100'>";
       $mostrar .= "<div class='col-12 pl-0 pr-0 pr-md-2'>";
