@@ -90,7 +90,8 @@ El comportament FINAL ja està implementat. `MAX(IDPAG)+1` sota lock continua se
 - `codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php`
 - `codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php`
 - `codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php`
-- client d'intenció SIF utilitzat per la pàgina de checkout;
+- `codi-drive/web-actual/inc/SifPaymentIntentClient.php`
+- `codi-drive/pay-prisma-cat-canvis-verifactu/inc/SifPaymentIntentClient.php`
 - `sif/public/api/redsys/intents/create.php`
 - `sif/src/Service/RedsysPaymentIntentService.php`
 
@@ -111,7 +112,8 @@ Controls:
 ## 7. PK-A06 · Callback, cua i worker
 
 ### ACTUAL
-- callback SIF Redsys i serveis `RedsysCallbackService`, `RedsysCallbackDispatcher`, `RedsysCallbackWorker`;
+- `sif/public/api/redsys/callback.php`;
+- serveis `sif/src/Service/RedsysCallbackService.php`, `RedsysCallbackDispatcher.php` i `RedsysCallbackWorker.php`;
 - handler `sif/src/Service/RedsysPackInvoiceService.php`;
 - `codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php` només com a harness test/preproduction fail-closed.
 
