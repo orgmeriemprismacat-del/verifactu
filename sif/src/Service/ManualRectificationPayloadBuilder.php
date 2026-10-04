@@ -16,7 +16,7 @@ final class ManualRectificationPayloadBuilder
         $amount = $totals['total'];
         $billing = $this->billing($invoice, $input, $mode);
 
-        return [
+        $payload = [
             'idempotency_key' => $this->idempotencyKey($numVisible, $mode, $reason, $amount, $input),
             'series' => 'R',
             'year' => (int) ($input['year'] ?? $invoice['ANY_FACT'] ?? date('Y')),
@@ -49,6 +49,18 @@ final class ManualRectificationPayloadBuilder
                 'visible_alumne' => 1,
             ]],
         ];
+
+        foreach (['aeat_header', 'aeat_fields'] as $serverField) {
+            if (!array_key_exists($serverField, $input)) {
+                continue;
+            }
+            if (!is_array($input[$serverField])) {
+                throw SifException::validation('Invalid server-side AEAT rectification block');
+            }
+            $payload[$serverField] = $input[$serverField];
+        }
+
+        return $payload;
     }
 
     private function billing(array $invoice, array $input, string $mode): array
