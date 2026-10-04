@@ -89,9 +89,15 @@ php sif/scripts/verify-manual-installment-evidence.php \
 
 Comprovar:
 
+- `ok=true` al verificador;
 - un únic `payment_transaction`;
 - una assignació a la factura correcta;
 - estat de factura `PARTIAL`;
+- `correlation_id` present;
+- `payment_action_events` amb almenys `REQUESTED` i terminal `SUCCEEDED` o `REUSED`;
+- `operational_events` amb `REGISTER_INSTALLMENT_PAYMENT`;
+- `sif_audit_events` correlacionats amb el mateix identificador;
+- el `REQUEST_ID` és traçable i canvia en un reintent nou, mentre la correlació econòmica es manté;
 - no apareix un registre fiscal nou pel simple cobrament.
 
 ## 5. Cas B — reintent idempotent
@@ -196,7 +202,8 @@ Per cada cas:
 - operation id;
 - UUID_PAYMENT;
 - JSON de preview/process;
-- JSON de `verify-manual-installment-evidence.php`;
+- JSON de `verify-manual-installment-evidence.php`, incloent `payment_action_events`, `operational_events` i `sif_audit_events`;
+- request id i correlation id de cada intent;
 - resultat HTTP del canal intranet quan correspongui;
 - captura o log de l'estat econòmic final;
 - hash/commit desplegat.
@@ -211,6 +218,8 @@ No conservar secrets HMAC.
 - parcial, reintent, conflicte, inscripció aliena, sobrepagament i DS_ORDER passen;
 - la intranet usa l'ID_INSC real;
 - la conciliació externa evita el doble CHARGE;
+- cada operació té `REQUESTED` + terminal i traça operacional/SIF correlacionada;
+- una fallada de l'auditoria terminal no deixa un cobrament parcialment commitejat;
 - CI del commit desplegat és verda o hi ha evidència equivalent controlada;
 - no s'ha creat cap registre fiscal addicional pel simple cobrament.
 
