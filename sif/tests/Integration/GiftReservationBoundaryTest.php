@@ -40,6 +40,36 @@ final class GiftReservationBoundaryTest
         }
     }
 
+    public function testPreviewEscapesPersonalHtmlAndValidatesConfiguredStyle(): void
+    {
+        $page = $this->read('codi-drive/web-actual/pagina_regal.php');
+        $preview = $this->read('codi-drive/web-actual/ajax/previsualitza_regal.php');
+        $gift = $this->read('codi-drive/web-actual/RegalCurs.php');
+
+        Assert::stringContainsString("Cache-Control: private, no-store", $page);
+        Assert::stringContainsString("Cache-Control: private, no-store", $preview);
+        Assert::stringContainsString("\$allowedStyles = [];", $gift);
+        Assert::stringContainsString("preg_match('/^estil-[1-9][0-9]?\$/D', \$idEstil)", $gift);
+        Assert::stringContainsString("\$safeDesti = htmlspecialchars", $gift);
+        Assert::stringContainsString("\$safeOrigen = htmlspecialchars", $gift);
+        Assert::stringContainsString("\$safeDedicatoria = nl2br(", $gift);
+        Assert::stringContainsString("\$safeCodiRegal = htmlspecialchars", $gift);
+        Assert::stringContainsString("\$safeNomCurs = htmlspecialchars", $gift);
+        Assert::stringContainsString('>".$safeDesti."</div>', $gift);
+        Assert::stringContainsString('>".$safeDedicatoria."</div>', $gift);
+        Assert::stringContainsString('>".$safeOrigen."</div>', $gift);
+
+        foreach ([
+            '>".$desti."</div>',
+            '>".$dedicatoria."</div>',
+            '>".$origen."</div>',
+        ] as $unsafe) {
+            if (str_contains($this->previewMethod($gift), $unsafe)) {
+                Assert::fail('Gift preview renders unescaped personal HTML: ' . $unsafe);
+            }
+        }
+    }
+
     public function testReservationRepricesSerializesAndPersistsBeforeMail(): void
     {
         $source = $this->read('codi-drive/web-actual/RegalCurs.php');
@@ -86,6 +116,16 @@ final class GiftReservationBoundaryTest
         Assert::stringContainsString('if (!$this->estaPagat())', $payment);
         Assert::stringContainsString('FACT_REL, USAT, OBSERVACIONS', $redeem);
         Assert::stringContainsString('if ($factura==0 && !$sifPaid)', $redeem);
+    }
+
+    private function previewMethod(string $source): string
+    {
+        $start = strpos($source, 'public function mostrarPrevisualitzacio(');
+        $end = strpos($source, 'public function mostrarFormulariComprador()', $start ?: 0);
+
+        return ($start !== false && $end !== false)
+            ? substr($source, $start, $end - $start)
+            : '';
     }
 
     private function read(string $relativePath): string
