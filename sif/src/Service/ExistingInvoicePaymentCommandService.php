@@ -8,7 +8,8 @@ final class ExistingInvoicePaymentCommandService
 {
     public function __construct(
         private ManualPaymentService $manualPayments,
-        private ?ExistingInvoiceLegacyProjectionService $legacyProjection = null
+        private ?ExistingInvoiceLegacyProjectionService $legacyProjection = null,
+        private ?ExistingInvoiceEnrollmentFundAllocationService $fundAllocation = null
     ) {
     }
 
@@ -62,6 +63,15 @@ final class ExistingInvoicePaymentCommandService
 
         $result['action'] = 'register_existing_invoice';
         $result['payment_committed'] = true;
+
+        if ($this->fundAllocation !== null) {
+            $result['enrollment_fund_allocation'] = $this->fundAllocation->allocate(
+                $sifDb,
+                (string) $result['uuid_payment'],
+                (string) $result['uuid_factura'],
+                $idempotencyKey
+            );
+        }
 
         if ($this->legacyProjection !== null) {
             try {
