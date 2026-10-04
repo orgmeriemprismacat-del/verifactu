@@ -1,164 +1,121 @@
-# UC-004 · Contracte AEAT pendent i frontera de responsabilitats · 2026-10-04
+# UC-004 · Contracte AEAT server-side i configuració pendent · 2026-10-04
 
 **Cas:** UC-004 — Emetre factura abans de cobrar  
-**Objectiu:** definir què falta per construir el snapshot oficial AEAT sense acceptar dades fiscals autoritatives del navegador.
+**Objectiu:** documentar el contracte fiscal implementat sense acceptar dades fiscals autoritatives del navegador.
 
 ## 1. Situació actual
 
-`InvoiceService::issueInvoice()` falla tancat en PREPROD/PROD si el payload no conté `aeat_fields`.
+El P0 tècnic detectat durant l'auditoria s'ha reduït.
 
-El builder UC-004 actual reconstrueix al servidor:
+A la branca del PR #166 existeix ara `InvoiceBeforePaymentAeatInputPolicy`, connectada al flux autoritatiu UC-004 abans del fingerprint.
 
-- receptor;
-- línies;
-- imports;
-- total;
-- règim intern `EXEMPT`;
-- relacions d'origen;
-- clau idempotent.
+La política:
 
-Però no construeix encara:
+- no accepta `aeat_fields` ni `aeat_header` del caller;
+- només activa el snapshot oficial en `PREPROD/PREPRODUCTION/PROD/PRODUCTION`;
+- obté emissor i identitat del SIF de configuració de servidor;
+- exigeix mapping fiscal UC-004 explícit;
+- afegeix causa d'exempció al snapshot intern de capçalera i línies;
+- construeix `DescripcionOperacion`;
+- construeix `Desglose/DetalleDesglose`;
+- construeix `SistemaInformatico`;
+- deixa que `RegistrationSnapshot` congeli identitat de factura, totals, destinatari, cadena, timestamp i huella.
 
-- `aeat_fields`;
-- `aeat_header` complet per UC-004.
+El navegador continua sense ser autoritat fiscal.
 
-Conseqüència: LOCAL/DEV/TEST pot provar el graf fiscal intern; PREPROD/PROD no pot emetre UC-004 mentre falti el contracte oficial.
-
-## 2. Infraestructura AEAT que ja existeix
-
-`InvoiceRepository` ja delega a `Aeat\RegistrationSnapshot`.
-
-Quan hi ha `aeat_fields`, aquest component:
-
-- incorpora la identitat de factura;
-- incorpora número/fecha d'expedició;
-- incorpora emissor;
-- incorpora tipus de factura;
-- incorpora quota i import total;
-- incorpora destinatari;
-- encadena amb el registre anterior;
-- congela el `RegistroAlta` que queda dins `factura_registres.PAYLOAD_JSON`.
-
-La cua AEAT reutilitza aquest mateix payload congelat.
-
-Per tant, UC-004 **no ha de construir manualment el hash/cadena ni el registre final**.
-
-## 3. Política comuna existent
-
-L'endpoint genèric d'emissió usa `InternalInvoiceIssuePayloadPolicy`.
-
-Aquesta política ja resol responsabilitats que UC-004 també necessita:
-
-- actor autenticat;
-- `request_id`;
-- `correlation_id`;
-- rol;
-- emissor configurat al servidor;
-- `aeat_header.ObligadoEmision`;
-- `SistemaInformatico` configurat al servidor;
-- fail-closed quan falta identitat completa en entorn qualificat.
-
-No es pot invocar directament per UC-004 perquè, correctament, rebutja el bypass d'operacions `emesa_abans_cobrament`.
-
-**Conclusió arquitectònica:** convé extreure/reutilitzar la part comuna d'identitat AEAT en lloc de duplicar-la dins l'endpoint UC-004.
-
-## 4. Frontera que encara no es pot inventar
-
-El payload intern marca avui l'operació com `iva_regim=EXEMPT`, però això **no és suficient** per generar automàticament el detall oficial AEAT.
-
-Cal una política fiscal autoritzada que determini, com a mínim, per aquesta operació:
-
-- impost aplicable;
-- clau de règim;
-- classificació de l'operació;
-- si és exempta, el codi concret d'exempció;
-- base/importe no subjecte;
-- descripció de l'operació.
-
-Aquesta classificació ha de venir d'una regla fiscal versionada i server-side.
-
-No s'ha d'escollir per defecte un codi d'exempció només perquè l'IVA intern sigui 0%.
-
-## 5. Contracte objectiu
-
-La construcció recomanada és:
+## 2. Frontera server-side
 
 ```text
 selecció/receptor/imports autoritatius
   → InvoiceBeforePaymentServerPayloadAssembler
-  → perfil fiscal UC-004 versionat
-  → AeatInvoiceFieldsBuilder compartit/server-side
-      → aeat_fields
+  → InvoiceBeforePaymentAeatInputPolicy
+      → emissor configurat
+      → perfil fiscal configurat
       → aeat_header
+      → aeat_fields
+      → exemption_reason intern
   → InvoiceBeforePaymentPayloadBuilder
+  → fingerprint preview
+  → confirm + mateixa reconstrucció
   → InvoiceService
   → InvoiceRepository
   → RegistrationSnapshot
   → factura_registres + fiscal_queue
 ```
 
-El navegador no pot enviar ni sobreescriure:
+Això és important perquè `aeat_fields` participa en el fingerprint/idempotència: un canvi de configuració fiscal entre preview i confirm força conflicte i obliga a generar un preview nou.
 
-- `aeat_fields`;
-- `aeat_header.ObligadoEmision`;
-- `SistemaInformatico`;
-- codi d'exempció;
-- clau de règim.
+## 3. Configuració fiscal requerida
 
-## 6. Configuració mínima server-side
+No s'ha codificat cap causa d'exempció legal per defecte.
 
-Abans de PREPROD/PROD s'ha de poder resoldre:
+En entorns qualificats el servidor ha de definir explícitament:
 
-### Identitat SIF
+- `SIF_UC004_AEAT_TAX_CODE`;
+- `SIF_UC004_AEAT_REGIME_KEY`;
+- `SIF_UC004_AEAT_EXEMPTION_REASON`.
 
-- NIF emissor;
-- raó social emissora;
-- nom del sistema;
-- ID del sistema;
-- versió;
-- número d'instal·lació.
+També han d'estar configurats:
 
-Aquesta informació ja té suport a la configuració compartida.
+- `SIF_ISSUER_NIF`;
+- `SIF_ISSUER_NAME`;
+- `SIF_AEAT_SYSTEM_NAME`;
+- `SIF_AEAT_SYSTEM_ID`;
+- `SIF_AEAT_SYSTEM_VERSION`;
+- `SIF_AEAT_INSTALLATION_ID`.
 
-### Perfil fiscal UC-004
+Si falta qualsevol dada obligatòria, el flux falla tancat.
 
-Ha de ser explícit, versionat i sense defaults fiscals silenciosos.
+## 4. Decisió fiscal que continua pendent
 
-Exemple de contracte conceptual, **no valors proposats**:
+El codi **no decideix** si PrisMa ha d'utilitzar `E1`, `E2` o una altra causa d'exempció, ni quina `ClaveRegimen` correspon.
 
-```text
-profile_code
-profile_version
-tax_code
-regime_code
-operation_classification
-exemption_code [si aplica]
-operation_description
-```
+Aquesta decisió ha de quedar validada fiscalment i després configurada al servidor.
 
-Si el perfil no està configurat o és incompatible amb la factura, PREPROD/PROD ha de continuar fallant tancat.
+Per tant:
 
-## 7. Proves necessàries
+- **builder tècnic:** IMPLEMENTAT;
+- **frontera server-owned:** IMPLEMENTADA;
+- **mapping fiscal legal concret:** PENDENT DE VALIDACIÓ/CONFIGURACIÓ;
+- **evidència PREPROD/AEAT:** PENDENT.
 
-1. entorn qualificat sense perfil fiscal → 422/fail-closed;
-2. emissor placeholder → error;
-3. identitat SIF incompleta → error;
-4. client intenta injectar `aeat_fields` → ignorat/rebutjat;
-5. perfil fiscal server-side vàlid → snapshot oficial congelat;
-6. retry idempotent → mateix UUID, número i mateix snapshot;
-7. canvi de perfil amb mateixa clau → conflicte de payload;
-8. `fiscal_queue.PAYLOAD_JSON` = registre fiscal congelat;
-9. document posterior deriva del mateix snapshot;
-10. no barrejar cadena interna prototip i cadena oficial en una mateixa BD.
+## 5. Proves versionades
 
-## 8. Decisió de l'auditoria
+`InvoiceBeforePaymentAeatSnapshotTest` cobreix:
 
-**No s'implementa cap codi fiscal inventant `OperacionExenta` o `ClaveRegimen`.**
+1. construcció server-side del snapshot;
+2. persistència de la causa d'exempció a totals i línies;
+3. construcció de `Desglose`;
+4. construcció de `SistemaInformatico`;
+5. generació de `RegistroAlta`;
+6. validació contra els XSD AEAT locals a través de `RegistrationSnapshot/XmlCodec`;
+7. fail-closed sense mapping fiscal;
+8. entorn de desenvolupament sense invenció d'`aeat_fields`;
+9. rebuig de camps AEAT injectats.
 
-El bloqueig P0 es divideix així:
+L'endpoint també té una comprovació estàtica que exigeix el wiring de la política i les tres claus de configuració fiscal.
 
-- **P0-A · infraestructura:** reutilitzar/extractar identitat AEAT server-side compartida per UC-004;
-- **P0-B · regla fiscal:** definir i versionar el perfil fiscal autoritzat del cas abans de construir el `Desglose` oficial;
-- **P0-C · proves:** verificar snapshot/cadena/cua en `sif_test` i PREPROD.
+## 6. Criteri per considerar el P0 AEAT tancat operativament
 
-Aquesta separació evita convertir una decisió fiscal en un detall accidental de PHP.
+Encara falta:
+
+1. validar amb criteri fiscal els valors reals de `tax_code`, `regime_key` i `exemption_reason`;
+2. configurar-los a `sif_test`/PREPROD;
+3. configurar identitat SIF real no placeholder;
+4. executar la suite i CI del HEAD;
+5. executar emissió UC-004 en PREPROD;
+6. verificar el `factura_registres.PAYLOAD_JSON` congelat;
+7. verificar que `fiscal_queue.PAYLOAD_JSON` usa el mateix snapshot;
+8. validar remissió/resposta AEAT sense regenerar el registre.
+
+## 7. Veredicte
+
+El bloqueig anterior «UC-004 no construeix `aeat_fields`» ja **no és correcte** per al HEAD actual del PR #166.
+
+L'estat correcte és:
+
+- **IMPLEMENTAT:** construcció server-side i fail-closed;
+- **VERIFICACIÓ AUTOMATITZADA:** versionada, pendent del CI del HEAD;
+- **PENDENT OPERATIU:** mapping fiscal validat + configuració + PREPROD/AEAT.
+
+Aquesta separació evita convertir una decisió fiscal en un valor accidental dins PHP.
