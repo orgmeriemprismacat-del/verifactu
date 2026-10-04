@@ -15,6 +15,7 @@ use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentActionEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Service\ClaimPaymentBalanceGuard;
+use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
 use Prisma\Sif\Service\ClaimPaymentPayloadBuilder;
 use Prisma\Sif\Service\ClaimPaymentReceiptResolver;
 use Prisma\Sif\Service\ClaimPaymentService;
@@ -194,15 +195,32 @@ try {
             }
 
             $targetUuid = (string) $resolved['UUID_FACTURA'];
+            $relationIdpag = (int) ($resolved['IDPAG'] ?? 0);
+            if ($relationIdpag <= 0) {
+                throw SifException::conflict(
+                    'Claim payment invoice relation has no valid IDPAG'
+                );
+            }
+
+            $effectivePaymentInput = $paymentInput;
+            $effectivePaymentInput['idpag'] = $relationIdpag;
+
             $existing = $receiptResolver->resolveExisting(
                 $transactionDb,
                 $externalReceiptType,
                 $externalReceiptId,
                 $targetUuid,
-                (string) ($paymentInput['amount'] ?? '')
+                (string) ($effectivePaymentInput['amount'] ?? ''),
+                $relationIdpag
             );
             if ($existing !== null) {
                 $existing['num_visible'] = (string) $resolved['NUM_VISIBLE'];
+                $existing['_legacy_sync'] = [
+                    'idpag' => $relationIdpag,
+                    'id_insc' => $sourceInscriptionId,
+                    'uuid_factura' => $targetUuid,
+                    'num_visible' => (string) $resolved['NUM_VISIBLE'],
+                ];
                 return $existing;
             }
 
@@ -210,24 +228,56 @@ try {
             $outstandingBefore = $balanceGuard->assertMayCharge(
                 $transactionDb,
                 $targetUuid,
-                (string) ($paymentInput['amount'] ?? '')
+                (string) ($effectivePaymentInput['amount'] ?? '')
             );
 
             $created = $claimService->registerByUuidInTransaction(
                 $transactionDb,
                 $targetUuid,
-                $paymentInput
+                $effectivePaymentInput
             );
             $created['outstanding_before'] = $outstandingBefore;
+            $created['_legacy_sync'] = [
+                'idpag' => $relationIdpag,
+                'id_insc' => $sourceInscriptionId,
+                'uuid_factura' => $targetUuid,
+                'num_visible' => (string) $resolved['NUM_VISIBLE'],
+            ];
 
             return $created;
         }
     );
 
+    $legacySyncContext = $result['_legacy_sync'] ?? null;
+    unset($result['_legacy_sync']);
+    if (!is_array($legacySyncContext)) {
+        throw SifException::conflict('Missing claim payment legacy sync context');
+    }
+
+    $legacyDb = ConnectionFactory::makeLegacy($config);
+    $legacyDb->beginTransaction();
+    try {
+        $legacySync = (new CourseLegacyPaymentSyncService())->sync(
+            $db,
+            $legacyDb,
+            (int) ($legacySyncContext['idpag'] ?? 0),
+            (int) ($legacySyncContext['id_insc'] ?? 0),
+            (string) ($legacySyncContext['uuid_factura'] ?? ''),
+            (string) ($legacySyncContext['num_visible'] ?? '')
+        );
+        $legacyDb->commit();
+    } catch (Throwable $legacyException) {
+        if ($legacyDb->inTransaction()) {
+            $legacyDb->rollBack();
+        }
+        throw $legacyException;
+    }
+
     $result['claim_case_id'] = $claimCaseId;
     $result['source_inscription_id'] = $sourceInscriptionId;
     $result['external_receipt_type'] = $externalReceiptType;
     $result['external_receipt_id'] = $externalReceiptId;
+    $result['legacy_payment_sync'] = $legacySync;
 
     JsonResponse::send([
         'ok' => true,
