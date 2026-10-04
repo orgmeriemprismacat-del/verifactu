@@ -3,11 +3,17 @@
 namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Contract\GroupParticipantAcademicGatewayInterface;
+use Prisma\Sif\Database\TransactionRunner;
+use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\CreditBalanceRepository;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\GroupParticipantChangeExecutionRepository;
+use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\RectificationRepository;
+use Prisma\Sif\Service\CreditBalancePayloadBuilder;
+use Prisma\Sif\Service\CreditBalanceService;
 use Prisma\Sif\Service\EnrollmentFundDispositionService;
 use Prisma\Sif\Service\GroupEnrollmentFundAllocationService;
 use Prisma\Sif\Service\GroupParticipantChangeFingerprint;
@@ -18,6 +24,7 @@ use Prisma\Sif\Service\ManualRectificationPayloadBuilder;
 use Prisma\Sif\Service\ManualRectificationService;
 use Prisma\Sif\Service\ManualRefundPayloadBuilder;
 use Prisma\Sif\Service\ManualRefundService;
+use Prisma\Sif\Service\PaymentPayloadValidator;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\Fixtures;
 use Prisma\Sif\Tests\Support\TestDatabase;
@@ -126,6 +133,14 @@ final class GroupParticipantRemovalCoordinatorTest
                 new ManualPaymentInvoiceRepository(),
                 new ManualRefundPayloadBuilder(),
                 RegisterPaymentTest::paymentServiceFor($db)
+            ),
+            new CreditBalanceService(
+                new TransactionRunner($db),
+                new CreditBalanceRepository(new UuidGenerator()),
+                new ManualPaymentInvoiceRepository(),
+                new CreditBalancePayloadBuilder(),
+                new PaymentPayloadValidator(),
+                new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
             ),
             new EnrollmentFundDispositionService($funds)
         );
