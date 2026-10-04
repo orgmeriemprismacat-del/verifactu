@@ -111,7 +111,7 @@ final class EnrollmentFundMovementRepository
                     UUID_PAYMENT, UUID_CREDIT, UUID_FACTURA, ID_FACTURA_LINIA,
                     ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
                     UUID_OPERATION, CORRELATION_ID, NOTES
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)'
+                 ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, NULL, ?, ?, ?, ?, ?, ?)'
             )->execute([
                 $normalized['uuid_movement'],
                 $normalized['idempotency_key'],
@@ -315,6 +315,12 @@ final class EnrollmentFundMovementRepository
             ) {
                 $cents -= $amount;
             }
+        }
+
+        if ($cents < 0) {
+            throw SifException::conflict(
+                'Enrollment fund ledger has negative available amount'
+            );
         }
 
         return $this->amount($cents);
@@ -671,7 +677,7 @@ final class EnrollmentFundMovementRepository
     ): ?array {
         $sql =
             'SELECT UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
-                    UUID_PAYMENT, UUID_FACTURA, ID_FACTURA_LINIA,
+                    UUID_PAYMENT, UUID_CREDIT, UUID_FACTURA, ID_FACTURA_LINIA,
                     ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
                     UUID_OPERATION, CORRELATION_ID, NOTES
              FROM enrollment_fund_movement
