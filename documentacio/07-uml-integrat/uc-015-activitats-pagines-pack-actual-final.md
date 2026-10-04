@@ -365,11 +365,11 @@ El 2026-09-30 la suite SIF ha finalitzat amb **706 passed / 0 failed** al commit
 
 ## Reconciliació de les activitats — 2026-10-04
 
-- PK-A01..PK-A10 continuen tots presents; no falta cap activitat principal ACTUAL/FINAL.
+- PK-A01..PK-A10 continuen presents i la revisió per pàgina ha afegit **PK-A04b · Confirmació d'alta**, que faltava com a frontera explícita ACTUAL/FINAL.
 - PK-A03/PK-A04 reflecteixen el transport POST, guard configurable, REQUEST_ID, idempotència i atomicitat reals.
 - PK-A05/PK-A06 reflecteixen intenció SIF i callback/cua/worker autoritatius.
 - PK-A07/PK-A08 reflecteixen una factura/payment i N atribucions monetàries.
 - PK-A09 s'actualitza perquè ja existeix `NotificationOutboxDeliveryService`; el pendent és el transport/cutover real de l'outbox PACK.
 - PK-A10 continua bloquejant fraccionament al checkout públic.
-- Evidència de regressió: PR #149, **971 passed / 0 failed**.
+- Evidència de regressió del baseline: PR #149, **971 passed / 0 failed**. La nova activitat PK-A04b/SEC-015-01 disposa de tests al PR #171 però la seva CI continua pendent.
 - Vegeu [inventari PHP/JS 04/10](uc-015-inventari-codi-php-js-actual-final-2026-10-04.md) i [reconciliació main 04/10](uc-015-reconciliacio-main-2026-10-04.md).
