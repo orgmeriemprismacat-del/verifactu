@@ -52,7 +52,7 @@ No cal crear fitxers buits addicionals. El paquet documental objectiu queda cobe
 | Process CLI | `process-manual-refund.php` | IMPLEMENTAT NO PRODUCTIU |
 | Tests | `ManualRefundServiceTest.php` | EXISTEIXEN · AMPLIATS UC-006 |
 | Runner selectiu | `sif/tests/run-uc006-tests.php` | CREAT · PENDENT EXECUCIÓ |
-| Workflow selectiu | `.github/workflows/uc006-sif-checks.yml` | CREAT · RUN #1 ENCOLAT |
+| Workflow selectiu | `.github/workflows/uc006-sif-checks.yml` | CREAT · WORKFLOW ENCOLAT |
 
 ### 3.2 Saldo i compensació
 
@@ -153,7 +153,7 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 
 - titular incompatible en refund/saldo/compensació;
 - refund Redsys/manual del mateix fet extern;
-- dues ordres legítimes de compensació del mateix import;
+- generació/autorització de K explícita per ordres de compensació des de la UI (el servei ja suporta dues K diferents);
 - `INTERNAL_TRANSFER` A→B de canvi de curs;
 - concurrència simultània real de dues sessions consumint el mateix dret;
 - audit REQUESTED + terminal;
@@ -168,7 +168,7 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 | --- | --- |
 | `sif/tests/run-uc006-tests.php` | CREAT · suite selectiva amb BD MySQL de test |
 | `.github/workflows/uc006-sif-checks.yml` | CREAT · MySQL 8.4 + lint + runner |
-| Workflow UC-006 | GitHub Actions run #1 en estat `queued` en crear-se |
+| Workflow UC-006 | GitHub Actions es dispara correctament, però les execucions continuen en estat `queued` |
 | `uc-006-verificacio-test-preproduccio-2026-10-04.md` | CREAT · passos, queries i criteris d'evidència |
 | Execució `sif_test` | PENDENT |
 | Execució `sif_pre` controlada | PENDENT |
