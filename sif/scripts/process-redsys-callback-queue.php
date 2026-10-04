@@ -96,7 +96,7 @@ try {
         new PaymentPayloadValidator(),
         new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator()),
         null,
-        null,
+        new InvoiceBeforePaymentCoverageRepository(),
         null,
         null,
         null,
