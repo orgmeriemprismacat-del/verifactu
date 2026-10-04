@@ -137,6 +137,9 @@ final class InvoiceBeforePaymentCoverageRepository
             );
         }
 
+        $origins = array_values(array_unique($origins));
+        sort($origins, SORT_NUMERIC);
+
         return $origins;
     }
 }
