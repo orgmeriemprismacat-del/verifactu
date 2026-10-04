@@ -4,11 +4,15 @@ namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Contract\PayloadIdempotencyValidatorInterface;
 use Prisma\Sif\Database\TransactionRunner;
+use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\CommercialOperationRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Repository\SifAuditEventRepository;
 
 final class InvoiceService
 {
@@ -20,14 +24,26 @@ final class InvoiceService
         private ?PaymentPayloadValidator $paymentValidator = null,
         private ?PaymentRepository $payments = null,
         private ?PayloadIdempotencyValidatorInterface $idempotency = null,
-        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null
+        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null,
+        private ?OperationalEventRepository $operationalEvents = null,
+        private ?SifAuditEventRepository $auditEvents = null,
+        private ?CommercialOperationRepository $commercialOperations = null
     ) {
         $this->idempotency ??= new PayloadIdempotencyValidator();
+        $this->operationalEvents ??= new OperationalEventRepository(new UuidGenerator());
+        $this->auditEvents ??= new SifAuditEventRepository(new UuidGenerator());
+        $this->commercialOperations ??= new CommercialOperationRepository();
     }
 
     public function issueInvoice(array $payload, ?callable $beforeCommit = null): array
     {
         $payload = $this->validator->validate($payload);
+
+        if ($this->requiresOfficialAeatSnapshot() && !array_key_exists('aeat_fields', $payload)) {
+            throw SifException::validation(
+                'Official AEAT snapshot is required for invoice issue in this environment'
+            );
+        }
 
         if ($this->requiresBeforePaymentCoverage($payload) && $this->beforePaymentCoverage === null) {
             throw new \RuntimeException(
@@ -67,6 +83,7 @@ final class InvoiceService
             $seq = $this->sequences->next($db, $payload['series'], $year);
             $chainState = $this->invoices->lockChainState($db);
             $created = $this->invoices->createInvoiceGraph($db, $payload, $seq, $chainState);
+            $this->linkCommercialOperationIfPresent($db, $payload, $created['uuid_factura']);
 
             if ($this->requiresBeforePaymentCoverage($payload)) {
                 $this->beforePaymentCoverage->claim(
@@ -90,10 +107,37 @@ final class InvoiceService
                 $result['uuid_payment'] = $payment['uuid_payment'];
             }
 
+            $result = $this->withStatusProjection($db, $result);
+
+            $result = $this->appendIssueAudit($db, $payload, $result, false);
             $this->runBeforeCommit($beforeCommit, $db, $result);
 
             return $result;
         });
+    }
+
+    private function runBeforeCommit(?callable $beforeCommit, \PDO $db, array $result): void
+    {
+        if ($beforeCommit !== null) {
+            $beforeCommit($db, $result);
+        }
+    }
+
+    private function linkCommercialOperationIfPresent(
+        \PDO $db,
+        array $payload,
+        string $uuidFactura
+    ): void {
+        $uuidOperation = trim((string) ($payload['uuid_operation'] ?? ''));
+        if ($uuidOperation === '') {
+            return;
+        }
+
+        $this->commercialOperations->linkInvoice(
+            $db,
+            $uuidOperation,
+            $uuidFactura
+        );
     }
 
     private function createInitialPaymentIfPresent(\PDO $db, array $payload, string $uuidFactura): ?array
@@ -128,7 +172,7 @@ final class InvoiceService
             'method' => $payment['method'] ?? $payload['source_channel'],
             'source_channel' => $payment['source_channel'] ?? $payload['source_channel'],
             'amount' => $payment['amount'] ?? $payload['totals']['total'],
-            'movement_date' => $payment['movement_date'] ?? date('Y-m-d H:i:s'),
+            'movement_date' => $this->requiredInitialPaymentMovementDate($payment),
             'provider_ref' => $payment['provider_ref'] ?? null,
             'ds_order' => $payment['ds_order'] ?? ($firstRelation['ds_order'] ?? null),
             'idpag' => $payment['idpag'] ?? ($firstRelation['idpag'] ?? null),
@@ -140,6 +184,24 @@ final class InvoiceService
                 'allocation_type' => $payment['allocation_type'] ?? 'INVOICE_PAYMENT',
             ]],
         ];
+    }
+
+    private function requiredInitialPaymentMovementDate(array $payment): string
+    {
+        if (!array_key_exists('movement_date', $payment)) {
+            throw SifException::validation(
+                'Invoice initial payment requires movement_date for deterministic idempotency'
+            );
+        }
+
+        $movementDate = trim((string) $payment['movement_date']);
+        if ($movementDate === '') {
+            throw SifException::validation(
+                'Invoice initial payment requires a non-empty movement_date for deterministic idempotency'
+            );
+        }
+
+        return $movementDate;
     }
 
     private function reuseInvoiceAfterDuplicateKey(array $payload, ?callable $beforeCommit = null): array
@@ -160,24 +222,18 @@ final class InvoiceService
         });
     }
 
-    private function runBeforeCommit(?callable $beforeCommit, \PDO $db, array $result): void
-    {
-        if ($beforeCommit === null) {
-            return;
-        }
-
-        $beforeCommit($db, $result);
-    }
-
     private function existingResultWithPaymentIfPresent(\PDO $db, array $payload, array $existing): array
     {
         // Fail closed for pre-migration invoices: the complete original request
         // cannot be recovered from the fiscal payload (e.g. the payment block).
         $this->idempotency->assertMatches($payload, (string) ($existing['IDEMPOTENCY_PAYLOAD_HASH'] ?? ''));
+        $this->linkCommercialOperationIfPresent($db, $payload, (string) $existing['UUID_FACTURA']);
         $result = $this->existingResult($existing);
 
         if (!array_key_exists('payment', $payload) || $payload['payment'] === null) {
-            return $result;
+            $result = $this->withStatusProjection($db, $result);
+
+            return $this->appendIssueAudit($db, $payload, $result, true);
         }
 
         if (!is_array($payload['payment'])) {
@@ -193,11 +249,254 @@ final class InvoiceService
         );
         $payment = $this->payments->findByIdempotencyKey($db, $paymentPayload['idempotency_key'], true);
 
-        if ($payment !== null) {
-            $result['uuid_payment'] = $payment['UUID_PAYMENT'];
+        if ($payment === null) {
+            throw SifException::conflict(
+                'Invoice retry expected the original initial payment, but the payment record is missing'
+            );
         }
 
+        $this->assertInitialPaymentStillMatches(
+            $db,
+            $paymentPayload,
+            $payment,
+            (string) $existing['UUID_FACTURA']
+        );
+
+        $result['uuid_payment'] = $payment['UUID_PAYMENT'];
+
+        $result = $this->withStatusProjection($db, $result);
+
+        return $this->appendIssueAudit($db, $payload, $result, true);
+    }
+
+    private function withStatusProjection(\PDO $db, array $result): array
+    {
+        $projection = $this->invoices->statusProjection($db, (string) $result['uuid_factura']);
+        $result['status'] = [
+            'invoice' => $projection['invoice_status'],
+            'payment' => $projection['payment_status'],
+            'aeat' => $projection['aeat_status'],
+            'fiscal_queue' => $projection['fiscal_queue_status'],
+            'document' => $projection['document_status'],
+            'document_type' => $projection['document_type'],
+        ];
+        $result['fiscal_order'] = $projection['fiscal_order'];
+
         return $result;
+    }
+
+
+    private function appendIssueAudit(
+        \PDO $db,
+        array $payload,
+        array $result,
+        bool $reused
+    ): array {
+        $requestId = $this->contextId($payload['request_id'] ?? null, (string) $payload['idempotency_key']);
+        $correlationId = $this->contextId($payload['correlation_id'] ?? null, $requestId);
+        $occurredAt = (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid')))
+            ->format('Y-m-d H:i:s.u');
+        $firstRelation = $payload['relations'][0] ?? [];
+        $sourceType = strtoupper(trim((string) (
+            $payload['source_type'] ?? $firstRelation['source_type'] ?? 'INVOICE'
+        )));
+        if ($sourceType === '') {
+            $sourceType = 'INVOICE';
+        }
+        $sourceId = $firstRelation['source_id'] ?? $payload['source_id'] ?? null;
+        $actorType = strtoupper(trim((string) ($payload['actor_type'] ?? 'SYSTEM')));
+        if (!in_array($actorType, ['HUMAN', 'SYSTEM', 'PROCESS'], true)) {
+            $actorType = 'SYSTEM';
+        }
+        $actorId = $this->nullableContextString($payload['created_by'] ?? null);
+        $actorRole = $this->nullableContextString($payload['actor_role'] ?? null);
+        $reasonCode = $reused ? 'INVOICE_IDEMPOTENCY_REUSED' : 'INVOICE_ISSUED';
+        $afterSnapshot = [
+            'uuid_factura' => $result['uuid_factura'],
+            'num_visible' => $result['num_visible'],
+            'uuid_payment' => $result['uuid_payment'] ?? null,
+            'status' => $result['status'] ?? [],
+            'fiscal_order' => $result['fiscal_order'] ?? null,
+            'idempotency_reused' => $reused,
+        ];
+
+        $this->operationalEvents->append($db, [
+            'operation_type' => 'ISSUE_INVOICE',
+            'source_type' => $sourceType,
+            'source_id' => $sourceId === null ? null : (string) $sourceId,
+            'uuid_factura' => (string) $result['uuid_factura'],
+            'uuid_payment' => isset($result['uuid_payment']) ? (string) $result['uuid_payment'] : null,
+            'fiscal_impact' => 'INVOICE_ISSUED',
+            'economic_impact' => isset($result['uuid_payment']) ? 'PAYMENT_RECORDED' : 'NONE',
+            'status' => 'COMPLETED',
+            'reason_code' => $reasonCode,
+            'before_snapshot' => null,
+            'after_snapshot' => $afterSnapshot,
+            'actor_type' => $actorType,
+            'actor_id' => $actorId,
+            'actor_role' => $actorRole,
+            'source_channel' => (string) $payload['source_channel'],
+            'correlation_id' => $correlationId,
+            'occurred_at' => $occurredAt,
+        ]);
+
+        $afterJson = json_encode(
+            $afterSnapshot,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        );
+        $this->auditEvents->append($db, [
+            'request_id' => $requestId,
+            'correlation_id' => $correlationId,
+            'action' => 'ISSUE_INVOICE',
+            'result' => $reused ? 'REUSED' : 'SUCCEEDED',
+            'resource_type' => 'FACTURA',
+            'resource_id' => (string) $result['uuid_factura'],
+            'source_environment' => $this->sourceEnvironment(),
+            'source_channel' => (string) $payload['source_channel'],
+            'actor_type' => $actorType,
+            'actor_id' => $actorId,
+            'actor_role' => $actorRole,
+            'reason_code' => $reasonCode,
+            'before_hash' => null,
+            'after_hash' => hash('sha256', $afterJson),
+            'changeset' => [
+                'idempotency_key' => (string) $payload['idempotency_key'],
+                'status' => $result['status'] ?? [],
+                'fiscal_order' => $result['fiscal_order'] ?? null,
+                'idempotency_reused' => $reused,
+            ],
+            'occurred_at' => $occurredAt,
+        ]);
+
+        $result['correlation_id'] = $correlationId;
+
+        return $result;
+    }
+
+    private function contextId(mixed $value, string $fallback): string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value === '' ? $fallback : $value;
+    }
+
+    private function nullableContextString(mixed $value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value === '' ? null : $value;
+    }
+
+    private function requiresOfficialAeatSnapshot(): bool
+    {
+        return in_array(
+            strtoupper(trim((string) (getenv('SIF_ENV') ?: 'DEVELOPMENT'))),
+            ['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION'],
+            true
+        );
+    }
+
+    private function sourceEnvironment(): string
+    {
+        return match (strtoupper(trim((string) (getenv('SIF_ENV') ?: 'DEVELOPMENT')))) {
+            'PROD', 'PRODUCTION' => 'PRODUCTION',
+            'PREPROD', 'PREPRODUCTION' => 'PREPRODUCTION',
+            'TEST', 'TESTING' => 'TEST',
+            'MIGRATION' => 'MIGRATION',
+            default => 'DEVELOPMENT',
+        };
+    }
+
+    private function assertInitialPaymentStillMatches(
+        \PDO $db,
+        array $paymentPayload,
+        array $payment,
+        string $uuidFactura
+    ): void {
+        $storedHash = (string) ($payment['PAYLOAD_HASH'] ?? '');
+        $hashVersion = (int) ($payment['PAYLOAD_HASH_VERSION'] ?? 1);
+
+        if ($hashVersion === 1) {
+            try {
+                $legacyPayload = json_encode(
+                    $paymentPayload,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                        | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR
+                );
+            } catch (\JsonException $exception) {
+                throw SifException::validation('Invalid payment payload encoding');
+            }
+            $this->idempotency->assertMatches($legacyPayload, $storedHash);
+        } elseif ($hashVersion === 2) {
+            $this->idempotency->assertMatches($paymentPayload, $storedHash);
+        } else {
+            throw SifException::conflict('Unknown payment idempotency hash version');
+        }
+
+        $sameTransaction = (string) ($payment['TIPUS_MOVIMENT'] ?? '') === (string) $paymentPayload['movement_type']
+            && (string) ($payment['METODE'] ?? '') === (string) $paymentPayload['method']
+            && (string) ($payment['SOURCE_CHANNEL'] ?? '') === (string) $paymentPayload['source_channel']
+            && $this->moneyEquals($payment['IMPORT'] ?? null, $paymentPayload['amount'])
+            && (string) ($payment['DATA_MOVIMENT'] ?? '') === (string) $paymentPayload['movement_date']
+            && $this->nullableString($payment['PROVIDER_REF'] ?? null)
+                === $this->nullableString($paymentPayload['provider_ref'] ?? null)
+            && $this->nullableString($payment['DS_ORDER'] ?? null)
+                === $this->nullableString($paymentPayload['ds_order'] ?? null)
+            && $this->nullableInt($payment['IDPAG'] ?? null)
+                === $this->nullableInt($paymentPayload['idpag'] ?? null)
+            && $this->nullableString($payment['REFERENCIA_BANCARIA'] ?? null)
+                === $this->nullableString($paymentPayload['reference'] ?? null)
+            && $this->nullableString($payment['NOTES'] ?? null)
+                === $this->nullableString($paymentPayload['notes'] ?? null)
+            && (string) ($payment['ESTAT'] ?? '') === 'CONFIRMED';
+
+        if (!$sameTransaction) {
+            throw SifException::conflict(
+                'Invoice retry initial payment no longer matches the recorded payment transaction'
+            );
+        }
+
+        $allocations = $this->payments->findAllocationsForInvoice(
+            $db,
+            (string) $payment['UUID_PAYMENT'],
+            $uuidFactura,
+            true
+        );
+        $expectedAllocation = $paymentPayload['allocations'][0] ?? null;
+
+        if (count($allocations) !== 1 || !is_array($expectedAllocation)) {
+            throw SifException::conflict(
+                'Invoice retry initial payment allocation is missing or ambiguous'
+            );
+        }
+
+        $allocation = $allocations[0];
+        if (!$this->moneyEquals($allocation['IMPORT_ASSIGNAT'] ?? null, $expectedAllocation['amount'] ?? null)
+            || (string) ($allocation['TIPUS_ASSIGNACIO'] ?? '')
+                !== (string) ($expectedAllocation['allocation_type'] ?? '')) {
+            throw SifException::conflict(
+                'Invoice retry initial payment allocation no longer matches the original invoice'
+            );
+        }
+    }
+
+    private function moneyEquals(mixed $left, mixed $right): bool
+    {
+        if (!is_numeric($left) || !is_numeric($right)) {
+            return false;
+        }
+
+        return number_format((float) $left, 2, '.', '') === number_format((float) $right, 2, '.', '');
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        return $value === null || $value === '' ? null : (string) $value;
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        return $value === null || $value === '' ? null : (int) $value;
     }
 
     private function existingResult(array $existing): array
