@@ -198,6 +198,19 @@ final class PaymentService
 
     private function isDuplicateKeyException(\PDOException $exception): bool
     {
-        return (string) $exception->getCode() === '23000';
+        if ((string) $exception->getCode() !== '23000') {
+            return false;
+        }
+
+        $driverCode = (int) ($exception->errorInfo[1] ?? 0);
+        if ($driverCode !== 1062) {
+            return false;
+        }
+
+        $message = strtoupper((string) ($exception->errorInfo[2] ?? $exception->getMessage()));
+
+        return str_contains($message, 'IDEMPOTENCY_KEY')
+            || str_contains($message, 'UQ_PAYMENT_EXTERNAL_RECEIPT_TYPE_VALUE')
+            || str_contains($message, "KEY 'PRIMARY'");
     }
 }
