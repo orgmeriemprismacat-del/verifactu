@@ -8,6 +8,7 @@ use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
+use Prisma\Sif\Repository\EnrollmentPaymentFlowLockRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentBillingPartyRepository;
@@ -110,7 +111,8 @@ try {
         null,
         $fingerprints,
         new InvoiceBeforePaymentCoverageRepository(),
-        new InvoiceBeforePaymentRedsysGuardRepository()
+        new InvoiceBeforePaymentRedsysGuardRepository(),
+        new EnrollmentPaymentFlowLockRepository()
     );
 
     $commands = new InvoiceBeforePaymentCommandService(
