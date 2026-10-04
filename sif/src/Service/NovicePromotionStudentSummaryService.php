@@ -87,7 +87,6 @@ final class NovicePromotionStudentSummaryService
             $available = $this->cents((string) $right['AVAILABLE_AMOUNT']);
 
             $result[] = [
-                'uuid_entitlement' => $uuid,
                 'display_status' => $this->displayStatus(
                     (string) $right['ENTITLEMENT_STATUS'],
                     (string) ($right['DELIVERY_STATUS'] ?? ''),
@@ -107,14 +106,12 @@ final class NovicePromotionStudentSummaryService
                 'expires_at' => (string) $right['EXPIRES_AT'],
                 'rule_version' => (string) $right['RULE_VERSION'],
                 'origin' => [
-                    'uuid_operation' => (string) $right['ORIGIN_UUID_OPERATION'],
                     'enrollment_id' => (string) $right['ORIGIN_ENROLLMENT_ID'],
                     'product_code' => (string) $right['ORIGIN_PRODUCT_CODE'],
                     'product_edition' => (string) $right['ORIGIN_PRODUCT_EDITION'],
                 ],
                 'applications' => array_map(
                     static fn (array $application): array => [
-                        'uuid_application' => (string) $application['UUID_APPLICATION'],
                         'status' => (string) $application['STATUS'],
                         'amount' => (string) $application['AMOUNT'],
                         'destination_enrollment_id' => (string) $application['DESTINATION_ENROLLMENT_ID'],
@@ -134,7 +131,7 @@ final class NovicePromotionStudentSummaryService
             ];
         }
 
-        return ['identity' => $identity, 'rights' => $result];
+        return ['rights' => $result];
     }
 
     private function displayStatus(
