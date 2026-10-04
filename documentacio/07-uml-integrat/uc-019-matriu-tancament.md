@@ -18,7 +18,8 @@ Data de revisió: 2026-10-04.
 | Denegació USOC reclassificada 4→0/1 | Sí | Sí | Tests nous pendents del darrer head | CI + preproducció |
 | Reintent després de resposta incerta | Sí | Sí | Contract tests nous pendents | Simulació de xarxa/preproducció |
 | Reconciliador CLI | Sí | Sí | CI anterior | Executar amb REQUESTED controlat |
-| Contracte econòmic `A_PAGAR` | Sí | Llegat existent | Test nou pendent del darrer head | Confirmar dades de prova |
+| Contracte econòmic `A_PAGAR` | Sí | Sí; Redsys/student_amount ha de coincidir amb `A_PAGAR` | Tests nous pendents del darrer head | Confirmar en preproducció |
+| Routing checkout USOC → `USOC_ALUMNE` | Sí | Ramal genèric `CURS` bloquejat; validator dedicat implementat | Tests nous pendents del head actual | Adaptador web dedicat + preproducció |
 | Criteri d’afiliació USOC | Parcial | Humà/llegat | No acreditat automàticament | Documentar font/procediment/evidència |
 | Correus secretaria/alumne | Sí | Sí, dins del monòlit | Auditat estàticament | Prova SMTP controlada |
 | Outbox de notificacions UC-019 | FINAL documentat | No | — | Refactor posterior |
@@ -39,6 +40,8 @@ Data de revisió: 2026-10-04.
 9. Conservar evidència de BD abans/després.
 10. Documentar el procediment real amb què Gestió decideix “afiliació confirmada / no confirmada”.
 11. Executar prova controlada de fallada SMTP i registrar la incidència manual mentre no hi hagi outbox integrada.
+12. Verificar que `course-intent.php` rebutja una inscripció USOC i no crea cap intent `CURS`.
+13. Crear una intenció `USOC_ALUMNE` amb snapshot autoritatiu, processar callback i comprovar factura alumne + `PENDING_ENTITY_INVOICE`.
 
 ## Criteri d'estat
 
