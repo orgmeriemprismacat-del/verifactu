@@ -462,3 +462,13 @@ AP-74…AP-79 queden implementats a la frontera UI/server llegada. `offer_id` co
 | cutover/drain real | NO ACREDITAT |
 
 **Conclusió:** UC020-133 corregeix una sobreafirmació documental; no és una regressió del nucli SIF.
+
+
+## 23. P05→P04 · estat pagable i transferència
+
+| ID | Troballa | Estat |
+| --- | --- | --- |
+| UC020-134 | AP alternatiu després de denegació conservava `VALID_DESC=2` tot i tenir `TIPUS_DESC=1` i tarifa AP. | **TANCAT CODI + TEST PENDENT CI**: fixa `VALID_DESC=1` després de revalidar AP. |
+| UC020-135 | Transferència visible a la vista principal encara amb descompte no pagable. | **TANCAT WEB + PONT CANDIDAT + TEST PENDENT CI**: requereix `VALID_DESC=1`. |
+
+El moviment bancari posterior no es modela aquí: registrar/conciliar transferència continua sent responsabilitat d'UC-022.
