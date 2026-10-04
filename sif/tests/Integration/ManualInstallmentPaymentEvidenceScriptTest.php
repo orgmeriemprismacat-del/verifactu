@@ -24,6 +24,15 @@ final class ManualInstallmentPaymentEvidenceScriptTest
         Assert::stringContainsString('--ds-order=', $source);
         Assert::stringContainsString('payment_transaction', $source);
         Assert::stringContainsString('payment_allocation', $source);
+        Assert::stringContainsString('payment_action_event', $source);
+        Assert::stringContainsString('operational_event', $source);
+        Assert::stringContainsString('sif_audit_event', $source);
+        Assert::stringContainsString('CORRELATION_ID', $source);
+        Assert::stringContainsString('has_requested_payment_event', $source);
+        Assert::stringContainsString('has_terminal_payment_event', $source);
+        Assert::stringContainsString('has_operational_event', $source);
+        Assert::stringContainsString('has_sif_audit_event', $source);
+        Assert::stringContainsString('!in_array(false, $checks, true)', $source);
         Assert::stringContainsString('factura_registres', $source);
         Assert::stringContainsString('FISCAL_REGISTER_COUNT', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
