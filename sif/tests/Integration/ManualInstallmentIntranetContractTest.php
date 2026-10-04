@@ -39,6 +39,15 @@ final class ManualInstallmentIntranetContractTest
         Assert::stringContainsString("$sifInput['ds_order'] = $externalReference", $endpoint);
         Assert::stringContainsString("$sifInput['reference'] = $externalReference", $endpoint);
         Assert::stringContainsString("SIF_INSTALLMENT_PAYMENT_ENFORCED", $endpoint);
+        Assert::stringContainsString(
+            "cal emetre la factura abans de registrar el cobrament al SIF",
+            $endpoint
+        );
+        Assert::stringContainsString("if ($tipus === '')", $endpoint);
+
+        if (str_contains($endpoint, "if ($tipus === '' || $numFact === '')")) {
+            Assert::fail('Legacy fallback must not require an existing invoice before cutover');
+        }
 
         // Compatibility boundary: the legacy implementation still receives the
         // historical row/payment identifier only when the SIF cutover is disabled.
