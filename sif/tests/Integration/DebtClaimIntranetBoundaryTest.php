@@ -28,10 +28,7 @@ final class DebtClaimIntranetBoundaryTest
         Assert::stringContainsString('SifAuthenticatedActor::fromUser', $ajax);
         Assert::stringContainsString('assertCanEdit', $ajax);
         Assert::stringContainsString('$permissionPage', $ajax);
-        Assert::same(false, str_contains(
-            $ajax,
-            "assertCanEdit(\n        $user,\n        $intranet,\n        '/facturacio/morosos/'"
-        ));
+        Assert::same(false, str_contains($ajax, "'/facturacio/morosos/'"));
         Assert::stringContainsString('routeForSurface', $context);
         Assert::stringContainsString("'/facturacio/recordatori-pagament/'", $context);
         Assert::stringContainsString("'/facturacio/primera-reclamacio/'", $context);
@@ -133,6 +130,43 @@ final class DebtClaimIntranetBoundaryTest
         Assert::stringContainsString('!isset(self::SURFACE_ROUTES[$surface])', $context);
         Assert::stringContainsString('Superfície de morositat no vàlida', $context);
         Assert::same(false, str_contains($context, '$_POST'));
+    }
+
+
+    public function testPilotLegacyProjectionIsExplicitFailClosedAndHasNoMailOrMoodleEffects(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $ajax = file_get_contents(
+            $root . '/codi-drive/intranet-actual/ajax/facturacio/sifDebtClaim.php'
+        );
+        $projection = file_get_contents(
+            $root . '/codi-drive/intranet-actual/LegacyDebtClaimProjection.php'
+        );
+        if ($ajax === false || $projection === false) {
+            Assert::fail('Could not read UC-012 legacy projection files');
+        }
+
+        Assert::stringContainsString('SIF_DEBT_CLAIM_LEGACY_PROJECTION_ENABLED', $ajax);
+        Assert::stringContainsString('assertDebtClaimSurfaceStage', $ajax);
+        Assert::stringContainsString('LegacyDebtClaimProjection::isSupported', $ajax);
+        Assert::stringContainsString('LegacyDebtClaimProjection::project', $ajax);
+        Assert::stringContainsString('El pilot amb projecció legacy requereix ID_INSC', $ajax);
+
+        Assert::stringContainsString(
+            "$surface === 'RECORDATORI' && $stage === 'FINAL_REMINDER'",
+            $projection
+        );
+        Assert::stringContainsString(
+            "$surface === 'PRIMERA_RECLAMACIO' && $stage === 'FIRST_CLAIM'",
+            $projection
+        );
+        Assert::stringContainsString('FOR UPDATE', $projection);
+        Assert::stringContainsString('projection_reused', $projection);
+        Assert::stringContainsString('Reclamat fi de curs', $projection);
+        Assert::stringContainsString('1a reclamació correu', $projection);
+        Assert::same(false, str_contains($projection, 'MailSMTPComvive'));
+        Assert::same(false, str_contains($projection, '__donarBaixaMoodleNou'));
+        Assert::same(false, str_contains($projection, 'updCampInscripcioBaixaMorosBD'));
     }
 
 }
