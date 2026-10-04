@@ -1,6 +1,6 @@
 # UC-006 · Inventari d'artefactes, diagrames, codi i proves
 
-**Data de tall:** 2026-10-03  
+**Data de tall:** 2026-10-04  
 **Branca:** `audit/uc-006-2026-10-03`
 
 Aquest inventari respon la pregunta: **tenim totes les fitxes, diagrames i codi necessaris per considerar UC-006 tancat?**
@@ -18,6 +18,7 @@ Aquest inventari respon la pregunta: **tenim totes les fitxes, diagrames i codi 
 | Activitats ACTUAL/FINAL per pàgina | `uc-006-activitats-pagines-actual-final.md` | CREAT |
 | Auditoria i traçabilitat | `uc-006-auditoria-tracabilitat-2026-10-03.md` | CREAT |
 | Inventari mestre | aquest document | CREAT |
+| Pla de verificació test/preproducció | `uc-006-verificacio-test-preproduccio-2026-10-04.md` | CREAT · EXECUCIÓ PENDENT |
 | Model transversal de fons per inscripció | `00-revisio-moviments-inscripcions.md` | EXISTEIX · RECONCILIAT AMB CODI |
 
 No cal crear fitxers buits addicionals. El paquet documental objectiu queda cobert.
@@ -49,7 +50,9 @@ No cal crear fitxers buits addicionals. El paquet documental objectiu queda cobe
 | Repositori moviment | `PaymentRepository.php` | IMPLEMENTAT |
 | Preview CLI | `preview-manual-refund.php` | IMPLEMENTAT NO PRODUCTIU |
 | Process CLI | `process-manual-refund.php` | IMPLEMENTAT NO PRODUCTIU |
-| Tests | `ManualRefundServiceTest.php` | EXISTEIXEN |
+| Tests | `ManualRefundServiceTest.php` | EXISTEIXEN · AMPLIATS UC-006 |
+| Runner selectiu | `sif/tests/run-uc006-tests.php` | CREAT · PENDENT EXECUCIÓ |
+| Workflow selectiu | `.github/workflows/uc006-sif-checks.yml` | CREAT · RUN #1 ENCOLAT |
 
 ### 3.2 Saldo i compensació
 
@@ -62,7 +65,7 @@ No cal crear fitxers buits addicionals. El paquet documental objectiu queda cobe
 | Process saldo | `process-credit-balance.php` | IMPLEMENTAT NO PRODUCTIU |
 | Preview compensació | `preview-credit-compensation.php` | IMPLEMENTAT NO PRODUCTIU |
 | Process compensació | `process-credit-compensation.php` | IMPLEMENTAT NO PRODUCTIU |
-| Tests | `CreditBalanceServiceTest.php` | EXISTEIXEN |
+| Tests | `CreditBalanceServiceTest.php` | EXISTEIXEN · AMPLIATS UC-006 |
 
 ## 4. Ledger de fons per inscripció — estat executable 04/10/2026
 
@@ -158,6 +161,19 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 - E2E baixa → decisió → efecte econòmic;
 - E2E canvi → reassignació/refund/saldo;
 - fallada de sync després de COMMIT SIF.
+
+## 7.1. Infraestructura de verificació afegida
+
+| Peça | Estat |
+| --- | --- |
+| `sif/tests/run-uc006-tests.php` | CREAT · suite selectiva amb BD MySQL de test |
+| `.github/workflows/uc006-sif-checks.yml` | CREAT · MySQL 8.4 + lint + runner |
+| Workflow UC-006 | GitHub Actions run #1 en estat `queued` en crear-se |
+| `uc-006-verificacio-test-preproduccio-2026-10-04.md` | CREAT · passos, queries i criteris d'evidència |
+| Execució `sif_test` | PENDENT |
+| Execució `sif_pre` controlada | PENDENT |
+
+**Precaució:** el runner selectiu usa `TestDatabase::fresh()` i només s'ha d'executar sobre una BD de test descartable; la guia prohibeix usar-lo contra preproducció compartida o producció.
 
 ## 8. Criteri de tancament
 
