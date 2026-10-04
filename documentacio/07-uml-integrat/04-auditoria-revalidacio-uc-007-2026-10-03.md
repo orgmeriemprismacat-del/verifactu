@@ -1,5 +1,7 @@
 # UC-007 · Revalidació exhaustiva — 2026-10-03
 
+> **Referència canònica posterior:** [06-auditoria-final-uc-007-2026-10-04.md](06-auditoria-final-uc-007-2026-10-04.md). En cas de diferència d’estat, preval la consolidació del 2026-10-04.
+
 **Cas:** Consultar factura, estat i document.  
 **Base revisada:** `main` vigent el 2026-10-03, contrastat amb la fitxa UC-007, l'auditoria del 2026-09-29, PHP/JS real, SIF i fronteres UC-080.  
 **Criteri:** `DOCUMENTAT` ≠ `IMPLEMENTAT` ≠ `VERIFICAT`. Només es marca `VERIFICAT` quan hi ha evidència estàtica concreta o prova executable; les proves runtime/preproducció continuen separades.
@@ -147,7 +149,7 @@ La relectura directa del blob complet de `codi-drive/intranet-actual/Intranet.ph
 
 Això era una mutació de negoci causada per una operació de consulta/descàrrega i violava l'invariant UC-007 de zero mutació.
 
-**Correcció aplicada a la branca:** s'ha eliminat l'UPDATE de `generada` del camí `generaFactura(..., true)`. La descàrrega llegada pot continuar reconstruint un PDF temporal mentre existeixi el fallback, però ja no modifica aquest estat de negoci.
+**Correcció aplicada a la branca:** l'UPDATE de `generada` s'ha condicionat amb `$marcaGenerada`; el wrapper UC-007 crida `generaFactura(..., true, false)` i no l'executa. La descàrrega llegada pot continuar reconstruint un PDF temporal mentre existeixi el fallback, però ja no modifica aquest estat de negoci.
 
 **Protecció de regressió:** `Uc007IntranetBoundaryTest::testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState` aïlla el mètode `generaFactura()`, confirma que continua generant el fitxer temporal i falla si reapareix `updGeneratFactura`.
 
@@ -169,7 +171,7 @@ Aquesta és una diferència deliberada respecte del comportament antic: la traç
 | AUTH-02 | PARCIAL / DISSENY | el helper de rol no autoritza recurs; SIF sí aplica policy per factura, fallback només rol de pàgina |
 | AUTH-03 | CORREGIT PARCIAL | context llegat refrescat + SIF resource policy |
 | AUTH-04 | IMPLEMENTAT / RUNTIME PENDENT | `replaceRols()`; falta prova real de revocació |
-| F02-01 | **OBERT LLEGAT** | `$existeixCerca` no s'inicialitza dins `buscarUsuaris_Factures()`; convé corregir al blob gran quan l'escriptura sigui estable |
+| F02-01 | **CORREGIT EN BRANCA** | `$existeixCerca = false`; protegit per boundary test |
 | F02-02 | CORREGIT | escape de `=`, `%`, `_` + SQL `LIKE ... ESCAPE '='` |
 | F02-03 | MITIGAT | protocol `#|...` continua ad hoc, però el JS actual filtra entrades buides |
 | F02-04 | CORREGIT | control de volum usa longitud |
