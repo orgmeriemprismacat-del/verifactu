@@ -1,7 +1,7 @@
 # UC-002 · Diagrama de classes ACTUAL / FINAL
 
 **Data:** 2026-10-04  
-**Base:** `main@2bd2a751832fc3f767b1e250b955922145a5577a` + correccions de `audit/uc-002-reconciliada-2026-10-04`.
+**Base:** `main@6c8137ff1652ac89a1a81ad18cf79fc4689b1757` + correccions de `audit/uc-002-reconciliada-main-2026-10-04`.
 
 ## 1. ACTUAL — nucli SIF executable
 
