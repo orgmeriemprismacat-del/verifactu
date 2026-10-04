@@ -1,5 +1,14 @@
 # UC-111 · Validar docent novell i generar un dret de descompte futur
 
+> **REVALIDACIÓ POST-MERGE · 02/10/2026**
+>
+> El paquet UC-111 ja està fusionat a `main`. El workflow UC-111 del commit `f26625b0f80c1f9b030bd043ffbd5394150983e2` ha executat MySQL 8 / PHP 8.3 amb **821 passades i 0 fallades**. Els talls anteriors que descriuen «no fusionat», «proves pendents» o «MySQL pendent» es conserven com a història de l'auditoria, però no són l'estat vigent.
+>
+> La revalidació confirma: projector de decisió de secretaria idempotent; PENDING sense pagament; APPROVED/REJECTED amb obertura correcta del gate; protecció contra titular legacy incorrecte; gate autoritatiu del checkout; concessió post-pagament idempotent; read model de Consulta / Modifica alumne sense exposició de secrets; endpoint UI reforçat amb POST/CSRF/same-origin/autorització.
+>
+> Vegeu [UC-111 · revalidació post-merge](uc-111-revalidacio-postmerge-2026-10-02.md) per al tall i les proves exactes.
+
+
 > **ACTUALITZACIÓ EXECUTABLE · 29/09/2026**
 >
 > Els diagrames històrics d’aquest document mantenen el contrast ACTUAL/OBJECTIU del tall del 22/09. La implementació canònica actual de la branca `integrate/uc-111-clean-v2-2026-09-29` es complementa amb:

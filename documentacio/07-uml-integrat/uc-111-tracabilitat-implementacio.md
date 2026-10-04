@@ -1,5 +1,20 @@
 # UC-111 · Matriu de traçabilitat funcional, codi, UML i proves
 
+## Estat vigent · revalidació post-merge 02/10/2026
+
+El PR #14 està fusionat a `main`. El commit `f26625b0f80c1f9b030bd043ffbd5394150983e2` ha passat el workflow UC-111 amb **821 proves / 0 fallades** sobre MySQL 8 i PHP 8.3.
+
+Això actualitza el significat de les files històriques de la matriu:
+- `IMPLEMENTAT_BRANCA / MySQL pendent` → per les peces cobertes per la suite actual, **implementat a main i verificat en MySQL**;
+- `TEST: NO EXECUTAT` → històric per als casos ara coberts;
+- `endpoint segur pendent` → la consulta de promoció a la fitxa d'alumne disposa actualment de feature flag, POST, same-origin, sessió/autorització i CSRF;
+- el gate JASOM i el projector de decisió tenen proves específiques PENDING/APPROVED/REJECTED i fail-closed.
+
+Això **no** converteix automàticament en verificats els blocs que segueixen depenent d'integracions externes o de runtime no cobertes: custòdia de justificants, transport real de correu, connectors productius de canvi/baixa/refund, prova visual/manual i decisions fiscal/comptables.
+
+Evidència: [UC-111 · revalidació post-merge 02/10/2026](uc-111-revalidacio-postmerge-2026-10-02.md).
+
+
 **Data de tall documental:** 29/09/2026.  
 **Branca contrastada:** `feat/uc-111-termini-i-auditoria-2026-09-22`.  
 **Regla:** "fitxer present" no equival a "provat" ni a "desplegat".
