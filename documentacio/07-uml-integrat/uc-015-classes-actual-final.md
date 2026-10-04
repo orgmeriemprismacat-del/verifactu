@@ -1,6 +1,6 @@
 # UC-015 · Classes ACTUAL / FINAL — Comprar pack
 
-**Data d'auditoria:** 2026-09-29 · **Revalidació final:** 2026-10-02  
+**Data d'auditoria:** 2026-09-29 · **Revalidació final:** 2026-10-04  
 **Abast:** ecommerce PrisMa, pay.prisma.cat, Redsys i SIF.  
 **Criteri:** separar estrictament classes i responsabilitats observades al codi actual de les responsabilitats objectiu.
 
@@ -32,6 +32,22 @@ class PublicWebMutationAuthorization {
   +WEB_ALLOWED_ORIGINS
   +exigeix X-Requested-With
 }
+class PackConfirmationToken {
+  +encode(idInsc,key,issuedAt) token_v2
+  +decode(token,key,now) idInsc
+  +AES-256-CBC
+  +MAC domini+IV+ciphertext
+  +TTL 24h
+}
+class ConfirmacioPackEndpoint {
+  <<script PHP>>
+  +rep keyEncr per GET
+  +valida token abans de desxifrar
+  +no-store/no-referrer
+}
+class PagamentGrupAutomatic {
+  +mostrarPaginaConfirmacio()
+}
 class EnviarInscripcioPack {
   <<script PHP>>
   +rep alta publica per POST [PUBLIC]
@@ -49,6 +65,9 @@ class EnviarInscripcioPack {
 Pack --> EdicioPack : conté N edicions
 InscripcioPack --> EdicioPack : mostra components
 EnviarInscripcioPack --> PublicWebMutationAuthorization : autoritza mutacio AJAX
+EnviarInscripcioPack --> PackConfirmationToken : emet token v2
+ConfirmacioPackEndpoint --> PackConfirmationToken : valida i descodifica
+ConfirmacioPackEndpoint --> PagamentGrupAutomatic : mostra continuacio pagament
 EnviarInscripcioPack --> InscripcioPack : rep dades formulari
 EnviarInscripcioPack --> EdicioPack : determina components/preus
 ```
@@ -59,7 +78,7 @@ EnviarInscripcioPack --> EdicioPack : determina components/preus
 - `EdicioPack.php`: resol edició, curs, dates, preu i obertura; `inscripcioOberta()` usa ara una data límit amb signe (`data_inici + dies`) i comparació real contra avui.
 - `InscripcioPack.php`: genera el formulari.
 - `PublicWebMutationAuthorization.php`: és l'única autoritat per `Origin`/`Referer` de la mutació pública; llegeix `WEB_ALLOWED_ORIGINS`, exigeix `X-Requested-With: XMLHttpRequest` i falla amb 403 fora de l'allowlist.
-- `enviarInscripcioPack.php`: rep dades per **POST**, delega `Origin`/`Referer` al guard configurable i conserva `Sec-Fetch-Site` com a defensa addicional; valida `REQUEST_ID` UUID v4 i fingerprint SHA-256, serialitza reintents amb named lock i resol `REUSED/409` abans dels validators legacy i de rellegir el pack actual. Per una alta nova exigeix que **totes les edicions** continuïn obertes, recalcula imports des de BD, genera `IDPAG` i crea N files `inscripcions` amb snapshot comercial + `RID/RH1` dins una transacció única. En error fa rollback i garanteix l'alliberament dels locks.
+- `PackConfirmationToken.php`: encapsula el token temporal de confirmació PACK v2; usa AES-256-CBC amb clau derivada, HMAC SHA-256 amb clau separada sobre domini + IV + ciphertext, Base64URL i TTL de 24 h. La MAC es valida abans de desxifrar.\n- `mostrar_pagina_confirmacio_pagament_grup_automatic.php`: consumidor exclusiu de la confirmació PACK; llegeix `$_GET['keyEncr']`, delega tota la criptografia al helper i només després construeix `PagamentGrupAutomatic`.\n- `enviarInscripcioPack.php`: rep dades per **POST**, delega `Origin`/`Referer` al guard configurable i conserva `Sec-Fetch-Site` com a defensa addicional; valida `REQUEST_ID` UUID v4 i fingerprint SHA-256, serialitza reintents amb named lock i resol `REUSED/409` abans dels validators legacy i de rellegir el pack actual. Per una alta nova exigeix que **totes les edicions** continuïn obertes, recalcula imports des de BD, genera `IDPAG` i crea N files `inscripcions` amb snapshot comercial + `RID/RH1` dins una transacció única. En error fa rollback i garanteix l'alliberament dels locks.
 - Els dos `realitzaPagamentPackAutomatic.php` productius han estat **eliminats físicament**. Només resta l'arnès `realitzaPagamentPackAutomaticProva.php`, restringit a test/preproducció i fail-closed.
 
 ## 2. Classes ACTUAL — SIF ja implementat
@@ -115,6 +134,10 @@ class PackPaymentNotificationService {
   +enqueue(db,dsOrder,snapshot,invoiceResult) array
 }
 class NotificationOutboxRepository
+class NotificationOutboxDeliveryService {
+  +claim(db,uuidNotification,channel) array
+  +complete(db,uuidNotification,uuidAttempt,accepted,providerRef,errorCode) array
+}
 
 RedsysCallbackWorker --> RedsysCallbackDispatcher
 RedsysCallbackDispatcher --> RedsysPackInvoiceService
@@ -128,6 +151,7 @@ RedsysPackInvoiceService --> PackEnrollmentFundAllocationService
 PackEnrollmentFundAllocationService --> EnrollmentFundMovementRepository
 RedsysPackInvoiceService --> PackPaymentNotificationService
 PackPaymentNotificationService --> NotificationOutboxRepository
+NotificationOutboxDeliveryService --> NotificationOutboxRepository : claim/complete transversal
 InvoiceService --> InvoiceRepository
 InvoiceService --> PaymentRepository
 ```
@@ -143,6 +167,7 @@ InvoiceService --> PaymentRepository
 - `SifPaymentIntentClient` envia una petició HMAC autenticada a la intenció SIF abans del TPV.
 - `PackEnrollmentFundAllocationService` reparteix un únic `UUID_PAYMENT` a N `ID_INSC` amb moviments idempotents.
 - `PackPaymentNotificationService` registra notificació a outbox al flux asíncron principal.
+- `NotificationOutboxDeliveryService` implementa el gate transversal de claim/complete; no acredita per si sol l'existència d'un worker SMTP productiu PACK.
 
 ## 3. Classes FINAL / contracte tancat
 
@@ -175,6 +200,23 @@ class EnrollmentFundMovementRepository {
 class PackPaymentNotificationService {
   <<IMPLEMENTAT · ENQUEUE>>
 }
+class PackConfirmationToken {
+  <<IMPLEMENTAT · TOKEN V2>>
+  +encode()
+  +decode()
+}
+class ConfirmacioPackEndpoint {
+  <<IMPLEMENTAT · FAIL-CLOSED>>
+}
+class PagamentGrupAutomatic {
+  <<IMPLEMENTAT · VISTA PAGAMENT>>
+  +mostrarPaginaConfirmacio()
+}
+class NotificationOutboxDeliveryService {
+  <<IMPLEMENTAT · GATE TRANSVERSAL>>
+  +claim()
+  +complete()
+}
 class RedsysLegacySyncingProcessor {
   <<IMPLEMENTAT>>
 }
@@ -183,18 +225,23 @@ class LegacySyncService {
 }
 
 EnviarInscripcioPack --> PublicWebMutationAuthorization
+EnviarInscripcioPack --> PackConfirmationToken : token temporal v2
+PackConfirmationToken --> ConfirmacioPackEndpoint : fragment -> GET codificat
+ConfirmacioPackEndpoint --> PagamentGrupAutomatic : ID_INSC validat
+PagamentGrupAutomatic --> PackPaymentGate : formulari continua al checkout
 EnviarInscripcioPack --> PackPaymentGate : IDPAG creat
 PackPaymentGate --> SifPaymentIntentClient
 SifPaymentIntentClient --> RedsysPackInvoiceService : intent/callback/worker
 RedsysPackInvoiceService --> EnrollmentFundMovementRepository
 RedsysPackInvoiceService --> PackPaymentNotificationService
+PackPaymentNotificationService --> NotificationOutboxDeliveryService : outbox després de commit
 RedsysPackInvoiceService --> RedsysLegacySyncingProcessor
 RedsysLegacySyncingProcessor --> LegacySyncService
 ```
 
 - **Ordre comercial v1 tancat:** `ORDER BY c.DATAI, p.ID_CURS` i snapshot `PACK_ORDINAL`; una futura posició manual seria una evolució de model, no un gap d'aquest UC.
 - **Callback fiscal legacy productiu:** eliminat físicament; no forma part del FINAL.
-- **Notificació:** UC-015 garanteix l'enqueue idempotent; transport/retry/lliurament és UC-58.
+- **Notificació:** UC-015 garanteix l'enqueue idempotent i el repositori ja disposa del gate transversal `NotificationOutboxDeliveryService`; el transport/worker SMTP real i el cutover continuen com a acceptació operativa/UC-58.
 - **Acceptació runtime:** verificador i plantilla preparats; cal executar-los amb un `DS_ORDER` real a preproducció.
 
 ## 4. Diferències bloquejants ACTUAL → FINAL
@@ -215,8 +262,8 @@ RedsysLegacySyncingProcessor --> LegacySyncService
 
 - **Documentat:** sí.
 - **Implementat:** sí, inclosa frontera pública configurable, ordre comercial v1, retirada del callback productiu, fiscal/econòmic, ledger, outbox enqueue i sync legacy.
-- **Verificat per inspecció/proves automatitzades escrites:** sí; la CI del HEAD final és la porta de merge.
-- **Pendent d'acceptació operativa:** evidència navegador/Redsys sobre preproducció. **Dependència externa:** lliurament/retries de notificacions sota UC-58.
+- **Verificat:** el baseline anterior a SEC-015-01 està acreditat pel PR #149 (`SIF checks` + `SIF PHP MySQL tests`, **971 passed / 0 failed**). `PackConfirmationToken` i la nova frontera de confirmació estan verificats per inspecció i tests escrits, però **la CI del PR #171 és pendent**.
+- **Pendent d'acceptació operativa:** evidència navegador/Redsys sobre preproducció i transport/cutover real de l'outbox PACK. `NotificationOutboxDeliveryService` ja aporta el gate genèric claim/complete; el worker/transport SMTP productiu no queda acreditat aquí.
 
 
 ## 6. Revalidació 2026-10-02
@@ -225,3 +272,13 @@ RedsysLegacySyncingProcessor --> LegacySyncService
 - El flux fiscal/econòmic PACK no ha canviat des de la fusió específica `41d6968...`; els canvis posteriors de `RedsysPaymentIntentService` afecten la validació de `CURS`, i el canvi del worker afegeix notificació de curs sense alterar la injecció PACK.
 - La classe/servei `AcademicEnrollmentSyncService` **no forma part** del UC-015 executable. La sincronització correcta és `RedsysLegacySyncingProcessor` → `LegacySyncService`.
 - L'alta pública ha quedat endurida a POST-only amb `PublicWebMutationAuthorization`, `WEB_ALLOWED_ORIGINS`, `X-Requested-With`, `Sec-Fetch-Site` i idempotència server-side `REQUEST_ID` + payload hash. Continua sent un formulari anònim; l'E2E/preproducció és acceptació d'entorn, no un gap de codi.
+
+
+## 7. Reconciliació 2026-10-04
+
+- No falta cap diagrama de classes ACTUAL/FINAL d'UC-015.
+- Les classes representades coincideixen amb el codi executable: `PublicWebMutationAuthorization`, alta PACK legacy endurida, `PackPaymentGate`, client/intenció SIF, `RedsysPackInvoiceService`, ledger, outbox i `RedsysLegacySyncingProcessor -> LegacySyncService`.
+- `AcademicEnrollmentSyncService` continua explícitament fora d'aquest flux.
+- El PR #149 només corregeix proves desfasades; no introdueix una arquitectura productiva diferent.
+- Per a notificacions, el model ACTUAL incorpora ara el gate genèric `NotificationOutboxDeliveryService`; l'adaptador/worker de transport operatiu continua fora del tancament de codi UC-015.
+- Vegeu [inventari PHP/JS 04/10](uc-015-inventari-codi-php-js-actual-final-2026-10-04.md) i [reconciliació main 04/10](uc-015-reconciliacio-main-2026-10-04.md).

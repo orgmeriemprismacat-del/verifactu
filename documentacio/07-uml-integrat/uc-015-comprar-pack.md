@@ -42,11 +42,11 @@
 | Descompte del 25 % del builder | Verificar contra la política real i l'snapshot comercial: no reconstruir un descompte diferent si s'aporta explicitament, ni generalitzar el 25 % a tots els tipus d'oferta. |
 | Una sola persona fa totes les inscripcions del pack | La factura pot ser una, però els `ID_INSC` de cada curs/edició continuen independents per permetre canvis, baixes i consulta. |
 
-**Proves localitzades:** `RedsysPackInvoiceServiceTest`, `PackPaymentGateTest`, `LegacyPackInvoicePayloadBuilderTest`, `LegacyPackCallbackBoundaryTest` i scripts de preflight/preview. El paquet UC-015 fusionat a `41d6968...` té `SIF PHP MySQL tests` en **success** (run `36741186555`). La revisió de codi del PR a `0b32fa2...` va passar els quatre workflows del repositori, inclòs `SIF PHP MySQL tests` (run `36943484891`). Qualsevol commit o resincronització posterior ha de tornar a passar CI abans del merge.
+**Proves localitzades:** `RedsysPackInvoiceServiceTest`, `PackPaymentGateTest`, `LegacyPackInvoicePayloadBuilderTest`, `LegacyPackCallbackBoundaryTest`, boundaries web/Redsys i scripts de preflight/preview. La reconciliació del 04/10 pren com a evidència posterior el PR #149: `SIF checks` i `SIF PHP MySQL tests` en **success**, amb **971 passed / 0 failed**. S'afegeix `sif/tests/run-uc015-tests.php` + `UC-015 SIF pack checks` com a gate específic.
 
 ### 1.3. Regles comercials reals i divisió excepcional del pack — contrast amb el xat original
 
-**Composició habitual (no universal):** PrisMa descriu packs de **dos cursos**, amb **dues inscripcions independents** relacionades pel mateix `IDPAG`, i preu total provinent de la taula de preus vinculada a packs. El descompte comercial de pack del 25 % es posa en **el segon curs**, no es reparteix per defecte entre les dues inscripcions. Abans d'emetre, cal validar el snapshot del pack real (ID_PACK, preu, dues inscripcions, imports base, descompte del segon curs i suma final) contra la lògica comercial corresponent; un builder fiscal no substitueix aquesta comprovació.
+**Composició executable actual:** el model admet **N components (mínim 2)**, amb inscripcions independents relacionades pel mateix `IDPAG`. Base, descompte, percentatge i total es congelen **per component** al snapshot (`PACK_BASE`, `PACK_DISCOUNT`, `PACK_DISCOUNT_PCT`, `PACK_TOTAL`) i no s'ha de pressuposar que el descompte pertanyi sempre a un «segon curs». Abans d'emetre es valida el snapshot complet, els ordinals i la suma final.
 
 **P-COMUNICACIÓ PACK N — estat actual:** el correu d'alta ja no pressuposa exactament dos cursos: la plantilla usa `[CURSOS_PACK]` i el PHP hi injecta la llista dinàmica de totes les edicions. El contracte queda cobert per `PackMultiCourseCommunicationBoundaryTest`.
 
@@ -79,7 +79,7 @@ El checkout continua obligat a contrastar `ID_INSC`, curs/edició, ordinal, base
 
 | ID | Escenari | Resultat exigible |
 | --- | --- | --- |
-| PK-08 | Primer curs pactat 80 €, segon curs 120 € abans de descompte | Descompte al segon curs comercial, no necessàriament al component que la consulta col·loca segon per `A_PAGAR`. |
+| PK-08 | Oferta concreta amb components 80 € i 120 € i descompte comercial congelat sobre un component determinat | Respectar `PACK_ORDINAL` i els imports/descompte congelats al snapshot; no inferir el component descomptat a partir d'`A_PAGAR` ni assumir universalment «segon curs». |
 | PK-09 | Un pagament parcial canvia `A_PAGAR` i inverteix `ORDER BY` | Snapshot original manté ordinal, imports i receptor; no nova factura amb preu/deute reconstruït. |
 | PK-10 | Dues inscripcions del mateix `IDPAG` porten dades de receptor diferents | Receptor fiscal seleccionat/confirmat per operació, no arbitràriament la primera fila recuperada. |
 | PK-11 | No es coneix la base comercial d'un component | Incidència i comprovació de preu real; no divisió automàtica per `0.75` sobre un saldo incert. |
@@ -180,6 +180,18 @@ class PublicWebMutationAuthorization {
  <<IMPLEMENTAT>>
  +assertSameOriginAjax()
 }
+class PackConfirmationToken {
+ <<IMPLEMENTAT · V2>>
+ +encode(idInsc,key,issuedAt) token
+ +decode(token,key,now) idInsc
+}
+class ConfirmacioPackEndpoint {
+ <<IMPLEMENTAT · FAIL-CLOSED>>
+}
+class PagamentGrupAutomatic {
+ <<IMPLEMENTAT>>
+ +mostrarPaginaConfirmacio()
+}
 class EnviarInscripcioPack {
  <<IMPLEMENTAT>>
  +POST + REQUEST_ID
@@ -198,6 +210,10 @@ class NotificationOutboxRepository {
  +enqueue(db,message) array
 }
 EnviarInscripcioPack --> PublicWebMutationAuthorization : WEB_ALLOWED_ORIGINS
+EnviarInscripcioPack --> PackConfirmationToken : token temporal v2
+PackConfirmationToken --> ConfirmacioPackEndpoint : fragment + GET codificat
+ConfirmacioPackEndpoint --> PagamentGrupAutomatic : ID_INSC validat
+PagamentGrupAutomatic --> PackPaymentGate : continuacio checkout
 EnviarInscripcioPack --> PackPaymentGate : IDPAG/snapshot
 PackPaymentGate --> SifPaymentIntentClient : intent HMAC
 SifPaymentIntentClient --> RedsysPackInvoiceService : via callback/worker
@@ -218,6 +234,25 @@ InvoiceService --> PaymentRepository : CHARGE inicial si payment
 
 `PublicWebMutationAuthorization` és l'única font d'autoritat per Origin/Referer i llegeix `WEB_ALLOWED_ORIGINS`; exigeix `X-Requested-With: XMLHttpRequest`. `enviarInscripcioPack.php` conserva `Sec-Fetch-Site` com a defensa complementària. No existeix una segona allowlist fixa a l'endpoint.
 
+### 3.2. Frontera de confirmació PACK
+
+La continuació de l'auditoria del 04/10 ha identificat i corregit **SEC-015-01**. El token legacy autenticava només el ciphertext AES-CBC i deixava l'IV fora de la MAC; a més es desxifrava abans de verificar i el token quedava al path.
+
+Contracte FINAL implementat al PR #171:
+- `PackConfirmationToken v2`;
+- AES-256-CBC amb clau derivada;
+- HMAC SHA-256 amb clau separada sobre domini + IV + ciphertext;
+- MAC abans de decrypt;
+- Base64URL;
+- `ID_INSC|issued_at`, TTL 24 h;
+- redirect `/packs/confirmacio/#TOKEN`;
+- no-store/no-referrer/noindex;
+- `send_page_view=false`;
+- token legacy rebutjat fail-closed;
+- fallback temporal només per token v2 al path durant el desplegament.
+
+Vegeu [activitat PK-A04b](uc-015-activitats-pagines-pack-actual-final.md), [seqüències ACTUAL/FINAL](uc-015-sequencies-actual-final.md) i [reconciliació 04/10](uc-015-reconciliacio-main-2026-10-04.md).
+
 ## 4. Diagrama de seqüència — pack pagat, factura i distribució
 
 ```mermaid
@@ -225,6 +260,8 @@ sequenceDiagram
 autonumber
 actor A as Alumne/pagador
 participant Web as Ecommerce PACK
+participant Token as PackConfirmationToken
+participant Confirm as Confirmació PACK
 participant Intent as RedsysPaymentIntentService
 participant Bank as Redsys
 participant Callback as RedsysCallbackService
@@ -237,6 +274,14 @@ participant I as InvoiceService
 participant O as NotificationOutbox
 participant L as EnrollmentFundMovementRepository
 A->>Web: Comprar pack amb N inscripcions
+Web->>Token: encode(ID_INSC, key)
+Token-->>Web: token v2 temporal
+Web-->>A: /packs/confirmacio/#TOKEN
+A->>Confirm: obrir confirmació
+Confirm->>Token: decode + MAC + TTL
+Token-->>Confirm: ID_INSC validat
+Confirm-->>A: vista i continuació de pagament
+A->>Web: confirmar pagament
 Web->>Intent: create(PACK, DS_ORDER, import, snapshot N línies)
 Intent-->>Web: UUID_INTENT
 Web->>Bank: TPV
@@ -262,22 +307,22 @@ W->>Q: PROCESSED i UUIDs
 Note over H,O: Un pagament bancari, N atribucions internes. L'outbox queda PENDING fins al worker UC-58.
 ```
 
-### 4.1. Seqüència — pagament únic i alternativa excepcional d'intranet (OBJECTIU)
+### 4.1. Variant excepcional de divisió del pack — no confondre amb el flux normal implementat
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor P as Pagador
 actor O as Gestió
-participant UI as Ecommerce/Intranet [adaptació pendent]
-participant Price as Preu i composició pack [llegat]
-participant Pay as Redsys/SIF [serveis parcials]
-participant Fiscal as Classificació parts fiscals [PENDENT]
-P->>UI: Comprar pack de dos cursos
-UI->>Price: Validar ID_PACK, dues inscripcions, descompte només curs 2
+participant UI as Ecommerce implementat / Intranet variant excepcional
+participant Price as Snapshot PACK per component
+participant Pay as Redsys/SIF canal normal implementat
+participant Fiscal as Classificació variant dividida [PENDENT]
+P->>UI: Comprar pack de N components
+UI->>Price: Validar ID_PACK, N inscripcions, ordinals i imports/descompte congelats per component
 alt Pagament únic confirmat
  UI->>Pay: Processar un DS_ORDER acceptat
- Pay-->>UI: Un CHARGE i una factura amb dues línies
+ Pay-->>UI: Un CHARGE i una factura amb N línies
 else Gestió autoritza divisió excepcional
  O->>UI: Justificar imports i parts del pack
  UI->>Fiscal: Validar línies/servei de cada factura de la variant
@@ -286,7 +331,7 @@ else Gestió autoritza divisió excepcional
   Pay-->>UI: Factura/part assignada segons decisió aprovada
  end
 end
-Note over UI,Fiscal: La variant dividida no és UC-23 i l'orquestrador de parts encara no està acreditat.
+Note over UI,Fiscal: El flux normal de pagament únic està implementat. Només la variant excepcional dividida requereix classificació/orquestració pròpia i no és UC-23.
 ```
 ## 5. Traçabilitat
 
@@ -307,7 +352,7 @@ Auditoria canònica: [uc-015-auditoria-tracabilitat-2026-10-02.md](uc-015-audito
 Punts nous incorporats:
 - el formulari d'alta pública s'ha migrat a POST-only amb frontera same-site/origin;
 - idempotència server-side implementada: UUID v4 persistent al navegador, named lock, `RID/RH1`, replay equivalent i 409 per payload divergent;
-- el bundle puja a `mostrarInscripcioPack.min.js?ver=7.5` per evitar caché del GET antic;
+- el bundle puja a `mostrarInscripcioPack.min.js?ver=7.6` per evitar caché del GET antic;
 - corregida la disponibilitat: `EdicioPack` compara una data límit amb signe real i llistat/fitxa/POST exigeixen tots els components oberts;
 - les N inscripcions del pack es creen dins una única transacció, amb rollback en error i alliberament garantit del lock `IDPAG`; abans del commit la suma dels imports congelats ha de coincidir exactament amb el preu PACK en cèntims;
 - `pagFrac` ja no és entrada client: l'ecommerce fixa no fraccionament al servidor;
@@ -317,4 +362,21 @@ Punts nous incorporats:
 - el text intern del descompte fiscal ja no pressuposa una línia/ordinal concreta;
 - el verificador canònic `verify-redsys-pack-preproduction.php` ja està implementat; resta executar-lo amb un `DS_ORDER` real;
 - les dues còpies productives del callback legacy estan fail-closed amb 410 abans de mutar; el harness `Prova` requereix test/preproduction + flag explícit;
-- el nucli PACK conserva evidència CI històrica i el HEAD final d'aquesta auditoria ha de tornar a passar la CI després dels enduriments web/idempotència/preproducció.
+- el nucli PACK conserva evidència CI històrica; la reconciliació 04/10 afegeix evidència posterior del PR #149 (**971 passed / 0 failed**) i un gate selectiu UC-015 per a regressions futures.
+
+
+## Reconciliació amb main — 2026-10-04
+
+La fitxa/UML integrada s'ha reconciliat amb `main@6c8137f...` i el PR #171. La continuació pàgina per pàgina sí ha detectat una nova classe/responsabilitat necessària per fer explícita la frontera de confirmació: `PackConfirmationToken`, incorporada arran de SEC-015-01. No reapareix cap segon callback fiscal PACK.
+
+Actualitzacions de governança:
+- [inventari PHP/JS ACTUAL/FINAL](uc-015-inventari-codi-php-js-actual-final-2026-10-04.md);
+- [reconciliació completa amb main](uc-015-reconciliacio-main-2026-10-04.md);
+- gate selectiu `sif/tests/run-uc015-tests.php` + `.github/workflows/uc015-sif-checks.yml`.
+
+Notificacions: enqueue PACK i gate genèric `NotificationOutboxDeliveryService` implementats; transport/cutover SMTP real encara pendent d'acceptació operativa.
+
+
+### Estat del fix SEC-015-01
+
+El baseline anterior al fix continua acreditat pel PR #149 amb **971 passed / 0 failed**. Aquesta xifra no s'utilitza com a prova del nou codi de confirmació. `PackConfirmationTokenTest` i `PackConfirmationTokenBoundaryTest` estan incorporats al gate selectiu, però la **CI del PR #171** continua pendent mentre GitHub Actions mantingui els jobs en cua.

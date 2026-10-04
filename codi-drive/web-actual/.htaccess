@@ -182,7 +182,8 @@ RewriteRule ^jornades/(.+) /pagina_jornada.php
 RewriteRule ^jornades /pagina_jornades.php
 
 RewriteRule ^packs/confirmacioProva/(.+) /pagina_confirmacio_grup_automatic_prova.php?key=$2
-RewriteRule ^packs/confirmacio/(.+) /pagina_confirmacio_grup_automatic.php?key=$2
+RewriteRule ^packs/confirmacio/?$ /pagina_confirmacio_grup_automatic.php [L,QSA]
+RewriteRule ^packs/confirmacio/(.+) /pagina_confirmacio_grup_automatic.php [L,QSA]
 RewriteRule ^tallers/confirmacio/(.+) /pagina_confirmacio_taller_automatic.php?key=$2
 RewriteRule ^tallers/efectuarPagament/ /pagina_efectuar_pagament_taller_automatic.php
 RewriteRule ^pagamentsProva/(.+) /pagina_pagament_grup_automatic_prova.php?key=$2

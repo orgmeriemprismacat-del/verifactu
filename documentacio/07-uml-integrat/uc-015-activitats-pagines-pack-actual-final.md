@@ -142,6 +142,56 @@ G --> H[Checkout crea intenció Redsys SIF]
 
 **Revalidació 02/10:** les N insercions es fan dins una única transacció legacy. Una fallada intermèdia provoca rollback; abans del commit s'exigeix `suma(A_PAGAR)=preu PACK` i restant zero en cèntims. El `REQUEST_ID` queda congelat com `RID/RH1`, de manera que un reintent equivalent no entra en aquest bloc sinó que retorna el resultat existent. `PackEnrollmentAtomicityBoundaryTest` i `PackEnrollmentIdempotencyBoundaryTest` blinden els dos contractes.
 
+## PK-A04b · Confirmació d'alta i continuació al pagament
+
+### ACTUAL observat a `main@6c8137f...` abans de la correcció
+
+```mermaid
+flowchart TD
+A[Alta commitada] --> B[Token legacy IV + HMAC ciphertext + ciphertext]
+B --> C[JS posa token al path /packs/confirmacio/TOKEN]
+C --> D[pagina_confirmacio_grup_automatic.php]
+D --> E[Analytics pot veure page_location amb token]
+D --> F[JS envia keyEncr per GET]
+F --> G[AJAX extreu token de REQUEST_URI amb substr màgic]
+G --> H[Desxifra AES-CBC amb IV]
+H --> I[HMAC només sobre ciphertext]
+I --> J{HMAC coincideix?}
+J -- sí --> K[PagamentGrupAutomatic / dades i continuació pagament]
+J -- no --> L[Error 1501]
+```
+
+**Troballa SEC-015-01:** l'HMAC no autenticava l'IV i el desxifrat s'executava abans de validar la MAC. En CBC, una alteració de l'IV podia modificar el primer bloc del plaintext sense canviar l'HMAC. A més, el token quedava al path/access logs i el consumidor depenia d'un `substr(...,-16)` lligat al cache-buster de jQuery.
+
+### FINAL implementat al PR #171
+
+```mermaid
+flowchart TD
+A[Alta commitada] --> B[PackConfirmationToken::encode]
+B --> C[AES-256-CBC amb clau derivada]
+C --> D[HMAC SHA-256 amb clau MAC separada sobre domini + IV + ciphertext]
+D --> E[Payload ID_INSC + issued_at · TTL 24h]
+E --> F[Token v2 Base64URL]
+F --> G[JS redirigeix /packs/confirmacio/#TOKEN]
+G --> H[Pàgina no-store / no-referrer / noindex]
+H --> I[Analytics sense page_view automàtic]
+I --> J[JS llegeix fragment i envia encodeURIComponent keyEncr]
+J --> K[AJAX usa $_GET keyEncr]
+K --> L[PackConfirmationToken::decode]
+L --> M{MAC vàlida i token vigent?}
+M -- no --> N[HTTP 400 + error 1501]
+M -- sí --> O[Desxifrar i validar ID_INSC]
+O --> P[PagamentGrupAutomatic::mostrarPaginaConfirmacio]
+```
+
+Controls addicionals:
+- el fragment `#TOKEN` no arriba al servidor ni als access logs en clients actualitzats;
+- es manté temporalment fallback de lectura d'un token **v2** al path per absorbir JS antic durant el desplegament;
+- els tokens legacy no versionats fallen tancat;
+- `.htaccess` admet `/packs/confirmacio/` sense token al path;
+- el correu de l'alta ja conté el canal `/pagaments/...` separat, de manera que la caducitat de 24 h del token de confirmació no bloqueja pagaments posteriors;
+- `PackConfirmationTokenTest` i `PackConfirmationTokenBoundaryTest` blinden integritat, TTL, URL segura i ordre MAC→decrypt.
+
 ## PK-A05 · Intenció de pagament
 
 ### ACTUAL
@@ -253,7 +303,8 @@ flowchart TD
 A[Factura/payment SIF] --> B[PackPaymentNotificationService]
 B --> C[NotificationOutboxRepository]
 C --> D[1 event idempotent PENDING]
-D --> E[UC-58 worker/transport pendent]
+D --> E[NotificationOutboxDeliveryService claim/complete]
+E --> G[Transport SMTP/cutover PACK pendent]
 A --> F[Correu inicial d'alta web: flux separat i directe]
 ```
 
@@ -301,7 +352,7 @@ E --> F[Classificació fiscal explícita]
 ### Acceptació runtime — pendent
 1. executar `verify-redsys-pack-preproduction.php` amb un `DS_ORDER` real i conservar factura/payment + N moviments + outbox + sync legacy quan correspongui;
 2. executar PK-01..PK-11 de navegador/preproducció, incloent GET/cross-site, doble clic, replay `REQUEST_ID` i component fora de finestra;
-3. mantenir CI verda al HEAD final.
+3. mantenir verd el gate selectiu `UC-015 SIF pack checks` i la suite global quan el canvi afecta infraestructura compartida.
 
 El transport/retry/lliurament de notificacions queda a UC-58 i no reobre el codi UC-015.
 
@@ -309,4 +360,16 @@ El transport/retry/lliurament de notificacions queda a UC-58 i no reobre el codi
 
 El 2026-09-30 la suite SIF ha finalitzat amb **706 passed / 0 failed** al commit `c961f193...`. Aquesta evidència cobreix el contracte de checkout, snapshot, factura, conciliació, ledger i outbox del UC-015. Resta la validació visual/navegador i Redsys de preproducció.
 
-**Revalidació 02/10:** el paquet UC-015 final es va fusionar a `41d6968...` i el workflow `SIF PHP MySQL tests` d'aquell commit també va acabar en **success** (run `36741186555`). La revisió de codi del PR a `0b32fa2...` va passar els quatre workflows, inclòs `SIF PHP MySQL tests` (run `36943484891`). El criteri de merge continua sent que el HEAD final del PR mantingui la CI verda després de qualsevol resincronització amb `main`.
+**Revalidació 02/10 (històrica):** el paquet UC-015 disposava d'evidència CI positiva en talls previs. **Reconciliació 04/10:** el PR #149 va alinear els boundaries PACK/Redsys amb el codi vigent i el seu HEAD `8871e15...` va executar `SIF checks` i `SIF PHP MySQL tests` en success, amb **971 passed / 0 failed**. A partir d'aquesta passada, el gate selectiu `UC-015 SIF pack checks` és la porta específica del cas.
+
+
+## Reconciliació de les activitats — 2026-10-04
+
+- PK-A01..PK-A10 continuen presents i la revisió per pàgina ha afegit **PK-A04b · Confirmació d'alta**, que faltava com a frontera explícita ACTUAL/FINAL.
+- PK-A03/PK-A04 reflecteixen el transport POST, guard configurable, REQUEST_ID, idempotència i atomicitat reals.
+- PK-A05/PK-A06 reflecteixen intenció SIF i callback/cua/worker autoritatius.
+- PK-A07/PK-A08 reflecteixen una factura/payment i N atribucions monetàries.
+- PK-A09 s'actualitza perquè ja existeix `NotificationOutboxDeliveryService`; el pendent és el transport/cutover real de l'outbox PACK.
+- PK-A10 continua bloquejant fraccionament al checkout públic.
+- Evidència de regressió del baseline: PR #149, **971 passed / 0 failed**. La nova activitat PK-A04b/SEC-015-01 disposa de tests al PR #171 però la seva CI continua pendent.
+- Vegeu [inventari PHP/JS 04/10](uc-015-inventari-codi-php-js-actual-final-2026-10-04.md) i [reconciliació main 04/10](uc-015-reconciliacio-main-2026-10-04.md).

@@ -46,6 +46,10 @@ fi
   export SIF_DB_USER="${DB_USER}"
   export SIF_DB_PASSWORD="${DB_PASSWORD}"
 
+  echo "== UC-015 selective suite =="
+  "${PHP_BIN}" sif/tests/run-uc015-tests.php
+
+  echo
   echo "== Full SIF suite =="
   "${PHP_BIN}" sif/tests/run-tests.php
 
@@ -68,6 +72,8 @@ fi
   echo "  RedsysPaymentIntentTest::testRejectsPackIntentWhenSnapshotTotalDiffersFromExpectedAmount"
   echo "  RedsysPaymentIntentTest::testRejectsPackIntentWithoutCommercialOrdinal"
   echo "  LegacyPackInvoicePayloadBuilderTest::testUsesCommercialOrdinalWhenSnapshotItemsArriveOutOfOrder"
+  echo "  NotificationOutboxDeliveryServiceTest::testClaimIsAtMostOnceAndSentCompletionIsIdempotent"
+  echo "  NotificationOutboxDeliveryServiceTest::testKnownFailureRequiresReviewAndIsNotAutomaticallyReclaimed"
   echo "  RedsysPackInvoiceServiceTest::testRejectsPackWhenValidatedRedsysAmountDiffersFromInvoiceLines"
   echo "  RedsysPackInvoiceServiceTest::testIntentSnapshotCreatesOneDurableNotificationAcrossRetry"
   echo "  RedsysPackInvoiceServiceTest::testRejectsLegacyPackWithoutCompleteCommercialSnapshot"
@@ -75,17 +81,22 @@ fi
   echo "  LegacyPackCallbackBoundaryTest::testProductionLegacyPackCallbacksArePhysicallyRemoved"
   echo "  PackCommercialOrderBoundaryTest::testPackPresentationAndEnrollmentUseSameDeterministicOrder"
   echo "  PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop"
+  echo "  PackConfirmationTokenTest"
+  echo "  PackConfirmationTokenBoundaryTest"
   echo "  PackPublicEnrollmentBoundaryTest"
   echo "  PackEnrollmentAtomicityBoundaryTest"
   echo "  PackEnrollmentIdempotencyBoundaryTest"
   echo "  PackComponentAvailabilityBoundaryTest"
+  echo "  PackDeploymentParityBoundaryTest::testCriticalPackAdaptersStayByteIdenticalAcrossWebAndPayCopies"
+  echo "  PackDeploymentParityBoundaryTest::testCheckoutCopiesKeepSamePackBusinessBoundaryDespitePresentationDifferences"
+  echo "  PackDeploymentParityBoundaryTest::testPackReturnUrlsRemainOnPublicWebBoundary"
   echo "  RedsysPackEvidenceVerifierTest::testVerifiesCompletePackEvidenceWithoutExposingPersonalData"
   echo "  RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing"
   echo "  PackCheckoutBoundaryTest::testPackCheckoutUsesServerAuthoritativeHolderAndEscapesPostedHtml"
   echo "  RedsysPackWorkerEndToEndTest::testPackWorkerReplayKeepsFiscalEconomicAndOutboxEffectsIdempotent"
   echo "  PackEnrollmentTransportBoundaryTest::testPackEnrollmentMutationUsesPostAndDoesNotReadGetParameters"
   echo "  PackPaymentPrivacyBoundaryTest::testPackRedsysPayloadUsesNameNotDniAndOmitsEmailFromReturnUrls"
-  echo "  PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesTreatEmailAsOptionalEscapedHint"
+  echo "  PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesDoNotExposeEmailInReturnUrlsOrViews"
   echo "  PublicWebMutationAuthorizationTest::testAllowsConfiguredSameOriginAjaxRequest"
   echo "  PublicWebMutationAuthorizationTest::testRejectsCrossOriginRequest"
   echo "  PublicWebMutationAuthorizationTest::testRejectsNonAjaxRequest"

@@ -1,6 +1,6 @@
 # UC-015 · Seqüències ACTUAL / FINAL — Comprar pack
 
-**Data d'auditoria:** 2026-09-29 · **Revalidació final:** 2026-10-02
+**Data d'auditoria:** 2026-09-29 · **Revalidació final:** 2026-10-04
 
 ## 1. ACTUAL — alta del pack al web
 
@@ -33,7 +33,7 @@ else frontera autoritzada
  Alta->>DB: GET_LOCK prisma_pack_req_<hash>
 Alta->>DB: buscar RID + RH1 a inscripcions
 alt mateix REQUEST_ID + mateix payload hash
- Alta-->>JS: hash de confirmació d'una inscripció existent
+ Alta-->>JS: token de confirmació v2 d'una inscripció existent
  Alta->>DB: RELEASE_LOCK request
 else mateix REQUEST_ID + payload diferent/inconsistent
  Alta-->>JS: HTTP 409 sense mutació
@@ -53,7 +53,7 @@ else request nou
  Alta->>Alta: marca enrollment committed
  Alta->>DB: RELEASE_LOCK allocator IDPAG
  Alta->>DB: RELEASE_LOCK request
- Alta-->>JS: hash inscripció
+ Alta-->>JS: token de confirmació v2
  Alta->>Mail: correus/auxiliars postcommit
  Note over Alta,Mail: una fallada auxiliar es loga i no converteix l'alta commitada en error
 end
@@ -69,6 +69,77 @@ JS-->>U: redirecció confirmació
 - l'allocator `IDPAG` continua sent legacy `MAX+1`, però queda serialitzat amb named lock i no és un bloqueig de tancament UC-015;
 - `PACK_ORDINAL` queda determinat pel contracte comercial v1 `DATAI, ID_CURS`; qualsevol reordenació manual futura requerirà un canvi de model explícit i no reinterpretarà snapshots històrics;
 - els callbacks fiscals legacy productius han estat eliminats físicament; només queda un harness de prova fail-closed i no autoritatiu.
+
+## 1.1. Frontera de confirmació PACK — ACTUAL auditat / FINAL implementat
+
+### ACTUAL observat abans de la correcció del 04/10
+
+```mermaid
+sequenceDiagram
+autonumber
+participant Alta as enviarInscripcioPack.php
+participant JS as mostrarInscripcioPack.min.js
+participant Page as pagina_confirmacio_grup_automatic.php
+participant CJS as mostrarConfirmacioPagamentGrupAutomatic.min.js
+participant Ajax as mostrar_pagina_confirmacio_pagament_grup_automatic.php
+participant P as PagamentGrupAutomatic
+
+Alta-->>JS: base64(IV + HMAC(ciphertext) + ciphertext)
+JS->>Page: /packs/confirmacio/TOKEN
+Page-->>CJS: càrrega JS + analytics
+CJS->>Ajax: GET keyEncr sense URL encoding robust
+Ajax->>Ajax: extreure REQUEST_URI amb substr màgic
+Ajax->>Ajax: decrypt AES-CBC amb IV
+Ajax->>Ajax: HMAC només ciphertext
+alt HMAC coincideix
+ Ajax->>P: construir amb ID_INSC desxifrat
+ P-->>Ajax: pàgina de confirmació/pagament
+else
+ Ajax-->>CJS: error 1501
+end
+```
+
+**Gap verificat SEC-015-01:** l'IV no estava autenticat i el decrypt precedia la verificació de MAC.
+
+### FINAL implementat al PR #171
+
+```mermaid
+sequenceDiagram
+autonumber
+participant Alta as enviarInscripcioPack.php
+participant Tok as PackConfirmationToken
+participant JS as mostrarInscripcioPack.min.js
+participant Page as /packs/confirmacio/
+participant CJS as mostrarConfirmacioPagamentGrupAutomatic.min.js
+participant Ajax as confirmacio PACK AJAX
+participant P as PagamentGrupAutomatic
+
+Alta->>Tok: encode(ID_INSC, key)
+Tok->>Tok: payload ID_INSC|issued_at
+Tok->>Tok: AES-256-CBC amb clau derivada
+Tok->>Tok: HMAC(domain + IV + ciphertext) amb clau MAC separada
+Tok-->>Alta: v2.Base64URL · TTL 24h
+Alta-->>JS: token v2
+JS->>Page: /packs/confirmacio/#TOKEN
+Note over JS,Page: fragment no s'envia al servidor
+Page-->>CJS: no-store + no-referrer + noindex · send_page_view=false
+CJS->>CJS: llegir location.hash
+CJS->>Ajax: GET keyEncr=encodeURIComponent(TOKEN)
+Ajax->>Tok: decode(token,key)
+Tok->>Tok: validar prefix/estructura/TTL
+Tok->>Tok: verificar HMAC abans de decrypt
+alt token invàlid/caducat
+ Tok-->>Ajax: excepció
+ Ajax-->>CJS: HTTP 400 + error 1501
+else token vàlid
+ Tok->>Tok: decrypt + validar ID_INSC
+ Tok-->>Ajax: ID_INSC
+ Ajax->>P: mostrarPaginaConfirmacio()
+ P-->>CJS: continuació de pagament
+end
+```
+
+**Compatibilitat de desplegament:** la pàgina nova accepta temporalment un token **v2** al path si un client conserva el JS anterior, però el servidor rebutja el format legacy no versionat.
 
 ## 2. HISTÒRIC — callback PACK legacy retirat
 
@@ -127,6 +198,38 @@ W->>Q: PROCESSED
 
 **Revalidació 02/10:** el wrapper real del worker és `RedsysLegacySyncingProcessor`; no existeix cap `AcademicEnrollmentSyncService` en aquest flux. La sincronització legacy s'executa només després que el handler PACK hagi retornat una emissió SIF correcta.
 
+## 3.1. FINAL transversal — gate de delivery de notificacions
+
+Aquest bloc existeix al codi compartit, però **no forma part de la transacció del callback PACK**. El productor PACK només deixa l'event a l'outbox després de l'èxit SIF.
+
+```mermaid
+sequenceDiagram
+autonumber
+actor T as Worker/transport SMTP [cutover pendent]
+participant D as NotificationOutboxDeliveryService
+participant O as notification_outbox
+participant A as notification_delivery_attempt
+
+T->>D: claim(UUID_NOTIFICATION)
+D->>O: SELECT ... FOR UPDATE
+alt PENDING i due
+ D->>A: INSERT attempt SENDING
+ D->>O: STATUS=SENDING
+ D-->>T: should_send=true + UUID_ATTEMPT
+ T->>T: efecte extern SMTP
+ T->>D: complete(accepted/providerRef/error)
+ D->>A: SENT o FAILED
+ D->>O: SENT o FAILED
+else SENT
+ D-->>T: ALREADY_SENT / no reenviar
+else SENDING o FAILED
+ D-->>T: revisió manual / no retry automàtic
+end
+```
+
+**Implementat:** `NotificationOutboxDeliveryService::claim/complete`.  
+**No acreditat per UC-015:** el worker/adaptador SMTP productiu i el seu cutover sobre l'outbox PACK.
+
 ## 4. FINAL — callback duplicat
 
 ```mermaid
@@ -168,9 +271,27 @@ end
 
 - Seqüència ACTUAL web: documentada.
 - Seqüència callback legacy: **retirada del sistema productiu**; l'històric queda preservat a Git/auditoria.
-- Seqüència FINAL: **majoritàriament implementada** al flux PACK asíncron.
+- Seqüència FINAL: **implementada** per l'abast de codi UC-015; resta acceptació runtime de preproducció.
 - Control total factura/import Redsys: implementat.
 - Checkout → intenció SIF: implementat.
 - Ledger per inscripció: implementat i cablejat al worker.
 - Outbox: implementat i cablejat al worker.
-- Codi/doc intern UC-015: tancat, inclosa la frontera pública configurable. Pendent d'acceptació: executar el verificador/PK-01..PK-11 en preproducció i mantenir la CI final verda; UC-58 cobreix el lliurament efectiu de notificacions.
+- Codi/doc intern UC-015: reconciliat, inclosa la frontera de confirmació v2. El PR #149 acredita el **baseline anterior** amb 971/0; el nou codi SEC-015-01 del PR #171 té tests específics però CI pendent. Després cal executar el verificador/PK-01..PK-11 + PK-A04b en preproducció i acreditar el transport/cutover real de l'outbox PACK.
+
+
+## 7. Reconciliació 2026-10-04
+
+La seqüència ACTUAL/FINAL continua corresponent al codi de `main@6c8137f...`:
+
+1. alta pública POST + guard + REQUEST_ID;
+2. N inscripcions transaccionals amb snapshot;
+3. confirmació temporal segura `PackConfirmationToken v2` via fragment URL;
+4. `PackPaymentGate` i intenció `SOURCE_TYPE=PACK`;
+5. Redsys -> callback SIF -> cua -> worker;
+6. `RedsysPackInvoiceService` -> factura/payment;
+7. ledger per inscripció + outbox;
+8. sincronització legacy post-SIF.
+
+El callback fiscal legacy productiu no reapareix. El canvi posterior #149 afecta les proves de frontera, no aquesta seqüència productiva.
+
+En notificacions, l'enqueue PACK i el gate genèric `NotificationOutboxDeliveryService::claim/complete` existeixen. La seqüència de transport SMTP/worker real queda com a acceptació operativa/UC-58.

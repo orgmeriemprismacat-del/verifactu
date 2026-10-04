@@ -1,5 +1,7 @@
 # UC-015 · Auditoria exhaustiva de traçabilitat · 2026-10-02
 
+> **Actualització 04/10/2026:** aquesta auditoria del 02/10 es conserva com a tall històric. L'estat vigent i la reconciliació posterior al PR #149 consten a [uc-015-reconciliacio-main-2026-10-04.md](uc-015-reconciliacio-main-2026-10-04.md). El PR #149 acredita els boundaries actuals amb **971 passed / 0 failed** i s'ha afegit un gate selectiu UC-015.
+
 ## 1. Abast i punt de tall
 
 Auditoria executada contra `main` a:

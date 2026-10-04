@@ -20,11 +20,57 @@
 
 No copiar correu, DNI/NIF, adreces, secrets Redsys, signatures ni payloads crus.
 
-## 2. Preflight
+## 2. Orquestrador canònic de preproducció
+
+El flux preferit és `verify-redsys-pack-preproduction.php`. Rebutja qualsevol entorn que no sigui `test` o `preproduction`.
+
+### Dry-run obligatori abans de mutar
+
+```bash
+php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER>
+```
+
+Aquest mode executa:
+- preflight PACK;
+- preflight de cua;
+- preview read-only;
+- validació de DS_ORDER, IDPAG, total i import de cobrament.
+
+Ha d'acabar amb `ok=true`, `mode=dry-run` i sense efectes fiscals/econòmics.
+
+### Execució controlada
+
+Només després del dry-run verd:
+
+```bash
+php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER> --execute
+```
+
+Si la prova ha d'acreditar també la projecció legacy:
+
+```bash
+php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER> --execute --sync-legacy
+```
+
+L'orquestrador valida, entre d'altres:
+- `preflight_pack_ok`;
+- `preflight_queue_ok`;
+- `preview_is_dry_run`;
+- `preview_payment_matches_total`;
+- identitat de factura i payment;
+- múltiples moviments d'atribució;
+- suma del ledger = total preview;
+- identitat de l'outbox;
+- `legacy_sync_executed` quan s'ha demanat `--sync-legacy`.
+
+## 3. Preflight manual — només diagnòstic
+
+Si l'orquestrador falla, es poden executar separadament:
 
 ```bash
 php sif/scripts/preflight-redsys-pack.php
 php sif/scripts/preflight-redsys-callback-queue.php
+php sif/scripts/preview-redsys-pack.php <DS_ORDER>
 ```
 
 Configuració esperada per preproducció:
@@ -32,40 +78,25 @@ Configuració esperada per preproducció:
 - `SIF_REDSYS_CALLBACK_URL` HTTPS;
 - API d'intenció/rols/secrets configurats.
 
-Resultat:
-- preflight PACK:
-- `redsys_payment_url_allowed=true`:
-- preflight cua:
+## 4. Execució del worker / diagnòstic manual
 
-## 3. Preview read-only
-
-```bash
-php sif/scripts/preview-redsys-pack.php <DS_ORDER>
-```
-
-Comprovar:
-- `SOURCE_TYPE=PACK`;
-- snapshot congelat;
-- import esperat;
-- N línies;
-- ordinal contigu;
-- receptor fiscal coherent.
-
-## 4. Execució
-
-Flux productiu preferit:
+Flux asíncron preferit:
 
 ```bash
 php sif/scripts/process-redsys-callback-queue.php --limit=25 --worker-id=uc015-preproduction
 ```
 
-Processor manual controlat, només si cal diagnosticar un DS_ORDER ja validat:
+Processor manual controlat, només per diagnosticar un `DS_ORDER` ja validat:
 
 ```bash
 php sif/scripts/process-redsys-pack.php <DS_ORDER> --sync-legacy
 ```
 
-## 5. Verificació automàtica post-execució
+Tant `preview-redsys-pack.php` com `process-redsys-pack.php` rebutgen `SIF_ENV=production`.
+
+## 5. Verificació persistent post-execució
+
+Després de l'execució, comprovar l'estat persistit:
 
 ```bash
 php sif/scripts/verify-redsys-pack-evidence.php <DS_ORDER>
@@ -140,13 +171,21 @@ Exigir:
 - `PACK_ORDINAL` contigu;
 - factura i ledger segueixen el mateix ordinal.
 
-## 7. Outbox
+## 7. Outbox i delivery
 
-Per UC-015 és suficient acreditar l'**enqueue idempotent**.
+Per UC-015 cal distingir tres nivells:
 
-- `PENDING`: vàlid per UC-015, lliurament pendent UC-58.
-- `SENT`: només marcar enviat si UC-58 té evidència del transport.
-- no considerar l'existència de la fila com a prova d'enviament.
+1. **enqueue PACK** — implementat per `PackPaymentNotificationService`;
+2. **gate de delivery** — implementat per `NotificationOutboxDeliveryService::claim/complete`;
+3. **transport/worker SMTP real** — pendent d'acreditació/cutover.
+
+Interpretació:
+- `PENDING`: enqueue correcte; encara no prova enviament;
+- `SENDING`: hi ha un claim actiu; si queda ambigu, el servei exigeix revisió i no reintenta a cegues;
+- `SENT`: només és prova de lliurament si existeix també l'intent/provider ref corresponent;
+- `FAILED`: requereix revisió; no s'ha de marcar UC-015 runtime com complet si l'acceptació inclou notificació efectiva.
+
+No considerar mai l'existència de la fila outbox com a prova d'enviament.
 
 ## 8. Evidències a conservar
 
@@ -168,7 +207,9 @@ Per UC-015 és suficient acreditar l'**enqueue idempotent**.
 - [ ] verificador post-execució `ok=true`
 - [x] callbacks fiscals PACK legacy de producció retirats físicament
 - [x] ordre comercial v1 documentat: `DATAI, ID_CURS` → `PACK_ORDINAL`
-- [ ] estat UC-58 separat de l'enqueue UC-015
+- [ ] enqueue PACK acreditat
+- [ ] gate `claim/complete` disponible
+- [ ] transport/cutover SMTP separat i acreditat si forma part del go-live
 - [ ] cap dada sensible ni secret a l'evidència
 
 **Acceptació UC-015 en preproducció:** SÍ / NO
