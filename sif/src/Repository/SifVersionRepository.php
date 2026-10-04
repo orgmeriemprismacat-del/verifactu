@@ -142,6 +142,20 @@ final class SifVersionRepository
         )->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    public function state(\PDO $db): ?array
+    {
+        $stmt = $db->query('SELECT * FROM sif_version_state WHERE ID = 1');
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    public function activeRows(\PDO $db): array
+    {
+        return $db->query(
+            "SELECT * FROM sif_version WHERE STATUS = 'ACTIVE' ORDER BY ACTIVATED_AT DESC, ID DESC"
+        )->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
     public function lockState(\PDO $db): array
     {
         $stmt = $db->query('SELECT * FROM sif_version_state WHERE ID = 1 FOR UPDATE');
