@@ -46,9 +46,14 @@ final class InvoiceDocumentAccessService
             throw SifException::unavailable('Document is not available');
         }
 
+        $storageRef = trim((string) ($document['STORAGE_REF'] ?? ''));
+        $storedPath = $storageRef !== ''
+            ? $storageRef
+            : (string) $document['PATH_FITXER'];
+
         try {
             $bytes = $this->store->readVerified(
-                (string) $document['PATH_FITXER'],
+                $storedPath,
                 (string) $document['HASH_FITXER']
             );
         } catch (\Throwable $exception) {
@@ -72,6 +77,7 @@ final class InvoiceDocumentAccessService
                 'type' => strtoupper((string) $document['TIPUS']),
                 'hash' => strtolower((string) $document['HASH_FITXER']),
                 'status' => $status,
+                'private_storage' => $storageRef !== '',
             ],
             'bytes' => $bytes,
         ];
