@@ -1,10 +1,11 @@
 # UC-004 · Inventari d'artefactes, diagrames i codi
 
-**Data de tall:** 2026-09-29  
-**Branca:** `docs/auditoria-uc-004-2026-09-29`
+**Data de tall actualitzada:** 2026-10-04  
+**Branca reconciliada:** `audit/uc-004-reconciliacio-2026-10-04`  
+**Base:** `main@04a4847037735df3892008a62b108ebe77c98941`
 
 Aquest inventari respon una pregunta concreta: **tenim totes les fitxes, tots els tipus de diagrama i el codi necessari per considerar UC-004 tancat?**  
-Resposta: **la cobertura documental ja és completa; el nucli SIF és parcialment complet; la integració real de la pantalla encara no.**
+Resposta: **sí, tenim totes les peces documentals demanades i el codi principal del flux segur. El bridge pantalla→SIF, HMAC/anti-replay/rol, preview/confirm, idempotència, coverage UC-004 i auditoria transaccional existeixen. En aquesta branca es retira el mutador llegat. Continuen pendents `aeat_fields` oficials per PREPROD/PROD, document SIF per UUID, classificació transversal i E2E/preproducció.**
 
 ## 1. Artefactes documentals
 
@@ -18,6 +19,7 @@ Resposta: **la cobertura documental ja és completa; el nucli SIF és parcialmen
 | Diagrames d'activitat | `uc-004-activitats-actual-final.md` | **CREAT · 14 diagrames** |
 | Traçabilitat/mancances | `uc-004-auditoria-tracabilitat-mancances.md` | **CREAT** |
 | Inventari mestre UC-004 | aquest fitxer | **CREAT** |
+| Acta de tancament 2026-10-04 | `uc-004-tancament-auditoria-2026-10-04.md` | **CREADA** |
 
 ### Cobertura d'activitats
 
@@ -40,7 +42,7 @@ No cal crear més diagrames només per duplicar informació. Un nou fitxer nomé
 | Permisos UI | `codi-drive/intranet-actual/js/general.js` | EXISTEIX |
 | Càrrega main | `codi-drive/intranet-actual/ajax/mostrarMain.php` | EXISTEIX |
 | Cerca inscripcions | `ajax/alumnes/mostrarInformacioInscripcio_generaFactura.php` | EXISTEIX |
-| Emissió llegada | `ajax/alumnes/generaFacturaElectronica_Factures.php` | EXISTEIX |
+| Emissió llegada | `ajax/alumnes/generaFacturaElectronica_Factures.php` | **RETIRADA EN AQUESTA BRANCA · 410 Gone abans de dependències** |
 | Dades factura | `ajax/alumnes/mostraDadesFacturaElectronica_Factures.php` | EXISTEIX |
 | Inscripcions factura | `ajax/alumnes/mostraInscripcionsFacturaElectronica_Factures.php` | EXISTEIX |
 | Preview | `ajax/alumnes/mostraPrevFactura_Factures.php` | EXISTEIX |
@@ -58,7 +60,17 @@ No cal crear més diagrames només per duplicar informació. Un nou fitxer nomé
 | Validador factura | `sif/src/Service/InvoicePayloadValidator.php` | EXISTEIX |
 | Idempotència payload | `sif/src/Service/PayloadIdempotencyValidator.php` | EXISTEIX |
 | Repositori factura | `sif/src/Repository/InvoiceRepository.php` | EXISTEIX |
-| Repositori cobertura UC-004 | `sif/src/Repository/InvoiceBeforePaymentCoverageRepository.php` | **CREAT EN AQUESTA BRANCA** |
+| Repositori cobertura UC-004 | `sif/src/Repository/InvoiceBeforePaymentCoverageRepository.php` | EXISTEIX |
+| Loader selecció | `sif/src/Repository/InvoiceBeforePaymentSelectionRepository.php` | EXISTEIX |
+| Resolver receptor | `sif/src/Repository/InvoiceBeforePaymentBillingPartyRepository.php` | EXISTEIX |
+| Preparació servidor | `sif/src/Service/InvoiceBeforePaymentLegacyPreparationService.php` | EXISTEIX |
+| Assembler servidor | `sif/src/Service/InvoiceBeforePaymentServerPayloadAssembler.php` | EXISTEIX |
+| Command preview/confirm | `sif/src/Service/InvoiceBeforePaymentCommandService.php` | EXISTEIX |
+| Autenticació API interna | `sif/src/Service/InternalApiAuthenticator.php` | EXISTEIX |
+| Autorització UC-004 | `sif/src/Service/InternalInvoiceBeforePaymentScopeResolver.php` | EXISTEIX |
+| Anti-replay requests | `sif/src/Repository/InternalApiRequestRepository.php` | EXISTEIX |
+| Endpoint HTTP específic | `sif/public/api/factures/before-payment.php` | EXISTEIX |
+| Auditoria operacional | `OperationalEventRepository` + `SifAuditEventRepository` via `InvoiceService` | **EXISTEIX AL MAIN · ATÒMIC** |
 | Seqüència fiscal | `sif/src/Repository/FiscalSequenceRepository.php` | EXISTEIX |
 | Preview CLI | `sif/scripts/preview-invoice-before-payment.php` | EXISTEIX |
 | Preflight CLI | `sif/scripts/preflight-invoice-before-payment.php` | EXISTEIX |
@@ -108,38 +120,54 @@ No s'ha aplicat una UNIQUE global sobre `fact_rels`, perquè podria interferir a
 - dues claus diferents sobre la mateixa inscripció → 409;
 - verificació que el segon intent no deixa una segona factura, registre, cua o relació.
 
-## 5. Codi que ENCARA falta
+## 5. Codi / evidència que ENCARA falta després del tall 2026-10-04
+
+**Nou bloqueig P0 detectat:** el `InvoiceService` compartit exigeix `aeat_fields` en PREPROD/PROD i l'assembler UC-004 encara no els construeix.
 
 | ID | Peça necessària | Estat |
 | --- | --- | --- |
-| C-01 | Adaptador/controlador de la pantalla real cap a UC-004 SIF | **FALTA** |
-| C-02 | Autorització d'emissió al backend mutador | **FALTA** |
-| C-03 | Protecció CSRF o contracte equivalent de command autenticat | **FALTA PATRÓ GLOBAL** |
+| C-01 | Bridge de la pantalla intranet real cap a l'endpoint UC-004 SIF | **IMPLEMENTAT AL MAIN** · JS + proxy + client HMAC |
+| C-02 | Autorització d'emissió al backend SIF | **IMPLEMENTADA AL MAIN** · HMAC + actor + rols |
+| C-03 | Contracte autenticat / anti-replay servidor-servidor | **IMPLEMENTAT AL MAIN** · timestamp + request UUID + HMAC + claim |
+| C-03b | Protecció de la pantalla intranet abans de signar/enviar el command | **IMPLEMENTADA AL MAIN** · sessió/rol vigent + CSRF |
 | C-04 | Loader servidor per IDs d'inscripció i deduplicació contra BD llegada | **IMPLEMENTAT A LA BRANCA** · `InvoiceBeforePaymentSelectionRepository` |
 | C-04b | Classificador de cobertura transversal entre canals/pagadors | **FALTA; el guard actual és només UC-004** |
+| C-04c | Assembler `aeat_fields` oficial UC-004 per PREPROD/PROD | **FALTA · BLOQUEIG P0** |
 | C-05 | Resolver de receptor per ID intern i snapshot fiscal | **IMPLEMENTAT A LA BRANCA** · `InvoiceBeforePaymentBillingPartyRepository` |
 | C-06 | Recalculador servidor de línies i total autoritatiu | **IMPLEMENTAT PARCIALMENT A LA BRANCA** · `InvoiceBeforePaymentServerPayloadAssembler`; usa `A_PAGAR` i IVA exempt del contracte vigent, però el classificador comercial/fiscal transversal de descomptes continua pendent |
-| C-07 | Preview servidor amb fingerprint/versió abans de confirmar | **IMPLEMENTAT A LA BRANCA EN CLI** · `InvoiceBeforePaymentLegacyPreparationService` + `preview/process-invoice-before-payment-from-legacy.php`; pendent connexió UI |
-| C-08 | Registre `operational_event` / auditoria dins del flux UC-004 | **FALTA INTEGRAR** |
-| C-09 | Sincronització llegada idempotent després del COMMIT SIF | **FALTA / CAL DECIDIR** |
-| C-10 | Document PDF/QR per UUID/snapshot i estat READY/PENDING/ERROR | **FALTA INTEGRAR** |
-| C-11 | Endpoint HTTP UC-004 segur | **NO CREAT expressament** fins tenir autenticació/CSRF servidor; el flux executable actual és CLI no productiu |
+| C-07 | Preview servidor amb fingerprint/versió abans de confirmar | **IMPLEMENTAT EN CLI + HTTP + UI** · en aquesta branca comprova també coverage UC-004 abans de retornar preview |
+| C-08 | Registre `operational_event` / auditoria dins del flux UC-004 | **IMPLEMENTAT EN AQUESTA BRANCA dins la mateixa transacció** |
+| C-09 | Compatibilitat llegada post-COMMIT | **DECIDIT:** no crear factura shadow ni sentinel a `FACTURA_RELACIONADA`; adaptar lectures a SIF/read-model. Projeccions futures només no fiscals, idempotents i recuperables |
+| C-10 | Document PDF/QR/XML per UUID/snapshot i estat READY/PENDING/ERROR | **FALTA AL MAIN UC-004** · job/worker/snapshot/storage/renderer |
+| C-11 | Endpoint HTTP UC-004 segur | **IMPLEMENTAT AL MAIN** · `public/api/factures/before-payment.php` |
 | C-12 | E2E pantalla → SIF → document → cobrament posterior | **FALTA PROVA** |
 | C-13 | Validar backfill de cobertura UC-004 en dades de preproducció i resoldre duplicats històrics, si n'hi ha | **FALTA EXECUCIÓ** |
 
-## 6. Per què no s'ha creat encara l'endpoint HTTP UC-004
+## 6. Contracte HTTP UC-004 existent
 
-El repositori SIF conté endpoints JSON funcionals, però en la revisió actual no s'ha localitzat un patró complet d'autenticació/autorització/CSRF reutilitzable per a una ordre fiscal de la intranet.
+El `main` actual ja conté `public/api/factures/before-payment.php`.
 
-Crear ara `public/api/factures/before-payment.php` sense aquest contracte ampliaria la superfície d'escriptura abans de poder demostrar qui pot invocar-la. El codi de domini i la restricció de BD sí es poden reforçar ara; l'endpoint ha de néixer ja protegit.
+La frontera és servidor-servidor, no browser-direct:
+
+- HMAC SHA-256 sobre mètode, path, timestamp, request UUID, actor, rols i hash del cos exacte;
+- tolerància temporal configurable;
+- `request_id` únic persistit a `internal_api_request` per evitar replay;
+- actor i rols signats;
+- `InternalInvoiceBeforePaymentScopeResolver` exigeix rol d'escriptura;
+- `preview` no emet i retorna fingerprint;
+- `confirm` rellegeix les dues BDs i exigeix el fingerprint esperat;
+- no accepta `created_by` des del JSON de negoci;
+- no registra cap pagament inicial.
+
+**Implementat al `main`:** `alumnes-genera-factura-abans-pagar.js` consumeix `sifFacturaAbansPagar.php`; `SifInvoiceBeforePaymentAccess` valida sessió/permís/CSRF i `SifInternalApiClient` signa la petició interna. En aquesta branca, el mutador llegat queda explícitament retirat amb `410 Gone`.
 
 ## 7. Estat global
 
 **Documentació:** COMPLETA per a l'auditoria UC-004.  
 **Diagrames exigits:** COMPLETS.  
 **Codi llegat:** LOCALITZAT.  
-**Nucli SIF UC-004:** IMPLEMENTAT PARCIALMENT i reforçat en aquesta branca, inclosa preparació autoritativa des de les dues BDs llegades.  
-**Integració real:** PENDENT.  
+**Backend SIF UC-004:** IMPLEMENTAT per autenticació interna, preview/confirmació, preparació autoritativa, emissió i cobertura; aquesta branca afegeix auditoria operacional atòmica.  
+**Integració de la pantalla real:** **IMPLEMENTADA AL CODI VERSIONAT · preview amb coverage inclòs en aquesta branca · PENDENT `aeat_fields` PREPROD/PROD + E2E/PREPRODUCCIÓ.**  
 **Tests al repositori:** DEFINITS/AMPLIATS.  
-**Tests executats:** PENDENT d'evidència.  
+**Tests executats:** PR #70 va tenir tots els checks rellevants verds; PR #134 va tenir el check específic UC-004 verd però checks globals vermells. **La punta 04/10 necessita el seu propi rerun CI.**  
 **Producció:** NO MODIFICADA / NO VERIFICADA.
