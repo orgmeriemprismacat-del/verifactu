@@ -51,6 +51,7 @@ final class SifDeclarationRepository
             'document_hash' => $documentHash,
             'storage_key' => $storageKey,
             'approved_by' => $approvedBy,
+            'reason_code' => strtoupper(trim((string) ($input['reason_code'] ?? ''))),
         ];
 
         $existing = $this->findByIdempotencyKey($db, $idempotencyKey);
@@ -96,6 +97,23 @@ final class SifDeclarationRepository
             'reused' => false,
             'declaration' => $this->findByUuid($db, $uuid) ?? throw new \RuntimeException('Created declaration not found'),
         ];
+    }
+
+    public function assertReplay(array $existing, array $input): void
+    {
+        $payload = [
+            'uuid_version' => strtolower(trim((string) ($input['uuid_version'] ?? ''))),
+            'declaration_version' => trim((string) ($input['declaration_version'] ?? '')),
+            'document_hash' => strtolower((string) ($existing['DOCUMENT_HASH'] ?? '')),
+            'storage_key' => trim((string) ($input['storage_key'] ?? '')),
+            'approved_by' => trim((string) ($input['approved_by'] ?? '')),
+            'reason_code' => strtoupper(trim((string) ($input['reason_code'] ?? ''))),
+        ];
+
+        $this->idempotency->assertMatches(
+            $payload,
+            (string) ($existing['IDEMPOTENCY_PAYLOAD_HASH'] ?? '')
+        );
     }
 
     public function findLatestApprovedByVersion(\PDO $db, string $uuidVersion, bool $forUpdate = false): ?array
