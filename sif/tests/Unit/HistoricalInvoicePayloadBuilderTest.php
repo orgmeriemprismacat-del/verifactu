@@ -70,6 +70,27 @@ final class HistoricalInvoicePayloadBuilderTest
         }, 422);
     }
 
+    public function testRejectsPersistenceKeysThatExceedSchemaLimits(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'idempotency_key' => str_repeat('X', 101),
+            ]));
+        }, 422);
+
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'created_by' => str_repeat('U', 81),
+            ]));
+        }, 422);
+
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'num_visible' => 'A2024/' . str_repeat('9', 25),
+            ]));
+        }, 422);
+    }
+
     public function testRejectsVisibleNumberComponentMismatch(): void
     {
         Assert::throws(SifException::class, function (): void {
