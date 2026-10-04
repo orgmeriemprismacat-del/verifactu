@@ -21,9 +21,11 @@ final class ClaimPaymentInvoiceLinkRepositoryTest
         );
         $repository = new ClaimPaymentInvoiceLinkRepository();
 
+        $resolved = $repository->resolveUniqueOriginForInscription($db, 10);
         $byUuid = $repository->assertUuidMatches($db, $invoice['uuid_factura'], 10);
         $byNumber = $repository->assertNumVisibleMatches($db, $invoice['num_visible'], 10);
 
+        Assert::same($invoice['uuid_factura'], $resolved['UUID_FACTURA']);
         Assert::same($invoice['uuid_factura'], $byUuid['UUID_FACTURA']);
         Assert::same($invoice['uuid_factura'], $byNumber['UUID_FACTURA']);
     }
