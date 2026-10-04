@@ -72,21 +72,6 @@ try {
         return;
     }
 
-    $uuidFactura = trim((string) ($_POST['uuidFactura'] ?? ''));
-    $numVisible = trim((string) ($_POST['numVisible'] ?? ''));
-    if (($uuidFactura === '') === ($numVisible === '')) {
-        throw new RuntimeException('Cal indicar exactament una factura SIF.', 422);
-    }
-    if (
-        $uuidFactura !== ''
-        && preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/D', $uuidFactura) !== 1
-    ) {
-        throw new RuntimeException('UUID de factura no vàlid.', 422);
-    }
-    if ($numVisible !== '' && (strlen($numVisible) > 30 || preg_match('/^[A-Za-z0-9._\/-]+$/D', $numVisible) !== 1)) {
-        throw new RuntimeException('Número de factura no vàlid.', 422);
-    }
-
     $externalReceiptId = claimPaymentIdentifier(
         $_POST['externalReceiptId'] ?? null,
         'Referència externa de cobrament no vàlida.'
@@ -144,27 +129,14 @@ try {
         $payment['notes'] = $notes;
     }
 
-    if ($uuidFactura !== '') {
-        $response = $client->registerByUuid(
-            $actorId,
-            $actorRoles,
-            $idInsc,
-            $claimCaseId,
-            $externalReceiptId,
-            $uuidFactura,
-            $payment
-        );
-    } else {
-        $response = $client->registerByNumVisible(
-            $actorId,
-            $actorRoles,
-            $idInsc,
-            $claimCaseId,
-            $externalReceiptId,
-            $numVisible,
-            $payment
-        );
-    }
+    $response = $client->registerByInscription(
+        $actorId,
+        $actorRoles,
+        $idInsc,
+        $claimCaseId,
+        $externalReceiptId,
+        $payment
+    );
 
     $sifStatus = (int) ($response['_http_status'] ?? 0);
     if (
