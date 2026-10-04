@@ -130,6 +130,12 @@ class InvoiceBeforePaymentCoverageRepository {
   +findClaims(db,relations,forUpdate) array
   +lockOriginInvoiceRelations(db,relations) array
 }
+class invoice_origin_guard {
+  <<table mutex operacional>>
+  SOURCE_TYPE
+  SOURCE_ID
+  UPDATED_AT
+}
 class RedsysPackInvoiceService {
   <<EXISTENT PACK>>
 }
@@ -180,6 +186,7 @@ RedsysCourseInvoiceService --> InvoiceService
 RedsysCourseInvoiceService --> RedsysCoveredInvoicePaymentService
 RedsysCoveredInvoicePaymentService --> PaymentService
 RedsysCoveredInvoicePaymentService --> InvoiceBeforePaymentCoverageRepository
+InvoiceBeforePaymentCoverageRepository --> invoice_origin_guard : UPSERT + row lock
 InvoiceService --> InvoiceBeforePaymentCoverageRepository : guard Redsys/UC-004
 RedsysPackInvoiceService --> InvoiceService
 RedsysGroupInvoiceService --> InvoiceService
@@ -239,6 +246,22 @@ class payment_allocation {
   UUID_PAYMENT
   UUID_FACTURA
 }
+class invoice_origin_guard {
+  SOURCE_TYPE
+  SOURCE_ID
+}
+class invoice_before_payment_coverage {
+  SOURCE_TYPE
+  SOURCE_ID
+  UUID_FACTURA
+  IDEMPOTENCY_KEY
+}
+class fact_rels {
+  SOURCE_TYPE
+  SOURCE_ID
+  UUID_FACTURA
+  RELATION_TYPE
+}
 class enrollment_fund_movement {
   UUID_PAYMENT
   UUID_FACTURA
@@ -257,6 +280,9 @@ redsys_callback_queue --> factura : UUID_FACTURA
 redsys_callback_queue --> payment_transaction : UUID_PAYMENT
 payment_transaction --> payment_allocation
 factura --> payment_allocation
+invoice_origin_guard --> invoice_before_payment_coverage : mateix origen serialitzat
+invoice_before_payment_coverage --> factura : factura UC-004 coberta
+fact_rels --> factura : ORIGIN
 payment_transaction --> enrollment_fund_movement : CURS/PACK
 factura --> enrollment_fund_movement : CURS/PACK
 redsys_callback_queue --> errors_verifactu : error funcional/exhaurit
