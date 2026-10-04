@@ -51,16 +51,17 @@ classDiagram
 
 | Component | Estat |
 | --- | --- |
-| Wizard web regal | IMPLEMENTAT LLEGAT |
-| Adapter web -> SIF | PENDENT |
-| Intenció Redsys | CORE DISPONIBLE, INTEGRACIÓ UC-017 PENDENT |
+| Wizard web regal | ACTUAL llegat + hardening candidat de reserva/preview |
+| Adapter web/pay-prisma -> SIF | IMPLEMENTAT EN CANDIDATA |
+| Intenció Redsys REGAL | IMPLEMENTADA EN CANDIDATA |
 | `RedsysGiftInvoiceService` | IMPLEMENTAT |
 | `LegacyGiftSnapshotRepository` | IMPLEMENTAT |
-| `LegacyGiftInvoicePayloadBuilder` | IMPLEMENTAT |
+| `LegacyGiftInvoicePayloadBuilder` | IMPLEMENTAT + AEAT fail-closed |
 | `GiftEntitlementIssuerService` | IMPLEMENTAT |
-| Outbox compra regal | PENDENT |
-| Sync posterior llegat | PARCIAL/PENDENT |
-| Callback llegat | ACTIU EN CÒPIA, A RETIRAR |
+| Outbox compra regal | IMPLEMENTAT EN CAMÍ SIF |
+| Sync posterior llegat | IMPLEMENTAT POST-SIF |
+| Callback llegat | ACTIU NOMÉS A CÒPIA/ROLLBACK; 410 DESPRÉS CUTOVER+DRAIN |
+| Preproducció | PENDENT D'EXECUCIÓ/EVIDÈNCIA |
 
 
 ## Implementació FINAL reconciliada — 2026-10-03
