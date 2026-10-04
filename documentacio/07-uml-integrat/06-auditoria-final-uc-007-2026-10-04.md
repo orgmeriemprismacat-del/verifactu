@@ -150,8 +150,8 @@ S'elimina `SIF_INVOICE_QUERY_UI_ENABLED` buit. Els flags efectius són `SIF_UC00
 Els JS canònics definien `path = "https://intranet.prisma.cat/ajax/"` i les pàgines carregaven els assets UC-007 amb URL absoluta de producció. En `intranet-pre.prisma.cat` això podia enviar consultes cap a producció o carregar una versió de JS diferent de la desplegada a preproducció.
 
 **Correcció:** els dos JS usen `window.location.origin + "/ajax/"` i les pàgines carreguen els assets UC-007 amb rutes root-relative:
-- `/js/alumnes-factura.js?ver=1.3`;
-- `/js/alumnes-mostrar-alumne.js?ver=1.9`.
+- `/js/alumnes-factura.js?ver=1.4`;
+- `/js/alumnes-mostrar-alumne.js?ver=2.0`.
 
 La prova de frontera rebutja tornar a introduir `https://intranet.prisma.cat/ajax/` dins dels JS UC-007.
 
@@ -275,7 +275,7 @@ El head final necessita una nova evidència CI abans del tancament.
 - HMAC/secrets;
 - AL-16/17/18 navegador;
 - una i múltiples factures per inscripció;
-- cache-busting assets 1.3/1.9;
+- cache-busting assets 1.4/2.0;
 - document real READY/CREATED;
 - fitxer absent/hash incorrecte/path/permissions reals;
 - audit `fiscal_document_access`;
