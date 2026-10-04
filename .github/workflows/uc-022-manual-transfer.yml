@@ -1,0 +1,84 @@
+name: UC-022 manual transfer verification
+
+on:
+  pull_request:
+    paths:
+      - 'sif/src/Service/ManualPaymentService.php'
+      - 'sif/src/Service/ManualPaymentPayloadBuilder.php'
+      - 'sif/src/Service/ManualTransferCommandService.php'
+      - 'sif/public/api/payments/manual-transfer.php'
+      - 'sif/tests/Integration/ManualPaymentServiceTest.php'
+      - 'sif/tests/Integration/ManualTransferCommandServiceTest.php'
+      - 'sif/tests/Unit/ManualPaymentPayloadBuilderTest.php'
+      - 'sif/tests/Unit/GeneratedInvoiceLegacyPaymentSyncServiceTest.php'
+      - 'sif/tests/Integration/ManualTransferAuditedFlowTest.php'
+      - 'sif/tests/Integration/ManualTransferHttpEndpointTest.php'
+      - 'sif/tests/Integration/ManualTransferIntranetAdapterTest.php'
+      - 'sif/tests/Integration/ManualTransferNotificationServiceTest.php'
+      - 'sif/tests/Integration/ManualTransferPreproductionPreflightTest.php'
+      - 'sif/tests/Integration/ManualTransferIntranetPreflightTest.php'
+      - 'sif/scripts/preflight-uc022-manual-transfer.php'
+      - 'sif/scripts/verify-uc022-preproduction.php'
+      - 'codi-drive/intranet-nova-canvis-verifactu/**'
+      - 'sif/tests/run-uc022-tests.php'
+      - '.github/workflows/uc-022-manual-transfer.yml'
+  workflow_dispatch:
+
+jobs:
+  uc022:
+    runs-on: ubuntu-24.04
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_test;charset=utf8mb4
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, openssl, mbstring
+
+      - name: PHP syntax UC-022
+        run: |
+          php -l sif/src/Service/ManualPaymentPayloadBuilder.php
+          php -l sif/src/Service/ManualTransferCommandService.php
+          php -l sif/public/api/payments/manual-transfer.php
+          php -l sif/tests/Integration/ManualPaymentServiceTest.php
+          php -l sif/tests/Integration/ManualTransferCommandServiceTest.php
+          php -l sif/tests/Unit/ManualPaymentPayloadBuilderTest.php
+          php -l sif/tests/Unit/GeneratedInvoiceLegacyPaymentSyncServiceTest.php
+          php -l sif/tests/Integration/ManualTransferAuditedFlowTest.php
+          php -l sif/tests/Integration/ManualTransferHttpEndpointTest.php
+          php -l sif/tests/Integration/ManualTransferIntranetAdapterTest.php
+          php -l sif/tests/Integration/ManualTransferNotificationServiceTest.php
+          php -l sif/tests/Integration/ManualTransferPreproductionPreflightTest.php
+          php -l sif/tests/Integration/ManualTransferIntranetPreflightTest.php
+          php -l sif/scripts/preflight-uc022-manual-transfer.php
+          php -l sif/scripts/verify-uc022-preproduction.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/SifPaymentSessionGuard.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/SifInternalApiClient.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/SifManualTransferGateway.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/obtenirTokenPagamentSif.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/registrarTransferenciaSif.php
+          php -l codi-drive/intranet-nova-canvis-verifactu/scripts/preflight-uc022-intranet.php
+          php -l sif/tests/run-uc022-tests.php
+
+      - name: Run UC-022 tests
+        run: php sif/tests/run-uc022-tests.php
