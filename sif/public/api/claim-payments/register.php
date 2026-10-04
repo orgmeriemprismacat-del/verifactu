@@ -14,6 +14,7 @@ use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentActionEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Service\ClaimPaymentBalanceGuard;
 use Prisma\Sif\Service\ClaimPaymentPayloadBuilder;
 use Prisma\Sif\Service\ClaimPaymentReceiptResolver;
 use Prisma\Sif\Service\ClaimPaymentService;
@@ -157,6 +158,7 @@ try {
     $receiptResolver = new ClaimPaymentReceiptResolver(
         new ClaimPaymentExternalReceiptRepository()
     );
+    $balanceGuard = new ClaimPaymentBalanceGuard();
 
     $result = $gateway->run(
         $auditContext,
@@ -164,6 +166,7 @@ try {
             $claimService,
             $invoiceLinks,
             $receiptResolver,
+            $balanceGuard,
             $sourceInscriptionId,
             $uuidFactura,
             $numVisible,
@@ -195,7 +198,8 @@ try {
                 $transactionDb,
                 $externalReceiptType,
                 $externalReceiptId,
-                $targetUuid
+                $targetUuid,
+                (string) ($paymentInput['amount'] ?? '')
             );
             if ($existing !== null) {
                 $existing['num_visible'] = (string) $resolved['NUM_VISIBLE'];
@@ -203,12 +207,20 @@ try {
             }
 
             $receiptResolver->assertMayCreateNew($externalReceiptType);
+            $outstandingBefore = $balanceGuard->assertMayCharge(
+                $transactionDb,
+                $targetUuid,
+                (string) ($paymentInput['amount'] ?? '')
+            );
 
-            return $claimService->registerByUuidInTransaction(
+            $created = $claimService->registerByUuidInTransaction(
                 $transactionDb,
                 $targetUuid,
                 $paymentInput
             );
+            $created['outstanding_before'] = $outstandingBefore;
+
+            return $created;
         }
     );
 
