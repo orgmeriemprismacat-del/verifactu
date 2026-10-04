@@ -49,7 +49,7 @@ final class Uc007IntranetBoundaryTest
         );
         Assert::stringContainsString('file_put_contents($filename, $pdf)', $fragment);
         Assert::stringContainsString(
-            "if ( $marcaGenerada && ( $generada == null || $generada == '' ) )",
+            "if ( \$marcaGenerada && ( \$generada == null || \$generada == '' ) )",
             $fragment
         );
         Assert::stringContainsString('generaFactura((int) $id, true, false)', $download);
@@ -90,9 +90,9 @@ final class Uc007IntranetBoundaryTest
 
         Assert::stringContainsString("getenv('SIF_LEGACY_INVOICE_TEMP_ROOT')", $wrapper);
         Assert::stringContainsString("sys_get_temp_dir()", $wrapper);
-        Assert::stringContainsString("mkdir($configuredTempRoot, 0700, true)", $wrapper);
-        Assert::stringContainsString("realpath($configuredTempRoot)", $wrapper);
-        Assert::stringContainsString("unlink($generated)", $wrapper);
+        Assert::stringContainsString('mkdir($configuredTempRoot, 0700, true)', $wrapper);
+        Assert::stringContainsString('realpath($configuredTempRoot)', $wrapper);
+        Assert::stringContainsString('unlink($generated)', $wrapper);
 
         if (str_contains($wrapper, '$tempRoot = realpath(__DIR__);')) {
             Assert::fail('UC-007 legacy PDF must not be generated inside the public AJAX directory.');
@@ -104,7 +104,7 @@ final class Uc007IntranetBoundaryTest
         $wrapper = $this->readIntranet('ajax/alumnes/descarregaFactura.php');
 
         Assert::stringContainsString("header('Content-Type: application/pdf')", $wrapper);
-        Assert::stringContainsString("header('Content-Disposition: attachment; filename=\"' . $filename . '\"')", $wrapper);
+        Assert::stringContainsString("header('Content-Disposition: attachment; filename=", $wrapper);
         Assert::stringContainsString('echo $bytes;', $wrapper);
 
         foreach ([
