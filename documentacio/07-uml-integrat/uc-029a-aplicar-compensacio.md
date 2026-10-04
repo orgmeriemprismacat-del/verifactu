@@ -2,7 +2,7 @@
 
 **Objectiu:** consumir un saldo existent per cobrir, totalment o parcialment, l'import pendent d'una factura SIF, amb un moviment `COMPENSATION`. No es crea una factura nova ni es fa cap transferència bancària. Relacions: UC-29 (saldo previ), UC-02 (comptabilització del moviment), UC-06 (decisió econòmica), UC-05 (rectificació si el servei facturat canvia).
 
-**Estat reconciliat 2026-10-03:** servei, repositoris i proves disponibles. La branca UC-006 afegeix comparació de payload en reús idempotent de compensació: mateixa K amb payload diferent dona conflicte. La titularitat creuada, un identificador d'ordre que permeti dues aplicacions legítimes de mateix import, el ledger de destí i la pantalla definitiva continuen pendents.
+**Estat reconciliat 2026-10-04:** servei, repositoris i proves ampliats. A més del hash de payload, `target_enrollment_id` permet registrar `COMPENSATION_ALLOCATION` amb `UUID_CREDIT`, payment, factura i línia en la mateixa transacció. Només es permet atribuir valor monetari a la inscripció si el crèdit està completament respaldat per `CREDIT_CREATE`. Titularitat creuada, identitat d'ordre per dues aplicacions iguals i UI continuen pendents.
 
 ## 1. Fitxa de cas d'ús
 
@@ -43,9 +43,9 @@
 
 **Proves existents, no executades aquí:** `CreditBalanceServiceTest::testAppliesCreditAsCompensationAndConsumesAvailableBalanceOnce`, `testAppliesFullCreditByVisibleInvoiceNumberAndMarksCreditUsed`, `testRejectsApplyingMoreThanAvailableCredit`, `testRejectsApplyingMoreThanInvoiceOutstandingAmount`.
 
-### 1.3. Revisió: el consum del crèdit ha de tenir destí d'inscripció — PENDENT
+### 1.3. Revisió: destí d'inscripció — IMPLEMENTAT PARCIALMENT
 
-`CreditBalanceService` consumeix saldo i registra `COMPENSATION` **a la factura** en una mateixa transacció, però no conserva una fila quantitativa per cadascuna de les inscripcions beneficiàries quan una factura cobreix diverses persones. UC-29a ha de registrar `CREDIT → INSCRIPCIÓ` per cada import aplicat, amb `UUID_CREDIT`, `UUID_PAYMENT` i l'assignació a factura relacionats. La suma de les atribucions no pot superar el saldo consumit; cap consum de saldo no és un ingrés bancari nou. Cal validar titularitat del crèdit i permís d'aplicar-lo a cada participant.
+`CreditBalanceService` pot conservar una fila quantitativa per una inscripció beneficiària explícita mitjançant `target_enrollment_id`: valida la `factura_linia`, registra `COMPENSATION_ALLOCATION` i consumeix saldo en la mateixa transacció. UC-29a ha de registrar `CREDIT → INSCRIPCIÓ` per cada import aplicat, amb `UUID_CREDIT`, `UUID_PAYMENT` i l'assignació a factura relacionats. La suma de les atribucions no pot superar el saldo consumit; cap consum de saldo no és un ingrés bancari nou. Cal validar titularitat del crèdit i permís d'aplicar-lo a cada participant.
 
 [Model i reconciliació proposats](00-revisio-moviments-inscripcions.md).
 
@@ -313,4 +313,4 @@ Note over UI,S: Identificació per ordre i guard són disseny. El PHP actual nom
 
 [Fitxa original UC-29a](../06-fitxes-funcionals/uc-029a.md) · [UC-29 Crear saldo](uc-029-crear-saldo.md) · [UC-02 Pagament](uc-002-registrar-cobrament-factura.md) · [CreditBalanceService](../../sif/src/Service/CreditBalanceService.php) · [CreditBalancePayloadBuilder](../../sif/src/Service/CreditBalancePayloadBuilder.php) · [CreditBalanceRepository](../../sif/src/Repository/CreditBalanceRepository.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [CreditBalanceServiceTest](../../sif/tests/Integration/CreditBalanceServiceTest.php).
 
-**No acredita:** titularitat validada, control d'operacions legítimes repetides, validació fiscal de l'origen, permisos i prova final de la pantalla.
+**No acredita:** titularitat validada, repartiment multiinscripció automàtic, identitat d'ordres legítimes repetides, permisos ni prova final de pantalla. El ledger monetari rebutja crèdits sense `CREDIT_CREATE` de backing.
