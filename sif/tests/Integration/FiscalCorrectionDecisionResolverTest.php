@@ -8,6 +8,7 @@ use Prisma\Sif\Repository\FiscalCorrectionDecisionRepository;
 use Prisma\Sif\Repository\SifAuditEventRepository;
 use Prisma\Sif\Service\FiscalCorrectionDecisionGuard;
 use Prisma\Sif\Service\FiscalCorrectionDecisionResolver;
+use Prisma\Sif\Service\RectificationDecisionFingerprint;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\TestDatabase;
 
@@ -16,13 +17,14 @@ final class FiscalCorrectionDecisionResolverTest
     public function testResolvesPersistedApprovedUc74DecisionForSameInvoice(): void
     {
         $db = TestDatabase::fresh();
-        $eventUuid = $this->appendDecision($db, 'invoice-uc005');
+        $input = ['mode' => 'DIFERENCIES'];
+        $eventUuid = $this->appendDecision($db, 'invoice-uc005', $input);
 
         $resolved = $this->resolver()->resolve(
             $db,
             $eventUuid,
             'invoice-uc005',
-            ['mode' => 'DIFERENCIES']
+            $input
         );
 
         Assert::same('RECTIFICATION', $resolved['decision']);
@@ -35,7 +37,8 @@ final class FiscalCorrectionDecisionResolverTest
     public function testRejectsDecisionEventForDifferentInvoice(): void
     {
         $db = TestDatabase::fresh();
-        $eventUuid = $this->appendDecision($db, 'invoice-a');
+        $input = ['mode' => 'DIFERENCIES'];
+        $eventUuid = $this->appendDecision($db, 'invoice-a', $input);
 
         Assert::throws(SifException::class, function () use ($db, $eventUuid): void {
             $this->resolver()->resolve(
@@ -43,6 +46,28 @@ final class FiscalCorrectionDecisionResolverTest
                 $eventUuid,
                 'invoice-b',
                 ['mode' => 'DIFERENCIES']
+            );
+        }, 409);
+    }
+
+    public function testRejectsCorrectionDifferentFromPersistedUc74Decision(): void
+    {
+        $db = TestDatabase::fresh();
+        $classified = [
+            'mode' => 'DIFERENCIES',
+            'amount' => '-40.00',
+        ];
+        $eventUuid = $this->appendDecision($db, 'invoice-uc005', $classified);
+
+        Assert::throws(SifException::class, function () use ($db, $eventUuid): void {
+            $this->resolver()->resolve(
+                $db,
+                $eventUuid,
+                'invoice-uc005',
+                [
+                    'mode' => 'DIFERENCIES',
+                    'amount' => '-400.00',
+                ]
             );
         }, 409);
     }
@@ -65,6 +90,7 @@ final class FiscalCorrectionDecisionResolverTest
             'reason_code' => 'AMOUNT_DECREASE',
             'changeset' => [
                 'classification' => $this->classification(),
+                'correction_fingerprint' => (new RectificationDecisionFingerprint())->calculate($input),
             ],
         ]);
 
