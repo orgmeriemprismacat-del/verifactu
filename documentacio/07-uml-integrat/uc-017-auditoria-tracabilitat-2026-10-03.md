@@ -150,6 +150,11 @@ La previsualització transportava destinatari, origen i dedicatòria per query s
 
 Destinatari, origen, dedicatòria i estil arribaven a fragments HTML sense escaping explícit; en el fallback de PDF també hi havia HTML generat amb recursos remots. **RESOLTA EN CANDIDATA:** escaping per context, estil restringit/configurat i prova de regressió; el PDF públic prepagament continua desactivat quan hi ha cutover.
 
+### F-017-16 · Formulari de destinatari amb PII/preu per GET
+**Severitat:** ALTA.
+
+El pas anterior a la previsualització enviava destinatari, origen, dedicatòria, hores, preu i percentatge a `mostrar_formulari_afortunat_regal.php` mitjançant GET. **RESOLTA EN CANDIDATA:** l'endpoint només accepta POST+CSRF, rep únicament el codi de curs, recalcula preu/hores/descompte al servidor i el JS repobla els camps personals des de l'estat local.
+
 ## 6. Matriu documentat / implementat / verificat / pendent
 
 | Peça | Documentat | Implementat | Verificat | Pendent |
@@ -268,6 +273,7 @@ Aquesta secció és l'estat vigent de les troballes F-017-01..12 després del ha
 | F-017-13 Snapshot oficial AEAT absent al builder de regal | **RESOLTA EN CANDIDATA** | `GiftAeatInvoicePayloadEnricher`; builder fail-closed en PREPROD/PRODUCTION; configuració fiscal explícita; prova XSD | validar valors fiscals reals, configurar-los i conservar evidència d'alta oficial en preproducció |
 | F-017-14 Preview GET/PII | **RESOLTA EN CANDIDATA** | preview passa a POST, CSRF de sessió, no-store/no-referrer; el JS ja no posa dedicatòria/destinatari a URL | prova navegador/preproducció |
 | F-017-15 HTML preview/PDF | **RESOLTA EN CANDIDATA** | `htmlspecialchars`/`nl2br`, allowlist d'estils i PDF prepagament bloquejat amb cutover | verificar render visual i PDF final |
+| F-017-16 Formulari destinatari GET/PII/preu | **RESOLTA EN CANDIDATA** | `mostrar_formulari_afortunat_regal.php` POST+CSRF; request només `codi`; pricing rellegit server-side | prova navegador/preproducció |
 
 ### 10.1 Estat de tancament resultant
 
