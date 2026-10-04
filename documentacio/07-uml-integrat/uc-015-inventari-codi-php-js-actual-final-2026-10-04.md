@@ -226,7 +226,7 @@ La suite selectiva creada el 2026-10-04 és `sif/tests/run-uc015-tests.php` i qu
 
 Inclou boundaries d'alta pública, transport, idempotència, atomicitat, disponibilitat, ordre comercial, privacitat Redsys, checkout, callback legacy retirat, snapshot/builder, factura PACK, worker E2E, evidència/preproducció, intenció i guards compartits rellevants.
 
-El PR #149 va alinear cinc proves desfasades amb el codi actual. El seu HEAD `8871e15...` va executar la suite global amb **971 passed / 0 failed**.
+El PR #149 va alinear cinc proves desfasades i acredita el **baseline anterior al fix SEC-015-01** amb **971 passed / 0 failed**. El token v2, PK-A04b i les proves noves pertanyen al PR #171 i necessiten la seva pròpia CI.
 
 ## 14. Pendents reals
 
