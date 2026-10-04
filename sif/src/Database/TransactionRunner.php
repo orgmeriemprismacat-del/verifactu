@@ -10,15 +10,22 @@ final class TransactionRunner
 
     public function run(callable $callback): mixed
     {
-        $this->db->beginTransaction();
+        $ownsTransaction = !$this->db->inTransaction();
+
+        if ($ownsTransaction) {
+            $this->db->beginTransaction();
+        }
 
         try {
             $result = $callback($this->db);
-            $this->db->commit();
+
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
 
             return $result;
         } catch (\Throwable $exception) {
-            if ($this->db->inTransaction()) {
+            if ($ownsTransaction && $this->db->inTransaction()) {
                 $this->db->rollBack();
             }
 
