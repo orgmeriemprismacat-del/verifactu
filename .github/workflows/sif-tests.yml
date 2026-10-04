@@ -25,6 +25,8 @@ on:
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
       - "codi-drive/intranet-actual/SifInternalClaimPaymentClient.php"
+      - "codi-drive/intranet-actual/Intranet.php"
+      - "codi-drive/intranet-actual/js/claim-payment-sif.js"
       - "codi-drive/intranet-actual/ajax/facturacio/registerClaimPaymentSif.php"
       - "codi-drive/intranet-actual/facturacio-primera-reclamacio-pagament.php"
       - "codi-drive/intranet-actual/facturacio-recordatori-pagament-final.php"
@@ -63,6 +65,8 @@ on:
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
       - "codi-drive/intranet-actual/SifInternalClaimPaymentClient.php"
+      - "codi-drive/intranet-actual/Intranet.php"
+      - "codi-drive/intranet-actual/js/claim-payment-sif.js"
       - "codi-drive/intranet-actual/ajax/facturacio/registerClaimPaymentSif.php"
       - "codi-drive/intranet-actual/facturacio-primera-reclamacio-pagament.php"
       - "codi-drive/intranet-actual/facturacio-recordatori-pagament-final.php"
@@ -164,6 +168,8 @@ jobs:
           php -l codi-drive/intranet-actual/facturacio-recordatori-pagament-final.php
           php -l codi-drive/intranet-actual/facturacio-reclamacio-final.php
           php -l codi-drive/intranet-actual/facturacio-control-morosos.php
+          php -l codi-drive/intranet-actual/Intranet.php
+          node --check codi-drive/intranet-actual/js/claim-payment-sif.js
 
       - name: Executar suite SIF
         run: php sif/tests/run-tests.php
