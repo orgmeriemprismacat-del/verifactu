@@ -15,6 +15,9 @@ on:
       - 'sif/tests/Integration/ManualTransferHttpEndpointTest.php'
       - 'sif/tests/Integration/ManualTransferIntranetAdapterTest.php'
       - 'sif/tests/Integration/ManualTransferNotificationServiceTest.php'
+      - 'sif/tests/Integration/ManualTransferPreproductionPreflightTest.php'
+      - 'sif/scripts/preflight-uc022-manual-transfer.php'
+      - 'sif/scripts/verify-uc022-preproduction.php'
       - 'codi-drive/intranet-nova-canvis-verifactu/**'
       - 'sif/tests/run-uc022-tests.php'
       - '.github/workflows/uc-022-manual-transfer.yml'
@@ -64,6 +67,9 @@ jobs:
           php -l sif/tests/Integration/ManualTransferHttpEndpointTest.php
           php -l sif/tests/Integration/ManualTransferIntranetAdapterTest.php
           php -l sif/tests/Integration/ManualTransferNotificationServiceTest.php
+          php -l sif/tests/Integration/ManualTransferPreproductionPreflightTest.php
+          php -l sif/scripts/preflight-uc022-manual-transfer.php
+          php -l sif/scripts/verify-uc022-preproduction.php
           php -l codi-drive/intranet-nova-canvis-verifactu/SifPaymentSessionGuard.php
           php -l codi-drive/intranet-nova-canvis-verifactu/SifInternalApiClient.php
           php -l codi-drive/intranet-nova-canvis-verifactu/SifManualTransferGateway.php
