@@ -103,5 +103,6 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 - **Classificador UC-74:** PENDENT com a productor; consum de decisió persistida, R1-R5 i fingerprint de la correcció ja implementats.
 - **Proxy/panell intranet UC-005:** IMPLEMENTAT EN BRANCA (sessió, edit permission, same-origin, CSRF, HMAC, decisió UC-74 al read model, preview/confirm).
 - **Cua documental UC-005:** IMPLEMENTADA · `DocumentJobRepository` + tres jobs idempotents per R; worker/renderitzat pendent.
+- **Preflight:** `sif/scripts/preflight-rectification.php` IMPLEMENTAT · valida flags/rols/HMAC/emissor/SIF AEAT/esquema/cua documental sense mutacions.
 - **Proves definides:** SÍ, inclosa suite aïllada UC-005.
 - **Proves executades:** suite UC-005 verda 34/34 abans del resolver persistit; la nova passada amb `classification_event_uuid` està pendent. La suite global manté fallades alienes documentades.
