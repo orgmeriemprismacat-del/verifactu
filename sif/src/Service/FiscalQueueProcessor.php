@@ -49,18 +49,32 @@ final class FiscalQueueProcessor
         }
 
         $attemptUuid = null;
+        $attemptEvidenceId = null;
         if ($this->attempts !== null) {
             try {
-                $attemptUuid = $this->transactions->run(
-                    fn (\PDO $db): string => $this->attempts->begin($db, $item, $payload)
+                $attemptContext = $this->transactions->run(
+                    fn (\PDO $db): array => $this->attempts->begin($db, $item, $payload)
                 );
+                $attemptUuid = (string) ($attemptContext['uuid_attempt'] ?? '');
+                $attemptEvidenceId = (string) ($attemptContext['evidence_id'] ?? '');
+                if ($attemptUuid === '' || $attemptEvidenceId === '') {
+                    throw new \RuntimeException('AEAT attempt context is incomplete.');
+                }
             } catch (\Throwable $exception) {
                 return $this->failure($item, $exception);
             }
         }
 
+        $transportPayload = $payload;
+        if ($attemptUuid !== null && $attemptEvidenceId !== null) {
+            $transportPayload['_sif_submission_attempt'] = [
+                'uuid_attempt' => $attemptUuid,
+                'evidence_id' => $attemptEvidenceId,
+            ];
+        }
+
         try {
-            $transportResult = $this->transport->send($payload);
+            $transportResult = $this->transport->send($transportPayload);
         } catch (AeatDeliveryUncertainException $exception) {
             return $this->reviewHold($item, $attemptUuid, $exception, 'AEAT_DELIVERY_UNCERTAIN', true);
         } catch (\Throwable $exception) {
