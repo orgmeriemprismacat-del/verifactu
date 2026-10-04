@@ -49,8 +49,9 @@
 | `payment_transaction` | moviment econòmic | IMPLEMENTAT |
 | `payment_allocation` | imputació a factura | IMPLEMENTAT |
 | `factura.ESTAT_COBRAMENT` | estat agregat | IMPLEMENTAT |
-| `payment_action_event` | traça funcional | MODEL + REPOSITORI; WIRING GENÈRIC PENDENT |
-| `enrollment_fund_movement` | atribució per inscripció | MODEL + REPOSITORI; WIRING GENÈRIC PENDENT |
+| `payment_action_event` | traça funcional | **WIRED AL COMMAND UC-002**; low-level compatible fora |
+| `enrollment_fund_movement` | atribució econòmica per inscripció | MODEL + REPOSITORI; WIRING GENÈRIC PARCIAL |
+| projecció absoluta per `ID_INSC` | sync acadèmic llegat | **IMPLEMENTADA** amb `ExistingInvoiceLegacyProjectionService` |
 
 ## 5. Frontera HTTP i seguretat
 
@@ -69,7 +70,7 @@ A la branca:
 - `payments.write_roles` obligatori i fail-closed;
 - `internal_api.payment_signed_path`.
 
-**Pendent:** connectar `PaymentActionGateway` i una política de negoci específica de factura/evidència externa.
+**Actualitzat:** `PaymentActionGateway` ja envolta `register_existing_invoice`; `TransactionRunner` participa en transaccions externes i el journal comparteix commit amb el `CHARGE`. Continua pendent la reconciliació genèrica de l'evidència externa.
 
 ## 6. Intranet llegada — fitxers de pàgina
 
@@ -134,6 +135,11 @@ Després de la correcció:
 | `Uc002PaymentApiBoundaryTest` | POST/HMAC/rol/config |
 | `Uc002LegacyPaymentBoundaryTest` | POST/sessió/origen/rol/input |
 | `Uc002LegacyExistingInvoiceTest` | import fiscal immutable + acumulació parcial + no debug |
+| `ManualPaymentPayloadBuilderTest` | idempotency key explícita |
+| `ExistingInvoicePaymentCommandServiceTest` | selector factura + reús |
+| `ExistingInvoiceLegacyProjectionServiceTest` | projecció multiinscripció + overpayment |
+| `ExistingInvoicePaymentAuditFlowTest` | journal MySQL SUCCEEDED/REUSED + un sol CHARGE |
+| `Uc002AuthoritativeBridgeBoundaryTest` | CSRF/HMAC/flag/fail-closed/sync absolut/TPV separat |
 
 ## 10. CI
 
@@ -150,24 +156,26 @@ A la base `main@2bd2a751...`, el run de SIF estava encara en cua en el moment de
 
 | Component | Existeix | Integrat al register genèric |
 |---|---:|---:|
-| `PaymentActionGateway` | sí | no |
-| `PaymentActionEventRepository` | sí | no |
-| `InternalApiAuthenticator` | sí | **sí a branca** |
-| `InternalApiRequestRepository` | sí | **sí a branca** |
-| `EnrollmentFundMovementRepository` | sí | no |
+| `PaymentActionGateway` | sí | **sí al command UC-002** |
+| `PaymentActionEventRepository` | sí | **sí al command UC-002** |
+| `InternalApiAuthenticator` | sí | **sí** |
+| `InternalApiRequestRepository` | sí | **sí** |
+| `ExistingInvoicePaymentCommandService` | **sí, nou** | **sí** |
+| `ExistingInvoiceLegacyProjectionService` | **sí, nou** | **sí** |
+| `SifInternalApiClient::registerExistingInvoicePayment` | **sí, nou** | **sí darrere flag** |
+| `Uc002LegacyPaymentProjectionApplier` | **sí, nou** | **sí darrere flag** |
+| `EnrollmentFundMovementRepository` | sí | no genèric |
 | `CourseEnrollmentFundAllocationService` | sí | només fluxos específics |
 
 ## 12. Codi FINAL encara necessari
 
-1. adaptador intranet → SIF per factura existent;
-2. generació/reús durable de request-id + idempotency key a la UI;
-3. reconciliador d'evidència externa;
-4. orquestració auditada sense transaccions imbricades;
-5. atribució genèrica per `ID_INSC`;
-6. sync legacy post-commit i retryable;
-7. outbox de notificacions;
-8. contracte JSON `CREATED/REUSED/CONFLICT/PENDING_RETRY/ERROR`;
-9. E2E/preproducció amb evidència.
+1. fallback de cerca/confirmació SIF per factures SIF-only a “Passar pagaments”;
+2. reconciliador d'evidència externa bancària/TPV;
+3. ledger econòmic genèric `enrollment_fund_movement` quan sigui exigible;
+4. outbox/notificacions post-commit;
+5. contracte operatiu complet `CREATED/REUSED/CONFLICT/PENDING_RETRY/ERROR` a totes les superfícies;
+6. E2E/preproducció amb evidència;
+7. activació controlada de `SIF_UC002_AUTHORITATIVE=1`.
 
 ## 13. Fitxers modificats/creats en aquesta auditoria
 
@@ -183,6 +191,19 @@ A la base `main@2bd2a751...`, el run de SIF estava encara en cua en el moment de
 - les dues còpies de `Intranet.php`
 - `sif/tests/Integration/Uc002LegacyPaymentBoundaryTest.php`
 - `sif/tests/Integration/Uc002LegacyExistingInvoiceTest.php`
+- `sif/tests/Integration/Uc002AuthoritativeBridgeBoundaryTest.php`
+- `sif/tests/Integration/ExistingInvoicePaymentCommandServiceTest.php`
+- `sif/tests/Integration/ExistingInvoiceLegacyProjectionServiceTest.php`
+- `sif/tests/Integration/ExistingInvoicePaymentAuditFlowTest.php`
+- `sif/src/Service/ExistingInvoicePaymentCommandService.php`
+- `sif/src/Service/ExistingInvoiceLegacyProjectionService.php`
+- `sif/src/Service/ManualPaymentPayloadBuilder.php`
+- `sif/src/Database/TransactionRunner.php`
+- `codi-drive/intranet-actual/SifInternalApiClient.php`
+- `codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php`
+- `codi-drive/intranet-actual/Uc002LegacyPaymentProjectionApplier.php`
+- `codi-drive/intranet-actual/ajax/alumnes/sifPagamentFacturaToken.php`
+- `codi-drive/intranet-actual/ajax/alumnes/sifPagamentFactura.php`
 - `.github/workflows/sif-tests.yml`
 
 ### Documentació
@@ -193,3 +214,16 @@ A la base `main@2bd2a751...`, el run de SIF estava encara en cua en el moment de
 - activitats per pàgina;
 - aquest inventari;
 - auditoria/traçabilitat datada.
+
+
+## 14. Integracions transversals descobertes en continuar l'auditoria
+
+### UC-004 → UC-002
+
+`InvoiceQueryService` ja pot cercar exactament per `NUM_VISIBLE`, però la pantalla llegada `/alumnes/pagaments/` encara fa la cerca per número exclusivament contra `inscripcions/factures` llegades. Una factura SIF-only emesa abans de cobrar pot, per tant, ser registrable pel command UC-002 però no aparèixer encara a la UI llegada.
+
+**Pendent:** fallback SIF de cerca + confirmació complet. No crear una factura llegada falsa per resoldre la descoberta.
+
+### TPV / Redsys
+
+La UI llegada ofereix `Caixa`, `tpv`, `BBVA`. El command manual autoritatiu només admet `Caixa/BBVA` com `TRANSFERENCIA`; `tpv` retorna 409 i s'ha de processar pel flux Redsys/callback. Això evita registrar manualment com a transferència un cobrament TPV.
