@@ -488,7 +488,7 @@ Aquesta secció preval sobre els diagrames històrics d'aquest document quan hi 
 
 1. Classificador UC-74 genèric executable amb regles fiscals aprovades.
 2. **Parcial:** `AeatRectificationMapper` recupera el snapshot original i genera `FacturasRectificadas`, S/I, `ImporteRectificacion` quan S i un `Desglose` per un únic perfil compatible. Pendents múltiples desglossaments, recàrrec, ISP/no-subjecció i canvis de perfil.
-3. Proxy intranet amb sessió/permís/same-origin/CSRF i modal preview/confirm.
+3. **Implementat:** proxy intranet amb sessió/permís/same-origin/CSRF, client HMAC i modal preview/confirm; pendent només validació E2E/preproducció del canal.
 4. Casos de correcció sense variació monetària: el builder manté bloqueig de total zero fins que el criteri fiscal ho defineixi.
 5. Execució verda de la suite MySQL UC-005, prova de concurrència real, **worker/renderitzat documental** (els jobs ja s'encuen), execució del `preflight-rectification.php` sobre `sif_pre`, prova E2E i evidència AEAT.
 
