@@ -15,6 +15,7 @@ $internalApi = (array) ($config['internal_api'] ?? []);
 $callbackUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
 $legacyCallbackUrl = trim((string) getenv('SIF_REDSYS_LEGACY_CALLBACK_URL'));
 $returnBaseUrl = rtrim(trim((string) getenv('SIF_REDSYS_RETURN_BASE_URL')), '/');
+$expectedPayHost = strtolower(trim((string) getenv('SIF_REDSYS_EXPECTED_PAY_HOST')));
 $gatewayUrl = trim((string) getenv('REDSYS_GATEWAY_URL'));
 $internalApiBaseUrl = rtrim(trim((string) getenv('SIF_INTERNAL_API_BASE_URL')), '/');
 $merchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
@@ -32,6 +33,8 @@ $legacyDrainConfirmed = filter_var(
 );
 $courseIntentPath = trim((string) ($internalApi['redsys_course_intent_signed_path'] ?? ''));
 $courseStatusPath = trim((string) ($internalApi['redsys_course_status_signed_path'] ?? ''));
+$returnHost = strtolower((string) parse_url($returnBaseUrl, PHP_URL_HOST));
+$legacyCallbackHost = strtolower((string) parse_url($legacyCallbackUrl, PHP_URL_HOST));
 
 $cutoverPhase = match (true) {
     !$courseCutoverEnabled && !$legacyDrainConfirmed => 'NORMAL',
@@ -63,6 +66,16 @@ $checks = [
     'legacy_callback_url_https_configured_if_not_cutover' => $courseCutoverEnabled
         || ($legacyCallbackUrl !== '' && str_starts_with($legacyCallbackUrl, 'https://')),
     'return_base_url_https_configured' => $returnBaseUrl !== '' && str_starts_with($returnBaseUrl, 'https://'),
+    'expected_pay_host_configured' => $expectedPayHost !== '',
+    'return_base_host_matches_expected' => $expectedPayHost !== ''
+        && $returnHost !== ''
+        && hash_equals($expectedPayHost, $returnHost),
+    'legacy_callback_host_matches_expected_if_not_cutover' => $courseCutoverEnabled
+        || (
+            $expectedPayHost !== ''
+            && $legacyCallbackHost !== ''
+            && hash_equals($expectedPayHost, $legacyCallbackHost)
+        ),
     'redsys_gateway_url_https_configured' => $gatewayUrl !== '' && str_starts_with($gatewayUrl, 'https://'),
     'cutover_configuration_consistent' => !$courseCutoverEnabled
         || ($callbackUrl !== '' && str_starts_with($callbackUrl, 'https://')),
