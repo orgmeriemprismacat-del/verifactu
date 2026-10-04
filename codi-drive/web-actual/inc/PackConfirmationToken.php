@@ -3,7 +3,7 @@
 final class PackConfirmationToken
 {
     const PREFIX = 'v2.';
-    const CIPHER = 'AES-128-CBC';
+    const CIPHER = 'AES-256-CBC';
     const MAC_BYTES = 32;
     const DOMAIN = "UC015_PACK_CONFIRMATION_V2\0";
 
@@ -29,7 +29,7 @@ final class PackConfirmationToken
         $ciphertext = openssl_encrypt(
             (string) $idInscripcio,
             self::CIPHER,
-            $keyEncr,
+            self::encryptionKey($keyEncr),
             OPENSSL_RAW_DATA,
             $iv
         );
@@ -40,7 +40,7 @@ final class PackConfirmationToken
         $mac = hash_hmac(
             'sha256',
             self::DOMAIN . $iv . $ciphertext,
-            $keyEncr,
+            self::macKey($keyEncr),
             true
         );
 
@@ -77,7 +77,7 @@ final class PackConfirmationToken
         $calculatedMac = hash_hmac(
             'sha256',
             self::DOMAIN . $iv . $ciphertext,
-            $keyEncr,
+            self::macKey($keyEncr),
             true
         );
 
@@ -88,7 +88,7 @@ final class PackConfirmationToken
         $plain = openssl_decrypt(
             $ciphertext,
             self::CIPHER,
-            $keyEncr,
+            self::encryptionKey($keyEncr),
             OPENSSL_RAW_DATA,
             $iv
         );
@@ -108,6 +108,26 @@ final class PackConfirmationToken
         }
 
         return (int) $idInscripcio;
+    }
+
+    private static function encryptionKey($masterKey)
+    {
+        return hash_hmac(
+            'sha256',
+            "UC015_PACK_CONFIRMATION_V2_ENCRYPTION\0",
+            (string) $masterKey,
+            true
+        );
+    }
+
+    private static function macKey($masterKey)
+    {
+        return hash_hmac(
+            'sha256',
+            "UC015_PACK_CONFIRMATION_V2_MAC\0",
+            (string) $masterKey,
+            true
+        );
     }
 
     private static function base64UrlEncode($raw)
