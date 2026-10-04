@@ -180,28 +180,40 @@ final class JointInvoiceEnrollmentFundAllocationService
         string $uuidFactura
     ): int {
         $stmt = $db->prepare(
-            'SELECT COALESCE(SUM(IMPORT_ASSIGNAT), 0)
+            'SELECT IMPORT_ASSIGNAT
              FROM payment_allocation
              WHERE UUID_PAYMENT = ? AND UUID_FACTURA = ?
              FOR UPDATE'
         );
         $stmt->execute([$uuidPayment, $uuidFactura]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_COLUMN);
 
-        return $this->cents($stmt->fetchColumn());
+        $total = 0;
+        foreach (is_array($rows) ? $rows : [] as $amount) {
+            $total += $this->cents($amount);
+        }
+
+        return $total;
     }
 
     private function allocatedToInvoiceLine(\PDO $db, int $lineId): int
     {
         $stmt = $db->prepare(
-            "SELECT COALESCE(SUM(IMPORT), 0)
+            "SELECT IMPORT
              FROM enrollment_fund_movement
              WHERE ID_FACTURA_LINIA = ?
                AND MOVEMENT_TYPE = 'EXTERNAL_ALLOCATION'
              FOR UPDATE"
         );
         $stmt->execute([$lineId]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_COLUMN);
 
-        return $this->cents($stmt->fetchColumn());
+        $total = 0;
+        foreach (is_array($rows) ? $rows : [] as $amount) {
+            $total += $this->cents($amount);
+        }
+
+        return $total;
     }
 
     private function cents(mixed $value): int
