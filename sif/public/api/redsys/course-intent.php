@@ -6,6 +6,7 @@ use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
+use Prisma\Sif\Repository\EnrollmentPaymentFlowLockRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
@@ -74,10 +75,13 @@ try {
             new LegacyPrismaStudentHistoryRepository(),
             new PrismaStudentDiscountPolicy(),
             $intentService,
-            new UuidGenerator()
+            new UuidGenerator(),
+            new EnrollmentPaymentFlowLockRepository(),
+            new InvoiceBeforePaymentCoverageRepository()
         ),
         new LegacyPrismaStudentPriceSnapshotResolver(),
-        new InvoiceBeforePaymentCoverageRepository()
+        new InvoiceBeforePaymentCoverageRepository(),
+        new EnrollmentPaymentFlowLockRepository()
     );
 
     JsonResponse::send([
