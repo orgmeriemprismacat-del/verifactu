@@ -54,7 +54,7 @@ let dni = "",
 
 /* Consulta el codi del main */
 var requestMain = $.ajax({
-	url: "https://intranet.prisma.cat/ajax/mostrarMain_v5.php",
+	url: path + "mostrarMain_v5.php",
 	method: "GET",
 	data: { url : urlPagina },
 	dataType: "html"
