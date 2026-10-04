@@ -26,7 +26,7 @@ final class ClaimPaymentInternalApiContractTest
         Assert::stringContainsString('LINK_CLAIM_PAYMENT', $api);
         Assert::stringContainsString('registerByUuidInTransaction', $api);
         Assert::stringContainsString('registerByNumVisibleInTransaction', $api);
-        Assert::stringContainsString("$paymentInput['created_by'] = (string) ($actor['actor_id']", $api);
+        Assert::stringContainsString("\$paymentInput['created_by'] = (string) (\$actor['actor_id']", $api);
         Assert::stringContainsString('Provide at most one claim payment invoice selector', $api);
         Assert::stringContainsString('resolveUniqueOriginForInscription', $api);
         Assert::stringContainsString('source_inscription_id', $api);
@@ -62,8 +62,8 @@ final class ClaimPaymentInternalApiContractTest
         Assert::stringContainsString('SIF_CLAIM_PAYMENT_MANAGE_ROLES', $config);
 
         foreach ([
-            "$payload['actor_id']",
-            "$payload['roles']",
+            "\$payload['actor_id']",
+            "\$payload['roles']",
             'SIF_INTERNAL_API_SECRET'
         ] as $browserControlled) {
             if (str_contains($api, $browserControlled)) {
