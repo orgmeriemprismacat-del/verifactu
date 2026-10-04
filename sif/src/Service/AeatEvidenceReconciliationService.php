@@ -129,6 +129,15 @@ final class AeatEvidenceReconciliationService
                 );
             }
 
+            if ((string) ($pair['submission_attempt_uuid'] ?? '') !== $attemptUuid
+                || (string) ($pair['uuid_factura'] ?? '') !== (string) $item['UUID_FACTURA']
+                || (string) ($pair['fiscal_order'] ?? '') !== (string) $payload['fiscal_order']
+            ) {
+                throw SifException::conflict(
+                    'AEAT evidence metadata does not belong to this submission attempt'
+                );
+            }
+
             if (!hash_equals(
                 hash('sha256', $requestXml),
                 (string) ($pair['request_sha256'] ?? '')
