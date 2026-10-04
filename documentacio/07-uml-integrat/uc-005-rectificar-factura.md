@@ -1,12 +1,12 @@
 # UC-05 · Rectificar una factura — fitxa i UML integrats
 
-**Estat documental:** backend UC-005 reconciliat amb atomicitat, preview/confirm, idempotència, fiscalitat local fail-closed, receptor substitutiu, consum de decisió UC-74 persistida i mapper AEAT server-side per un únic desglossament; **no s'acredita encara** el classificador UC-74 genèric, el proxy/UI intranet, els perfils AEAT complexos, la concurrència E2E ni preproducció. **Casos relacionats:** UC-01 (emissió del nou document), UC-26/71 (canvi de curs), UC-27/72 (baixa), UC-28 (devolució econòmica), UC-30 (anul·lació de registre), UC-31 (subsanació) i UC-74 (classificació de correcció fiscal).
+**Estat documental:** backend UC-005 reconciliat amb atomicitat, preview/confirm, idempotència, fiscalitat local fail-closed, receptor substitutiu, consum de decisió UC-74 persistida, mapper AEAT server-side per un únic desglossament i proxy intranet segur; **no s'acredita encara** el productor/classificador UC-74 genèric, el modal/formulari fiscal final, els perfils AEAT complexos, la concurrència E2E ni preproducció. **Casos relacionats:** UC-01 (emissió del nou document), UC-26/71 (canvi de curs), UC-27/72 (baixa), UC-28 (devolució econòmica), UC-30 (anul·lació de registre), UC-31 (subsanació) i UC-74 (classificació de correcció fiscal).
 
 ## 1. Fitxa del cas d'ús
 
 | Camp | Especificació de l'operació |
 | --- | --- |
-| Actor principal | Operador intern autenticat. El backend signat ja exigeix HMAC/replay guard i rol explícit; el proxy intranet amb sessió+CSRF continua pendent. |
+| Actor principal | Operador intern autenticat. Backend i proxy exigeixen HMAC/replay guard, rol explícit, sessió, same-origin i CSRF. El formulari/modal fiscal final continua pendent del productor UC-74. |
 | Disparador | Una factura emesa requereix una rectificació per un motiu justificat i classificat. |
 | Precondicions implementades | Identificació de la factura original per `UUID_FACTURA` o `NUM_VISIBLE`; existència de l'original; import, motiu i mode vàlids. |
 | Entrades específiques | `amount`/`import`, motiu i mode; bloc `fiscal` explícit quan l'original és subjecte a IVA; bloc `billing` només en `SUBSTITUCIO`; classificació upstream `source_uc=UC-74`, `decision=RECTIFICATION`, `reason_code`, `policy_version` i mode coherent; `expected_fingerprint` en confirmar. |
@@ -39,7 +39,7 @@
 
 **Resultats persistits:** nova `factura` sèrie `R`, les seves `factura_linia`, `factura_registres`, entrada `fiscal_queue`, `fact_rels` d'origen i `factura_rectificacio`; actualització de l'estat de la factura original. **No** es crea un moviment `payment_transaction` per aquest servei.
 
-**Proves localitzades / ampliades:** servei bàsic, aliases, `ManualRectificationAtomicityTest`, `ManualRectificationFiscalTest`, `RectificationCommandServiceTest`, guard UC-74, permisos i `AeatRectificationProtocolTest`. La suite aïllada UC-005 està definida a `run-uc005-tests.php`; l'evidència CI continua pendent perquè GitHub Actions roman en cua.
+**Proves localitzades / ampliades:** servei bàsic, aliases, atomicitat, fiscalitat, mapping AEAT des de snapshot original, canvi de snapshot entre preview/confirm, command, decisió UC-74+fingerprint, endpoint SIF, proxy intranet, permisos i protocol AEAT. La suite aïllada UC-005 està definida a `run-uc005-tests.php`; les noves execucions CI continuen pendents mentre GitHub Actions roman en cua.
 
 ### 1.8. Revisió: correcció fiscal ≠ moviment intern o extern de fons — PENDENT
 
