@@ -27,6 +27,7 @@ on:
       - "codi-drive/intranet-actual/js/alumnes-factura-sif.js"
       - "sif/config/sif.php"
       - "sif/tests/Integration/ManualRectification*Test.php"
+      - "sif/tests/Support/ConcurrentRectificationWorker.php"
       - "sif/tests/Integration/ManualRectificationAeatMappingTest.php"
       - "sif/tests/Integration/RectificationCommandServiceTest.php"
       - "sif/tests/Integration/RectificationHttpEndpointTest.php"
@@ -108,6 +109,8 @@ jobs:
           php -l sif/tests/Integration/RectificationIntranetProxyContractTest.php
           php -l sif/tests/Integration/RectificationDecisionReadModelTest.php
           php -l sif/tests/Integration/ManualRectificationAeatMappingTest.php
+          php -l sif/tests/Integration/ManualRectificationConcurrencyTest.php
+          php -l sif/tests/Support/ConcurrentRectificationWorker.php
           php -l sif/tests/Integration/FiscalCorrectionDecisionResolverTest.php
           php -l sif/tests/run-uc005-tests.php
 
