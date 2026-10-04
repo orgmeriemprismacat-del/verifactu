@@ -489,6 +489,61 @@ final class AeatWorkflowTest
         Assert::same(1, $transport->calls);
     }
 
+    public function testTerminalResultWithoutEvidenceAnchorMovesToReviewWithoutResend(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-TERMINAL-WITHOUT-EVIDENCE-ANCHOR')
+        );
+
+        $transport = new class implements AeatTransport {
+            public int $calls = 0;
+
+            public function send(array $payload): array
+            {
+                $this->calls++;
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'csv' => 'MUST-NOT-COMMIT',
+                        'flow_wait_seconds' => 60,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
+            }
+        };
+
+        $worker = new SerialWorker($db, $transport);
+        $result = $worker->runOnce();
+
+        Assert::same(false, $result['ok']);
+        Assert::same('REVIEW', $result['queue_status']);
+        Assert::same(true, $result['requires_review']);
+        Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same(
+            'UNCERTAIN',
+            $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            null,
+            $db->query('SELECT EVIDENCE_RESPONSE_SHA256 FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            'PENDING',
+            $db->query('SELECT ESTAT_AEAT FROM factura_registres')->fetchColumn()
+        );
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE TIPUS_INCIDENCIA = 'AEAT_REMOTE_RESULT_NOT_PERSISTED'"
+            )->fetchColumn()
+        );
+
+        Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce()['reason']);
+        Assert::same(1, $transport->calls);
+    }
+
     public function testPersistsSubmissionAttemptBeforeAndAfterAcceptedDelivery(): void
     {
         $db = TestDatabase::fresh();
