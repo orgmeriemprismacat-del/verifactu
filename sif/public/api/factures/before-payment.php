@@ -67,6 +67,14 @@ try {
         throw SifException::validation('Invalid JSON');
     }
 
+    foreach (['aeat_fields', 'aeat_header'] as $serverOwnedField) {
+        if (array_key_exists($serverOwnedField, $payload)) {
+            throw SifException::validation(
+                'Invoice-before-payment AEAT fields are server-owned'
+            );
+        }
+    }
+
     $contractVersion = trim((string) ($payload['contract_version'] ?? ''));
     if ($contractVersion !== 'UC004-V1') {
         throw SifException::validation('Unsupported invoice-before-payment contract version');
