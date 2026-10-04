@@ -123,3 +123,32 @@ El checkout PACK és fail-closed i no reutilitza imports, titular, correu ni end
 - Default UC-015: `https://www.prisma.cat;https://prisma.cat`.
 - `enviarInscripcioPack.php` exigeix POST, `X-Requested-With: XMLHttpRequest`, allowlist d'origen/referer i conserva també la comprovació `Sec-Fetch-Site` com a defensa addicional.
 - Aquest control redueix CSRF cross-site i peticions directes no-AJAX; no substitueix rate limiting o controls anti-bot.
+
+
+## Governança de versió i declaració — UC-010
+
+UC-010 és **fail-closed**. Cap versió queda activable fins que el runtime observat, els rols, el manifest i l'emmagatzematge privat de declaracions estiguin configurats explícitament.
+
+### Variables de runtime
+
+- `SIF_VERSION_READ_ROLES`: rols que poden consultar runtime, candidates, declaracions i historial.
+- `SIF_VERSION_MANAGE_ROLES`: rols que poden registrar candidates, vincular declaracions i registrar activacions. No hi ha rols permissius per defecte.
+- `SIF_RUNTIME_GIT_REVISION`: SHA-1 de 40 caràcters del commit executable desplegat.
+- `SIF_RELEASE_MANIFEST_PATH`: manifest JSON **fora de tot l'arbre `sif/` del release**, no només fora del webroot. Això evita que el manifest s'inclogui a si mateix o quedi publicable accidentalment.
+- `SIF_DECLARATION_ROOT`: directori privat dels documents de declaració responsable.
+- `SIF_VERSION_ACTIVATION_ENABLED=1`: gate explícit; per defecte 0.
+- `SIF_VERSION_REQUIRE_BACKUP_EVIDENCE`: per defecte 1.
+- `SIF_PANEL_VERSIONS_PATH`: path signat del panell; default `/sif/versions/`.
+- A la intranet, `SIF_PANEL_VERSIONS_URL` defineix la URL HTTPS del panell i `SIF_PANEL_VERSIONS_PATH` n'ha de reproduir exactament el path signat.
+
+### Contracte i límits
+
+1. `build-release-manifest.php` genera un mapa determinista path→SHA-256 i rebutja una destinació situada dins del release.
+2. `RuntimeVersionInspector` torna a verificar els bytes, calcula `ARTIFACT_HASH` i `CONFIG_HASH`, i valida el ledger de migracions més la presència de taules/columnes declarades. **No** valida tots els índexs, tipus, defaults o constraints SQL.
+3. `registerCurrentRuntime` no accepta hashes del navegador.
+4. Una declaració només es vincula si el fitxer existeix sota `SIF_DECLARATION_ROOT`; el SHA-256 es calcula sobre els bytes.
+5. Només una candidata `DRAFT` pot activar-se. L'activació no desplega: registra un runtime que ja coincideix amb la candidata i serialitza la decisió.
+6. Si `SIF_VERSION_REQUIRE_BACKUP_EVIDENCE=1`, UC-010 valida l'evidència persistent disponible (entorn, estat i integritat). **UC-85 encara no està implementat/tancat**, de manera que aquesta fila no substitueix una prova completa de backup/restauració fins que UC-85 defineixi i verifiqui el seu contracte executable.
+7. Cap activació UC-010 modifica factures, registres fiscals, pagaments ni cues històriques.
+
+El fingerprint de configuració persisteix només el SHA-256 final, no la configuració canònica. La política sobre si la rotació de secrets ha de canviar aquest fingerprint queda subjecta a revisió de seguretat abans de producció.
