@@ -166,6 +166,37 @@ final class ClaimPaymentServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
     }
 
+    public function testRegistersClaimPaymentInsideOuterTransactionAndExposesAuditKey(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|OUTER_TX|INVOICE',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        $db->beginTransaction();
+        $result = $this->service($db)->registerByUuidInTransaction(
+            $db,
+            $invoice['uuid_factura'],
+            [
+                'amount' => '30.00',
+                'movement_date' => '2026-10-04 02:00:00',
+                'claim_reference' => 'CLAIM-OUTER-TX',
+                'created_by' => 'gestio-test',
+            ]
+        );
+
+        Assert::same('CLAIM|REF:CLAIM-OUTER-TX', $result['payment_idempotency_key']);
+        Assert::same(true, $db->inTransaction());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+
+        $db->rollBack();
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     private function service(\PDO $db): ClaimPaymentService
     {
         return new ClaimPaymentService(
