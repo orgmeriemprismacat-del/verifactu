@@ -19,7 +19,6 @@ final class ManualRectificationPayloadBuilder
         $payload = [
             'idempotency_key' => $this->idempotencyKey($numVisible, $mode, $reason, $amount, $input),
             'series' => 'R',
-            'year' => (int) ($input['year'] ?? $invoice['ANY_FACT'] ?? date('Y')),
             'type' => strtoupper($this->optionalString($input, ['type', 'tipus_factura'], 'R1')),
             'source_channel' => 'INTRANET',
             'created_by' => $this->optionalString($input, ['created_by', 'user', 'usuari']),
