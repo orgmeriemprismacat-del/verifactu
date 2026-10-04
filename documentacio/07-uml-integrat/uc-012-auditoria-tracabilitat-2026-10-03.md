@@ -133,3 +133,14 @@ Vegeu també `uc-012-implementacio-sif-2026-10-03.md` i `uc-012-tancament-audito
 - `updLastClaimPay.php` continua acoblat a baixa de Moodle/BD en funció del resultat acadèmic. La reclamació `FINAL_CLAIM` del SIF i la baixa acadèmica s'han de separar abans del pilot.
 - Corregit el bug legacy de `$reclamatM` no inicialitzat al recordatori final, contrastat amb `IntranetProva.php`.
 - Afegida prova boundary perquè aquesta correcció no regressi i perquè el cutover no elimini accidentalment la separació reclamació/baixa.
+
+
+### Reclamació final recurrent i període de 30 dies
+
+El control legacy de morosos permet una nova reclamació quan han passat **30 dies** des de la darrera. El model SIF preserva aquesta regla sense relaxar la idempotència:
+
+- `FINAL_REMINDER` i `FIRST_CLAIM` continuen sense poder repetir-se amb una clau nova ni retrocedir d'etapa;
+- `FINAL_CLAIM` es pot repetir només si l'expedient continua obert, el saldo continua pendent i han transcorregut almenys 30 dies des de l'últim event `FINAL_CLAIM`;
+- un retry amb la mateixa clau idempotent continua reutilitzant el resultat;
+- un intent de seguiment final abans de 30 dies retorna conflicte `409`;
+- aquesta regla no activa cap scheduler: l'automatització temporal general continua bloquejada fins que UC-096 tingui venciment/pròrroga autoritatius.
