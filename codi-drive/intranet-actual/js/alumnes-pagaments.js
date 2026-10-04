@@ -219,11 +219,15 @@ requestMain.done(function( message ) {
 						var idInscSif = $('#idInsc-' + idTipus).html().trim();
 						var externalReference = ($('#reference-' + idTipus).val() || '').trim();
 						var esValidReference = '';
+						var esValidFacturaSif = '';
+						if (sifInstallmentEnforced && numeroFact == '') {
+							esValidFacturaSif = 'Cal emetre la factura abans de registrar el cobrament al SIF.';
+						}
 						if (sifInstallmentEnforced && externalReference == '') {
 							esValidReference = 'Cal indicar la referència bancària o DS_ORDER del cobrament.';
 						}
 
-						if ( esValidPagament == '' && esValidData == '' && esValidBanc == '' && esValidReference == '' ) {
+						if ( esValidPagament == '' && esValidData == '' && esValidBanc == '' && esValidReference == '' && esValidFacturaSif == '' ) {
 
 							if ( efactPagament == 1 ) {
 								console.log('previsualitzacio');
@@ -246,6 +250,9 @@ requestMain.done(function( message ) {
 
 							if ( msgError != '' && esValidReference != '' ) msgError += "<br>" + esValidReference;
 							else if ( msgError == '' && esValidReference != '' ) msgError = esValidReference;
+
+							if ( msgError != '' && esValidFacturaSif != '' ) msgError += "<br>" + esValidFacturaSif;
+							else if ( msgError == '' && esValidFacturaSif != '' ) msgError = esValidFacturaSif;
 
 							afegirHeaderModalError("Alerta!");
 							afegirTextModalError(msgError);
