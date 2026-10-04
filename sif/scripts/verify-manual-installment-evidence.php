@@ -97,8 +97,21 @@ try {
         $paymentEvents
     );
 
+    $checks = [
+        'single_payment_match' => true,
+        'has_allocation' => count($allocations) > 0,
+        'has_correlation' => $correlationId !== '',
+        'has_requested_payment_event' => in_array('REQUESTED', $paymentResults, true),
+        'has_terminal_payment_event' =>
+            in_array('SUCCEEDED', $paymentResults, true)
+            || in_array('REUSED', $paymentResults, true),
+        'has_operational_event' => count($operationalEvents) > 0,
+        'has_sif_audit_event' => count($auditEvents) > 0,
+        'fiscal_register_count_is_observation_only' => true,
+    ];
+
     $output = [
-        'ok' => true,
+        'ok' => !in_array(false, $checks, true),
         'evidence_type' => 'UC023_INSTALLMENT_PAYMENT',
         'env' => $env,
         'payment' => [
@@ -182,18 +195,7 @@ try {
             ],
             $auditEvents
         ),
-        'checks' => [
-            'single_payment_match' => true,
-            'has_allocation' => count($allocations) > 0,
-            'has_correlation' => $correlationId !== '',
-            'has_requested_payment_event' => in_array('REQUESTED', $paymentResults, true),
-            'has_terminal_payment_event' =>
-                in_array('SUCCEEDED', $paymentResults, true)
-                || in_array('REUSED', $paymentResults, true),
-            'has_operational_event' => count($operationalEvents) > 0,
-            'has_sif_audit_event' => count($auditEvents) > 0,
-            'fiscal_register_count_is_observation_only' => true,
-        ],
+        'checks' => $checks,
     ];
 
     echo json_encode(
