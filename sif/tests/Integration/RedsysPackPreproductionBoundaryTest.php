@@ -36,6 +36,27 @@ final class RedsysPackPreproductionBoundaryTest
         }
     }
 
+    public function testVerifierStopsBeforeMutationWhenPreflightOrPreviewFails(): void
+    {
+        $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
+
+        Assert::stringContainsString('$preExecutionFailures = array_keys(array_filter(', $source);
+        Assert::stringContainsString("'pre_execution_ready'", $source);
+        Assert::stringContainsString(
+            'if (($execute || $diagnosticProcess) && $preExecutionFailures !== [])',
+            $source
+        );
+
+        $guard = strpos(
+            $source,
+            'if (($execute || $diagnosticProcess) && $preExecutionFailures !== [])'
+        );
+        $execute = strpos($source, 'if ($execute) {');
+        Assert::same(true, $guard !== false);
+        Assert::same(true, $execute !== false);
+        Assert::same(true, $guard < $execute);
+    }
+
     public function testVerifierExecutesTargetedProductionWorkerBeforeEvidenceVerification(): void
     {
         $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
