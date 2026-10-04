@@ -13,6 +13,8 @@ final class SifInternalApiClient
         if ($this->baseUrl === '' || $this->keyId === '' || $this->secret === '') {
             throw new RuntimeException('SIF internal API client is not configured');
         }
+
+        $this->assertSecureUrl($this->baseUrl);
     }
 
     public static function fromEnvironment(): self
@@ -51,37 +53,18 @@ final class SifInternalApiClient
 
         $signature = hash_hmac('sha256', $canonical, $this->secret);
 
-        $handle = curl_init($this->baseUrl . $path);
-        if ($handle === false) {
-            throw new RuntimeException('Could not initialize SIF internal API request');
-        }
+        $headers = [
+            'Content-Type: application/json',
+            'Accept: application/json',
+            'X-SIF-Key-Id: ' . $this->keyId,
+            'X-SIF-Timestamp: ' . $timestamp,
+            'X-SIF-Request-Id: ' . $requestId,
+            'X-SIF-Actor-Id: ' . $actorId,
+            'X-SIF-Actor-Roles: ' . $canonicalRoles,
+            'X-SIF-Signature: ' . $signature,
+        ];
 
-        curl_setopt_array($handle, [
-            CURLOPT_POST => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_TIMEOUT => 20,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Accept: application/json',
-                'X-SIF-Key-Id: ' . $this->keyId,
-                'X-SIF-Timestamp: ' . $timestamp,
-                'X-SIF-Request-Id: ' . $requestId,
-                'X-SIF-Actor-Id: ' . $actorId,
-                'X-SIF-Actor-Roles: ' . $canonicalRoles,
-                'X-SIF-Signature: ' . $signature,
-            ],
-            CURLOPT_POSTFIELDS => $body,
-        ]);
-
-        $response = curl_exec($handle);
-        $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        $error = curl_error($handle);
-        curl_close($handle);
-
-        if ($response === false) {
-            throw new RuntimeException('SIF internal API transport error: ' . $error);
-        }
+        [$status, $response] = $this->send($this->baseUrl . $path, $headers, $body);
 
         $decoded = json_decode($response, true);
         if (!is_array($decoded)) {
@@ -94,6 +77,88 @@ final class SifInternalApiClient
         }
 
         return $decoded;
+    }
+
+    private function send(string $url, array $headers, string $body): array
+    {
+        if (function_exists('curl_init')) {
+            $handle = curl_init($url);
+            if ($handle === false) {
+                throw new RuntimeException('Could not initialize SIF internal API request');
+            }
+
+            curl_setopt_array($handle, [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT => 20,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_POSTFIELDS => $body,
+            ]);
+
+            $response = curl_exec($handle);
+            $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
+            $error = curl_error($handle);
+            curl_close($handle);
+
+            if (!is_string($response)) {
+                throw new RuntimeException(
+                    $error !== '' ? 'SIF internal API transport error: ' . $error : 'SIF internal API transport error'
+                );
+            }
+
+            return [$status, $response];
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => implode("\r\n", $headers),
+                'content' => $body,
+                'timeout' => 20,
+                'ignore_errors' => true,
+            ],
+        ]);
+
+        $response = file_get_contents($url, false, $context);
+        if (!is_string($response)) {
+            throw new RuntimeException('SIF internal API transport error');
+        }
+
+        $status = 0;
+        foreach (($http_response_header ?? []) as $header) {
+            if (preg_match('/^HTTP\/\S+\s+(\d{3})\b/i', (string) $header, $matches) === 1) {
+                $status = (int) $matches[1];
+                break;
+            }
+        }
+
+        return [$status, $response];
+    }
+
+    private function assertSecureUrl(string $url): void
+    {
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            throw new RuntimeException('Invalid SIF internal API URL');
+        }
+
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        if ($scheme === 'https') {
+            return;
+        }
+
+        $allowLocalHttp = filter_var(
+            getenv('SIF_INTERNAL_API_ALLOW_HTTP') ?: '0',
+            FILTER_VALIDATE_BOOLEAN
+        );
+        if ($allowLocalHttp && $scheme === 'http' && in_array($host, ['127.0.0.1', 'localhost', '::1'], true)) {
+            return;
+        }
+
+        throw new RuntimeException('SIF internal API requires HTTPS');
     }
 
     private function normalizeRoles(array $roles): array
