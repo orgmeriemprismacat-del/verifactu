@@ -233,6 +233,13 @@ try {
 	 * legacy no és executable amb "!= NULL" i, per tant, no concedeix el dret.
 	 */
 	if ($tipusDescompte == 1) {
+		if ((string) $pagFrac === '1') {
+			http_response_code(409);
+			$connexio->desconectarBD();
+			echo "Error: el pagament fraccionat amb Alumne PrisMa encara no està disponible. Contacta amb secretaria.";
+			return;
+		}
+
 		if ($promocioATrobadaplicada != '' || $promocioAplicada != '') {
 			http_response_code(409);
 			$connexio->desconectarBD();
