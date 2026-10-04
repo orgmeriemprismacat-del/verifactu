@@ -83,6 +83,10 @@ jobs:
           php -l codi-drive/intranet-actual/ajax/sif/sifAeat.php
           php -l codi-drive/intranet-actual/preflight-sif-registres-aeat-menu.php
           php -l sif/src/Service/AeatReviewReconciliationService.php
+          php -l sif/src/Service/AeatEvidenceReconciliationService.php
+          php -l sif/src/Aeat/EvidenceVerifier.php
+          php -l sif/src/Repository/AeatSubmissionAttemptRepository.php
+          php -l sif/src/Exception/AeatDeliveryUncertainException.php
           php -l sif/public/api/aeat/operations.php
           node --check codi-drive/intranet-actual/js/sif-registres-aeat.js
 
