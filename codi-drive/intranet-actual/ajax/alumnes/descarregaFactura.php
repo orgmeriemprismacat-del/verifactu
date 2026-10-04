@@ -50,7 +50,25 @@ try {
         throw new RuntimeException('El PDF no s’ha pogut generar correctament', 500);
     }
 
-    echo $filename;
+    $bytes = file_get_contents($generated);
+    if ($bytes === false) {
+        throw new RuntimeException('No s’ha pogut llegir el PDF temporal', 500);
+    }
+
+    // UC-007: el temporal no es publica com a URL. Es llegeix i s'elimina
+    // abans de lliurar els bytes per la resposta autenticada.
+    if (!unlink($generated)) {
+        throw new RuntimeException('No s’ha pogut eliminar el PDF temporal', 500);
+    }
+
+    http_response_code(200);
+    header('Content-Type: application/pdf');
+    header('Content-Length: ' . strlen($bytes));
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: private, no-store, max-age=0');
+    header('Pragma: no-cache');
+    header('X-Content-Type-Options: nosniff');
+    echo $bytes;
 } catch (Throwable $exception) {
     $code = (int) $exception->getCode();
     http_response_code($code >= 400 && $code <= 599 ? $code : 500);
