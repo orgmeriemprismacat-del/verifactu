@@ -14,6 +14,7 @@ on:
       - "sif/src/Service/RectificationCommandService.php"
       - "sif/src/Aeat/RecordFactory.php"
       - "sif/src/Repository/RectificationRepository.php"
+      - "sif/src/Repository/DocumentJobRepository.php"
       - "sif/src/Repository/FiscalCorrectionDecisionRepository.php"
       - "sif/src/Repository/InvoiceReadRepository.php"
       - "sif/src/Repository/ManualPaymentInvoiceRepository.php"
@@ -96,6 +97,7 @@ jobs:
           php -l sif/src/Service/RectificationCommandService.php
           php -l sif/src/Aeat/RecordFactory.php
           php -l sif/src/Repository/SifAuditEventRepository.php
+          php -l sif/src/Repository/DocumentJobRepository.php
           php -l sif/src/Repository/FiscalCorrectionDecisionRepository.php
           php -l sif/src/Repository/InvoiceReadRepository.php
           php -l sif/public/api/factures/rectify.php
