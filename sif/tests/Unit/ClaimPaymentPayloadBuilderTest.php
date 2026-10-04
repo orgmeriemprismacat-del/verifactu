@@ -39,6 +39,83 @@ final class ClaimPaymentPayloadBuilderTest
         (new PaymentPayloadValidator())->validate($payload);
     }
 
+    public function testTypedBankReceiptUsesTypeInIdempotencyAndBankReference(): void
+    {
+        $payload = (new ClaimPaymentPayloadBuilder())->forExistingInvoice(
+            '11111111-1111-4111-8111-111111111111',
+            [
+                'amount' => '40.00',
+                'movement_date' => '2026-10-04 02:20:00',
+                'external_receipt_type' => 'BANK_REFERENCE',
+                'external_receipt_id' => 'BAN-101',
+                'created_by' => 'gestio-test',
+            ]
+        );
+
+        Assert::same(
+            'CLAIM|RECEIPT:BANK_REFERENCE:BAN-101',
+            $payload['idempotency_key']
+        );
+        Assert::same('BAN-101', $payload['reference']);
+    }
+
+    public function testTypedRedsysReceiptMapsToDsOrderInsteadOfBankReference(): void
+    {
+        $payload = (new ClaimPaymentPayloadBuilder())->forExistingInvoice(
+            '11111111-1111-4111-8111-111111111111',
+            [
+                'amount' => '40.00',
+                'movement_date' => '2026-10-04 02:20:00',
+                'external_receipt_type' => 'DS_ORDER',
+                'external_receipt_id' => '123456789012',
+                'created_by' => 'gestio-test',
+            ]
+        );
+
+        Assert::same(
+            'CLAIM|RECEIPT:DS_ORDER:123456789012',
+            $payload['idempotency_key']
+        );
+        Assert::same('123456789012', $payload['ds_order']);
+        Assert::same(false, array_key_exists('reference', $payload));
+    }
+
+    public function testCarriesAuthoritativeIdpagIntoPaymentPayload(): void
+    {
+        $payload = (new ClaimPaymentPayloadBuilder())->forExistingInvoice(
+            '11111111-1111-4111-8111-111111111111',
+            [
+                'amount' => '20.00',
+                'movement_date' => '2026-10-04 02:55:00',
+                'external_receipt_type' => 'BANK_REFERENCE',
+                'external_receipt_id' => 'BANK-IDPAG-123',
+                'idpag' => 123,
+                'created_by' => 'gestio-test',
+            ]
+        );
+
+        Assert::same(123, $payload['idpag']);
+    }
+
+    public function testExternalReceiptIdUsesDedicatedIdempotencyFamily(): void
+    {
+        $payload = (new ClaimPaymentPayloadBuilder())->forExistingInvoice(
+            '11111111-1111-4111-8111-111111111111',
+            [
+                'amount' => '40.00',
+                'movement_date' => '2026-10-04 02:20:00',
+                'external_receipt_id' => 'BAN-101',
+                'claim_reference' => 'CLAIM-7',
+                'created_by' => 'gestio-test',
+            ]
+        );
+
+        Assert::same('CLAIM|RECEIPT:BAN-101', $payload['idempotency_key']);
+        Assert::same('BAN-101', $payload['reference']);
+        Assert::same('40.00', $payload['amount']);
+        Assert::same('CLAIM_PAYMENT', $payload['allocations'][0]['allocation_type']);
+    }
+
     public function testBuildsFallbackIdempotencyWithRequiredUserWhenReferenceIsMissing(): void
     {
         $payload = (new ClaimPaymentPayloadBuilder())->forExistingInvoice(

@@ -32,23 +32,46 @@ final class PaymentService
         }
     }
 
+    /**
+     * Register a payment as part of an already-open transaction.
+     *
+     * This is intentionally explicit: callers such as PaymentActionGateway need
+     * the payment mutation and its terminal audit event to commit or roll back
+     * together. The regular registerPayment() API keeps owning its transaction.
+     */
+    public function registerPaymentInTransaction(\PDO $db, array $payload): array
+    {
+        if (!$db->inTransaction()) {
+            throw new \LogicException('Payment transaction is not active');
+        }
+
+        $payload = $this->validator->validate($payload);
+
+        return $this->createOrReusePaymentOnDb($db, $payload);
+    }
+
     private function createOrReusePayment(array $payload): array
     {
-        return $this->transactions->run(function (\PDO $db) use ($payload): array {
-            $existing = $this->payments->findByIdempotencyKey($db, $payload['idempotency_key'], true);
-            if ($existing !== null) {
-                $this->assertSamePayload($payload, $existing);
-                return $this->existingResult($existing);
-            }
+        return $this->transactions->run(
+            fn (\PDO $db): array => $this->createOrReusePaymentOnDb($db, $payload)
+        );
+    }
 
-            $created = $this->payments->createPayment($db, $payload);
+    private function createOrReusePaymentOnDb(\PDO $db, array $payload): array
+    {
+        $existing = $this->payments->findByIdempotencyKey($db, $payload['idempotency_key'], true);
+        if ($existing !== null) {
+            $this->assertSamePayload($payload, $existing);
+            return $this->existingResult($existing);
+        }
 
-            return [
-                'ok' => true,
-                'idempotency_reused' => false,
-                'uuid_payment' => $created['uuid_payment'],
-            ];
-        });
+        $created = $this->payments->createPayment($db, $payload);
+
+        return [
+            'ok' => true,
+            'idempotency_reused' => false,
+            'uuid_payment' => $created['uuid_payment'],
+        ];
     }
 
     private function reusePaymentAfterDuplicateKey(array $payload): array

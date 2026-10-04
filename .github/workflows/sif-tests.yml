@@ -24,6 +24,14 @@ on:
       - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
+      - "codi-drive/intranet-actual/SifInternalClaimPaymentClient.php"
+      - "codi-drive/intranet-actual/Intranet.php"
+      - "codi-drive/intranet-actual/js/claim-payment-sif.js"
+      - "codi-drive/intranet-actual/ajax/facturacio/registerClaimPaymentSif.php"
+      - "codi-drive/intranet-actual/facturacio-primera-reclamacio-pagament.php"
+      - "codi-drive/intranet-actual/facturacio-recordatori-pagament-final.php"
+      - "codi-drive/intranet-actual/facturacio-reclamacio-final.php"
+      - "codi-drive/intranet-actual/facturacio-control-morosos.php"
       - "codi-drive/intranet-actual/alumnes-mostrar-alumne.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
       - "codi-drive/intranet-actual/ajax/alumnes/realitzarCanviCurs_CanviCurs.php"
@@ -56,6 +64,14 @@ on:
       - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
+      - "codi-drive/intranet-actual/SifInternalClaimPaymentClient.php"
+      - "codi-drive/intranet-actual/Intranet.php"
+      - "codi-drive/intranet-actual/js/claim-payment-sif.js"
+      - "codi-drive/intranet-actual/ajax/facturacio/registerClaimPaymentSif.php"
+      - "codi-drive/intranet-actual/facturacio-primera-reclamacio-pagament.php"
+      - "codi-drive/intranet-actual/facturacio-recordatori-pagament-final.php"
+      - "codi-drive/intranet-actual/facturacio-reclamacio-final.php"
+      - "codi-drive/intranet-actual/facturacio-control-morosos.php"
       - "codi-drive/intranet-actual/alumnes-mostrar-alumne.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
       - "codi-drive/intranet-actual/ajax/alumnes/realitzarCanviCurs_CanviCurs.php"
@@ -143,6 +159,17 @@ jobs:
           php -l codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php
           node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js
           node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.min.js
+
+      - name: Lint UC-024 claim payment intranet
+        run: |
+          php -l codi-drive/intranet-actual/SifInternalClaimPaymentClient.php
+          php -l codi-drive/intranet-actual/ajax/facturacio/registerClaimPaymentSif.php
+          php -l codi-drive/intranet-actual/facturacio-primera-reclamacio-pagament.php
+          php -l codi-drive/intranet-actual/facturacio-recordatori-pagament-final.php
+          php -l codi-drive/intranet-actual/facturacio-reclamacio-final.php
+          php -l codi-drive/intranet-actual/facturacio-control-morosos.php
+          php -l codi-drive/intranet-actual/Intranet.php
+          node --check codi-drive/intranet-actual/js/claim-payment-sif.js
 
       - name: Executar suite SIF
         run: php sif/tests/run-tests.php

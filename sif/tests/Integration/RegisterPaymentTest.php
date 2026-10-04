@@ -50,6 +50,56 @@ final class RegisterPaymentTest
         Assert::same('PAID', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
     }
 
+    public function testRegisterPaymentInTransactionRequiresOpenTransaction(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'PAYMENT|EXTERNAL_TX|REQUIRES_TX',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        Assert::throws(\LogicException::class, function () use ($db, $invoice): void {
+            self::paymentServiceFor($db)->registerPaymentInTransaction(
+                $db,
+                $this->paymentPayload($invoice['uuid_factura'], [
+                    'idempotency_key' => 'TRANSFERENCIA|REF:EXTERNAL_TX_REQUIRED',
+                ])
+            );
+        });
+    }
+
+    public function testRegisterPaymentInTransactionDoesNotCommitOuterTransaction(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'PAYMENT|EXTERNAL_TX|ROLLBACK',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        $db->beginTransaction();
+        $result = self::paymentServiceFor($db)->registerPaymentInTransaction(
+            $db,
+            $this->paymentPayload($invoice['uuid_factura'], [
+                'idempotency_key' => 'TRANSFERENCIA|REF:EXTERNAL_TX_ROLLBACK',
+            ])
+        );
+
+        Assert::same(true, $result['ok']);
+        Assert::same(true, $db->inTransaction());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+
+        $db->rollBack();
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same('PENDING', (string) $db->query(
+            "SELECT ESTAT_COBRAMENT FROM factura WHERE UUID_FACTURA = " . $db->quote($invoice['uuid_factura'])
+        )->fetchColumn());
+    }
+
     public static function paymentServiceFor(\PDO $db): PaymentService
     {
         return new PaymentService(
