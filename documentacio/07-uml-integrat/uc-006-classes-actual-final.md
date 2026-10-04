@@ -180,6 +180,7 @@ class ManualPaymentInvoiceRepository {
 class PaymentService {
   <<EXISTEIX>>
   +registerPayment(payload)
+  +registerPaymentInTransaction(db,payload)
 }
 class PaymentPayloadValidator {
   <<EXISTEIX>>
@@ -246,16 +247,19 @@ PaymentActionGateway ..> PaymentService : possible FINAL, no camí observat
 PaymentActionGateway ..> CreditBalanceService : possible FINAL, no camí observat
 ```
 
-## 5.1. Classes ACTUAL — ledger d'atribució per inscripció ja existent
+## 5.1. Classes ACTUAL — ledger d'atribució i consum per inscripció
 
 ```mermaid
 classDiagram
 direction LR
 class EnrollmentFundMovementRepository {
-  <<EXISTEIX · PARCIAL>>
+  <<EXISTEIX · AMPLIAT UC-006>>
   +lockPayment(db,uuidPayment)
   +findInvoiceLineForInscription(db,uuidFactura,idInsc)
   +insertOrReuseExternalAllocation(db,movement)
+  +availableAmountForInscription(db,idInsc,forUpdate)
+  +insertOrReuseCreditCreate(db,movement)
+  +insertOrReuseRefundExit(db,movement)
   +insertOrReuseCompensationAllocation(db,movement)
   +findByIdempotencyKey(db,key,forUpdate)
 }
@@ -273,6 +277,7 @@ class EnrollmentFundMovementTable {
   +IDEMPOTENCY_KEY
   +MOVEMENT_TYPE
   +UUID_PAYMENT
+  +UUID_CREDIT
   +UUID_FACTURA
   +ID_FACTURA_LINIA
   +ID_INSC_ORIGEN
@@ -286,7 +291,7 @@ PackEnrollmentFundAllocationService --> EnrollmentFundMovementRepository
 EnrollmentFundMovementRepository --> EnrollmentFundMovementTable
 ```
 
-La migració admet `EXTERNAL_ALLOCATION`, `INTERNAL_TRANSFER`, `REVERSAL` i `COMPENSATION_ALLOCATION`. El repositori implementa inserció/reús d'atribució externa i de compensació. No s'ha localitzat, però, la integració d'aquest ledger amb `ManualRefundService` o `CreditBalanceService`.
+La base admet `EXTERNAL_ALLOCATION`, `INTERNAL_TRANSFER`, `REVERSAL`, `COMPENSATION_ALLOCATION`, `REFUND_EXIT` i `CREDIT_CREATE`. A la branca UC-006, `ManualRefundService` i `CreditBalanceService` ja utilitzen aquest repositori quan el caller aporta una inscripció origen/destí explícita. `INTERNAL_TRANSFER` continua sense orquestració de negoci.
 
 ## 5.2. ACTUAL ampliat 04/10 — sortides i entrada de saldo ja cablejades
 
@@ -338,18 +343,18 @@ EnrollmentFundMovementRepository --> EnrollmentFundMovement : persisteix/locka
 **Implementat:** quan el caller aporta `source_enrollment_id` o `target_enrollment_id`, aquestes relacions són codi real de la branca. **Pendent:** controlador UC-006, titularitat, evidence guard genèric, `INTERNAL_TRANSFER` i audit gateway.
 ## 6. Mancances del model ACTUAL
 
-1. **No hi ha orquestrador UC-006**, tot i que ja existeix un ledger parcial per inscripció.
-2. **No hi ha command/controller UC-006** que obligui a triar una decisió econòmica única.
-3. `ManualRefundService` no acredita:
-   - límit retornable;
-   - titular;
-   - inscripció/línia origen;
-   - evidència externa del retorn.
-4. `CreditBalanceService::createCredit()` no mostra idempotència per origen.
-5. `applyCredit*` comprova saldo i deute, però no titularitat compatible.
-6. `PaymentActionGateway` existeix, però els serveis i scripts examinats no hi passen.
-7. `public/api/payments/register.php` instancia `PaymentService` directament: no és un endpoint UC-006 complet.
-8. La UI llegada d’anul·lació conserva semàntica “A TORNAR” sense separar estat pendent de retorn vs retorn confirmat.
+1. **No hi ha orquestrador UC-006** que converteixi una baixa/canvi/anul·lació en una única decisió econòmica autoritzada.
+2. **No hi ha command/controller UC-006** que obligui identificadors d'origen/destí, titularitat, evidència i identitat estable del dret.
+3. `ManualRefundService` ja pot limitar el valor per inscripció quan rep `source_enrollment_id`, però encara no acredita:
+   - titular/receptor;
+   - evidència externa genèrica del retorn;
+   - deduplicació cross-channel.
+4. `CreditBalanceService::createCredit()` ja té K/hash i `CREDIT_CREATE` opcional, però la K de dret no es deriva/obliga des de la UI.
+5. `applyCredit*` comprova saldo, deute i inscripció/línia destí quan s'informa, però no titularitat compatible.
+6. `INTERNAL_TRANSFER` existeix al model però no té servei/orquestració UC-006 per canvi de curs A→B.
+7. `PaymentActionGateway` existeix, però els serveis i scripts examinats no hi passen.
+8. `public/api/payments/register.php` instancia `PaymentService` directament: no és un endpoint UC-006 complet.
+9. La UI llegada d’anul·lació conserva semàntica “A TORNAR” sense separar estat pendent de retorn vs retorn confirmat.
 
 ## 7. Classes FINAL — UC-006 tancat
 
