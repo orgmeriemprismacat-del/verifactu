@@ -294,7 +294,51 @@ Esperat:
 - cap nou `COMPENSATION_ALLOCATION`;
 - saldo disponible sense canvis.
 
-## 12. Evidència que s'ha de conservar
+## 12. Fase J — traspàs intern A → B
+
+Usar una inscripció de prova A amb fons atribuïts i un ID d'inscripció destí B.
+
+Preview:
+
+```bash
+php sif/scripts/preview-enrollment-fund-transfer.php 60.00 \
+  --source-enrollment-id=<ID_INSC_A> \
+  --target-enrollment-id=<ID_INSC_B> \
+  --idempotency-key='FUND|TRANSFER|UC006|PRE|A-B|60' \
+  --correlation-id='UC006-PRE-TRANSFER-A'
+```
+
+Process:
+
+```bash
+php sif/scripts/process-enrollment-fund-transfer.php 60.00 \
+  --source-enrollment-id=<ID_INSC_A> \
+  --target-enrollment-id=<ID_INSC_B> \
+  --idempotency-key='FUND|TRANSFER|UC006|PRE|A-B|60' \
+  --correlation-id='UC006-PRE-TRANSFER-A'
+```
+
+Repetir la mateixa K amb una correlació nova.
+
+Esperat:
+
+- una sola fila `INTERNAL_TRANSFER`;
+- segon resultat amb `idempotency_reused=true`;
+- disponible d'A disminueix 60;
+- disponible de B augmenta 60;
+- **cap nou `payment_transaction` ni `CHARGE`**;
+- una nova K amb import superior al disponible d'A retorna 409 i no deixa fila parcial.
+
+Prova encadenada opcional A→B→C:
+
+- transferir 80 d'A a B;
+- transferir 30 de B a C;
+- verificar A=20, B=50, C=30 si l'entrada inicial era 100;
+- el nombre de CHARGE originals continua sent 1.
+
+Aquesta fase valida la primitiva de ledger; **no autoritza** per si sola que el canvi de curs productiu executi el traspàs. El coordinator ha de decidir import, actor, event i política de titularitat.
+
+## 13. Evidència que s'ha de conservar
 
 Per cada escenari:
 
@@ -310,7 +354,7 @@ Per cada escenari:
 - hora Europe/Madrid;
 - resultat `PASS/FAIL` i incidència si n'hi ha.
 
-## 13. Criteri de sortida
+## 14. Criteri de sortida
 
 El bloc tècnic de ledger UC-006 es pot marcar **VERIFICAT EN ENTORN** quan:
 
@@ -322,4 +366,4 @@ El bloc tècnic de ledger UC-006 es pot marcar **VERIFICAT EN ENTORN** quan:
 6. cap rollback deixa payment/credit/ledger parcial;
 7. l'evidència queda conservada.
 
-Encara després d'això continuaran pendents per al tancament funcional complet: titularitat, autorització, evidence layer del retorn real, `INTERNAL_TRANSFER`, audit gateway i E2E de la intranet.
+Encara després d'això continuaran pendents per al tancament funcional complet: titularitat, autorització, evidence layer del retorn real, wiring de `INTERNAL_TRANSFER` al coordinator, audit gateway i E2E de la intranet.
