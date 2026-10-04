@@ -51,6 +51,41 @@ final class InvoiceBeforePaymentRedsysGuardRepository
         }));
     }
 
+    public function assertNoExistingSifInvoices(\PDO $db, array $relations, bool $forUpdate = false): void
+    {
+        $sourceIds = $this->inscriptionOrigins($relations);
+        $placeholders = implode(',', array_fill(0, count($sourceIds), '?'));
+
+        $sql =
+            "SELECT fr.SOURCE_ID, fr.UUID_FACTURA, f.NUM_VISIBLE, f.ESTAT_FACTURA
+             FROM fact_rels fr
+             INNER JOIN factura f ON f.UUID_FACTURA = fr.UUID_FACTURA
+             WHERE fr.SOURCE_TYPE = 'INSCRIPCIO'
+               AND fr.SOURCE_ID IN ({$placeholders})
+             ORDER BY fr.SOURCE_ID, fr.UUID_FACTURA";
+
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute(array_map('strval', $sourceIds));
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        if (!is_array($rows) || $rows === []) {
+            return;
+        }
+
+        $refs = array_values(array_unique(array_filter(array_map(
+            static fn (array $row): string => trim((string) ($row['NUM_VISIBLE'] ?? $row['UUID_FACTURA'] ?? '')),
+            $rows
+        ))));
+
+        throw SifException::conflict(
+            'Invoice-before-payment conflicts with an existing SIF invoice for one or more inscriptions'
+            . ($refs === [] ? '' : ': ' . implode(',', $refs))
+        );
+    }
+
     public function assertNoBlockingCourseIntents(\PDO $db, array $relations, bool $forUpdate = false): void
     {
         $conflicts = $this->findBlockingCourseIntents($db, $relations, $forUpdate);
