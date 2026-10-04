@@ -212,6 +212,34 @@ final class RedsysCallbackQueueRepository
         }
     }
 
+    public function recoverStaleLockByDsOrder(
+        \PDO $db,
+        string $dsOrder,
+        \DateTimeImmutable $now
+    ): int {
+        $dsOrder = trim($dsOrder);
+        if ($dsOrder === '') {
+            throw SifException::validation('DS_ORDER is required');
+        }
+
+        $stmt = $db->prepare(
+            "UPDATE redsys_callback_queue q
+             JOIN redsys_notifications n ON n.ID = q.NOTIFICATION_ID
+             SET q.STATUS = 'RETRY', q.AVAILABLE_AT = ?, q.LOCKED_AT = NULL,
+                 q.LOCKED_BY = NULL, q.LAST_ERROR = 'Recovered stale processing lock'
+             WHERE n.DS_ORDER = ?
+               AND q.STATUS = 'PROCESSING'
+               AND q.LOCKED_AT < ?"
+        );
+        $stmt->execute([
+            $now->format('Y-m-d H:i:s'),
+            $dsOrder,
+            $now->modify('-15 minutes')->format('Y-m-d H:i:s'),
+        ]);
+
+        return $stmt->rowCount();
+    }
+
     public function recoverStaleLocks(\PDO $db, \DateTimeImmutable $now): int
     {
         $stmt = $db->prepare(
