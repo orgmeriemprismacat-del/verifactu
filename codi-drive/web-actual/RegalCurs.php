@@ -584,6 +584,26 @@ class RegalCurs{
    * $preu és el preu corresponent del regal de la pròxima edició del curs amb codi $codiCurs
    */
    public function mostrarFormulariAfortunat($codiCurs, $origen, $desti, $dedicatoria, $hores, $preu, $percentatge) {
+      // UC-017: aquest formulari no confia en imports/hores/descompte del client.
+      $pricing = explode('|', $this->obtenirPreuHoresNomCursRegal($codiCurs));
+      if (count($pricing) !== 4
+          || !is_numeric($pricing[0])
+          || !is_numeric($pricing[1])
+          || trim((string) $pricing[2]) === ''
+          || !is_numeric($pricing[3])
+          || (float) $pricing[0] <= 0
+          || (int) $pricing[1] <= 0
+      ) {
+         throw new RuntimeException('INVALID_AUTHORITATIVE_GIFT_PRICING');
+      }
+      $preu = (float) $pricing[0];
+      $hores = (int) $pricing[1];
+      $percentatge = (float) $pricing[3];
+
+      $safeDesti = htmlspecialchars((string) $desti, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeOrigen = htmlspecialchars((string) $origen, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+      $safeDedicatoria = htmlspecialchars((string) $dedicatoria, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
       $mostrar ="<h2>Targeta regal</h2>";
 
       require_once 'ConnexioBBDD_PreparedStatment.php';
@@ -620,18 +640,18 @@ class RegalCurs{
       $mostrar.="<div class='d-flex flex-column flex-md-row align-items-center justify-content-center w-100'>";
       $mostrar.="<div class='col-12 col-md-6 pl-0 pr-0 pr-md-2'><div class='form-group field-wrap position-relative'>";
       $mostrar.="<label class='position-absolute mb-0'><span class='camp'>Per a qui</span><span class='req font-weight-bold'>*</span></label>";
-      $mostrar.="<input type='text' class='form-control' id='desti' name='desti' autofocus='' value='".$desti."'>";
+      $mostrar.="<input type='text' class='form-control' id='desti' name='desti' autofocus='' value='".$safeDesti."'>";
       $mostrar.="<span id='desti_erroni' class='d-flex justify-content-center align-items-center px-2 position-absolute text-center text-white'></span>";
       $mostrar.="</div></div>";
       $mostrar.="<div class='col-12 col-md-6 pl-0 pr-0 pr-md-2'><div class='form-group field-wrap position-relative'>";
       $mostrar.="<label class='position-absolute mb-0'><span class='camp'>De part de qui</span></label>";
-      $mostrar.="<input type='text' class='form-control' id='origen' name='origen' value='".$origen."'>";
+      $mostrar.="<input type='text' class='form-control' id='origen' name='origen' value='".$safeOrigen."'>";
       $mostrar.="</div></div></div>";
 
       $mostrar.="<div class='d-flex flex-row align-items-center justify-content-center w-100'>";
       $mostrar.="<div class='col-12 px-0'><div class='form-group field-wrap position-relative'>";
       $mostrar.="<label class='position-absolute mb-0'><span class='camp'>Dedicatòria</span></label>";
-      $mostrar.="<textarea type='text' class='form-control' id='dedicatoria' name='dedicatoria'>".$dedicatoria."</textarea>";
+      $mostrar.="<textarea type='text' class='form-control' id='dedicatoria' name='dedicatoria'>".$safeDedicatoria."</textarea>";
       $mostrar.="</div></div></div>";
 
       $mostrar.="<div class='d-flex w-100'><div class='form-group'>";
