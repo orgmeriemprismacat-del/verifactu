@@ -123,7 +123,7 @@ flowchart LR
   a_0 --> u_5
 ```
 
-**Nota de traçabilitat:** UC-005 ja té un guard executable que exigeix una classificació UC-74 fiable abans del confirm; **no** existeix encara el classificador UC-74 genèric que genera aquesta decisió.
+**Nota de traçabilitat:** UC-005 exigeix una decisió UC-74 persistida i vinculada per `correction_fingerprint` a la correcció exacta abans del confirm; **no** existeix encara el productor/classificador UC-74 genèric que genera aquesta decisió.
 
 ## 3. Subdiagrama UML de classes
 
