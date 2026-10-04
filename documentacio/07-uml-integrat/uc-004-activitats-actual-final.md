@@ -2,7 +2,7 @@
 
 **Cas d'ús:** UC-004 — Emetre factura abans de cobrar  
 **Pantalla actual:** `/alumnes/genera-factura-abans-pagar/`  
-**Data d'auditoria estàtica:** 2026-09-29  
+**Data d'auditoria reconciliada:** 2026-10-04 · **reconciliada amb `main`/cutover:** 2026-10-02  
 **Cobertura RM-037:** pàgina completa + sis apartats funcionals; cada apartat té ACTUAL i FINAL.
 
 ## 1. Matriu de pàgina i apartats
@@ -14,7 +14,7 @@
 | A004-P02 | Cerca, afegir i treure inscripcions | `mostrarInformacioInscripcio_generaFactura.php`, JS, `Intranet` | 2 diagrames |
 | A004-P03 | Validar selecció i preparar imports/conceptes | JS UC-004, `calcularTextData.php` | 2 diagrames |
 | A004-P04 | Receptor/entitat i dades de factura | vista `__mostrarPage_Alumnes_GeneraFacturaAbansPagar`, JS, BD intranet | 2 diagrames |
-| A004-P05 | Emetre factura abans de cobrar | endpoint llegat + `Intranet::generarFacturaElectronica_Alumnes`; FINAL SIF | 2 diagrames |
+| A004-P05 | Emetre factura abans de cobrar | ACTUAL històric: endpoint llegat + `Intranet::generarFacturaElectronica_Alumnes`; FINAL actual: bridge intranet + SIF | 2 diagrames |
 | A004-P06 | Resultat, previsualització i document | endpoints de dades/preview/download/delete, `generaFactura` | 2 diagrames |
 
 Total: **14 diagrames d'activitat**.
@@ -24,6 +24,8 @@ Total: **14 diagrames d'activitat**.
 ## 2. A004-P00 · PÀGINA COMPLETA
 
 ### A004-P00 — ACTUAL
+
+> **Traça històrica:** aquest diagrama conserva el comportament llegat auditat. Al tall actual, el JS ja usa el bridge SIF i `generaFacturaElectronica_Factures.php` queda retirat amb `410 Gone` en aquesta branca.
 
 ```plantuml
 @startuml
@@ -98,8 +100,9 @@ stop
 title UC-004 · A004-P00 · PÀGINA COMPLETA — FINAL
 start
 :Obrir pantalla UC-004;
-:Autenticar sessió i actor al servidor;
-:Autoritzar lectura i acció d'emissió per rol/abast;
+:Autenticar sessió a la intranet;
+:Autoritzar visualització local;
+:Bridge servidor signa command intern HMAC amb actor/rol/request_id;
 if (Autoritzat?) then (Sí)
   :Carregar pantalla sense dades fiscals manipulables com a autoritat;
   repeat
@@ -108,7 +111,9 @@ if (Autoritzat?) then (Sí)
     :Seleccionar o retirar inscripcions;
   repeat while (Cal ajustar selecció?) is (Sí)
 
-  :Enviar IDs seleccionats per obtenir PREVISUALITZACIÓ;
+  :Enviar IDs seleccionats al bridge per obtenir PREVISUALITZACIÓ;
+  :Endpoint intern autentica HMAC, timestamp i request_id;
+  :ScopeResolver valida rol d'escriptura;
   :Servidor deduplica IDs i rellegeix estat actual;
   :Validar curs/edició/regles de cobertura;
   :Resoldre receptor per ID intern i congelar snapshot;
@@ -116,17 +121,22 @@ if (Autoritzat?) then (Sí)
   :Mostrar preview amb fingerprint/versió;
 
   if (Operador confirma?) then (Sí)
-    :Enviar command + request/correlation/idempotency key;
-    :Revalidar autorització, versió, selecció i cobertura;
+    :Enviar confirmació amb expected_fingerprint via bridge signat;
+    :Registrar request_id anti-replay;
+    :Revalidar actor/rol, selecció, receptor i fingerprint;
+    :Classificador transversal de cobertura encara pendent;
     if (Conflicte o dades canviades?) then (Sí)
       :Retornar CONFLICT / NEEDS_REVIEW sense mutació fiscal;
     else (No)
       :InvoiceBeforePaymentService::issueBeforePayment();
       :InvoiceService crea o reutilitza factura;
-      :COMMIT factura, línies, registre, cadena, cua i relacions;
-      :Només després del COMMIT sincronitzar llegat si cal;
-      :Generar/assegurar document per UUID de forma idempotent;
-      :Mostrar UUID, número, cobrament PENDING, AEAT/document READY o PENDING;
+      :Claim UC-004 + operational_event + sif_audit_event dins la mateixa transacció;
+      :COMMIT factura, línies, registre, cadena, cua, relacions, cobertura i auditoria;
+      :Mostrar UUID, número i cobrament PENDING;
+      note right
+        Document per UUID i sincronització llegada
+        post-COMMIT continuen pendents.
+      end note
     endif
   else (No)
     :No emetre factura;
@@ -175,16 +185,18 @@ stop
 @startuml
 title UC-004 · A004-P01 · Accés i permisos — FINAL
 start
-:Autenticar sessió;
+:Autenticar sessió intranet;
 :Resoldre actor estable;
-:Autoritzar visualització UC-004 al servidor;
+:Autoritzar visualització UC-004 al servidor intranet;
 if (Pot visualitzar?) then (Sí)
   :Carregar pantalla;
-  :Autoritzar capacitat ISSUE_INVOICE_BEFORE_PAYMENT;
-  :Enviar capacitats de UI com a informació;
+  :Mostrar capacitat d'emissió com a informació de UI;
+  :En PREVIEW/CONFIRM el bridge crea request_id i headers HMAC;
+  :InternalApiAuthenticator valida actor/rol/cos/timestamp;
+  :InternalInvoiceBeforePaymentScopeResolver exigeix rol d'escriptura;
   note right
-    El backend torna a validar el permís
-    en cada command d'escriptura.
+    El secret intern no arriba al navegador.
+    Cada command es valida de nou al SIF.
   end note
 else (No)
   :HTTP/JSON denegat sense dades del cas;
@@ -392,9 +404,10 @@ stop
 @startuml
 title UC-004 · A004-P05 · Emissió — FINAL
 start
-:Rebre command de confirmació;
-:Autoritzar actor al servidor;
-:Comprovar request_id, correlation_id, versió i idempotency_key;
+:Rebre POST action=confirm a before-payment.php;
+:Validar HMAC, timestamp, actor, rols i request_id;
+:Claim request_id anti-replay;
+:Exigir rol UC-004 d'escriptura;
 :Rellegir inscripcions per ID + receptor per entityId;
 :Reconstruir línies/total al servidor;
 :Calcular fingerprint actual;
@@ -402,15 +415,20 @@ if (Fingerprint diferent del preview?) then (Sí)
   :Retornar CONFLICT i exigir nou preview;
   stop
 endif
-:Classificar cobertura transversal existent per SOURCE_ID/receptor;
-if (Ja existeix cobertura incompatible?) then (Sí)
-  :Retornar CONFLICT/NEEDS_REVIEW;
-else (No)
-  :Preparar input sense bloc payment;
+:Classificador transversal de cobertura entre canals;
+note right
+  PENDENT d'implementar.
+  El guard específic UC-004 sí existeix.
+end note
+:Preparar input sense bloc payment;
   :InvoiceBeforePaymentPayloadBuilder::build();
   :Forçar INTRANET i EMESA_ABANS_COBRAMENT=1;
   :InvoiceService::issueInvoice();
   :Validar payload;
+  if (PREPROD/PROD i falta aeat_fields?) then (Sí)
+    :Retornar 422 fail-closed;
+    stop
+  endif
   :BEGIN;
   if (IDEMPOTENCY_KEY ja existeix?) then (Sí)
     :assertMatches amb IDEMPOTENCY_PAYLOAD_HASH;
@@ -431,10 +449,14 @@ else (No)
       :Retornar CONFLICT;
       stop
     endif
+    :Append operational_event ISSUE_INVOICE + sif_audit_event;
   endif
   :COMMIT;
   :Retornar CREATED o REUSED amb UUID/número;
-endif
+  note right
+    Document UUID i sync llegada
+    encara són post-COMMIT pendents.
+  end note
 stop
 @enduml
 ```
@@ -483,7 +505,8 @@ start
 :Mostrar número, receptor snapshot, línies, total;
 :Mostrar ESTAT_COBRAMENT=PENDING;
 :Mostrar ESTAT_AEAT independent;
-:Consultar estat documental per UUID;
+:[FINAL PENDENT] Consultar/crear job documental per UUID + versió;
+:Mostrar estat PENDING/READY/ERROR;
 if (Document READY?) then (Sí)
   :Servir document custodiat/versionat amb autorització;
 else (No)
@@ -509,6 +532,6 @@ stop
 ## 10. Estat
 
 - **ACTUAL:** reconstruït estàticament des del codi versionat.
-- **FINAL:** selecció per IDs, receptor per entityId, línies/total des de servidor, fingerprint preview→confirm i claim concurrent UC-004 ja estan implementats a la branca en serveis/CLI. Continuen pendents el classificador transversal, autorització/CSRF i l'adaptador HTTP de la pantalla.
-- **Execució de proves:** no feta en aquesta auditoria documental.
-- **Integració pantalla UC-004 → SIF:** pendent; **integració CLI no productiva BDs llegades → preparació → SIF:** implementada a la branca, no executada aquí.
+- **FINAL / estat real 04/10:** selecció/receptor/imports autoritatius, sessió/rol, CSRF, bridge HTTP, HMAC, anti-replay, contracte `UC004-V1`, fingerprint, preview coverage, claim UC-004 i auditoria transaccional ja estan implementats; el mutador fiscal llegat queda 410 en aquesta branca. Continuen pendents `aeat_fields` oficials per PREPROD/PROD, document SIF per UUID, classificador transversal, sync llegada si encara cal i E2E.
+- **Execució de proves:** PR #70 va quedar verd històricament; PR #134 va tenir el check específic UC-004 verd però checks globals SIF vermells. La branca 04/10 necessita evidència pròpia.
+- **Integració pantalla UC-004 → SIF:** **IMPLEMENTADA AL CODI**; pendent E2E/preproducció.
