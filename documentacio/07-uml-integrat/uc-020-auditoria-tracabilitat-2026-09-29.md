@@ -435,3 +435,15 @@ Aquesta ampliació no canvia la policy de negoci; converteix comportaments ja im
 - **PENDENT:** CI del HEAD, E2E real/preproducció, cutover/drain, `offer_id/payment_link`, transferència, idempotència persistent P05, POST/CSRF general de l'alta, fraccionament AP i policy P06 comuna.
 
 Document de tall: [revalidació 04/10](uc-020-revalidacio-2026-10-04.md).
+
+
+## 21. P02 · concurrència, precheck i POST — 04/10/2026
+
+| ID | Troballa | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-129 | Resposta AJAX antiga podia sobreescriure globals després d'un DNI/edició/check més nou. | TANCAT CODI · PENDENT CI HEAD | `uc020PriceRequestVersion` + stale guard + test de frontera. |
+| UC020-130 | Promo vàlida podia conservar `tipusPreuAplicat=1`; fallback invàlid podia conservar marker promocional antic. | TANCAT CODI · PENDENT CI HEAD | origen exclusiu AP/promo + neteja fallback. |
+| UC020-131 | `comprovaSiHaRealitzatElCurs()` duplicava la cadena AJAX, tenia branca inassolible i `msg` inexistent. | TANCAT CODI · PENDENT CI HEAD | flux únic + `click.uc020`. |
+| UC020-132 | Alta pública amb PII i import per GET. | TANCAT GET/PII · PENDENT CI HEAD | endpoint POST-only, 0 referències `$_GET`, caller POST. |
+
+AP-74…AP-79 queden implementats a la frontera UI/server llegada. `offer_id` continua sent el FINAL arquitectònic i no és necessari per considerar corregida la cursa concreta.
