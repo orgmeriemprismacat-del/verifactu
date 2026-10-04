@@ -83,7 +83,7 @@ No es considera encara verificació operativa completa perquè el HEAD del PR #1
 
 ### P0/P1 — document fiscal immutable per UUID
 
-No hi ha encara al `main` ni en aquesta branca un subsistema UC-004 complet de job/worker/snapshot/storage/renderer PDF/QR/XML. No es recupera a cegues el codi antic del PR #134.
+El `main` ja disposa de l'esquema `document_job`, metadades `factura_documents`, auditoria d'accés i descàrrega privada signada. El que falta és completar el **pipeline productor UC-004**: queue post-COMMIT, snapshot fiscal verificat, repository/worker amb lease i retry, storage writer immutable i renderer PDF/QR/XML. El PR #134 conté una implementació candidata d'aquestes peces; el check específic UC-004 va passar i els 6 errors globals eren aliens al UC-004, però no es recuperarà el PR sencer a cegues.
 
 ### P1 — cobertura transversal
 
