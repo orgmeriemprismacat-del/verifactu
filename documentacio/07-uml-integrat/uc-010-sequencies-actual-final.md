@@ -40,11 +40,19 @@ participant DB as MySQL SIF
 U->>JS: Registrar codi de versió
 JS->>API: register_current + CSRF + ids
 API->>S: registerCurrentRuntime(actor,input)
+S->>VR: lookup idempotency key
+alt replay semàntic existent
+  VR-->>S: candidata persistent
+  S-->>API: reused=true
+  API-->>JS: DTO candidata
+else comanda nova
 S->>I: inspect(DB,config)
 I->>M: verificar manifest vs bytes
 M-->>I: artifact_hash + mismatches
 I->>MR: inspect(DB)
-MR-->>I: schema_checks + ledger
+MR-->>I: ledger + taules/columnes
+I->>DB: validar índex únic/CHECKs/triggers UC-010
+DB-->>I: hardening schema checks
 I-->>S: git/artifact/config/db version
 alt evidència incompleta
   S-->>API: 503 fail-closed
@@ -55,7 +63,8 @@ else runtime complet
   S->>A: audit + operational event
   S->>DB: COMMIT
   S-->>API: candidata
-  API-->>JS: JSON
+  API-->>JS: DTO candidata sense idempotency intern
+end
 end
 ```
 
@@ -78,7 +87,8 @@ U->>JS: storage_key + versió documental
 JS->>API: attach_declaration
 API->>S: attachDeclaration(actor,uuid,input)
 S->>DB: cercar idempotency key
-alt replay exacte existent
+Note over S,DB: request_id/correlation_id/actor_role són traça; reason_code és semàntic
+alt replay semàntic existent
   DB-->>S: declaració persistent
   S-->>API: reused=true
 else comanda nova
@@ -116,16 +126,18 @@ participant DB as MySQL SIF
 participant Env as Runtime físic
 
 U->>S: activate(uuid, backup?, ids)
+S->>AR: fast replay semàntic
+S->>VR: llegir singleton + ACTIVE
 S->>I: inspect
 I->>Env: hashes bytes/config + schema
-Env-->>I: evidència actual
+Env-->>I: evidència actual + hardening BD
 S->>DR: latest APPROVED
 S->>Env: recalcular hash declaració
 opt backup obligatori
   S->>BR: find evidence
   BR-->>S: status/integrity/environment
 end
-alt qualsevol check falla
+alt singleton/ACTIVE incoherent o qualsevol check falla
   S-->>U: 409 NO-GO
 else preflight GO i candidata DRAFT
   S->>DB: BEGIN
@@ -146,7 +158,7 @@ else preflight GO i candidata DRAFT
       S->>I: tornar a inspeccionar sota lock
       S->>VR: SUPERSEDE old + ACTIVE candidate
       S->>AR: append immutable activation
-      AR->>DB: runtime evidence + actor + correlation
+      AR->>DB: runtime evidence + declaració/backup snapshot + actor
       S->>DB: audit + operational_event
       S->>DB: COMMIT
       S-->>U: ACTIVATED
@@ -165,7 +177,8 @@ participant S as SifVersionService
 participant AR as ActivationRepository
 participant DB as MySQL
 
-C->>S: activate(key K, payload P)
+C->>S: activate(key K, payload P, trace T)
+Note over C,S: canviar T=request/correlation/actor_role no canvia el payload; reason_code sí
 S->>AR: fast lookup K
 alt K ja existeix i P concorda
   AR-->>S: activation existent
@@ -201,8 +214,8 @@ participant UC10 as UC-010
 
 O->>Deploy: publicar release
 Deploy->>Env: bytes + config + migracions
-O->>Build: generar manifest sobre bytes desplegats
-Build-->>O: artifact_hash
+O->>Build: generar manifest exhaustiu sobre bytes desplegats
+Build-->>O: files map + artifact_hash autoconsistent
 O->>UC10: registrar candidata observada
 UC10->>Env: verificar runtime
 Note over Deploy,UC10: UC-010 NO executa FTP, checkout, rsync ni rollback físic
@@ -214,3 +227,39 @@ Aquesta separació evita marcar ACTIVE una versió que només estava “prevista
 ## 7. Nota de verificació 2026-10-04
 
 La seqüència FINAL representa el codi reconciliat, no el PR #139 original. El canvi d'ordre del lock/idempotència i el gate `DRAFT` són correccions derivades de l'auditoria de concurrència i traçabilitat.
+
+
+## 7. FINAL F — launch HMAC de la intranet
+
+```mermaid
+sequenceDiagram
+autonumber
+actor U as Usuari intranet
+participant I as sif-verifactu.js
+participant L as sifPanelLaunch.php
+participant T as SifPanelLaunchToken
+participant P as /sif/versions/
+participant A as PanelLaunchAuthenticator
+participant DB as internal_api_request
+
+U->>I: Configuració i versions
+I->>L: POST panel=versions + CSRF
+L->>T: create(actor,roles)
+T->>T: HTTPS + host *.prisma.cat + URL path = signed path
+T-->>I: URL + fields HMAC + UUIDv4
+I->>P: auto-POST fields
+P->>A: authenticate(fields,/sif/versions/)
+A->>A: key/timestamp/UUIDv4/roles/signature
+A->>DB: claim request_id
+alt replay
+  DB-->>A: duplicate
+  A-->>P: 409
+else nou
+  A-->>P: actor + roles
+  P-->>U: sessió amb TTL + CSRF
+end
+```
+
+## 8. Nota de verificació 2026-10-04
+
+La seqüència FINAL representa el codi reconciliat actual. Els DTOs públics no retornen `IDEMPOTENCY_KEY`, `IDEMPOTENCY_PAYLOAD_HASH`, guard columns ni `RUNTIME_EVIDENCE_JSON`; aquestes dades romanen a persistència/evidència interna.
