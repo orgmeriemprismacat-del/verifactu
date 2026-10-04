@@ -96,6 +96,17 @@ Triar inscripcions de prova que compleixin:
 
 No corregir una inconsistència real manualment només per fer passar el cas: una divergència ha de validar el bloqueig fail-closed.
 
+## 5B. Límit: factura multi-inscripció
+
+UC-024 individual només és elegible si la factura té **una sola** relació `INSCRIPCIO/ORIGIN`.
+
+Si una factura conté diverses inscripcions d’origen:
+
+- el flux ha de retornar 409;
+- no s’ha de crear cap CHARGE nou;
+- no s’ha de projectar `PAGAMENT` a una sola inscripció;
+- cal un cas d’ús específic de repartiment/conciliació agregada.
+
 ## 6. Casos E2E mínims
 
 ### E2E-01 — feature flag OFF
