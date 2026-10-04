@@ -95,7 +95,7 @@ UC-005 només es pot marcar tancat quan:
 **DOCUMENTAT:** sí, paquet estructural complet.  
 **IMPLEMENTAT:** nucli rectificatiu, atomicitat, aliases, fiscalitat fail-closed, SUBSTITUCIO amb receptor, command intern signat, preview/confirm, guard UC-74, auditoria i suite UC-005 aïllada.  
 **VERIFICAT:** revisió estàtica, suite específica UC-005 verda 34/34 abans del reforç de decisió persistida, incloent atomicitat, fiscalitat local, command, permisos i protocol AEAT.  
-**PENDENT:** revalidació CI (inclosa concurrència multiprocés), productor/classificador UC-74 executable, perfils AEAT complexos, document E2E i preproducció. El consumidor UI/proxy preview/confirm ja està implementat.
+**PENDENT:** revalidació CI (inclosa concurrència multiprocés), productor/classificador UC-74 executable, perfils AEAT complexos, **worker documental** i preproducció. La creació idempotent dels jobs PDF/XML/QR ja està implementada dins del commit UC-005; el document E2E no es considera tancat fins que el worker materialitzi i registri els fitxers.
 
 ### UC005-F10 — P1 TRANSVERSAL · no hi ha productor/worker de documents fiscals
 
