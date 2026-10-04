@@ -93,6 +93,33 @@ final class CreditBalancePayloadBuilder
             $payload['notes'] = $notes;
         }
 
+        $targetEnrollmentId = $this->optional(
+            $input,
+            ['target_enrollment_id', 'id_insc_dest', 'id_insc_desti']
+        );
+        if ($targetEnrollmentId !== null && $targetEnrollmentId !== '') {
+            if (!is_numeric($targetEnrollmentId) || (int) $targetEnrollmentId <= 0) {
+                throw SifException::validation('Invalid target enrollment ID for compensation');
+            }
+            $payload['target_enrollment_id'] = (int) $targetEnrollmentId;
+        }
+
+        foreach ([
+            'correlation_id' => ['correlation_id'],
+            'uuid_operation' => ['uuid_operation'],
+        ] as $key => $keys) {
+            $value = $this->optionalString($input, $keys);
+            if ($value !== null) {
+                $payload[$key] = $value;
+            }
+        }
+
+        if (isset($payload['correlation_id'])
+            && mb_strlen((string) $payload['correlation_id'], 'UTF-8') > 120
+        ) {
+            throw SifException::validation('Compensation correlation ID is too long');
+        }
+
         return $payload;
     }
 
