@@ -2,7 +2,7 @@
 
 **Abast:** un pagador extern (empresa, escola o persona responsable) assumeix el cost d'una o més inscripcions, sovint necessita una factura **abans** de fer la transferència. Aquest cas determina **qui és el receptor fiscal, quines inscripcions queden cobertes i com s'assignarà el cobrament**; UC-04 és únicament el nucli reutilitzable d'emissió abans de cobrar i UC-02 el registre posterior del moviment.
 
-**Estat:** `[PARCIAL]` però amb el flux intern d'emissió ja operatiu al codi: intranet segura → API interna signada → preview autoritatiu → fingerprint → confirmació → factura SIF pendent de cobrament. El cobrament posterior sobre la factura també existeix al nucli genèric. Continuen pendents el guard cross-channel amb Redsys, l'accés extern/documental, l'orquestració del cobrament d'empresa i l'atribució quantitativa per participant. `ManualGroupInvoiceService` continua sent un camí diferent perquè genera factura i moviment inicial junts.
+**Estat:** `[PARCIAL_AVANÇAT]`. Flux intern operatiu: intranet segura → API interna signada → preview autoritatiu → fingerprint → confirmació → factura SIF pendent. El cobrament posterior, el guard Redsys CURS serialitzat, el ledger quantitatiu explícit per participant i les polítiques fail-closed de consulta/PDF ja estan implementats. Continuen pendents l'autenticador/portal extern del receptor, l'evidència E2E en `sif_test/sif_pre` i la validació operativa final.
 
 ## 1. Fitxa de cas d'ús
 
@@ -372,12 +372,12 @@ autonumber
 actor E as Empresa o responsable
 actor O as Operador
 participant UI as Intranet [ADAPTADOR PENDENT]
-participant G as Guard cobertura + autorització [DISSENY]
+participant G as Guard cobertura + lock compartit [IMPLEMENTAT CURS]
 participant IR as Factures/relacions SIF [SQL existent]
 participant T as Intencions Redsys individuals
 participant B as InvoiceBeforePaymentService [PHP]
 participant P as PaymentService [PHP]
-participant Inc as Incidències [INTEGRACIÓ PENDENT]
+participant Inc as Incidències [worker 409→INCIDENT]
 E->>O: Sol·licitar una factura de les inscripcions I1…IN
 O->>UI: Introduir receptor fiscal, participants i import
 UI->>G: Recalcular al servidor snapshot i comprovar permisos
@@ -403,7 +403,7 @@ else Cobertura nova i coherent amb intencions incompatibles controlades
   UI-->>E: Confirmació econòmica, no segona factura
  end
 end
-Note over G,Inc: Guard, accés extern i coherència entre callbacks, BD web i SIF són disseny pendent.
+Note over G,Inc: Guard Redsys CURS i concurrència exacta estan implementats; l'autenticació externa del receptor continua pendent.
 ```
 
 ### 4.4. Acció pròpia: ingrés parcial d'empresa i atribució entre participants — OBJECTIU
@@ -415,9 +415,9 @@ sequenceDiagram
 autonumber
 actor O as Gestió de cobraments
 participant R as Conciliació bancària/TPV [CANAL PENDENT]
-participant G as Validació de cobertura i imports [DISSENY]
+participant G as Validació de cobertura/imports [IMPLEMENTAT]
 participant P as PaymentService [PHP]
-participant L as Ledger de fons per ID_INSC [PROPOSTA]
+participant L as enrollment_fund_movement [IMPLEMENTAT]
 participant DB as BD fiscal SIF
 O->>R: Confirmar ingrés de l'empresa per factura F i N participants
 R-->>O: Prova d'un únic fet extern, import i pagador
@@ -430,10 +430,10 @@ else Un únic ingrés real nou amb parts justificades
  P->>DB: BEGIN, INSERT payment_transaction i payment_allocation
  P->>DB: COMMIT
  P-->>O: UUID_PAYMENT únic
- O->>L: Registrar distribució quantitativa I1…IN [PENDENT]
- L-->>O: Resultat per inscripció o incidència de distribució
+ O->>L: Registrar distribució explícita ID_INSC→import
+ L-->>O: Moviments idempotents per línia/participant
 end
-Note over P,L: El PHP actual no implementa una confirmació atòmica SIF+ledger proposat. No declarar l'atribució individual resolta fins a tenir-la.
+Note over P,L: El cobrament és realitat econòmica i es confirma primer; el ledger és post-commit idempotent. Si falla, el reintent completa la projecció sense eliminar el cobrament.
 ```
 
 | ID de prova pendent | Escenari | Resultat exigible |
@@ -591,11 +591,11 @@ flowchart TD
  K --> L[Notificar receptor; participants només estat propi]
 ```
 
-**Pendent d'implementació:** passos C/D específics d'empresa quan el canal no és manual, J/K i les ACL externes.
+**Implementat:** D per flux manual, J/K amb repartiment explícit sobre `enrollment_fund_movement`, i ACL fail-closed al SIF. **Pendent:** autenticació externa del receptor i canals d'empresa no manuals.
 
 ## 9. Verificació i mancances després de l'auditoria
 
 - **Verificat per codi/tests:** selecció server-side, receptor per ID, construcció de línies per participant, totals, preview/fingerprint, confirmació, idempotència de payload, cobertura única UC-04, factura sense cobrament inicial, cobrament genèric posterior sense segon registre fiscal.
 - **Evidència CI:** el workflow `UC-004 SIF secure flow checks` té execucions verdes anteriors. El SHA actual de `main` (`b0e8ff7`) té la suite general `SIF PHP MySQL tests` fallida; això impedeix etiquetar el cas complet com a verificat en l'estat actual.
 - **Corregit en aquesta branca:** la factura conjunta deixa de marcar les relacions dels participants com `visible_alumne=1`; ara és `0` per defecte i hi ha assert de test.
-- **Pendent crític:** carrera amb Redsys individual/callback tardà, ACL/PDF extern, cobrament parcial d'empresa E2E, ledger per participant, prova en `sif_test`/preproducció i conciliació si falla la sincronització amb el legacy després del commit fiscal.
+- **Pendent crític:** autenticador/portal extern del receptor, prova final del nou lock concurrent en CI/preproducció, E2E de cobrament manual amb repartiment per participant, i conciliació operativa si falla una projecció post-commit.
