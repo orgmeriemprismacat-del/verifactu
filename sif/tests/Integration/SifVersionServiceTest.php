@@ -96,8 +96,10 @@ final class SifVersionServiceTest
                 'uc010_single_active_unique_index',
                 'uc010_version_status_check',
                 'uc010_activation_status_check',
+                'uc010_state_singleton_check',
                 'uc010_trigger_activation_no_update',
                 'uc010_trigger_activation_no_delete',
+                'uc010_trigger_state_no_delete',
             ] as $schemaCheck) {
                 Assert::same(true, $preflight['preflight']['runtime']['schema_checks'][$schemaCheck] ?? false);
             }
@@ -269,6 +271,19 @@ final class SifVersionServiceTest
                 fn () => $db->prepare(
                     "DELETE FROM sif_version_activation WHERE UUID_ACTIVATION = ?"
                 )->execute([$activationUuid])
+            );
+
+            Assert::throws(
+                \PDOException::class,
+                fn () => $db->exec('DELETE FROM sif_version_state WHERE ID = 1')
+            );
+
+            Assert::throws(
+                \PDOException::class,
+                fn () => $db->exec(
+                    "INSERT INTO sif_version_state (ID, ACTIVE_UUID_VERSION, LOCK_VERSION)
+                     VALUES (2, NULL, 0)"
+                )
             );
 
             Assert::same('ACTIVE', (string) $db->query(
