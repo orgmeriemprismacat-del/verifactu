@@ -262,6 +262,121 @@ final class CreditBalanceServiceTest
         Assert::same('CREDIT_COMPENSATION', $allocationType);
     }
 
+    public function testAppliesCreditToEnrollmentAndRecordsCompensationAllocation(): void
+    {
+        $db = TestDatabase::fresh();
+        $origin = $this->paidEnrollmentWithFunds($db, 'COMP-FUND-ORIGIN');
+        $target = $this->pendingInvoiceForEnrollment($db, 20, 'COMP-FUND-TARGET');
+
+        $service = $this->service($db);
+        $credit = $service->createCredit([
+            'idempotency_key' => 'CREDIT|UC006|ORIGIN:10|TO:POOL|80',
+            'holder_type' => 'STUDENT',
+            'holder_id' => 10,
+            'holder_name' => 'Client Exemple',
+            'amount' => '80.00',
+            'source_type' => 'CANVI_CURS',
+            'source_enrollment_id' => 10,
+            'uuid_factura_origen' => $origin['uuid_factura'],
+        ]);
+
+        $input = [
+            'amount' => '60.00',
+            'movement_date' => '2026-10-04 02:00:00',
+            'target_enrollment_id' => 20,
+            'correlation_id' => 'UC006|TEST|COMP|10|20',
+        ];
+
+        $first = $service->applyCreditByUuid(
+            $credit['uuid_credit'],
+            $target['uuid_factura'],
+            $input
+        );
+        $second = $service->applyCreditByUuid(
+            $credit['uuid_credit'],
+            $target['uuid_factura'],
+            $input
+        );
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($first['uuid_payment'], $second['uuid_payment']);
+        Assert::same('20.00', $first['import_disponible']);
+        Assert::same('ACTIVE', $first['credit_estat']);
+        Assert::same(3, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+
+        $movement = $db->query(
+            "SELECT MOVEMENT_TYPE, UUID_PAYMENT, UUID_CREDIT, UUID_FACTURA,
+                    ID_FACTURA_LINIA, ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT
+             FROM enrollment_fund_movement
+             WHERE MOVEMENT_TYPE = 'COMPENSATION_ALLOCATION'"
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('COMPENSATION_ALLOCATION', $movement['MOVEMENT_TYPE']);
+        Assert::same($first['uuid_payment'], $movement['UUID_PAYMENT']);
+        Assert::same($credit['uuid_credit'], $movement['UUID_CREDIT']);
+        Assert::same($target['uuid_factura'], $movement['UUID_FACTURA']);
+        Assert::same(null, $movement['ID_INSC_ORIGEN']);
+        Assert::same(20, (int) $movement['ID_INSC_DESTI']);
+        Assert::same('60.00', $movement['IMPORT']);
+
+        $funds = new EnrollmentFundMovementRepository(new UuidGenerator());
+        Assert::same('40.00', $funds->availableAmountForInscription($db, 10));
+        Assert::same('60.00', $funds->availableAmountForInscription($db, 20));
+        Assert::same('20.00', (string) $db->query(
+            'SELECT IMPORT_DISPONIBLE FROM credit_balance'
+        )->fetchColumn());
+    }
+
+    public function testRollsBackCompensationWhenTargetEnrollmentIsNotOnInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $origin = $this->paidEnrollmentWithFunds($db, 'COMP-FUND-BAD-ORIGIN');
+        $target = $this->pendingInvoiceForEnrollment($db, 20, 'COMP-FUND-BAD-TARGET');
+
+        $service = $this->service($db);
+        $credit = $service->createCredit([
+            'idempotency_key' => 'CREDIT|UC006|BADTARGET|80',
+            'holder_type' => 'STUDENT',
+            'holder_id' => 10,
+            'holder_name' => 'Client Exemple',
+            'amount' => '80.00',
+            'source_type' => 'CANVI_CURS',
+            'source_enrollment_id' => 10,
+            'uuid_factura_origen' => $origin['uuid_factura'],
+        ]);
+
+        Assert::throws(SifException::class, static function () use ($service, $credit, $target): void {
+            $service->applyCreditByUuid(
+                $credit['uuid_credit'],
+                $target['uuid_factura'],
+                [
+                    'amount' => '60.00',
+                    'movement_date' => '2026-10-04 02:05:00',
+                    'target_enrollment_id' => 999,
+                ]
+            );
+        }, 409);
+
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM payment_transaction WHERE TIPUS_MOVIMENT = 'CHARGE'"
+        )->fetchColumn());
+        Assert::same(0, (int) $db->query(
+            "SELECT COUNT(*) FROM payment_transaction WHERE TIPUS_MOVIMENT = 'COMPENSATION'"
+        )->fetchColumn());
+        Assert::same('80.00', (string) $db->query(
+            'SELECT IMPORT_DISPONIBLE FROM credit_balance'
+        )->fetchColumn());
+        Assert::same(2, (int) $db->query(
+            'SELECT COUNT(*) FROM enrollment_fund_movement'
+        )->fetchColumn());
+        Assert::same('PENDING', (string) $db->query(
+            "SELECT ESTAT_COBRAMENT FROM factura WHERE UUID_FACTURA = '"
+            . $target['uuid_factura']
+            . "'"
+        )->fetchColumn());
+    }
+
     public function testRejectsSameCompensationKeyWithDifferentPayload(): void
     {
         $db = TestDatabase::fresh();
@@ -425,6 +540,31 @@ final class CreditBalanceServiceTest
         );
 
         return $invoice;
+    }
+
+    private function pendingInvoiceForEnrollment(
+        \PDO $db,
+        int $idInsc,
+        string $key
+    ): array {
+        return IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'INVOICE|' . $key,
+                'emesa_abans_cobrament' => 1,
+                'lines' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => $idInsc,
+                ]],
+                'relations' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => $idInsc,
+                    'factura_relacionada' => 930 + $idInsc,
+                    'idpag' => 930 + $idInsc,
+                    'ds_order' => $key,
+                    'visible_alumne' => 1,
+                ]],
+            ])
+        );
     }
 
     private function service(\PDO $db): CreditBalanceService
