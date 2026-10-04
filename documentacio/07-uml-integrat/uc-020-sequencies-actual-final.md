@@ -163,3 +163,35 @@ Abans de crear la intenció, `PrismaStudentCourseCheckoutService` exclou la matr
 - **Callback:** valida signatura/DS_ORDER/import/moneda/terminal contra la intenció i encola; no reavalua AP.
 - **Worker/factura:** el `main` vigent disposa de prova E2E simulada de callback → worker → pagament/factura/sync/outbox.
 - **Pendent:** E2E real navegador/Redsys/preproducció i migració de tots els canals a la mateixa oferta/`payment_link`.
+
+## 7. P06 · canvi de curs — autoritat AP servidor
+
+```mermaid
+sequenceDiagram
+autonumber
+actor S as Secretaria
+participant E as realitzarCanviCurs_CanviCurs.php
+participant L as BD legacy
+participant R as resolveLegacyPrismaStudentCourseChangePrice
+participant P as SIF course-change preview
+participant I as Intranet::realitzarCanviCurs_modalCanviCurs
+
+S->>E: POST canvi + CSRF
+E->>E: sessió + same-origin + permís
+E->>L: loadLegacyCourseChangeSource(idInsc)
+L-->>E: CURS, A_PAGAR, PAGAMENT, TIPUS_DESC, VALID_DESC
+alt TIPUS_DESC = 1
+  E->>R: any/mes/curs destí
+  R->>L: edició única + preu base + tarifa AP exacta
+  L-->>R: ID_PREU, HORES, PREU
+  R-->>E: tarifa AP autoritativa
+  E->>E: substituir A_PAGAR/PAGAT/PENDENT client
+end
+opt SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1
+  E->>P: preview signat amb import autoritatiu
+  P-->>E: impacte fiscal/econòmic + can_confirm
+end
+E->>I: executar mutació amb valors servidor
+```
+
+**Límit pendent:** aquesta frontera ja elimina l'autoritat monetària del navegador per AP i evita seleccionar una tarifa d'un altre curs/edició, però l'elegibilitat P06 continua amb la regla legacy pròpia i encara no reutilitza `PrismaStudentDiscountPolicy`.

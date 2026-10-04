@@ -739,3 +739,12 @@ L'auditoria UC-020 queda **tancada**. El runtime AP de targeta és server-author
 - `PaymentLinkService::issue/resolve` exigeixen `BILLABLE` i `READY_FOR_PAYMENT|PAYMENT_PENDING`; link actiu no implica autorització si l'operació deixa de ser pagable.
 - S'han afegit proves pendents de CI per token manipulat, operació no pagable, import AP client manipulat, ordre callback desconeguda, signatura V2 incorrecta, tarifa absent/futura, preview read-only i immutabilitat de `PRICE_SNAPSHOT_JSON`.
 - `PrismaStudentCommercialSnapshotImmutabilityTest` conserva el snapshot/intenció original davant un segon intent amb la mateixa operació i una versió de preu diferent.
+
+## 25. Hardening P06 · canvi de curs — continuació 03/10/2026
+
+- `realitzarCanviCurs_CanviCurs.php` rellegeix de BD `CURS`, `A_PAGAR`, `PAGAMENT`, `TIPUS_DESC` i `VALID_DESC`; els hidden inputs de tipus/estat deixen de ser autoritatius.
+- Si l'origen és Alumne PrisMa (`TIPUS_DESC=1`), el destí es resol amb una edició única i una tarifa AP única per `ID_PREU + CURS/HORES + MES + vigència`; també es valida `0 < AP < tarifa base`.
+- `A_PAGAR`, `PAGAT` i `PENDENT` s'imposen al servidor abans del preview SIF i abans de `realitzarCanviCurs_modalCanviCurs`.
+- S'han implementat els helpers que el path amb `SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1` cridava sense definició.
+- `LegacyPrismaStudentCourseChangeBoundaryTest` cobreix helpers, origen BD, selector AP i ordre de sobreescriptura; **pendent de CI** al nou head.
+- La convergència total no es declara tancada: l'elegibilitat P06 continua sent la variant legacy pagament/regal i no incorpora `GENERAT=1`; AP-73/migració de policy roman oberta.

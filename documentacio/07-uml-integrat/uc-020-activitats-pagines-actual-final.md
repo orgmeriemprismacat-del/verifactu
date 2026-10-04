@@ -565,7 +565,7 @@ stop
 @enduml
 ```
 
-### 6.2. P06-B — ACTUAL · prioritat de preu
+### 6.2. P06-B — ACTUAL / HARDENED AP · prioritat de preu
 
 ```plantuml
 @startuml
@@ -627,6 +627,7 @@ stop
 - `PaymentLinkService::issue()/resolve()/revoke()`: **implementat**; encara no és la ruta canònica d'aquest checkout AP.
 - Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA_COMPATIBILITAT** com `ALUMNE_PRISMA_WEB_LEGACY_V2`; decisions UC20-DEC-001…006 tancades a la fitxa v1.7.
 - Connexió AP de pagament → `RedsysPaymentIntentService`: **IMPLEMENTADA** via `SifRedsysCourseIntentClient` / `course-intent` / `PrismaStudentCourseCheckoutService`. La coordinació específica amb `payment_link` continua pendent.
+- Autoritat AP de P06: **IMPLEMENTADA_PENDENT_CI**; hidden inputs de tipus/estat/import no governen el canvi AP. La policy d'elegibilitat comuna continua pendent.
 
 ## 7. Matriu ACTUAL → FINAL
 
@@ -683,7 +684,7 @@ Per UC-020, P02 continua sent llegat en transport i UX, però ja no és autorita
 - **P02:** preview JS continua subjecte a concurrència, però l'alta AP revalida historial/tarifa al servidor i, després d'UC020-94, el preu servidor arriba intacte a `A_PAGAR`.
 - **P03/P04:** el canal de targeta actiu obté la intenció SIF i usa l'import retornat pel servidor; `payment_link` i transferència continuen pendents d'unificació.
 - **P05:** resolució revalidada com POST + sessió + permís + CSRF + `requestId`; queda deute de concurrència/idempotència persistent a BD.
-- **P06:** la lògica llegada de canvi de curs continua sent una superfície diferent; la seva convergència completa a la policy/oferta SIF és migració transversal.
+- **P06:** la frontera monetària AP ja està endurida: tipus/estat es rellegeixen de BD i la tarifa destí és server-authoritative amb curs/hores/mes/vigència/unicitat. Continua com a migració transversal la convergència de l'elegibilitat a la mateixa policy versionada i la creació d'oferta SIF nativa.
 - **Callback/factura:** el `main` actual incorpora proves E2E simulades de callback → worker → pagament/factura/sync/outbox. No substitueixen el gate real de preproducció.
 
 
