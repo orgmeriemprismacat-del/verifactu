@@ -17,16 +17,27 @@ final class ExistingInvoicePaymentPreviewService
     {
         $uuidFactura = trim((string) ($selector['uuid_factura'] ?? ''));
         $numVisible = strtoupper(trim((string) ($selector['num_visible'] ?? '')));
+        $legacyFacturaRelacionada = (int) ($selector['legacy_factura_relacionada'] ?? 0);
+        $selectorCount = ($uuidFactura !== '' ? 1 : 0)
+            + ($numVisible !== '' ? 1 : 0)
+            + ($legacyFacturaRelacionada > 0 ? 1 : 0);
 
-        if (($uuidFactura === '') === ($numVisible === '')) {
+        if ($selectorCount !== 1) {
             throw SifException::validation(
                 'Existing invoice preview requires exactly one invoice selector'
             );
         }
 
-        $invoice = $uuidFactura !== ''
-            ? $this->invoices->findByUuid($db, $uuidFactura)
-            : $this->invoices->findByNumVisible($db, $numVisible);
+        if ($uuidFactura !== '') {
+            $invoice = $this->invoices->findByUuid($db, $uuidFactura);
+        } elseif ($numVisible !== '') {
+            $invoice = $this->invoices->findByNumVisible($db, $numVisible);
+        } else {
+            $invoice = $this->invoices->findByLegacyFacturaRelacionada(
+                $db,
+                $legacyFacturaRelacionada
+            );
+        }
 
         if ($invoice === null) {
             throw SifException::notFound('SIF invoice not found for payment preview');
