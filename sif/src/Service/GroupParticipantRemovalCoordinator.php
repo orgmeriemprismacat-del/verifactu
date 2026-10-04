@@ -16,6 +16,7 @@ final class GroupParticipantRemovalCoordinator
         private GroupParticipantAcademicGatewayInterface $academic,
         private ManualRectificationService $rectifications,
         private ManualRefundService $refunds,
+        private CreditBalanceService $credits,
         private EnrollmentFundDispositionService $fundDispositions
     ) {
     }
@@ -194,7 +195,42 @@ final class GroupParticipantRemovalCoordinator
                 continue;
             }
 
-            if (in_array($type, ['CREDIT', 'REPRICE_REMAINING_GROUP'], true)) {
+            if ($type === 'CREDIT') {
+                $input = (array) ($action['input'] ?? []);
+                $input['idempotency_key'] = 'UC016B|CREDIT|EXEC:' . $uuidExecution;
+                $credit = $this->runStep(
+                    $sifDb,
+                    $uuidExecution,
+                    $type,
+                    $order++,
+                    $input,
+                    fn(): array => $this->credits->createCredit($input)
+                );
+                $results[$type] = $credit;
+
+                $results['FUND_CREDIT'] = $this->runStep(
+                    $sifDb,
+                    $uuidExecution,
+                    'FUND_CREDIT',
+                    $order++,
+                    [
+                        'amount' => $input['amount'],
+                        'uuid_credit' => $credit['uuid_credit'] ?? null,
+                    ],
+                    fn(): array => $this->fundDispositions->dispose(
+                        $sifDb,
+                        $idInsc,
+                        $uuidFactura,
+                        (string) $input['amount'],
+                        $correlationId,
+                        'CREDIT:' . (string) ($credit['uuid_credit'] ?? ''),
+                        null
+                    )
+                );
+                continue;
+            }
+
+            if ($type === 'REPRICE_REMAINING_GROUP') {
                 return $this->waitExternal(
                     $sifDb,
                     $uuidExecution,
@@ -202,7 +238,7 @@ final class GroupParticipantRemovalCoordinator
                     $actualFingerprint,
                     $plan,
                     $results,
-                    'Step requires an idempotent approved external executor'
+                    'Repricing remaining group requires separate approved fiscal classification'
                 );
             }
         }
