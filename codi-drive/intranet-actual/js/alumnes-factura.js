@@ -1071,41 +1071,20 @@ function mostrarModalPrevisualitzaFactura( id ) {
 				   El backend revalida sessió, ROLS_VISUALITZAR, origen i guard SIF. */
 				$("#modalPrevisualizaFactura").modal('hide');
 				var idFact = $('#modalPrevisualizaFactura #factura-relacionada-fact').html().trim();
-				var requestDown = $.ajax({
-					url: path + "alumnes/descarregaFactura.php",
-					method: "POST",
-					data: { id : idFact },
-					dataType: "html"
-				});
-
-				requestDown.done(function( resD ) {
-					resD = $.trim(resD);
-					if (resD !== '' && !resD.toLowerCase().includes("error")) {
-						var link = document.createElement('a');
-						link.setAttribute("id", "download-fact-" + nclick);
-						link.href = path + "alumnes/" + encodeURIComponent(resD);
-						link.download = resD;
-						document.body.appendChild(link);
-						link.click();
-						link.remove();
-
+				uc007DescarregarFacturaLlegada(
+					idFact,
+					function() {
 						afegirHeaderModalSuccess("Descarregada");
 						afegirTextModalSuccess("S'ha iniciat la descàrrega de la factura");
 						mostrarModalSuccess();
 						nclick++;
-					}
-					else {
+					},
+					function(message) {
 						afegirHeaderModalError("Hi ha hagut un error al generar la descarrega");
-						afegirTextModalError('');
+						afegirTextModalError(message || '');
 						mostrarModalError();
-						reloadUrl();
 					}
-				});
-
-				requestDown.fail(function( jqXHRDown, textStatusDown, errorThrownDown ) {
-					errorFunction( jqXHRDown, textStatusDown, errorThrownDown,
-						"Hi ha hagut algun error a l'hora de descarregar la factura: " );
-				});
+				);
 			});
 
 			if ($('#factura-num-pagines')) {
@@ -1146,5 +1125,58 @@ function mostrarModalPrevisualitzaFactura( id ) {
 	request.fail(function( jqXHR, textStatus, errorThrown ) {
 		errorFunction( jqXHR, textStatus, errorThrown,
 			"Hi ha hagut algun error al mostrar el modal de previsualitzar la factura: " );
+	});
+}
+
+
+function uc007DescarregarFacturaLlegada(idFactura, onSuccess, onError) {
+	if (typeof fetch !== 'function') {
+		if (typeof onError === 'function')
+			onError("El navegador no permet la descàrrega segura de la factura");
+		return;
+	}
+
+	fetch(path + "alumnes/descarregaFactura.php", {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+			"X-Requested-With": "XMLHttpRequest"
+		},
+		body: "id=" + encodeURIComponent(idFactura)
+	})
+	.then(function(response) {
+		if (!response.ok) {
+			return response.text().then(function(message) {
+				throw new Error((message || "No s'ha pogut descarregar la factura").replace(/^Error:\s*/i, ""));
+			});
+		}
+
+		var disposition = response.headers.get("Content-Disposition") || "";
+		var match = disposition.match(/filename="?([^";]+)"?/i);
+		var filename = match ? match[1] : "factura.pdf";
+
+		return response.blob().then(function(blob) {
+			return { blob: blob, filename: filename };
+		});
+	})
+	.then(function(result) {
+		var objectUrl = URL.createObjectURL(result.blob);
+		var link = document.createElement("a");
+		link.href = objectUrl;
+		link.download = result.filename;
+		document.body.appendChild(link);
+		link.click();
+		link.remove();
+		setTimeout(function() {
+			URL.revokeObjectURL(objectUrl);
+		}, 1000);
+
+		if (typeof onSuccess === 'function')
+			onSuccess(result.filename);
+	})
+	.catch(function(error) {
+		if (typeof onError === 'function')
+			onError(error.message || "No s'ha pogut descarregar la factura");
 	});
 }
