@@ -6,6 +6,13 @@ use Prisma\Sif\Exception\SifException;
 
 final class ReleaseManifestVerifier
 {
+    private const GOVERNED_ROOTS = ['src', 'public', 'config', 'scripts', 'database/migrations'];
+
+    public static function governedRoots(): array
+    {
+        return self::GOVERNED_ROOTS;
+    }
+
     public function verify(string $baseDir, string $manifestPath): array
     {
         $baseDir = realpath($baseDir) ?: '';
@@ -46,7 +53,13 @@ final class ReleaseManifestVerifier
                 throw SifException::validation('Invalid release manifest entry');
             }
 
-            $path = realpath($baseDir . '/' . $relative);
+            $rawPath = $baseDir . '/' . $relative;
+            if (is_link($rawPath)) {
+                $mismatches[$relative] = 'SYMLINK_NOT_ALLOWED';
+                continue;
+            }
+
+            $path = realpath($rawPath);
             if ($path === false || !str_starts_with($path, $baseDir . DIRECTORY_SEPARATOR) || !is_file($path)) {
                 $mismatches[$relative] = 'MISSING';
                 continue;
@@ -61,6 +74,12 @@ final class ReleaseManifestVerifier
             $verified[$relative] = $actualHash;
         }
 
+        foreach ($this->currentGovernedFiles($baseDir) as $relative => $kind) {
+            if (!array_key_exists($relative, $files)) {
+                $mismatches[$relative] = $kind === 'symlink' ? 'UNEXPECTED_SYMLINK' : 'UNEXPECTED_FILE';
+            }
+        }
+
         $artifactJson = json_encode(
             $files,
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
@@ -73,5 +92,37 @@ final class ReleaseManifestVerifier
             'verified_count' => count($verified),
             'mismatches' => $mismatches,
         ];
+    }
+
+    private function currentGovernedFiles(string $baseDir): array
+    {
+        $inventory = [];
+
+        foreach (self::GOVERNED_ROOTS as $root) {
+            $absolute = $baseDir . '/' . $root;
+            if (!is_dir($absolute)) {
+                continue;
+            }
+
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($absolute, \FilesystemIterator::SKIP_DOTS)
+            );
+
+            foreach ($iterator as $file) {
+                $pathName = $file->getPathname();
+                $relative = str_replace('\\', '/', substr($pathName, strlen($baseDir) + 1));
+
+                if ($file->isLink()) {
+                    $inventory[$relative] = 'symlink';
+                    continue;
+                }
+                if ($file->isFile()) {
+                    $inventory[$relative] = 'file';
+                }
+            }
+        }
+
+        ksort($inventory, SORT_STRING);
+        return $inventory;
     }
 }
