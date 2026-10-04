@@ -362,6 +362,19 @@
             return;
         }
 
+        if (decision.executed === true) {
+            var execution = decision.execution || {};
+            var executedMessage = 'Aquesta decisió UC-74 ja s’ha executat.';
+            if (execution.uuid_factura_rectificativa) {
+                executedMessage += ' Rectificativa: ' + String(execution.uuid_factura_rectificativa) + '.';
+            }
+            wrapper.append(
+                $('<div>').addClass('alert alert-success mb-0').text(executedMessage)
+            );
+            parent.append(wrapper);
+            return;
+        }
+
         if (decision.ready_for_uc005_ui !== true || !decision.correction) {
             wrapper.append(
                 $('<div>').addClass('alert alert-warning mb-0').text(
