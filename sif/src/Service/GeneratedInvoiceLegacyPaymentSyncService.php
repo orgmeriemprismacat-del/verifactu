@@ -11,8 +11,7 @@ final class GeneratedInvoiceLegacyPaymentSyncService
         \PDO $legacyDb,
         string $uuidFactura,
         string $numVisible,
-        string $movementDate,
-        string $method
+        string $movementDate
     ): array {
         $uuidFactura = trim($uuidFactura);
         $numVisible = trim($numVisible);
