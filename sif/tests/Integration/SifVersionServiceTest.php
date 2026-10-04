@@ -13,6 +13,7 @@ use Prisma\Sif\Repository\SifVersionActivationRepository;
 use Prisma\Sif\Repository\SifVersionRepository;
 use Prisma\Sif\Service\RuntimeVersionInspector;
 use Prisma\Sif\Service\SifVersionService;
+use Prisma\Sif\Service\SifVersionEvidenceVerifier;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\TestDatabase;
 
@@ -111,6 +112,18 @@ final class SifVersionServiceTest
                 "SELECT COUNT(*) FROM operational_event
                  WHERE OPERATION_TYPE IN ('VERSION_REGISTERED','DECLARATION_APPROVED','VERSION_ACTIVATED')"
             )->fetchColumn());
+
+            $evidence = (new SifVersionEvidenceVerifier(
+                new RuntimeVersionInspector(
+                    $dir,
+                    new MigrationRunner(dirname(__DIR__, 2) . '/database')
+                ),
+                $config
+            ))->verify($db, $uuid);
+            Assert::same(true, $evidence['ok']);
+            Assert::same(false, $evidence['production_authorized']);
+            Assert::same(true, $evidence['checks']['singleton_points_to_version']);
+            Assert::same(true, $evidence['checks']['activation_snapshot_declaration_hash_matches']);
         } finally {
             $this->removeTree($dir);
             $this->removeTree($dir . '-evidence');
