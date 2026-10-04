@@ -12,7 +12,8 @@ Aquesta vista cobreix les cinc fronteres executables del UC-009:
 2. bridge AJAX + client HMAC servidor-servidor;
 3. API interna `/api/aeat/operations.php`;
 4. worker/cua/transport AEAT;
-5. reconciliació de `REVIEW` sense segon SOAP.
+5. reconciliació de `REVIEW` amb resultat terminal ja persistit;
+6. reconciliació d'`UNCERTAIN` des d'evidència privada verificada, sempre sense segon SOAP.
 
 No converteix fitxers PHP procedimentals en classes fictícies: la pàgina, el bridge i l'endpoint es representen com a fronteres, i només les classes PHP reals apareixen com a classes.
 
@@ -25,6 +26,7 @@ direction LR
 class IntranetAeatPage {
   <<boundary PHP>>
   +session check
+  +local read-role gate
   +CSRF token
   +summary/list/detail/preflight UI
 }
@@ -35,12 +37,13 @@ class IntranetAeatJs {
   +loadDetail(queueId)
   +showPreflight()
   +reconcile(attemptUuid)
+  +reconcileEvidence(attemptUuid)
 }
 class SifAeatBridge {
   <<boundary PHP>>
   +POST only
   +session validation
-  +CSRF for reconcile
+  +CSRF for reconcile mutations
 }
 class SifInternalAeatClient {
   +request(actorId, roles, payload) array
@@ -54,6 +57,7 @@ class AeatOperationsEndpoint {
   +detail
   +preflight
   +reconcile
+  +reconcile_evidence
 }
 class InternalApiAuthenticator {
   +authenticate(server, body, method, path) array
@@ -82,9 +86,11 @@ class FiscalQueueRepository {
   +reconcileReview(db,item,status,response,xml) void
 }
 class AeatSubmissionAttemptRepository {
-  +begin(db,item,payload) string
+  +begin(db,item,payload) array
   +complete(db,uuid,status,response) void
-  +fail(db,uuid,status,detail) void
+  +fail(db,uuid,status,detail,evidenceId) void
+  +markStartedUncertain(db,uuid,detail) void
+  +completeUncertainFromEvidence(db,uuid,evidenceId,status,response) void
 }
 class FiscalQueueProcessor {
   +processNext() array
@@ -115,7 +121,9 @@ class ResponseParser {
   +parse(xml,snapshot) array
 }
 class EvidenceStore {
+  +generateId() string
   +begin(request,metadata) string
+  +beginWithId(id,request,metadata) string
   +response(id,response,httpCode) void
   +failure(id,code) void
 }
@@ -153,15 +161,17 @@ SoapTransport --> EvidenceStore
 
 | Component | Responsabilitat ACTUAL | Evidència |
 | --- | --- | --- |
-| `sif-registres-aeat.php` | sessió, token CSRF i shell del panell | codi real intranet |
-| `sif-registres-aeat.js` | summary/list/detail/preflight/reconcile | codi real JS |
+| `sif-registres-aeat.php` | sessió, gate local `SIF_AEAT_READ_ROLES`, token CSRF i shell del panell | codi real intranet + contract test |
+| `sif-registres-aeat.js` | summary/list/detail/preflight, reconcile terminal i reconcile d'evidència segons `capabilities.reconcile` | codi real JS |
 | `ajax/sif/sifAeat.php` | POST, sessió i CSRF per mutació | codi real bridge |
 | `SifInternalAeatClient` | HTTPS + HMAC + request id | codi real client |
-| `operations.php` | autenticació interna i separació read/reconcile roles | codi real API |
+| `operations.php` | HMAC/anti-replay; lectura exigeix rol read i mutacions exigeixen read + reconcile | codi real API + contract test |
 | `AeatOperationsReadRepository` | projecció operativa sense XML/payload protegit | codi + test |
 | `FiscalQueueProcessor` | integritat, intent, transport, retry/dead-letter/review | codi + tests |
 | `FiscalQueueRepository` | ownership amb `CLAIM_TOKEN` i persistència terminal | codi + tests |
 | `AeatReviewReconciliationService` | tancar `REVIEW` amb resultat terminal ja persistit | codi + tests |
+| `AeatEvidenceReconciliationService` | validar bundle privat, metadata, request immutable i resposta abans de `UNCERTAIN → terminal` | codi + tests |
+| `EvidenceVerifier` | integritat, no symlinks, hashes, HTTP i metadata d'ownership | codi + tests |
 | `SoapTransport` | SOAP/mTLS només endpoint AEAT de proves | codi + tests |
 
 ## 3. FINAL — separació de responsabilitats exigida
@@ -180,7 +190,8 @@ class AeatOperationalPanel {
 class AeatInternalApi {
   <<deployed boundary>>
   +HMAC authenticated
-  +role gated
+  +read role gated
+  +read AND reconcile for mutation
 }
 class AeatWorkerRuntime {
   <<qualified runtime>>
@@ -205,10 +216,14 @@ class AeatEvidenceCustody {
 }
 class FiscalQueueProcessor
 class AeatReviewReconciliationService
+class AeatEvidenceReconciliationService
+class EvidenceVerifier
 class SoapTransport
 
 AeatOperationalPanel --> AeatInternalApi
 AeatInternalApi --> AeatReviewReconciliationService
+AeatInternalApi --> AeatEvidenceReconciliationService
+AeatEvidenceReconciliationService --> EvidenceVerifier
 AeatWorkerRuntime --> FiscalQueueProcessor
 FiscalQueueProcessor --> SoapTransport
 SoapTransport --> AeatEnvironmentPolicy
@@ -235,8 +250,8 @@ No hi ha evidència d'una classe `AeatPanelController` ni d'un `AeatProductionTr
 ## 5. Estat
 
 - **Documentat:** complet per classes ACTUAL/FINAL.
-- **Implementat:** classes ACTUAL anteriors localitzades a `main`.
-- **Verificat:** tests AEAT del run CI del 02/10 passen; s'afegeix contracte específic d'intranet en aquesta auditoria.
+- **Implementat:** nucli preexistent a `main`; correccions i extensió d'evidència implementades al PR #133.
+- **Verificat:** tall anterior del PR amb 57/57 UC-009 PASS; el head amb conciliació d'evidència i doble gate de rol requereix el PASS dedicat corresponent.
 - **Pendent:** evidència de desplegament/preproducció i política d'activació de producció.
 
 
