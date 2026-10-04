@@ -59,6 +59,8 @@ try {
     $lines.Add('LegacyPackCallbackBoundaryTest::testProductionLegacyPackCallbacksArePhysicallyRemoved')
     $lines.Add('PackCommercialOrderBoundaryTest::testPackPresentationAndEnrollmentUseSameDeterministicOrder')
     $lines.Add('PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop')
+    $lines.Add('PackConfirmationTokenTest')
+    $lines.Add('PackConfirmationTokenBoundaryTest')
     $lines.Add('PackPublicEnrollmentBoundaryTest')
     $lines.Add('PackEnrollmentAtomicityBoundaryTest')
     $lines.Add('PackEnrollmentIdempotencyBoundaryTest')
