@@ -16,27 +16,26 @@ final class RedsysGiftPaymentIntentService
 
     public function create(\PDO $sifDb, \PDO $legacyDb, array $input): array
     {
-        $giftCode = trim((string) ($input['gift_code'] ?? ''));
-        if ($giftCode === '' || strlen($giftCode) > 200) {
-            throw SifException::validation('Invalid gift code');
-        }
+        $giftId = $this->positiveInt($input['gift_id'] ?? null, 'gift_id');
 
         $terminal = trim((string) ($input['terminal'] ?? ''));
         if (!preg_match('/^[0-9]{1,3}$/D', $terminal)) {
             throw SifException::validation('Invalid Redsys gift terminal');
         }
 
-        $snapshot = $this->legacySnapshots->loadByCode($legacyDb, $giftCode);
+        $snapshot = $this->legacySnapshots->loadById($legacyDb, $giftId);
         $gift = $snapshot['gift'] ?? null;
         if (!is_array($gift)) {
             throw SifException::validation('Invalid legacy gift snapshot');
         }
 
-        $giftId = $this->positiveInt($gift['ID'] ?? null, 'gift.ID');
+        $snapshotGiftId = $this->positiveInt($gift['ID'] ?? null, 'gift.ID');
+        if ($snapshotGiftId !== $giftId) {
+            throw SifException::conflict('Gift ID does not match authoritative legacy snapshot');
+        }
         $amount = $this->money($gift['IMPORT'] ?? null, 'gift.IMPORT');
-        $canonicalCode = trim((string) ($gift['CODI'] ?? ''));
-        if ($canonicalCode === '' || !hash_equals($canonicalCode, $giftCode)) {
-            throw SifException::conflict('Gift code does not match authoritative legacy snapshot');
+        if (trim((string) ($gift['CODI'] ?? '')) === '') {
+            throw SifException::conflict('Authoritative legacy gift code is missing');
         }
 
         $factRel = $gift['FACT_REL'] ?? null;
