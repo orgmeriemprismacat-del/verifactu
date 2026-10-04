@@ -33,6 +33,7 @@ on:
       - "codi-drive/intranet-actual/ajax/alumnes/mostrarTotesFacturesUsuari_Factures.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sifDocument.php"
       - "codi-drive/intranet-actual/SifInternalApiClient.php"
+      - "codi-drive/intranet-actual/SifLegacyInvoiceMutationGuard.php"
       - "codi-drive/intranet-actual/SifInternalDocumentClient.php"
       - "codi-drive/intranet-actual/js/alumnes-factura.js"
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
@@ -75,6 +76,7 @@ on:
       - "codi-drive/intranet-actual/ajax/alumnes/mostrarTotesFacturesUsuari_Factures.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sifDocument.php"
       - "codi-drive/intranet-actual/SifInternalApiClient.php"
+      - "codi-drive/intranet-actual/SifLegacyInvoiceMutationGuard.php"
       - "codi-drive/intranet-actual/SifInternalDocumentClient.php"
       - "codi-drive/intranet-actual/js/alumnes-factura.js"
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
@@ -166,6 +168,7 @@ jobs:
           php -l codi-drive/intranet-actual/ajax/alumnes/mostrarTotesFacturesUsuari_Factures.php
           php -l codi-drive/intranet-actual/ajax/alumnes/sifDocument.php
           php -l codi-drive/intranet-actual/SifInternalApiClient.php
+          php -l codi-drive/intranet-actual/SifLegacyInvoiceMutationGuard.php
           php -l codi-drive/intranet-actual/SifInternalDocumentClient.php
           node --check codi-drive/intranet-actual/js/alumnes-factura.js
           php -l codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php
