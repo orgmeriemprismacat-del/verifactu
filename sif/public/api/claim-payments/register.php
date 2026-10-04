@@ -8,6 +8,7 @@ use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
+use Prisma\Sif\Repository\ClaimPaymentInvoiceLinkRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentActionEventRepository;
@@ -67,6 +68,10 @@ try {
         throw SifException::validation('Provide exactly one claim payment invoice selector');
     }
 
+    $sourceInscriptionId = claimPaymentPositiveInt(
+        $payload['source_inscription_id'] ?? null,
+        'Invalid claim payment inscription ID'
+    );
     $claimCaseId = claimPaymentIdentifier(
         $payload['claim_case_id'] ?? null,
         'claim case id'
@@ -129,6 +134,7 @@ try {
         'reason_code' => 'CLAIM_PAYMENT_CONFIRMED',
         'changeset' => [
             'claim_case_id' => $claimCaseId,
+            'source_inscription_id' => $sourceInscriptionId,
             'external_receipt_id' => $externalReceiptId,
             'invoice_selector' => $uuidFactura !== ''
                 ? ['type' => 'uuid', 'value' => $uuidFactura]
@@ -138,21 +144,37 @@ try {
             ->format('Y-m-d H:i:s.u'),
     ];
 
+    $invoiceLinks = new ClaimPaymentInvoiceLinkRepository();
+
     $result = $gateway->run(
         $auditContext,
         function (PDO $transactionDb) use (
             $claimService,
+            $invoiceLinks,
+            $sourceInscriptionId,
             $uuidFactura,
             $numVisible,
             $paymentInput
         ): array {
             if ($uuidFactura !== '') {
+                $invoiceLinks->assertUuidMatches(
+                    $transactionDb,
+                    $uuidFactura,
+                    $sourceInscriptionId
+                );
+
                 return $claimService->registerByUuidInTransaction(
                     $transactionDb,
                     $uuidFactura,
                     $paymentInput
                 );
             }
+
+            $invoiceLinks->assertNumVisibleMatches(
+                $transactionDb,
+                $numVisible,
+                $sourceInscriptionId
+            );
 
             return $claimService->registerByNumVisibleInTransaction(
                 $transactionDb,
@@ -163,6 +185,7 @@ try {
     );
 
     $result['claim_case_id'] = $claimCaseId;
+    $result['source_inscription_id'] = $sourceInscriptionId;
     $result['external_receipt_id'] = $externalReceiptId;
 
     JsonResponse::send([
@@ -221,4 +244,14 @@ function claimPaymentIdentifier(mixed $value, string $label): string
     }
 
     return $identifier;
+}
+
+
+function claimPaymentPositiveInt(mixed $value, string $message): int
+{
+    if (filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+        throw SifException::validation($message);
+    }
+
+    return (int) $value;
 }
