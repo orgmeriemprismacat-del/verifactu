@@ -1528,7 +1528,7 @@ class RegalCurs{
          getenv('SIF_REDSYS_GIFT_CUTOVER_ENABLED') ?: '0',
          FILTER_VALIDATE_BOOLEAN
       );
-      if (!$giftCutoverEnabled) {
+      if (!$giftCutoverEnabled && $reservationCreated) {
          $options_digital = new \Dompdf\Options();
          $options_digital->set('isRemoteEnabled', true);
          $dompdf_digital = new \Dompdf\Dompdf($options_digital);
