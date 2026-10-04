@@ -42,7 +42,7 @@
 
 | Fitxer | Abans de revalidació | Estat a la branca / FINAL |
 | --- | --- | --- |
-| `alumnes-factura.php` | carregava dos JS UC-007 | carrega només `alumnes-factura.js?ver=1.1` |
+| `alumnes-factura.php` | carregava dos JS UC-007 | carrega només `alumnes-factura.js?ver=1.2` |
 | `js/alumnes-factura.js` | canònic però coexistia amb override | únic JS UC-007 executable |
 | `js/alumnes-factura-sif.js` | duplicat divergent | no executable; retirar després d'inventari repo-wide |
 | `ajax/alumnes/sifFactures.php` | bridge SIF | conservar |
@@ -67,7 +67,7 @@
 
 | Fitxer | Abans de revalidació | Estat a la branca / FINAL |
 | --- | --- | --- |
-| `alumnes-mostrar-alumne.php` | executava minificat 1.6 + mòdul SIF separat | carrega `alumnes-mostrar-alumne.js?ver=1.7` |
+| `alumnes-mostrar-alumne.php` | executava minificat 1.6 + mòdul SIF separat | carrega `alumnes-mostrar-alumne.js?ver=1.8` |
 | `js/alumnes-mostrar-alumne.min.js` | obsolet: GET download, `resD`, cleanup GET | no executable des de la pàgina |
 | `js/alumnes-mostrar-alumne.js` | font actualitzat | canònic |
 | `js/alumnes-mostrar-alumne-sif.js` | override duplicat | no executable |
