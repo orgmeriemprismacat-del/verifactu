@@ -79,7 +79,7 @@ El checkout continua obligat a contrastar `ID_INSC`, curs/edició, ordinal, base
 
 | ID | Escenari | Resultat exigible |
 | --- | --- | --- |
-| PK-08 | Primer curs pactat 80 €, segon curs 120 € abans de descompte | Descompte al segon curs comercial, no necessàriament al component que la consulta col·loca segon per `A_PAGAR`. |
+| PK-08 | Oferta concreta amb components 80 € i 120 € i descompte comercial congelat sobre un component determinat | Respectar `PACK_ORDINAL` i els imports/descompte congelats al snapshot; no inferir el component descomptat a partir d'`A_PAGAR` ni assumir universalment «segon curs». |
 | PK-09 | Un pagament parcial canvia `A_PAGAR` i inverteix `ORDER BY` | Snapshot original manté ordinal, imports i receptor; no nova factura amb preu/deute reconstruït. |
 | PK-10 | Dues inscripcions del mateix `IDPAG` porten dades de receptor diferents | Receptor fiscal seleccionat/confirmat per operació, no arbitràriament la primera fila recuperada. |
 | PK-11 | No es coneix la base comercial d'un component | Incidència i comprovació de preu real; no divisió automàtica per `0.75` sobre un saldo incert. |
@@ -307,22 +307,22 @@ W->>Q: PROCESSED i UUIDs
 Note over H,O: Un pagament bancari, N atribucions internes. L'outbox queda PENDING fins al worker UC-58.
 ```
 
-### 4.1. Seqüència — pagament únic i alternativa excepcional d'intranet (OBJECTIU)
+### 4.1. Variant excepcional de divisió del pack — no confondre amb el flux normal implementat
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor P as Pagador
 actor O as Gestió
-participant UI as Ecommerce/Intranet [adaptació pendent]
-participant Price as Preu i composició pack [llegat]
-participant Pay as Redsys/SIF [serveis parcials]
-participant Fiscal as Classificació parts fiscals [PENDENT]
-P->>UI: Comprar pack de dos cursos
-UI->>Price: Validar ID_PACK, dues inscripcions, descompte només curs 2
+participant UI as Ecommerce implementat / Intranet variant excepcional
+participant Price as Snapshot PACK per component
+participant Pay as Redsys/SIF canal normal implementat
+participant Fiscal as Classificació variant dividida [PENDENT]
+P->>UI: Comprar pack de N components
+UI->>Price: Validar ID_PACK, N inscripcions, ordinals i imports/descompte congelats per component
 alt Pagament únic confirmat
  UI->>Pay: Processar un DS_ORDER acceptat
- Pay-->>UI: Un CHARGE i una factura amb dues línies
+ Pay-->>UI: Un CHARGE i una factura amb N línies
 else Gestió autoritza divisió excepcional
  O->>UI: Justificar imports i parts del pack
  UI->>Fiscal: Validar línies/servei de cada factura de la variant
@@ -331,7 +331,7 @@ else Gestió autoritza divisió excepcional
   Pay-->>UI: Factura/part assignada segons decisió aprovada
  end
 end
-Note over UI,Fiscal: La variant dividida no és UC-23 i l'orquestrador de parts encara no està acreditat.
+Note over UI,Fiscal: El flux normal de pagament únic està implementat. Només la variant excepcional dividida requereix classificació/orquestració pròpia i no és UC-23.
 ```
 ## 5. Traçabilitat
 
