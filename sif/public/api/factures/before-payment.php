@@ -18,6 +18,7 @@ use Prisma\Sif\Repository\InvoiceBeforePaymentSelectionRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\InternalInvoiceBeforePaymentScopeResolver;
+use Prisma\Sif\Service\InvoiceBeforePaymentAeatPayloadEnricher;
 use Prisma\Sif\Service\InvoiceBeforePaymentCommandService;
 use Prisma\Sif\Service\InvoiceBeforePaymentLegacyPreparationService;
 use Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder;
@@ -97,7 +98,13 @@ try {
     $preparation = new InvoiceBeforePaymentLegacyPreparationService(
         new InvoiceBeforePaymentSelectionRepository(),
         new InvoiceBeforePaymentBillingPartyRepository(),
-        new InvoiceBeforePaymentServerPayloadAssembler(),
+        new InvoiceBeforePaymentServerPayloadAssembler(
+            new InvoiceBeforePaymentAeatPayloadEnricher(
+                (string) ($config['env'] ?? 'local'),
+                (array) ($config['issuer'] ?? []),
+                (array) ($config['aeat'] ?? [])
+            )
+        ),
         new InvoiceBeforePaymentPayloadBuilder(),
         $fingerprints
     );
