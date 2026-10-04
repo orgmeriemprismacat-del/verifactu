@@ -132,6 +132,73 @@ final class ReleaseManifestVerifierTest
         }
     }
 
+    public function testManifestRejectsEntryOutsideGovernedRoots(): void
+    {
+        $dir = $this->tempDir();
+        $evidenceDir = $this->tempDir();
+        try {
+            mkdir($dir . '/tests', 0700, true);
+            file_put_contents($dir . '/tests/debug.php', '<?php echo 1;');
+
+            $files = ['tests/debug.php' => hash_file('sha256', $dir . '/tests/debug.php')];
+            $artifactHash = hash(
+                'sha256',
+                json_encode($files, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
+            );
+            $manifest = $evidenceDir . '/manifest.json';
+            file_put_contents($manifest, json_encode([
+                'schema' => 1,
+                'artifact_hash' => $artifactHash,
+                'files' => $files,
+            ], JSON_THROW_ON_ERROR));
+
+            Assert::throws(
+                SifException::class,
+                fn () => (new ReleaseManifestVerifier())->verify($dir, $manifest),
+                422
+            );
+        } finally {
+            $this->removeTree($dir);
+            $this->removeTree($evidenceDir);
+        }
+    }
+
+    public function testManifestRejectsDuplicateNormalizedPath(): void
+    {
+        $dir = $this->tempDir();
+        $evidenceDir = $this->tempDir();
+        try {
+            mkdir($dir . '/src', 0700, true);
+            file_put_contents($dir . '/src/a.php', '<?php echo 1;');
+            $hash = hash_file('sha256', $dir . '/src/a.php');
+
+            $files = [
+                'src/a.php' => $hash,
+                'src\\a.php' => $hash,
+            ];
+            $artifactHash = hash(
+                'sha256',
+                json_encode($files, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
+            );
+            $manifest = $evidenceDir . '/manifest.json';
+            file_put_contents($manifest, json_encode([
+                'schema' => 1,
+                'artifact_hash' => $artifactHash,
+                'files' => $files,
+            ], JSON_THROW_ON_ERROR));
+
+            $exception = Assert::throws(
+                SifException::class,
+                fn () => (new ReleaseManifestVerifier())->verify($dir, $manifest),
+                422
+            );
+            Assert::stringContainsString('Duplicate normalized', $exception->getMessage());
+        } finally {
+            $this->removeTree($dir);
+            $this->removeTree($evidenceDir);
+        }
+    }
+
     public function testManifestRejectsTraversal(): void
     {
         $dir = $this->tempDir();
