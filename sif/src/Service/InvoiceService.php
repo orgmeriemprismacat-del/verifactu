@@ -86,6 +86,10 @@ final class InvoiceService
                 $payload,
                 $respectBeforePaymentCoverage
             );
+            $beforePaymentOriginLocked = $this->lockBeforePaymentOriginIfNeeded(
+                $db,
+                $payload
+            );
 
             $year = (int) ($payload['year'] ?? date('Y'));
             $seq = $this->sequences->next($db, $payload['series'], $year);
@@ -98,7 +102,8 @@ final class InvoiceService
                     $db,
                     $payload['relations'] ?? [],
                     $created['uuid_factura'],
-                    $payload['idempotency_key']
+                    $payload['idempotency_key'],
+                    $beforePaymentOriginLocked
                 );
             }
 
@@ -504,6 +509,29 @@ final class InvoiceService
             'uuid_factura' => $existing['UUID_FACTURA'],
             'num_visible' => $existing['NUM_VISIBLE'],
         ];
+    }
+
+    private function lockBeforePaymentOriginIfNeeded(\PDO $db, array $payload): bool
+    {
+        if (!$this->requiresBeforePaymentCoverage($payload)) {
+            return false;
+        }
+
+        if ($this->beforePaymentCoverage === null) {
+            throw new \RuntimeException(
+                'Invoice-before-payment origin lock requires the UC-004 coverage repository.'
+            );
+        }
+
+        // UC-004 and UC-003 must acquire the business-origin mutex before
+        // fiscal sequence/chain locks. Keeping one lock order avoids a
+        // fiscal-chain ↔ origin-guard deadlock between concurrent issuance.
+        $this->beforePaymentCoverage->lockOriginInvoiceRelations(
+            $db,
+            $payload['relations'] ?? []
+        );
+
+        return true;
     }
 
     private function assertNoCoveredInvoiceMustBeReused(
