@@ -401,6 +401,62 @@ final class AeatWorkflowTest
         Assert::same('ACCEPTED', $attempt['STATUS']);
     }
 
+
+    public function testMismatchedTransportEvidenceReferenceIsQuarantinedWithoutReplacingPreassignedId(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-EVIDENCE-REFERENCE-MISMATCH')
+        );
+        $differentEvidenceId = '20261004T010000Z-abcdefabcdefabcdefabcdef';
+
+        $transport = new class($differentEvidenceId) implements AeatTransport {
+            public int $calls = 0;
+
+            public function __construct(private string $differentEvidenceId) {}
+
+            public function send(array $payload): array
+            {
+                $this->calls++;
+
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => [
+                        'csv' => 'MUST-NOT-COMMIT',
+                        'flow_wait_seconds' => 60,
+                        'evidence_id' => $this->differentEvidenceId,
+                    ],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
+            }
+        };
+
+        $worker = new SerialWorker($db, $transport);
+        $result = $worker->runOnce();
+        $attempt = $db->query(
+            'SELECT STATUS, EVIDENCE_ID FROM aeat_submission_attempt LIMIT 1'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same(false, $result['ok']);
+        Assert::same('REVIEW', $result['queue_status']);
+        Assert::same('UNCERTAIN', $attempt['STATUS']);
+        Assert::same(false, hash_equals($differentEvidenceId, (string) $attempt['EVIDENCE_ID']));
+        Assert::matchesRegularExpression(
+            '/^\d{8}T\d{6}Z-[a-f0-9]{24}$/',
+            (string) $attempt['EVIDENCE_ID']
+        );
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE TIPUS_INCIDENCIA = 'AEAT_EVIDENCE_REFERENCE_MISMATCH'"
+            )->fetchColumn()
+        );
+        Assert::same('PENDING', $db->query('SELECT ESTAT_AEAT FROM factura_registres')->fetchColumn());
+        Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce()['reason']);
+        Assert::same(1, $transport->calls);
+    }
+
     public function testPersistsSubmissionAttemptBeforeAndAfterAcceptedDelivery(): void
     {
         $db = TestDatabase::fresh();
