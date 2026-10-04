@@ -23,8 +23,16 @@ final class ReleaseManifestVerifierTest
                 'src/a.php' => hash_file('sha256', $dir . '/src/a.php'),
             ];
             ksort($files, SORT_STRING);
+            $artifactHash = hash(
+                'sha256',
+                json_encode($files, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
+            );
             $manifest = $evidenceDir . '/manifest.json';
-            file_put_contents($manifest, json_encode(['schema' => 1, 'files' => $files], JSON_THROW_ON_ERROR));
+            file_put_contents($manifest, json_encode([
+                'schema' => 1,
+                'artifact_hash' => $artifactHash,
+                'files' => $files,
+            ], JSON_THROW_ON_ERROR));
 
             $result = (new ReleaseManifestVerifier())->verify($dir, $manifest);
             Assert::same(true, $result['ok']);
@@ -71,8 +79,16 @@ final class ReleaseManifestVerifierTest
             file_put_contents($dir . '/src/a.php', '<?php echo 1;');
 
             $files = ['src/a.php' => hash_file('sha256', $dir . '/src/a.php')];
+            $artifactHash = hash(
+                'sha256',
+                json_encode($files, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
+            );
             $manifest = $evidenceDir . '/manifest.json';
-            file_put_contents($manifest, json_encode(['schema' => 1, 'files' => $files], JSON_THROW_ON_ERROR));
+            file_put_contents($manifest, json_encode([
+                'schema' => 1,
+                'artifact_hash' => $artifactHash,
+                'files' => $files,
+            ], JSON_THROW_ON_ERROR));
 
             $initial = (new ReleaseManifestVerifier())->verify($dir, $manifest);
             Assert::same(true, $initial['ok']);
@@ -82,6 +98,34 @@ final class ReleaseManifestVerifierTest
             $changed = (new ReleaseManifestVerifier())->verify($dir, $manifest);
             Assert::same(false, $changed['ok']);
             Assert::same('UNEXPECTED_FILE', $changed['mismatches']['src/extra.php'] ?? null);
+        } finally {
+            $this->removeTree($dir);
+            $this->removeTree($evidenceDir);
+        }
+    }
+
+    public function testManifestRejectsDeclaredArtifactHashMismatch(): void
+    {
+        $dir = $this->tempDir();
+        $evidenceDir = $this->tempDir();
+        try {
+            mkdir($dir . '/src', 0700, true);
+            file_put_contents($dir . '/src/a.php', '<?php echo 1;');
+
+            $files = ['src/a.php' => hash_file('sha256', $dir . '/src/a.php')];
+            $manifest = $evidenceDir . '/manifest.json';
+            file_put_contents($manifest, json_encode([
+                'schema' => 1,
+                'artifact_hash' => str_repeat('f', 64),
+                'files' => $files,
+            ], JSON_THROW_ON_ERROR));
+
+            $result = (new ReleaseManifestVerifier())->verify($dir, $manifest);
+            Assert::same(false, $result['ok']);
+            Assert::same(
+                'ARTIFACT_HASH_MISMATCH',
+                $result['mismatches']['manifest:artifact_hash'] ?? null
+            );
         } finally {
             $this->removeTree($dir);
             $this->removeTree($evidenceDir);
@@ -112,9 +156,11 @@ final class ReleaseManifestVerifierTest
         $a = ['z' => ['secret' => 'one', 'x' => 2], 'a' => 1];
         $b = ['a' => 1, 'z' => ['x' => 2, 'secret' => 'one']];
         $c = ['a' => 1, 'z' => ['x' => 2, 'secret' => 'two']];
+        $d = ['a' => 1, 'z' => ['x' => 3, 'secret' => 'one']];
 
         Assert::same($fingerprint->hash($a), $fingerprint->hash($b));
-        Assert::notSame($fingerprint->hash($a), $fingerprint->hash($c));
+        Assert::same($fingerprint->hash($a), $fingerprint->hash($c));
+        Assert::notSame($fingerprint->hash($a), $fingerprint->hash($d));
         Assert::same(64, strlen($fingerprint->hash($a)));
 
         $gateOff = [
