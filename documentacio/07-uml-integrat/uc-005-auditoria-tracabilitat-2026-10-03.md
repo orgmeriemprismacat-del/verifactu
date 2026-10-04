@@ -21,7 +21,7 @@ UC-005 **no estava sense codi**: existeix un nucli SIF executable per crear una 
 | Estat original RECTIFIED | Sí | Sí | Sí | política per variants |
 | Alias `motiu/mode_rectificacio` | Implícit | **Corregit en aquesta branca** | Sí | executar nova prova |
 | Receptor nou | Necessitat documentada | **Sí en SUBSTITUCIO** | Sí | UI + criteri fiscal/AEAT |
-| IVA/règim heretat/correcte | Necessitat documentada | **Fail-closed + bloc fiscal explícit** | Sí | mapping AEAT/XSD específic |
+| IVA/règim heretat/correcte | Necessitat documentada | **Fail-closed + mapper AEAT simple server-side** | Sí estàtic | CI + casos multi-desglossament/recàrrec/canvi perfil |
 | Import zero per canvi receptor/concepte | Necessitat possible | No | builder el rebutja | decidir regla |
 | Classificador fiscal UC-74 | Sí | **Consum d'evidència persistida + guard; productor/classificador genèric no** | Sí | implementar UC-74 executable |
 | Pantalla UC-005 SIF | Sí FINAL | No | Sí | implementar adaptador/proxy intranet |
@@ -39,11 +39,11 @@ La branca d'auditoria afegeix un hook `beforeCommit` opcional a `InvoiceService`
 
 **Evidència disponible:** la suite específica UC-005 va passar 34/34 incloent rollback transaccional. **Pendent:** concurrència específica sobre l'original i revalidació posterior al merge amb `main`.
 
-### UC005-F02 — TANCAT PARCIALMENT / AEAT PENDENT · fiscalitat local fail-closed
+### UC005-F02 — TANCAT PARCIALMENT / AEAT SIMPLE IMPLEMENTAT · fiscalitat fail-closed
 
 `ManualRectificationPayloadBuilder` ja no força EXEMPT/0 a qualsevol cas. Per originals exempts preserva règim, tipus, quota i causa d'exempció. Per originals subjectes a IVA, `amount` sol es considera ambigu i es rebutja; cal un bloc `fiscal` explícit amb base, règim, percentatge, quota i total coherent.
 
-**Pendent:** camps AEAT específics de rectificativa, validació XSD/protocol i criteris fiscals addicionals (ISP, recàrrec, no-subjecció, etc.).
+`AeatRectificationMapper` ja deriva els camps rectificatius des del snapshot AEAT original quan hi ha un únic desglossament autoritatiu i el perfil fiscal és compatible. **Pendent:** revalidació CI, múltiples desglossaments, recàrrec d'equivalència, canvi de perfil/tipus fiscal, ISP/no-subjecció i evidència real de preproducció.
 
 ### UC005-F03 — TANCAT AL BACKEND / CRITERI AEAT PENDENT · substitució de receptor
 
@@ -69,9 +69,9 @@ El builder acceptava `motiu`/`mode_rectificacio`, però la persistència de `fac
 
 Els endpoints `guardarDadesFactura_Factures.php` i `anularFactura_Factures.php` revisats actualment exigeixen POST, sessió, same-origin/permís i guard de mutació. La documentació que els descriu com GET s'ha de considerar històrica.
 
-### UC005-F08 — P0/P1 · mapping AEAT específic de rectificativa pendent
+### UC005-F08 — PARCIAL IMPLEMENTAT / CASOS COMPLEXOS PENDENTS · mapping AEAT rectificativa
 
-El payload local SIF ja conserva una fiscalitat més segura, però UC-005 no construeix encara de manera acreditada els camps AEAT específics de factura rectificativa ni prova el registre contra XSD/protocol. Per tant no es pot declarar el flux productiu VERI*FACTU.
+El backend ja recupera el snapshot `factura_registres.PAYLOAD_JSON.aeat`, valida emissor i identitat, pren R1-R5 de la decisió UC-74 persistida, genera S/I, `FacturasRectificadas`, `ImporteRectificacion` per S i un `Desglose` derivat del perfil original. El mapper rebutja explícitament escenaris que encara no pot demostrar. Encara no es pot declarar flux productiu fins superar CI, preproducció i els perfils fiscals pendents.
 
 ### UC005-F09 — P1 · adaptador intranet pendent
 
