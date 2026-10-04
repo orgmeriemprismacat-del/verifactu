@@ -47,6 +47,9 @@ $checks = [
     'gift_status_signed_path_matches_bridge' => (string) (
         $config['internal_api']['redsys_gift_status_signed_path'] ?? ''
     ) === '/api/redsys/gift-status.php',
+    'gift_reservation_notification_signed_path_matches_bridge' => (string) (
+        $config['internal_api']['gift_reservation_notification_signed_path'] ?? ''
+    ) === '/api/gifts/reservation/notifications.php',
     'cutover_configuration_consistent' => !$legacyDrainConfirmed || $giftCutoverEnabled,
     'legacy_drain_confirmed_if_cutover' => !$giftCutoverEnabled || $legacyDrainConfirmed,
     'environment_not_production' => $env !== 'production',
@@ -101,6 +104,9 @@ $checks = [
     'callback_endpoint_present' => is_file($root . '/public/api/redsys/callback.php'),
     'gift_intent_endpoint_present' => is_file($root . '/public/api/redsys/gift-intent.php'),
     'gift_status_endpoint_present' => is_file($root . '/public/api/redsys/gift-status.php'),
+    'gift_reservation_notification_endpoint_present' => is_file(
+        $root . '/public/api/gifts/reservation/notifications.php'
+    ),
     'worker_script_present' => is_file($root . '/scripts/process-redsys-callback-queue.php'),
     'gift_intent_service_present' => is_file($root . '/src/Service/RedsysGiftPaymentIntentService.php'),
     'gift_entitlement_service_present' => is_file($root . '/src/Service/GiftEntitlementIssuerService.php'),
