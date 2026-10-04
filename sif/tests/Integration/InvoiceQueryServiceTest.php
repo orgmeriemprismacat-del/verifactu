@@ -151,15 +151,25 @@ final class InvoiceQueryServiceTest
             ['actor_id' => 'operator-test'],
             ['source_type' => 'INSCRIPCIO', 'source_ids' => [999]]
         );
+        $limited = $query->search(
+            ['actor_id' => 'operator-test'],
+            ['source_type' => 'INSCRIPCIO', 'source_ids' => [10]],
+            1
+        );
 
         Assert::same(2, $all['count']);
+        Assert::same(false, $all['has_more']);
         Assert::same(
             [$second['uuid_factura'], $first['uuid_factura']],
             array_column($all['results'], 'uuid_factura')
         );
         Assert::same(1, $one['count']);
         Assert::same($first['uuid_factura'], $one['results'][0]['uuid_factura']);
+        Assert::same(false, $one['has_more']);
         Assert::same(0, $none['count']);
+        Assert::same(false, $none['has_more']);
+        Assert::same(1, $limited['count']);
+        Assert::same(true, $limited['has_more']);
     }
 
     public function testViewKeepsPaymentsAndRectificationAsSeparateRelations(): void
