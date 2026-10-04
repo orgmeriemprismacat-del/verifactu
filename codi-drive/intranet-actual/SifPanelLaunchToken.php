@@ -31,7 +31,7 @@ final class SifPanelLaunchToken
         }
 
         $host = strtolower(trim((string) ($parts['host'] ?? '')));
-        if ($host === '' || ($host !== 'prisma.cat' && !str_ends_with($host, '.prisma.cat'))) {
+        if (preg_match('/^pay(?:-(?:dev|test|pre))?\.prisma\.cat$/D', $host) !== 1) {
             throw new RuntimeException('SIF panel launch URL host is not allowed');
         }
         if (isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
