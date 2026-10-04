@@ -72,6 +72,12 @@ final class ClaimPaymentIntranetBoundaryTest
         Assert::stringContainsString("externalReceiptId", $ui);
         Assert::stringContainsString("'X-Requested-With': 'XMLHttpRequest'", $ui);
         Assert::stringContainsString("credentials: 'same-origin'", $ui);
+        Assert::stringContainsString('payment_persisted', $bridge);
+        Assert::stringContainsString('requires_reconciliation', $bridge);
+        Assert::stringContainsString('reconciliation_error_code', $bridge);
+        Assert::stringContainsString('payment_persisted === true', $ui);
+        Assert::stringContainsString('requires_reconciliation === true', $ui);
+        Assert::stringContainsString('No registris un altre cobrament', $ui);
 
         foreach ([
             'uuidFactura',
