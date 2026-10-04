@@ -51,10 +51,11 @@ final class AeatSubmissionAttemptRepository
     public function complete(\PDO $db, string $uuidAttempt, string $status, array $response): void
     {
         $json = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $evidenceId = $this->normalizeEvidenceId($response['evidence_id'] ?? null);
         $stmt = $db->prepare(
             'UPDATE aeat_submission_attempt
              SET STATUS = ?, RESPONSE_CODE = ?, RESPONSE_CSV = ?, RESPONSE_JSON = ?,
-                 ERROR_CODE = ?, ERROR_DETAIL = ?, FINISHED_AT = NOW(6)
+                 ERROR_CODE = ?, ERROR_DETAIL = ?, EVIDENCE_ID = ?, FINISHED_AT = NOW(6)
              WHERE UUID_ATTEMPT = ? AND STATUS = \'STARTED\''
         );
         $stmt->execute([
@@ -64,6 +65,7 @@ final class AeatSubmissionAttemptRepository
             $json,
             $response['error_code'] ?? null,
             $response['error_message'] ?? null,
+            $evidenceId,
             $uuidAttempt,
         ]);
         if ($stmt->rowCount() !== 1) {
@@ -71,20 +73,84 @@ final class AeatSubmissionAttemptRepository
         }
     }
 
-    public function fail(\PDO $db, string $uuidAttempt, string $status, string $detail): void
-    {
+    public function fail(
+        \PDO $db,
+        string $uuidAttempt,
+        string $status,
+        string $detail,
+        ?string $evidenceId = null
+    ): void {
         if (!in_array($status, ['FAILED', 'UNCERTAIN'], true)) {
             throw new \InvalidArgumentException('Invalid AEAT attempt failure status.');
         }
+        $evidenceId = $this->normalizeEvidenceId($evidenceId);
         $stmt = $db->prepare(
             'UPDATE aeat_submission_attempt
-             SET STATUS = ?, ERROR_DETAIL = ?, FINISHED_AT = NOW(6)
+             SET STATUS = ?, ERROR_DETAIL = ?, EVIDENCE_ID = ?, FINISHED_AT = NOW(6)
              WHERE UUID_ATTEMPT = ? AND STATUS = \'STARTED\''
         );
-        $stmt->execute([$status, mb_substr($detail, 0, 2000, 'UTF-8'), $uuidAttempt]);
+        $stmt->execute([
+            $status,
+            mb_substr($detail, 0, 2000, 'UTF-8'),
+            $evidenceId,
+            $uuidAttempt,
+        ]);
         if ($stmt->rowCount() !== 1) {
             throw new \RuntimeException('AEAT submission attempt is no longer open.');
         }
+    }
+
+
+    public function completeUncertainFromEvidence(
+        \PDO $db,
+        string $uuidAttempt,
+        string $evidenceId,
+        string $status,
+        array $response
+    ): void {
+        if (!in_array($status, ['ACCEPTED', 'ACCEPTED_WITH_ERRORS', 'REJECTED'], true)) {
+            throw new \InvalidArgumentException('Invalid AEAT terminal evidence status.');
+        }
+        $evidenceId = $this->normalizeEvidenceId($evidenceId);
+        if ($evidenceId === null) {
+            throw new \InvalidArgumentException('Missing AEAT evidence id.');
+        }
+
+        $json = json_encode(
+            $response,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        );
+        $stmt = $db->prepare(
+            'UPDATE aeat_submission_attempt
+             SET STATUS = ?, RESPONSE_CODE = ?, RESPONSE_CSV = ?, RESPONSE_JSON = ?,
+                 ERROR_CODE = ?, ERROR_DETAIL = ?, FINISHED_AT = NOW(6)
+             WHERE UUID_ATTEMPT = ? AND STATUS = \'UNCERTAIN\' AND EVIDENCE_ID = ?'
+        );
+        $stmt->execute([
+            $status,
+            $response['estado_registro'] ?? null,
+            $response['csv'] ?? null,
+            $json,
+            $response['error_code'] ?? null,
+            $response['error_message'] ?? null,
+            $uuidAttempt,
+            $evidenceId,
+        ]);
+        if ($stmt->rowCount() !== 1) {
+            throw new \RuntimeException('AEAT uncertain attempt could not be finalized from evidence.');
+        }
+    }
+
+    private function normalizeEvidenceId(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $value = trim((string) $value);
+        if (preg_match('/^\d{8}T\d{6}Z-[a-f0-9]{24}$/D', $value) !== 1) {
+            throw new \InvalidArgumentException('Invalid AEAT evidence id.');
+        }
+        return $value;
     }
 
     private function uuidV4(): string
