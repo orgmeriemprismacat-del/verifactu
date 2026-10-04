@@ -1,7 +1,7 @@
 # UC-002 · Diagrames de seqüència ACTUAL / FINAL
 
 **Data:** 2026-10-04  
-**Base:** `main@2bd2a751832fc3f767b1e250b955922145a5577a` + branca de reconciliació.
+**Base:** `main@6c8137ff1652ac89a1a81ad18cf79fc4689b1757` + branca de reconciliació.
 
 ## 1. ACTUAL — registre SIF genèric
 
