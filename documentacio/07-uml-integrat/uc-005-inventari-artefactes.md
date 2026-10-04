@@ -89,7 +89,7 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 7. **IMPLEMENTAT:** `sif_audit_event` i `operational_event` del command, amb `REQUESTED/SUCCEEDED/REUSED/FAILED`.
 8. **CONCURRÈNCIA:** `ManualRectificationConcurrencyTest` + worker multiprocés implementats; pendent execució CI. Verifiquen una sola R sota dues connexions i reintent posterior idempotent.
 9. **PENDENT E2E:** productor UC-74 → read model/pantalla → preview → confirm → R → document → consulta.
-10. **PENDENT DOCUMENTS:** existeixen registre, storage privat, descàrrega i auditoria, i l'esquema `document_job`, però no s'ha localitzat productor/worker que generi PDF/QR/XML després d'emetre la R.
+10. **DOCUMENTS PARCIALMENT IMPLEMENTATS:** UC-005 ja crea jobs idempotents `PDF`/`XML`/`QR` a `document_job` dins del mateix COMMIT de la rectificativa. Existeixen registre, storage privat, descàrrega i auditoria. **Pendent:** worker/renderitzador que consumeixi la cua, registri `factura_documents` i aporti evidència E2E.
 11. **PENDENT EVIDÈNCIA:** conclusió verda de la suite UC-005 i preproducció.
 
 ## 6. Estat global
@@ -102,5 +102,6 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 - **Command backend segur:** IMPLEMENTAT · endpoint intern signat, rols explícits i preview/confirm.
 - **Classificador UC-74:** PENDENT com a productor; consum de decisió persistida, R1-R5 i fingerprint de la correcció ja implementats.
 - **Proxy/panell intranet UC-005:** IMPLEMENTAT EN BRANCA (sessió, edit permission, same-origin, CSRF, HMAC, decisió UC-74 al read model, preview/confirm).
+- **Cua documental UC-005:** IMPLEMENTADA · `DocumentJobRepository` + tres jobs idempotents per R; worker/renderitzat pendent.
 - **Proves definides:** SÍ, inclosa suite aïllada UC-005.
 - **Proves executades:** suite UC-005 verda 34/34 abans del resolver persistit; la nova passada amb `classification_event_uuid` està pendent. La suite global manté fallades alienes documentades.
