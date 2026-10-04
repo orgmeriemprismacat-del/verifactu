@@ -35,6 +35,8 @@ $courseIntentPath = trim((string) ($internalApi['redsys_course_intent_signed_pat
 $courseStatusPath = trim((string) ($internalApi['redsys_course_status_signed_path'] ?? ''));
 $returnHost = strtolower((string) parse_url($returnBaseUrl, PHP_URL_HOST));
 $legacyCallbackHost = strtolower((string) parse_url($legacyCallbackUrl, PHP_URL_HOST));
+$sifCallbackHost = strtolower((string) parse_url($callbackUrl, PHP_URL_HOST));
+$internalApiHost = strtolower((string) parse_url($internalApiBaseUrl, PHP_URL_HOST));
 
 $cutoverPhase = match (true) {
     !$courseCutoverEnabled && !$legacyDrainConfirmed => 'NORMAL',
@@ -70,6 +72,12 @@ $checks = [
     'return_base_host_matches_expected' => $expectedPayHost !== ''
         && $returnHost !== ''
         && hash_equals($expectedPayHost, $returnHost),
+    'sif_callback_host_matches_expected' => $expectedPayHost !== ''
+        && $sifCallbackHost !== ''
+        && hash_equals($expectedPayHost, $sifCallbackHost),
+    'internal_api_host_matches_expected' => $expectedPayHost !== ''
+        && $internalApiHost !== ''
+        && hash_equals($expectedPayHost, $internalApiHost),
     'legacy_callback_host_matches_expected_if_not_cutover' => $courseCutoverEnabled
         || (
             $expectedPayHost !== ''
