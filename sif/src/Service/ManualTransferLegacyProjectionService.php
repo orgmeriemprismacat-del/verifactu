@@ -34,8 +34,7 @@ final class ManualTransferLegacyProjectionService
                 $legacyDb,
                 (string) ($paymentResult['uuid_factura'] ?? ''),
                 (string) ($paymentResult['num_visible'] ?? ''),
-                trim((string) ($payload['movement_date'] ?? '')),
-                'TRANSFERENCIA'
+                trim((string) ($payload['movement_date'] ?? ''))
             );
 
             $this->events->append($this->sifDb, array_merge($context, [
