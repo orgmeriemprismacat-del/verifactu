@@ -20,8 +20,7 @@ final class GeneratedInvoiceLegacyPaymentSyncServiceTest
             $legacy,
             'uuid-factura-1',
             'A2026/100',
-            '2026-10-03 18:30:00',
-            'TRANSFERENCIA'
+            '2026-10-03 18:30:00'
         );
 
         Assert::same('120.00', $result['confirmed_amount']);
@@ -48,8 +47,7 @@ final class GeneratedInvoiceLegacyPaymentSyncServiceTest
             $legacy,
             'uuid-factura-2',
             'A2026/101',
-            '2026-10-03 18:45:00',
-            'TRANSFERENCIA'
+            '2026-10-03 18:45:00'
         );
 
         Assert::same('190.00', $result['confirmed_amount']);
