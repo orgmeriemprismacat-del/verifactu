@@ -17,7 +17,12 @@ use Prisma\Sif\Repository\SifVersionRepository;
 use Prisma\Sif\Service\RuntimeVersionInspector;
 use Prisma\Sif\Service\SifVersionService;
 
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
+
 if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
+    header('Allow: POST');
     JsonResponse::send(['ok' => false, 'error' => 'Method not allowed'], 405);
     return;
 }
@@ -93,5 +98,11 @@ try {
 
     throw SifException::validation('Unknown SIF version action');
 } catch (\Throwable $exception) {
-    JsonResponse::fromThrowable($exception);
+    if ($exception instanceof SifException) {
+        JsonResponse::fromThrowable($exception);
+        return;
+    }
+
+    error_log('[UC-010] Internal version governance error: ' . $exception->getMessage());
+    JsonResponse::send(['ok' => false, 'error' => 'Internal SIF version governance error'], 500);
 }
