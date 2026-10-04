@@ -218,6 +218,7 @@ final class ManualInstallmentPaymentServiceTest
         Assert::same($existing['uuid_payment'], $result['uuid_payment']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_external_receipt_claim')->fetchColumn());
     }
 
     public function testRejectsCrossChannelReferenceWhenAmountDiffers(): void
@@ -253,6 +254,7 @@ final class ManualInstallmentPaymentServiceTest
 
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_external_receipt_claim')->fetchColumn());
     }
 
     public function testReconcilesExistingRedsysLikeDsOrderInsteadOfCreatingSecondCharge(): void
@@ -291,6 +293,7 @@ final class ManualInstallmentPaymentServiceTest
         Assert::same(true, $result['reconciled_existing']);
         Assert::same($existing['uuid_payment'], $result['uuid_payment']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_external_receipt_claim')->fetchColumn());
     }
 
     public function testRejectsUnknownInvoiceBeforeRegisteringInstallment(): void
