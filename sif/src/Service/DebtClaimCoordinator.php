@@ -4,580 +4,674 @@ declare(strict_types=1);
 
 namespace Prisma\Sif\Service;
 
-use Prisma\Sif\Database\TransactionRunner;
+use Prisma\Sif\Contract\DebtClaimAuthorizationPolicyInterface;
 use Prisma\Sif\Exception\SifException;
-use Prisma\Sif\Repository\DebtClaimCaseRepository;
+use Prisma\Sif\Repository\DebtClaimRepository;
 use Prisma\Sif\Repository\DebtSnapshotRepository;
 use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
+use Prisma\Sif\Repository\SifAuditEventRepository;
 
 final class DebtClaimCoordinator
 {
-    private const TEMPLATES = [
-        'FINAL_REMINDER' => 'DEBT_CLAIM_FINAL_REMINDER',
-        'FIRST_CLAIM' => 'DEBT_CLAIM_FIRST_CLAIM',
-        'FINAL_CLAIM' => 'DEBT_CLAIM_FINAL_CLAIM',
+    private const NOTICE_TEMPLATES = [
+        'FINAL_REMINDER' => 'DEBT_FINAL_REMINDER',
+        'FIRST_CLAIM' => 'DEBT_FIRST_CLAIM',
+        'FINAL_CLAIM' => 'DEBT_FINAL_CLAIM',
     ];
 
-    private array $readRoles;
-    private array $manageRoles;
+    private const STAGE_ORDER = [
+        'DETECTED' => 0,
+        'FINAL_REMINDER' => 1,
+        'FIRST_CLAIM' => 2,
+        'FINAL_CLAIM' => 3,
+        'RESOLVED' => 4,
+    ];
 
     public function __construct(
-        private \PDO $db,
-        private TransactionRunner $transactions,
         private DebtSnapshotRepository $snapshots,
-        private DebtClaimCaseRepository $claims,
+        private DebtClaimRepository $claims,
         private NotificationOutboxRepository $outbox,
-        private OperationalEventRepository $operations,
-        array $readRoles,
-        array $manageRoles
+        private OperationalEventRepository $operationalEvents,
+        private SifAuditEventRepository $auditEvents,
+        private DebtClaimAuthorizationPolicyInterface $authorization
     ) {
-        $this->readRoles = $this->roles($readRoles);
-        $this->manageRoles = $this->roles($manageRoles);
     }
 
-    public function preview(array $actor, array $criteria): array
+    public function preview(\PDO $db, string $uuidFactura, array $actor): array
     {
-        $this->assertRead($actor);
-        $snapshot = $this->snapshot($this->db, $criteria, false);
-        $claim = $this->claims->findByInvoice($this->db, $snapshot['uuid_factura']);
-        $recipient = $this->recipient($snapshot, false);
+        $snapshot = $this->requireSnapshot($db, $uuidFactura, false);
+        if (!$this->authorization->canView($actor, $this->policyInvoice($snapshot))) {
+            throw SifException::forbidden('Debt claim invoice is outside actor scope');
+        }
+
+        $case = $this->claims->findByInvoice($db, $snapshot['uuid_factura']);
 
         return [
-            'ok' => true,
-            'status' => $snapshot['is_outstanding'] ? 'OUTSTANDING' : 'SETTLED',
-            'snapshot' => $snapshot,
-            'claim' => $claim === null ? null : [
-                'uuid_claim' => (string) $claim['UUID_CLAIM'],
-                'status' => (string) $claim['STATUS'],
-                'stage' => (string) $claim['CURRENT_STAGE'],
-                'version_no' => (int) $claim['VERSION_NO'],
-                'outstanding' => (string) $claim['OUTSTANDING_AMOUNT'],
-            ],
-            'can_notify' => $snapshot['is_outstanding'] && $recipient !== null,
-            'recipient_type' => $recipient['type'] ?? null,
-            'recipient_hash' => $recipient['hash'] ?? null,
+            'uuid_factura' => $snapshot['uuid_factura'],
+            'num_visible' => $snapshot['num_visible'],
+            'total' => $snapshot['total'],
+            'charged' => $snapshot['charged'],
+            'refunded' => $snapshot['refunded'],
+            'outstanding' => $snapshot['outstanding'],
+            'is_outstanding' => $snapshot['is_outstanding'],
+            'payment_status' => $snapshot['payment_status'],
+            'invoice_status' => $snapshot['invoice_status'],
+            'recipient_ready' => $this->recipientHash($snapshot) !== null,
+            'payer_key_hash' => hash(
+                'sha256',
+                strtoupper(trim((string) ($snapshot['billing_tax_id'] ?? '')))
+            ),
+            'claim' => $case === null ? null : $this->caseSnapshot($case),
         ];
     }
 
-    public function recordNotice(array $actor, array $payload): array
-    {
-        $this->assertManage($actor);
-        $action = strtoupper($this->required($payload, 'action', 50));
-        if (!isset(self::TEMPLATES[$action])) {
+    public function recordNotice(
+        \PDO $db,
+        string $uuidFactura,
+        string $action,
+        array $command,
+        array $actor
+    ): array {
+        $action = strtoupper(trim($action));
+        if (!isset(self::NOTICE_TEMPLATES[$action])) {
             throw SifException::validation('Invalid debt claim notice action');
         }
 
-        $key = $this->required($payload, 'idempotency_key', 140);
-        $reason = strtoupper($this->required($payload, 'reason_code', 80));
-        $requestId = $this->requestId($actor, $payload);
-        $correlationId = $this->correlationId($actor, $payload);
-        $channel = $this->channel($payload);
-        $businessPayload = $this->businessPayload($actor, $payload, $action, $reason, $channel);
+        $context = $this->context($command, $actor);
+        $idempotencyPayload = $this->idempotencyPayload(
+            $uuidFactura,
+            $action,
+            $context,
+            $actor
+        );
 
-        $operation = function (\PDO $db) use (
-            $actor, $payload, $action, $key, $reason, $requestId,
-            $correlationId, $channel, $businessPayload
-        ): array {
-            $snapshot = $this->snapshot($db, $payload, true);
-            $reused = $this->claims->findReusableEvent($db, $key, $businessPayload);
+        if ($db->inTransaction()) {
+            throw new \LogicException('Debt claim notice requires an independent transaction');
+        }
+
+        $db->beginTransaction();
+
+        try {
+            $snapshot = $this->requireSnapshot($db, $uuidFactura, true);
+            $this->assertManageAllowed($actor, $snapshot, $action);
+
+            $reused = $this->claims->reuseEventIfSame(
+                $db,
+                $context['idempotency_key'],
+                $idempotencyPayload,
+                true
+            );
             if ($reused !== null) {
-                return $this->reusedNotice($db, $reused, $snapshot);
-            }
-            if (!$snapshot['is_outstanding']) {
-                return $this->noChange($snapshot, 'NO_OUTSTANDING_BALANCE');
+                $case = $this->claims->findByInvoice($db, $snapshot['uuid_factura'], true);
+                $db->commit();
+
+                return $this->result($reused, $case, true);
             }
 
-            $recipient = $this->recipient($snapshot, true);
-            $claim = $this->claims->findByInvoice($db, $snapshot['uuid_factura'], true);
-            if ($claim === null) {
-                $claim = $this->claims->create(
-                    $db, $snapshot['uuid_factura'], $snapshot['outstanding'],
-                    $recipient['type'], $recipient['hash'], $correlationId
+            $case = $this->getOrCreateCase($db, $snapshot, $context, $actor);
+            $before = $this->caseSnapshot($case);
+
+            if (!$snapshot['is_outstanding'] || $snapshot['invoice_status'] !== 'ISSUED') {
+                $cancelled = $this->outbox->cancelPendingForInvoice(
+                    $db,
+                    $snapshot['uuid_factura'],
+                    array_values(self::NOTICE_TEMPLATES)
+                );
+                $case = $this->claims->updateCase(
+                    $db,
+                    (string) $case['UUID_CLAIM'],
+                    (int) $case['LOCK_VERSION'],
+                    [
+                        'status' => 'RESOLVED',
+                        'stage' => 'RESOLVED',
+                        'outstanding_amount' => $snapshot['outstanding'],
+                        'recipient_type' => 'BILLING_PARTY',
+                        'recipient_hash' => $this->recipientHash($snapshot),
+                        'correlation_id' => $context['correlation_id'],
+                        'resolved_at' => $context['occurred_at'],
+                    ]
+                );
+                $event = $this->claims->appendEvent(
+                    $db,
+                    $this->eventPayload(
+                        $case,
+                        $action,
+                        'NO_CHANGE',
+                        $before['stage'] ?? null,
+                        'RESOLVED',
+                        $snapshot,
+                        $context,
+                        $actor,
+                        null,
+                        ['cancelled_notifications' => $cancelled]
+                    ),
+                    $idempotencyPayload
+                );
+                $this->appendTrace(
+                    $db,
+                    $action,
+                    'NO_CHANGE',
+                    $before,
+                    $this->caseSnapshot($case),
+                    $case,
+                    $snapshot,
+                    $context,
+                    $actor,
+                    null
+                );
+                $db->commit();
+
+                return $this->result($event, $case, false);
+            }
+
+            $recipientHash = $this->recipientHash($snapshot);
+            if ($recipientHash === null) {
+                throw SifException::conflict(
+                    'Debt claim invoice has no valid billing email for notification'
                 );
             }
-            if (strtoupper((string) $claim['STATUS']) !== 'OPEN') {
-                throw SifException::conflict('Debt claim case is closed');
-            }
-            $currentStage = strtoupper((string) $claim['CURRENT_STAGE']);
-            if ($this->rank($action) <= $this->rank($currentStage)) {
-                throw SifException::conflict('Debt claim notice would repeat or regress current stage');
-            }
 
-            $at = $this->now();
-            $event = $this->claims->appendEvent($db, $claim, [
-                'event_type' => $action,
-                'idempotency_key' => $key,
-                'payload' => $businessPayload,
-                'outstanding_before' => (string) $claim['OUTSTANDING_AMOUNT'],
-                'outstanding_after' => $snapshot['outstanding'],
-                'recipient_type' => $recipient['type'],
-                'recipient_hash' => $recipient['hash'],
-                'reason_code' => $reason,
-                'actor_type' => strtoupper(trim((string) ($actor['actor_type'] ?? 'USER'))),
-                'actor_id' => $actor['actor_id'] ?? null,
-                'actor_role' => $this->primaryRole($actor),
-                'source_channel' => $channel,
-                'request_id' => $requestId,
-                'correlation_id' => $correlationId,
-                'occurred_at' => $at,
-            ]);
-
-            $this->claims->updateCase(
-                $db, (string) $claim['UUID_CLAIM'], (int) $claim['VERSION_NO'],
-                'OPEN', $action, $snapshot['outstanding'],
-                $recipient['type'], $recipient['hash'], $correlationId, $at
-            );
+            $fromStage = strtoupper((string) $case['STAGE']);
+            if (strtoupper((string) $case['STATUS']) !== 'RESOLVED') {
+                $currentOrder = self::STAGE_ORDER[$fromStage] ?? null;
+                $targetOrder = self::STAGE_ORDER[$action] ?? null;
+                if ($currentOrder === null || $targetOrder === null || $currentOrder >= $targetOrder) {
+                    throw SifException::conflict(
+                        'Debt claim notice would repeat or move the case backwards'
+                    );
+                }
+            }
 
             $notification = $this->outbox->enqueue($db, [
-                'idempotency_key' => $this->notificationKey($key),
-                'template_code' => self::TEMPLATES[$action],
-                'template_version' => 'v1',
-                'recipient_type' => $recipient['type'],
-                'recipient_hash' => $recipient['hash'],
+                'idempotency_key' => $this->notificationKey(
+                    $snapshot['uuid_factura'],
+                    $action,
+                    $context['idempotency_key']
+                ),
+                'template_code' => self::NOTICE_TEMPLATES[$action],
+                'template_version' => '1',
+                'recipient_type' => 'BILLING_PARTY',
+                'recipient_hash' => $recipientHash,
                 'uuid_factura' => $snapshot['uuid_factura'],
-                'correlation_id' => $correlationId,
+                'correlation_id' => $context['correlation_id'],
                 'payload' => [
-                    'source_type' => 'DEBT_CLAIM',
-                    'uuid_claim' => (string) $claim['UUID_CLAIM'],
-                    'uuid_claim_event' => $event['uuid_claim_event'],
+                    'uc' => 'UC-012',
+                    'action' => $action,
+                    'uuid_claim' => (string) $case['UUID_CLAIM'],
                     'uuid_factura' => $snapshot['uuid_factura'],
                     'num_visible' => $snapshot['num_visible'],
-                    'action' => $action,
-                    'outstanding' => $snapshot['outstanding'],
-                    'billing_name' => $snapshot['billing_name'],
-                    'recipient_resolution' => 'SIF_INVOICE_BILLING_EMAIL_HASH',
+                    'outstanding_amount' => $snapshot['outstanding'],
+                    'currency' => 'EUR',
+                    'recipient_resolution' => 'INVOICE_BILLING_EMAIL_HASH',
+                    'reason_code' => $context['reason_code'],
                 ],
             ]);
 
-            $this->audit($db, $actor, $claim, $snapshot, $currentStage, $action, $reason, $channel, $correlationId, $at);
-
-            return [
-                'ok' => true,
-                'status' => 'RECORDED',
-                'uuid_claim' => (string) $claim['UUID_CLAIM'],
-                'uuid_claim_event' => $event['uuid_claim_event'],
-                'uuid_notification' => $notification['uuid_notification'],
-                'uuid_factura' => $snapshot['uuid_factura'],
-                'stage' => $action,
-                'outstanding' => $snapshot['outstanding'],
-                'idempotency_reused' => false,
-            ];
-        };
-
-        return $this->runRetryingDuplicate($operation);
-    }
-
-    public function reconcileAfterPayment(array $actor, array $payload): array
-    {
-        $this->assertManage($actor);
-        $key = $this->required($payload, 'idempotency_key', 140);
-        $reason = strtoupper($this->required($payload, 'reason_code', 80));
-        $requestId = $this->requestId($actor, $payload);
-        $correlationId = $this->correlationId($actor, $payload);
-        $channel = $this->channel($payload);
-        $businessPayload = $this->businessPayload(
-            $actor, $payload, 'RECONCILE_AFTER_PAYMENT', $reason, $channel
-        );
-
-        $operation = function (\PDO $db) use (
-            $actor, $payload, $key, $reason, $requestId,
-            $correlationId, $channel, $businessPayload
-        ): array {
-            $snapshot = $this->snapshot($db, $payload, true);
-            $uuidPayment = $this->optional($payload['uuid_payment'] ?? null, 36);
-            if ($uuidPayment !== null
-                && $this->snapshots->findConfirmedPaymentAllocation(
-                    $db,
-                    $uuidPayment,
-                    $snapshot['uuid_factura']
-                ) === null
-            ) {
-                throw SifException::validation(
-                    'Payment is not confirmed and allocated to the debt claim invoice'
-                );
-            }
-            $claim = $this->claims->findByInvoice($db, $snapshot['uuid_factura'], true);
-            if ($claim === null) {
-                return [
-                    'ok' => true,
-                    'status' => 'NO_CLAIM',
-                    'uuid_factura' => $snapshot['uuid_factura'],
-                    'uuid_payment' => $uuidPayment,
-                    'outstanding' => $snapshot['outstanding'],
-                    'idempotency_reused' => false,
-                ];
-            }
-
-            $reused = $this->claims->findReusableEvent($db, $key, $businessPayload);
-            if ($reused !== null) {
-                return [
-                    'ok' => true,
-                    'status' => (string) $claim['STATUS'],
-                    'uuid_claim' => (string) $claim['UUID_CLAIM'],
-                    'uuid_claim_event' => $reused['uuid_claim_event'],
-                    'uuid_factura' => $snapshot['uuid_factura'],
-                    'uuid_payment' => $uuidPayment,
-                    'stage' => (string) $claim['CURRENT_STAGE'],
-                    'outstanding' => (string) $claim['OUTSTANDING_AMOUNT'],
-                    'idempotency_reused' => true,
-                ];
-            }
-
-            $closed = strtoupper((string) $claim['STATUS']) === 'CLOSED';
-            if ($closed && !$snapshot['is_outstanding']) {
-                return $this->noChange($snapshot, 'CLAIM_ALREADY_CLOSED', (string) $claim['UUID_CLAIM']);
-            }
-            if ($closed) {
-                throw SifException::conflict('Closed debt claim requires explicit reopen before new debt');
-            }
-
-            $resolved = !$snapshot['is_outstanding'];
-            $eventType = $resolved ? 'RESOLVED_AFTER_PAYMENT' : 'PAYMENT_PARTIAL_RECALCULATED';
-            $targetStatus = $resolved ? 'CLOSED' : 'OPEN';
-            $targetStage = $resolved ? 'RESOLVED' : (string) $claim['CURRENT_STAGE'];
-            $at = $this->now();
-
-            $event = $this->claims->appendEvent($db, $claim, [
-                'event_type' => $eventType,
-                'idempotency_key' => $key,
-                'payload' => $businessPayload,
-                'outstanding_before' => (string) $claim['OUTSTANDING_AMOUNT'],
-                'outstanding_after' => $snapshot['outstanding'],
-                'recipient_type' => $claim['RECIPIENT_TYPE'] ?? null,
-                'recipient_hash' => $claim['RECIPIENT_HASH'] ?? null,
-                'reason_code' => $reason,
-                'actor_type' => strtoupper(trim((string) ($actor['actor_type'] ?? 'USER'))),
-                'actor_id' => $actor['actor_id'] ?? null,
-                'actor_role' => $this->primaryRole($actor),
-                'source_channel' => $channel,
-                'request_id' => $requestId,
-                'correlation_id' => $correlationId,
-                'occurred_at' => $at,
-            ]);
-
-            $this->claims->updateCase(
-                $db, (string) $claim['UUID_CLAIM'], (int) $claim['VERSION_NO'],
-                $targetStatus, $targetStage, $snapshot['outstanding'],
-                $claim['RECIPIENT_TYPE'] ?? null, $claim['RECIPIENT_HASH'] ?? null,
-                $correlationId, $at
-            );
-
-            $cancelled = $resolved
-                ? $this->outbox->cancelPendingForInvoice(
-                    $db, $snapshot['uuid_factura'], array_values(self::TEMPLATES)
-                )
-                : 0;
-
-            $this->audit(
+            $case = $this->claims->updateCase(
                 $db,
-                $actor,
-                $claim,
-                $snapshot,
-                (string) $claim['CURRENT_STAGE'],
-                $targetStage,
-                $reason,
-                $channel,
-                $correlationId,
-                $at,
-                'DEBT_CLAIM_RECONCILE',
-                $resolved ? 'RESOLVED' : 'RECORDED',
-                $uuidPayment
+                (string) $case['UUID_CLAIM'],
+                (int) $case['LOCK_VERSION'],
+                [
+                    'status' => 'OPEN',
+                    'stage' => $action,
+                    'outstanding_amount' => $snapshot['outstanding'],
+                    'recipient_type' => 'BILLING_PARTY',
+                    'recipient_hash' => $recipientHash,
+                    'correlation_id' => $context['correlation_id'],
+                    'resolved_at' => null,
+                ]
             );
 
-            return [
-                'ok' => true,
-                'status' => $targetStatus,
-                'uuid_claim' => (string) $claim['UUID_CLAIM'],
-                'uuid_claim_event' => $event['uuid_claim_event'],
-                'uuid_factura' => $snapshot['uuid_factura'],
-                'uuid_payment' => $uuidPayment,
-                'stage' => $targetStage,
-                'outstanding' => $snapshot['outstanding'],
-                'cancelled_notifications' => $cancelled,
-                'idempotency_reused' => false,
-            ];
-        };
+            $event = $this->claims->appendEvent(
+                $db,
+                $this->eventPayload(
+                    $case,
+                    $action,
+                    'CREATED',
+                    $fromStage,
+                    $action,
+                    $snapshot,
+                    $context,
+                    $actor,
+                    (string) $notification['uuid_notification'],
+                    ['notification_reused' => (bool) $notification['idempotency_reused']]
+                ),
+                $idempotencyPayload
+            );
 
-        return $this->runRetryingDuplicate($operation);
-    }
+            $this->appendTrace(
+                $db,
+                $action,
+                'CREATED',
+                $before,
+                $this->caseSnapshot($case),
+                $case,
+                $snapshot,
+                $context,
+                $actor,
+                (string) $notification['uuid_notification']
+            );
 
-    private function runRetryingDuplicate(callable $operation): array
-    {
-        try {
-            return $this->transactions->run($operation);
-        } catch (\PDOException $e) {
-            if ((string) $e->getCode() !== '23000' && (int) ($e->errorInfo[1] ?? 0) !== 1062) {
-                throw $e;
+            $db->commit();
+
+            return $this->result($event, $case, false);
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
             }
-            return $this->transactions->run($operation);
+
+            throw $exception;
         }
     }
 
-    private function reusedNotice(\PDO $db, array $event, array $snapshot): array
-    {
-        $stmt = $db->prepare('SELECT IDEMPOTENCY_KEY FROM debt_claim_event WHERE UUID_CLAIM_EVENT = ?');
-        $stmt->execute([$event['uuid_claim_event']]);
-        $key = (string) $stmt->fetchColumn();
-        $notification = $this->outbox->findByIdempotencyKey($db, $this->notificationKey($key));
+    public function reconcileAfterPayment(
+        \PDO $db,
+        string $uuidFactura,
+        string $uuidPayment,
+        array $command,
+        array $actor
+    ): array {
+        $uuidPayment = trim($uuidPayment);
+        if ($uuidPayment === '') {
+            throw SifException::validation('Debt claim payment UUID is required');
+        }
 
+        $action = 'PAYMENT_RECONCILED';
+        $context = $this->context($command, $actor);
+        $idempotencyPayload = $this->idempotencyPayload(
+            $uuidFactura,
+            $action,
+            $context,
+            $actor,
+            ['uuid_payment' => $uuidPayment]
+        );
+
+        if ($db->inTransaction()) {
+            throw new \LogicException('Debt claim payment reconciliation requires an independent transaction');
+        }
+
+        $db->beginTransaction();
+
+        try {
+            $snapshot = $this->requireSnapshot($db, $uuidFactura, true);
+            $this->assertManageAllowed($actor, $snapshot, $action);
+
+            $allocation = $this->snapshots->findConfirmedPaymentAllocation(
+                $db,
+                $uuidPayment,
+                $snapshot['uuid_factura']
+            );
+            if ($allocation === null) {
+                throw SifException::conflict(
+                    'Confirmed payment is not allocated to the debt claim invoice'
+                );
+            }
+
+            $reused = $this->claims->reuseEventIfSame(
+                $db,
+                $context['idempotency_key'],
+                $idempotencyPayload,
+                true
+            );
+            if ($reused !== null) {
+                $case = $this->claims->findByInvoice($db, $snapshot['uuid_factura'], true);
+                $db->commit();
+
+                return $this->result($reused, $case, true);
+            }
+
+            $case = $this->getOrCreateCase($db, $snapshot, $context, $actor);
+            $before = $this->caseSnapshot($case);
+            $fromStage = strtoupper((string) $case['STAGE']);
+
+            $cancelled = $this->outbox->cancelPendingForInvoice(
+                $db,
+                $snapshot['uuid_factura'],
+                array_values(self::NOTICE_TEMPLATES)
+            );
+
+            $resolved = !$snapshot['is_outstanding'];
+            $toStage = $resolved
+                ? 'RESOLVED'
+                : ($fromStage === 'RESOLVED' ? 'DETECTED' : $fromStage);
+
+            $case = $this->claims->updateCase(
+                $db,
+                (string) $case['UUID_CLAIM'],
+                (int) $case['LOCK_VERSION'],
+                [
+                    'status' => $resolved ? 'RESOLVED' : 'OPEN',
+                    'stage' => $toStage,
+                    'outstanding_amount' => $snapshot['outstanding'],
+                    'recipient_type' => 'BILLING_PARTY',
+                    'recipient_hash' => $this->recipientHash($snapshot),
+                    'correlation_id' => $context['correlation_id'],
+                    'resolved_at' => $resolved ? $context['occurred_at'] : null,
+                ]
+            );
+
+            $event = $this->claims->appendEvent(
+                $db,
+                $this->eventPayload(
+                    $case,
+                    $action,
+                    $resolved ? 'RESOLVED' : 'PARTIAL',
+                    $fromStage,
+                    $toStage,
+                    $snapshot,
+                    $context,
+                    $actor,
+                    null,
+                    [
+                        'uuid_payment' => $uuidPayment,
+                        'payment_allocation' => $allocation,
+                        'cancelled_notifications' => $cancelled,
+                    ]
+                ),
+                $idempotencyPayload
+            );
+
+            $this->appendTrace(
+                $db,
+                $action,
+                $resolved ? 'RESOLVED' : 'PARTIAL',
+                $before,
+                $this->caseSnapshot($case),
+                $case,
+                $snapshot,
+                $context,
+                $actor,
+                null,
+                $uuidPayment
+            );
+
+            $db->commit();
+
+            return $this->result($event, $case, false);
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function requireSnapshot(
+        \PDO $db,
+        string $uuidFactura,
+        bool $forUpdate
+    ): array {
+        $snapshot = $this->snapshots->findByUuid($db, trim($uuidFactura), $forUpdate);
+        if ($snapshot === null) {
+            throw SifException::notFound('Debt claim invoice was not found');
+        }
+
+        return $snapshot;
+    }
+
+    private function assertManageAllowed(array $actor, array $snapshot, string $action): void
+    {
+        if (!$this->authorization->canManage($actor, $this->policyInvoice($snapshot), $action)) {
+            throw SifException::forbidden('Debt claim mutation is outside actor scope');
+        }
+    }
+
+    private function policyInvoice(array $snapshot): array
+    {
         return [
-            'ok' => true,
-            'status' => 'RECORDED',
-            'uuid_claim' => $event['uuid_claim'],
-            'uuid_claim_event' => $event['uuid_claim_event'],
-            'uuid_notification' => $notification['UUID_NOTIFICATION'] ?? null,
-            'uuid_factura' => $snapshot['uuid_factura'],
-            'stage' => $event['event_type'],
-            'outstanding' => $event['outstanding_after'],
-            'idempotency_reused' => true,
+            'UUID_FACTURA' => $snapshot['uuid_factura'],
+            'NUM_VISIBLE' => $snapshot['num_visible'],
         ];
     }
 
-    private function audit(
-        \PDO $db, array $actor, array $claim, array $snapshot,
-        string $beforeStage, string $afterStage, string $reason,
-        string $channel, string $correlationId, string $at,
-        string $operationType = 'DEBT_CLAIM_NOTICE', string $status = 'RECORDED',
+    private function getOrCreateCase(
+        \PDO $db,
+        array $snapshot,
+        array $context,
+        array $actor
+    ): array {
+        $case = $this->claims->findByInvoice($db, $snapshot['uuid_factura'], true);
+        if ($case !== null) {
+            return $case;
+        }
+
+        return $this->claims->createCase($db, [
+            'uuid_factura' => $snapshot['uuid_factura'],
+            'status' => $snapshot['is_outstanding'] ? 'OPEN' : 'RESOLVED',
+            'stage' => $snapshot['is_outstanding'] ? 'DETECTED' : 'RESOLVED',
+            'outstanding_amount' => $snapshot['outstanding'],
+            'currency' => 'EUR',
+            'recipient_type' => 'BILLING_PARTY',
+            'recipient_hash' => $this->recipientHash($snapshot),
+            'correlation_id' => $context['correlation_id'],
+            'created_by' => $this->optionalString($actor['actor_id'] ?? null),
+            'resolved_at' => $snapshot['is_outstanding'] ? null : $context['occurred_at'],
+        ]);
+    }
+
+    private function recipientHash(array $snapshot): ?string
+    {
+        $email = strtolower(trim((string) ($snapshot['billing_email'] ?? '')));
+        if ($email === '') {
+            return null;
+        }
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            throw SifException::conflict('Invoice billing email is invalid');
+        }
+
+        return hash('sha256', $email);
+    }
+
+    private function context(array $command, array $actor): array
+    {
+        $context = [];
+        foreach ([
+            'idempotency_key',
+            'request_id',
+            'correlation_id',
+            'reason_code',
+            'source_environment',
+            'source_channel',
+            'occurred_at',
+        ] as $field) {
+            $value = trim((string) ($command[$field] ?? ''));
+            if ($value === '') {
+                throw SifException::validation('Missing debt claim command field: ' . $field);
+            }
+            $context[$field] = $value;
+        }
+
+        $actorType = trim((string) ($actor['actor_type'] ?? ''));
+        if ($actorType === '') {
+            throw SifException::validation('Missing debt claim actor type');
+        }
+
+        if (strlen($context['idempotency_key']) > 140) {
+            throw SifException::validation('Debt claim idempotency key is too long');
+        }
+
+        return $context;
+    }
+
+    private function idempotencyPayload(
+        string $uuidFactura,
+        string $action,
+        array $context,
+        array $actor,
+        array $extra = []
+    ): array {
+        return array_merge([
+            'uuid_factura' => trim($uuidFactura),
+            'action' => strtoupper(trim($action)),
+            'request_id' => $context['request_id'],
+            'correlation_id' => $context['correlation_id'],
+            'reason_code' => strtoupper($context['reason_code']),
+            'source_environment' => strtoupper($context['source_environment']),
+            'source_channel' => strtoupper($context['source_channel']),
+            'actor_type' => strtoupper(trim((string) ($actor['actor_type'] ?? ''))),
+            'actor_id' => $this->optionalString($actor['actor_id'] ?? null),
+            'actor_role' => $this->optionalString($actor['actor_role'] ?? null),
+        ], $extra);
+    }
+
+    private function eventPayload(
+        array $case,
+        string $action,
+        string $result,
+        ?string $fromStage,
+        string $toStage,
+        array $snapshot,
+        array $context,
+        array $actor,
+        ?string $uuidNotification,
+        array $metadata
+    ): array {
+        return [
+            'uuid_claim' => (string) $case['UUID_CLAIM'],
+            'action' => $action,
+            'result' => $result,
+            'from_stage' => $fromStage,
+            'to_stage' => $toStage,
+            'outstanding_amount' => $snapshot['outstanding'],
+            'idempotency_key' => $context['idempotency_key'],
+            'request_id' => $context['request_id'],
+            'correlation_id' => $context['correlation_id'],
+            'actor_type' => (string) $actor['actor_type'],
+            'actor_id' => $this->optionalString($actor['actor_id'] ?? null),
+            'actor_role' => $this->optionalString($actor['actor_role'] ?? null),
+            'reason_code' => $context['reason_code'],
+            'uuid_notification' => $uuidNotification,
+            'metadata' => $metadata,
+            'occurred_at' => $context['occurred_at'],
+        ];
+    }
+
+    private function appendTrace(
+        \PDO $db,
+        string $action,
+        string $result,
+        array $before,
+        array $after,
+        array $case,
+        array $snapshot,
+        array $context,
+        array $actor,
+        ?string $uuidNotification,
         ?string $uuidPayment = null
     ): void {
-        $this->operations->append($db, [
-            'operation_type' => $operationType,
+        $this->operationalEvents->append($db, [
+            'operation_type' => 'DEBT_CLAIM_' . $action,
             'source_type' => 'DEBT_CLAIM',
-            'source_id' => (string) $claim['UUID_CLAIM'],
+            'source_id' => (string) $case['UUID_CLAIM'],
             'uuid_factura' => $snapshot['uuid_factura'],
             'uuid_payment' => $uuidPayment,
             'fiscal_impact' => 'NONE',
             'economic_impact' => 'NONE',
-            'status' => $status,
-            'reason_code' => $reason,
-            'before_snapshot' => [
-                'stage' => $beforeStage,
-                'outstanding' => (string) $claim['OUTSTANDING_AMOUNT'],
+            'status' => $result,
+            'reason_code' => $context['reason_code'],
+            'before_snapshot' => $before,
+            'after_snapshot' => $after,
+            'actor_type' => (string) $actor['actor_type'],
+            'actor_id' => $this->optionalString($actor['actor_id'] ?? null),
+            'actor_role' => $this->optionalString($actor['actor_role'] ?? null),
+            'source_channel' => $context['source_channel'],
+            'correlation_id' => $context['correlation_id'],
+            'occurred_at' => $context['occurred_at'],
+        ]);
+
+        $this->auditEvents->append($db, [
+            'request_id' => $context['request_id'],
+            'correlation_id' => $context['correlation_id'],
+            'action' => 'DEBT_CLAIM_' . $action,
+            'result' => $result,
+            'resource_type' => 'DEBT_CLAIM',
+            'resource_id' => (string) $case['UUID_CLAIM'],
+            'source_environment' => $context['source_environment'],
+            'source_channel' => $context['source_channel'],
+            'actor_type' => (string) $actor['actor_type'],
+            'actor_id' => $this->optionalString($actor['actor_id'] ?? null),
+            'actor_role' => $this->optionalString($actor['actor_role'] ?? null),
+            'reason_code' => $context['reason_code'],
+            'before_hash' => $this->snapshotHash($before),
+            'after_hash' => $this->snapshotHash($after),
+            'changeset' => [
+                'action' => $action,
+                'result' => $result,
+                'uuid_factura' => $snapshot['uuid_factura'],
+                'uuid_notification' => $uuidNotification,
+                'uuid_payment' => $uuidPayment,
+                'outstanding_amount' => $snapshot['outstanding'],
             ],
-            'after_snapshot' => [
-                'stage' => $afterStage,
-                'outstanding' => $snapshot['outstanding'],
-            ],
-            'actor_type' => strtoupper(trim((string) ($actor['actor_type'] ?? 'USER'))),
-            'actor_id' => $actor['actor_id'] ?? null,
-            'actor_role' => $this->primaryRole($actor),
-            'source_channel' => $channel,
-            'correlation_id' => $correlationId,
-            'occurred_at' => $at,
+            'occurred_at' => $context['occurred_at'],
         ]);
     }
 
-    private function snapshot(\PDO $db, array $criteria, bool $lock): array
+    private function result(?array $event, ?array $case, bool $reused): array
     {
-        $uuid = trim((string) ($criteria['uuid_factura'] ?? ''));
-        $num = trim((string) ($criteria['num_visible'] ?? ''));
-        $idInscRaw = trim((string) ($criteria['id_insc'] ?? ''));
-
-        $present = ($uuid !== '' ? 1 : 0)
-            + ($num !== '' ? 1 : 0)
-            + ($idInscRaw !== '' ? 1 : 0);
-        if ($present !== 1) {
-            throw SifException::validation(
-                'Provide exactly one debt claim selector: uuid_factura, num_visible or id_insc'
-            );
+        if ($event === null || $case === null) {
+            throw new \RuntimeException('Debt claim result is incomplete');
         }
 
-        if ($uuid !== '') {
-            $row = $this->snapshots->findByUuid($db, $uuid, $lock);
-        } elseif ($num !== '') {
-            $row = $this->snapshots->findByNumVisible($db, $num, $lock);
-        } else {
-            if (!ctype_digit($idInscRaw) || (int) $idInscRaw <= 0) {
-                throw SifException::validation('Invalid debt claim enrollment id');
-            }
-            $row = $this->snapshots->findByEnrollmentId($db, (int) $idInscRaw, $lock);
-        }
-
-        if ($row === null) {
-            throw SifException::notFound('Debt claim invoice not found');
-        }
-
-        return $row;
-    }
-
-    private function recipient(array $snapshot, bool $required): ?array
-    {
-        $email = strtolower(trim((string) ($snapshot['billing_email'] ?? '')));
-        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            if ($required) {
-                throw SifException::validation('Invoice billing party has no valid email for debt claim notice');
-            }
-            return null;
-        }
-        return ['type' => 'BILLING_PARTY', 'hash' => hash('sha256', $email)];
-    }
-
-    private function businessPayload(array $actor, array $payload, string $action, string $reason, string $channel): array
-    {
-        return [
-            'invoice' => $this->invoiceIdentity($payload),
-            'action' => $action,
-            'reason_code' => $reason,
-            'notes' => $this->optional($payload['notes'] ?? null, 4000),
-            'uuid_payment' => $this->optional($payload['uuid_payment'] ?? null, 36),
-            'actor_id' => $this->optional($actor['actor_id'] ?? null, 120),
-            'source_channel' => $channel,
-        ];
-    }
-
-    private function invoiceIdentity(array $payload): string
-    {
-        $uuid = trim((string) ($payload['uuid_factura'] ?? ''));
-        $num = trim((string) ($payload['num_visible'] ?? ''));
-        $idInscRaw = trim((string) ($payload['id_insc'] ?? ''));
-
-        $present = ($uuid !== '' ? 1 : 0)
-            + ($num !== '' ? 1 : 0)
-            + ($idInscRaw !== '' ? 1 : 0);
-        if ($present !== 1) {
-            throw SifException::validation(
-                'Provide exactly one debt claim selector: uuid_factura, num_visible or id_insc'
-            );
-        }
-
-        if ($uuid !== '') {
-            return 'UUID:' . $uuid;
-        }
-        if ($num !== '') {
-            return 'NUM:' . $num;
-        }
-        if (!ctype_digit($idInscRaw) || (int) $idInscRaw <= 0) {
-            throw SifException::validation('Invalid debt claim enrollment id');
-        }
-
-        return 'INSC:' . (int) $idInscRaw;
-    }
-
-    private function noChange(array $snapshot, string $reason, ?string $uuidClaim = null): array
-    {
         return [
             'ok' => true,
-            'status' => 'NO_CHANGE',
-            'reason' => $reason,
-            'uuid_claim' => $uuidClaim,
-            'uuid_factura' => $snapshot['uuid_factura'],
-            'outstanding' => $snapshot['outstanding'],
-            'idempotency_reused' => false,
+            'idempotency_reused' => $reused,
+            'uuid_claim' => (string) $case['UUID_CLAIM'],
+            'status' => (string) $case['STATUS'],
+            'stage' => (string) $case['STAGE'],
+            'outstanding_amount' => (string) $case['OUTSTANDING_AMOUNT'],
+            'uuid_event' => (string) $event['UUID_EVENT'],
+            'event_result' => (string) $event['RESULT'],
+            'uuid_notification' => $this->optionalString(
+                $event['UUID_NOTIFICATION'] ?? null
+            ),
         ];
     }
 
-    private function rank(string $stage): int
+    private function caseSnapshot(array $case): array
     {
-        return match (strtoupper($stage)) {
-            'DETECTED' => 0,
-            'FINAL_REMINDER' => 10,
-            'FIRST_CLAIM' => 20,
-            'FINAL_CLAIM' => 30,
-            'RESOLVED' => 100,
-            default => throw SifException::conflict('Unknown debt claim stage'),
-        };
+        return [
+            'uuid_claim' => (string) $case['UUID_CLAIM'],
+            'status' => (string) $case['STATUS'],
+            'stage' => (string) $case['STAGE'],
+            'outstanding_amount' => (string) $case['OUTSTANDING_AMOUNT'],
+            'currency' => (string) $case['CURRENCY'],
+            'lock_version' => (int) $case['LOCK_VERSION'],
+        ];
     }
 
-    private function notificationKey(string $key): string
+    private function snapshotHash(array $snapshot): string
     {
-        return 'CLAIM_NOTICE|' . hash('sha256', $key);
+        ksort($snapshot);
+
+        return hash(
+            'sha256',
+            json_encode(
+                $snapshot,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR
+            )
+        );
     }
 
-    private function channel(array $payload): string
-    {
-        $value = strtoupper(trim((string) ($payload['source_channel'] ?? 'INTRANET')));
-        if ($value === '' || strlen($value) > 30) {
-            throw SifException::validation('Invalid debt claim source channel');
-        }
-        return $value;
+    private function notificationKey(
+        string $uuidFactura,
+        string $action,
+        string $idempotencyKey
+    ): string {
+        return 'DEBT|' . $action
+            . '|F:' . substr(hash('sha256', $uuidFactura), 0, 24)
+            . '|K:' . hash('sha256', $idempotencyKey);
     }
 
-    private function assertRead(array $actor): void
+    private function optionalString(mixed $value): ?string
     {
-        if (!$this->hasRole($actor, array_values(array_unique(array_merge($this->readRoles, $this->manageRoles))))) {
-            throw SifException::forbidden('Debt claim read permission denied');
-        }
-    }
-
-    private function assertManage(array $actor): void
-    {
-        if (!$this->hasRole($actor, $this->manageRoles)) {
-            throw SifException::forbidden('Debt claim management permission denied');
-        }
-    }
-
-    private function hasRole(array $actor, array $allowed): bool
-    {
-        $roles = $this->roles(is_array($actor['roles'] ?? null) ? $actor['roles'] : []);
-        return $allowed !== [] && array_intersect($roles, $allowed) !== [];
-    }
-
-    private function roles(array $roles): array
-    {
-        $out = [];
-        foreach ($roles as $role) {
-            $role = strtoupper(trim((string) $role));
-            if ($role !== '') {
-                $out[$role] = true;
-            }
-        }
-        return array_keys($out);
-    }
-
-    private function primaryRole(array $actor): ?string
-    {
-        $roles = $this->roles(is_array($actor['roles'] ?? null) ? $actor['roles'] : []);
-        foreach ($roles as $role) {
-            if (in_array($role, $this->manageRoles, true)) {
-                return $role;
-            }
-        }
-        return $roles[0] ?? null;
-    }
-
-    private function requestId(array $actor, array $payload): string
-    {
-        $v = trim((string) ($payload['request_id'] ?? $actor['request_id'] ?? ''));
-        if ($v === '' || strlen($v) > 120) {
-            throw SifException::validation('Debt claim request_id is required');
-        }
-        return $v;
-    }
-
-    private function correlationId(array $actor, array $payload): string
-    {
-        $v = trim((string) ($payload['correlation_id'] ?? $actor['request_id'] ?? ''));
-        if ($v === '' || strlen($v) > 120) {
-            throw SifException::validation('Debt claim correlation_id is required');
-        }
-        return $v;
-    }
-
-    private function required(array $payload, string $field, int $max): string
-    {
-        $v = trim((string) ($payload[$field] ?? ''));
-        if ($v === '' || strlen($v) > $max) {
-            throw SifException::validation('Invalid debt claim field: ' . $field);
-        }
-        return $v;
-    }
-
-    private function optional(mixed $value, int $max): ?string
-    {
-        if ($value === null || trim((string) $value) === '') {
+        if ($value === null) {
             return null;
         }
-        $v = trim((string) $value);
-        if (strlen($v) > $max) {
-            throw SifException::validation('Debt claim optional field is too long');
-        }
-        return $v;
-    }
 
-    private function now(): string
-    {
-        return (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid')))
-            ->format('Y-m-d H:i:s.u');
+        $value = trim((string) $value);
+        return $value === '' ? null : $value;
     }
 }
