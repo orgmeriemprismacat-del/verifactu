@@ -55,11 +55,22 @@ final class AeatSubmissionAttemptRepository
 
     public function complete(\PDO $db, string $uuidAttempt, string $status, array $response): void
     {
-        $json = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-        $evidenceId = $this->normalizeEvidenceId($response['evidence_id'] ?? null);
-        if ($evidenceId !== null) {
-            $this->assertPreassignedEvidenceMatches($db, $uuidAttempt, $evidenceId);
+        if (!in_array($status, ['ACCEPTED', 'ACCEPTED_WITH_ERRORS', 'REJECTED'], true)) {
+            throw new \InvalidArgumentException('Invalid AEAT terminal attempt status.');
         }
+
+        $json = json_encode(
+            $response,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        );
+        $evidenceId = $this->normalizeEvidenceId($response['evidence_id'] ?? null);
+        if ($evidenceId === null) {
+            throw new \RuntimeException(
+                'AEAT terminal result requires the preassigned evidence reference.'
+            );
+        }
+        $this->assertPreassignedEvidenceMatches($db, $uuidAttempt, $evidenceId);
+        $this->assertTerminalEvidenceAnchored($db, $uuidAttempt, $evidenceId);
         $stmt = $db->prepare(
             'UPDATE aeat_submission_attempt
              SET STATUS = ?, RESPONSE_CODE = ?, RESPONSE_CSV = ?, RESPONSE_JSON = ?,
@@ -259,6 +270,36 @@ final class AeatSubmissionAttemptRepository
         }
     }
 
+
+
+    private function assertTerminalEvidenceAnchored(
+        \PDO $db,
+        string $uuidAttempt,
+        string $evidenceId
+    ): void {
+        $stmt = $db->prepare(
+            'SELECT EVIDENCE_RESPONSE_SHA256, EVIDENCE_HTTP_STATUS, STATUS
+             FROM aeat_submission_attempt
+             WHERE UUID_ATTEMPT = ? AND EVIDENCE_ID = ?
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $stmt->execute([$uuidAttempt, $evidenceId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!is_array($row)
+            || strtoupper((string) ($row['STATUS'] ?? '')) !== 'STARTED'
+            || !is_string($row['EVIDENCE_RESPONSE_SHA256'] ?? null)
+            || preg_match(
+                '/^[a-f0-9]{64}$/D',
+                (string) $row['EVIDENCE_RESPONSE_SHA256']
+            ) !== 1
+            || (int) ($row['EVIDENCE_HTTP_STATUS'] ?? 0) !== 200
+        ) {
+            throw new \RuntimeException(
+                'AEAT terminal result requires an anchored HTTP 200 evidence response.'
+            );
+        }
+    }
 
     private function assertPreassignedEvidenceMatches(
         \PDO $db,
