@@ -205,3 +205,5 @@ La [matriu de cobertura completa](00-matriu-cobertura-cataleg.md) vincula **els 
 - Mantenir els criteris de sortida i les incidències a la [revisió transversal](00-auditoria-consistencia-142-fitxes.md); qualsevol nova variant funcional ha de citar una font pròpia i no alterar retrospectivament una factura emesa.
 
 Referències comunes: [Casos d'ús generals](../04-estat-final/33-casos-us-sif.md), [classes del SIF](../04-estat-final/31-diagrames-classes-sif.md), [seqüències del SIF](../04-estat-final/32-diagrames-sequencia-sif.md), [matriu de traçabilitat](../04-estat-final/35-matriu-tracabilitat-diagrames.md) i [fitxes anteriors](../06-fitxes-funcionals/README.md).
+
+- [UC-015 · Reconciliació amb main 2026-10-04](uc-015-reconciliacio-main-2026-10-04.md) · [inventari PHP/JS ACTUAL/FINAL](uc-015-inventari-codi-php-js-actual-final-2026-10-04.md)
