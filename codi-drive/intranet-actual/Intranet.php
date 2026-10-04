@@ -15828,6 +15828,8 @@ class Intranet
 				}
 
 				$tipus = 1;
+				// UC-020: Alumne PrisMa és un dret automàtic ja revalidat; queda pagable.
+				$validDesc = 1;
 				$preuDescompte = $preuDescAlumne;
 				$textAlumne = " (per ser alumne/a de PrisMa)";
 			}
