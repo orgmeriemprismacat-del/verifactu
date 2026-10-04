@@ -67,10 +67,34 @@ try {
         throw SifException::validation('Provide exactly one claim payment invoice selector');
     }
 
+    $claimCaseId = claimPaymentIdentifier(
+        $payload['claim_case_id'] ?? null,
+        'claim case id'
+    );
+    $externalReceiptId = claimPaymentIdentifier(
+        $payload['external_receipt_id'] ?? null,
+        'external receipt id'
+    );
+
     $paymentInput = $payload['payment'] ?? null;
     if (!is_array($paymentInput)) {
         throw SifException::validation('Invalid claim payment input');
     }
+
+    // The new API contract separates case identity from the external economic
+    // fact. Legacy ambiguous reference fields are deliberately ignored here.
+    foreach ([
+        'claim_reference',
+        'reclamation_ref',
+        'reclamacio_ref',
+        'reference',
+        'referencia',
+        'referencia_bancaria',
+        'receipt_id',
+    ] as $legacyReferenceField) {
+        unset($paymentInput[$legacyReferenceField]);
+    }
+    $paymentInput['external_receipt_id'] = $externalReceiptId;
 
     // Internal identity is authoritative. Never accept actor attribution from
     // browser-controlled payment fields.
@@ -103,6 +127,13 @@ try {
         'actor_id' => (string) ($actor['actor_id'] ?? ''),
         'actor_role' => $actorRole,
         'reason_code' => 'CLAIM_PAYMENT_CONFIRMED',
+        'changeset' => [
+            'claim_case_id' => $claimCaseId,
+            'external_receipt_id' => $externalReceiptId,
+            'invoice_selector' => $uuidFactura !== ''
+                ? ['type' => 'uuid', 'value' => $uuidFactura]
+                : ['type' => 'num_visible', 'value' => $numVisible],
+        ],
         'occurred_at' => (new DateTimeImmutable('now', new DateTimeZone('Europe/Madrid')))
             ->format('Y-m-d H:i:s.u'),
     ];
@@ -130,6 +161,9 @@ try {
             );
         }
     );
+
+    $result['claim_case_id'] = $claimCaseId;
+    $result['external_receipt_id'] = $externalReceiptId;
 
     JsonResponse::send([
         'ok' => true,
@@ -172,4 +206,19 @@ function claimPaymentAuditEnvironment(string $environment): string
         'migration' => 'MIGRATION',
         default => 'DEVELOPMENT',
     };
+}
+
+
+function claimPaymentIdentifier(mixed $value, string $label): string
+{
+    $identifier = trim((string) $value);
+    if (
+        $identifier === ''
+        || strlen($identifier) > 120
+        || preg_match('/^[A-Za-z0-9._:\/-]+$/D', $identifier) !== 1
+    ) {
+        throw SifException::validation('Invalid ' . $label);
+    }
+
+    return $identifier;
 }
