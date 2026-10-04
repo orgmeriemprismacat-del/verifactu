@@ -148,7 +148,7 @@ Abans de crear la intenció:
 - les decisions UC20-DEC-001…006 queden tancades a `ALUMNE_PRISMA_WEB_LEGACY_V2`;
 - el guard de pagabilitat de `payment_link` ja està implementat; continuen pendents l'adopció canònica per P03/P04, la unificació de transferència i l'E2E navegador → callback → factura.
 
-El **checkout de targeta actiu** crea operació/validació/intenció i vincula `UUID_OPERATION ↔ UUID_INTENT` via `course-intent`. El navegador pot continuar mostrant un preview llegat, però ja no pot fixar l'import AP persistit ni el que s'envia finalment a Redsys.
+El **pont candidat de targeta** crea operació/validació/intenció i vincula `UUID_OPERATION ↔ UUID_INTENT` via `course-intent`. El `web-actual` inspeccionat encara prepara Redsys directament; per això el control final de l'import via SIF només es pot considerar actiu quan es verifiqui el desplegament/cutover del pont.
 
 ### 5.1. Tall temporal de l'elegibilitat
 
@@ -158,7 +158,7 @@ Abans de crear la intenció, `PrismaStudentCourseCheckoutService` exclou la matr
 ## 6. Revalidació de seqüències — 03/10/2026
 
 - **Alta web AP:** el navegador proposa TIPUS/import, però `enviarInscripcio.php` rellegeix historial i tarifa; UC020-94 garanteix que la tarifa servidor no torna a ser sobreescrita abans de persistir.
-- **Checkout targeta:** `SifRedsysCourseIntentClient` → `course-intent.php` → `RedsysCoursePaymentIntentService` → checkout AP → intenció autoritativa.
+- **Pont candidat targeta:** `SifRedsysCourseIntentClient` → `course-intent.php` → `RedsysCoursePaymentIntentService` → checkout AP → intenció autoritativa. **Desplegament no verificat.**
 - **Payment link:** `PaymentLinkService` ja bloqueja operacions que no siguin `BILLABLE` o que no estiguin `READY_FOR_PAYMENT/PAYMENT_PENDING`; les pantalles llegades encara no hi entren canònicament.
 - **Callback:** valida signatura/DS_ORDER/import/moneda/terminal contra la intenció i encola; no reavalua AP.
 - **Worker/factura:** el `main` vigent disposa de prova E2E simulada de callback → worker → pagament/factura/sync/outbox.
@@ -229,3 +229,34 @@ end
 ```
 
 Aquest delta és **IMPLEMENTAT** al HEAD 04/10 i **PENDENT_CI_HEAD**. Preserva l'exclusió de matrícula actual, `evaluation_at=DATA_INSC` i `CLASSIFICATION=BILLABLE`.
+
+
+## 9. Seqüència ACTUAL vs PONT CANDIDAT — 04/10/2026
+
+```mermaid
+sequenceDiagram
+autonumber
+participant W as web-actual
+participant R as Redsys
+participant P as pay bridge candidat
+participant API as SIF course-intent
+participant AP as PrismaStudentCourseCheckoutService
+
+rect rgb(245,245,245)
+Note over W,R: ACTUAL/fallback inspeccionat
+W->>W: rellegir matrícula/gate servidor
+W->>W: generar DS_ORDER + merchant params
+W->>R: formulari Redsys
+end
+
+rect rgb(235,245,255)
+Note over P,AP: PONT CANDIDAT implementat
+P->>API: POST signat idPag/import proposat
+API->>AP: AP policy + snapshot autoritatiu
+AP-->>API: UUID_INTENT + DS_ORDER + import
+API-->>P: intenció
+P->>R: mateix DS_ORDER/import retornat pel SIF
+end
+```
+
+El segon bloc és **IMPLEMENTAT_PONT_CANDIDAT**, no `VERIFICAT_DESPLEGAT`.
