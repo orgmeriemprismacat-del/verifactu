@@ -182,6 +182,15 @@ final class RedsysPackWorkerEndToEndTest
             );
         }
 
+        $db->prepare(
+            "UPDATE redsys_callback_queue q
+             JOIN redsys_notifications n ON n.ID = q.NOTIFICATION_ID
+             SET q.STATUS = 'PROCESSING', q.ATTEMPTS = 1,
+                 q.LOCKED_AT = '2030-10-01 09:00:00',
+                 q.LOCKED_BY = 'other-worker'
+             WHERE n.DS_ORDER = ?"
+        )->execute([$orders[1]]);
+
         $worker = $this->worker(
             $db,
             $notifications,
@@ -213,8 +222,8 @@ final class RedsysPackWorkerEndToEndTest
         Assert::same('PROCESSED', $rows[0]['STATUS']);
         Assert::same(1, (int) $rows[0]['ATTEMPTS']);
         Assert::same($orders[1], $rows[1]['DS_ORDER']);
-        Assert::same('QUEUED', $rows[1]['STATUS']);
-        Assert::same(0, (int) $rows[1]['ATTEMPTS']);
+        Assert::same('PROCESSING', $rows[1]['STATUS']);
+        Assert::same(1, (int) $rows[1]['ATTEMPTS']);
     }
 
     private function worker(
