@@ -30,6 +30,11 @@ final class FiscalCorrectionDecisionGuard
             throw SifException::validation('Invalid fiscal correction policy version');
         }
 
+        $invoiceType = strtoupper(trim((string) ($classification['invoice_type'] ?? '')));
+        if (!in_array($invoiceType, ['R1', 'R2', 'R3', 'R4', 'R5'], true)) {
+            throw SifException::validation('UC-74 rectification requires invoice_type R1-R5');
+        }
+
         $classifiedMode = strtoupper(trim((string) ($classification['rectification_mode'] ?? '')));
         if (!in_array($classifiedMode, ['DIFERENCIES', 'SUBSTITUCIO'], true)) {
             throw SifException::validation('Invalid classified rectification mode');
@@ -49,6 +54,7 @@ final class FiscalCorrectionDecisionGuard
             'source_uc' => $sourceUc,
             'reason_code' => $reasonCode,
             'policy_version' => $policyVersion,
+            'invoice_type' => $invoiceType,
             'rectification_mode' => $classifiedMode,
         ];
 
