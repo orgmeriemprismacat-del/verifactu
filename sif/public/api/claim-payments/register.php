@@ -64,8 +64,8 @@ try {
 
     $uuidFactura = trim((string) ($payload['uuid_factura'] ?? ''));
     $numVisible = trim((string) ($payload['num_visible'] ?? ''));
-    if (($uuidFactura === '') === ($numVisible === '')) {
-        throw SifException::validation('Provide exactly one claim payment invoice selector');
+    if ($uuidFactura !== '' && $numVisible !== '') {
+        throw SifException::validation('Provide at most one claim payment invoice selector');
     }
 
     $sourceInscriptionId = claimPaymentPositiveInt(
@@ -138,7 +138,9 @@ try {
             'external_receipt_id' => $externalReceiptId,
             'invoice_selector' => $uuidFactura !== ''
                 ? ['type' => 'uuid', 'value' => $uuidFactura]
-                : ['type' => 'num_visible', 'value' => $numVisible],
+                : ($numVisible !== ''
+                    ? ['type' => 'num_visible', 'value' => $numVisible]
+                    : ['type' => 'inscription_origin', 'value' => (string) $sourceInscriptionId]),
         ],
         'occurred_at' => (new DateTimeImmutable('now', new DateTimeZone('Europe/Madrid')))
             ->format('Y-m-d H:i:s.u'),
@@ -170,15 +172,28 @@ try {
                 );
             }
 
-            $invoiceLinks->assertNumVisibleMatches(
+            if ($numVisible !== '') {
+                $invoiceLinks->assertNumVisibleMatches(
+                    $transactionDb,
+                    $numVisible,
+                    $sourceInscriptionId
+                );
+
+                return $claimService->registerByNumVisibleInTransaction(
+                    $transactionDb,
+                    $numVisible,
+                    $paymentInput
+                );
+            }
+
+            $resolved = $invoiceLinks->resolveUniqueOriginForInscription(
                 $transactionDb,
-                $numVisible,
                 $sourceInscriptionId
             );
 
-            return $claimService->registerByNumVisibleInTransaction(
+            return $claimService->registerByUuidInTransaction(
                 $transactionDb,
-                $numVisible,
+                (string) $resolved['UUID_FACTURA'],
                 $paymentInput
             );
         }
