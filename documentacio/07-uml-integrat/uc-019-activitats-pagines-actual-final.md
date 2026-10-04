@@ -89,3 +89,17 @@ Executar-lo amb política de retry, mètrica d'estats pendents i alerta quan una
 | API SIF USOC | Sí | Sí | tests de contracte | prova preprod |
 | Servei/repositori decisió | Sí | Sí | tests de servei | prova MySQL/preprod |
 | Reconciliació | Sí | Sí | contracte present | prova operativa i alerta |
+
+
+## Activitat específica — denegació i reintent incert
+
+1. Generar o recuperar `requestId` persistent de `sessionStorage`.
+2. Validar sessió, CSRF, rol, `idInsc`, decisió i format del `requestId`.
+3. Si el `requestId` ja té resultat, validar que el payload coincideix i retornar-lo.
+4. Recordar que el request era USOC abans de la mutació.
+5. Crear/reutilitzar decisió `REQUESTED` al SIF.
+6. Executar mutació llegada.
+7. En denegació, el llegat pot convertir `TIPUS_DESC=4` a 0/1 i `VALID_DESC=2`.
+8. Completar la decisió SIF: aquesta reclassificació és vàlida només per `desired=2`.
+9. En èxit, memoritzar resultat i eliminar el `requestId` persistent del navegador.
+10. En error/incertesa, conservar el `requestId` per al reintent.
