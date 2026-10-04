@@ -27,7 +27,7 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
 
 ## Pas 1 — preproducció
 
-1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades. Configurar `SIF_REDSYS_CALLBACK_URL` amb la URL HTTPS del callback SIF i `REDSYS_GATEWAY_URL` amb l'endpoint HTTPS Redsys de l'entorn; mantenir `SIF_REDSYS_COURSE_CUTOVER_ENABLED=0` i `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=0` fins que els preflights siguin verds.
+1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades. Configurar `SIF_REDSYS_CALLBACK_URL` amb la URL HTTPS del callback SIF, `SIF_REDSYS_LEGACY_CALLBACK_URL` amb el callback legacy del **mateix entorn** mentre `cutover=0`, `SIF_REDSYS_RETURN_BASE_URL` amb la base HTTPS dels retorns OK/KO del **mateix entorn** i `REDSYS_GATEWAY_URL` amb l'endpoint Redsys de l'entorn; mantenir `SIF_REDSYS_COURSE_CUTOVER_ENABLED=0` i `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=0` fins que els preflights siguin verds.
 2. Rotar qualsevol credencial Redsys històrica potencialment exposada i configurar credencials exclusivament via secret store/entorn: `REDSYS_MERCHANT_CODE`, `SIF_REDSYS_MERCHANT_CODE` (o fallback explícit al mateix `REDSYS_MERCHANT_CODE`), `REDSYS_MERCHANT_KEY`, `REDSYS_TERMINAL`, `SIF_REDSYS_MERCHANT_KEY`, `SIF_INTERNAL_API_KEY_ID` i `SIF_INTERNAL_API_SECRET`. Les claus Redsys del pont i del callback SIF han de correspondre al mateix comerç/entorn, sense registrar-ne el valor. Verificar que el codi desplegat no conté literals.
 3. Crear una intenció de curs ordinari.
 4. Comprovar:
@@ -56,14 +56,14 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
    - payload/import/order incompatible;
    - alumne morós `M -> 1` només quan queda totalment pagat.
 10. Reexecutar el worker/sync i confirmar idempotència.
-11. Iniciar el tall en dues fases. Primer posar `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i mantenir `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=0`: no s'han de crear nous checkouts, però els callbacks llegats ja iniciats han de continuar entrant.
+11. Iniciar el tall en dues fases. Primer posar `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i mantenir `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=0`: **DRAIN és un estat vàlid del preflight**; no s'ha de crear cap nova intenció ni sessió TPV, però els callbacks llegats ja iniciats han de continuar entrant.
 12. Confirmar que no queda cap sessió TPV llegada en vol (finestra definida operativament + revisió de logs/DS_ORDER pendents). Llavors posar `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=1`: el checkout candidat passa a MerchantURL SIF i els checkouts/callbacks llegats responen 410.
 13. Fer un pagament Redsys de proves i comprovar el retorn navegador: primer pot mostrar `PROCESSING`, però només ha de mostrar `CONFIRMED` quan la cua sigui `PROCESSED` i existeixin `UUID_FACTURA` + `UUID_PAYMENT`.
 14. Comprovar també el retorn `REJECTED` i un cas `REVIEW`; una fallada de consulta no pot mostrar èxit.
 
 ## Pas 2 — tall de MerchantURL
 
-Només quan les proves anteriors siguin verdes i el retorn autoritatiu també hagi estat contrastat en preproducció. El tall final exigeix com a mínim: `REDSYS_GATEWAY_URL=<https://...>`, `SIF_REDSYS_CALLBACK_URL=<https://.../sif/public/api/redsys/callback.php>`, `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=1`, a més de les credencials Redsys/API interna. La URL de callback sola no activa el tall.
+Només quan les proves anteriors siguin verdes i el retorn autoritatiu també hagi estat contrastat en preproducció. El tall final exigeix com a mínim: `REDSYS_GATEWAY_URL=<https://...>`, `SIF_REDSYS_CALLBACK_URL=<https://.../api/redsys/callback.php>` (segons document root), `SIF_REDSYS_RETURN_BASE_URL=<https://host-pay-entorn>`, `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=1`, a més de les credencials Redsys/API interna. Amb `cutover=0`, el candidat exigeix també `SIF_REDSYS_LEGACY_CALLBACK_URL`; cap d'aquestes URLs pot quedar implícitament hardcodejada a producció.
 
 ```text
 pagina_efectuar_pagament_automatic.php
@@ -177,7 +177,7 @@ La branca d'auditoria 02/10 afegeix una protecció temporal del fallback mentre 
 - cap correu de depuració pre-validació;
 - `RedsysCourseLegacyFallbackBoundaryTest`.
 
-Aquesta protecció **no substitueix el cutover SIF**. El hardening ha quedat revalidat al PR #105. En la segona passada del 02/10, el pont candidat deixa també d'hardcodejar el gateway Redsys, el path HMAC de `course-intent` queda declarat explícitament i `preflight-redsys-course.php` exigeix entorn test/preproduction, callback/gateway HTTPS, clau/secret de l'API interna i paths signats coherents amb els clients del pont.
+Aquesta protecció **no substitueix el cutover SIF**. El hardening queda consolidat al tancament fusionat del PR #118 i al gate canònic incorporat pel PR #153. En la segona passada del 02/10, el pont candidat deixa també d'hardcodejar el gateway Redsys, el path HMAC de `course-intent` queda declarat explícitament i `preflight-redsys-course.php` exigeix entorn test/preproduction, callback/gateway HTTPS, clau/secret de l'API interna i paths signats coherents amb els clients del pont.
 
 
 ## Tall en dues fases i drenatge de sessions legacy
