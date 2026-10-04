@@ -92,11 +92,17 @@ final class EvidenceVerifier
             $attempt,
             (string) ($verification['hashes']['response'] ?? '')
         );
+        $responseMetadata = $this->metadata($attempt . '/response.json');
+        $httpStatus = $responseMetadata['http_status'] ?? null;
+        if (!is_int($httpStatus) || $httpStatus < 100 || $httpStatus > 599) {
+            throw new \RuntimeException('AEAT evidence response HTTP status is invalid.');
+        }
 
         return [
             'attempt_id' => $id,
             'request_xml' => $request,
             'response_xml' => $response,
+            'response_http_status' => $httpStatus,
             'request_sha256' => hash('sha256', $request),
             'response_sha256' => hash('sha256', $response),
         ];
