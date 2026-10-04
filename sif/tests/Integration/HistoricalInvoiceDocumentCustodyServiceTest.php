@@ -135,6 +135,33 @@ final class HistoricalInvoiceDocumentCustodyServiceTest
         }
     }
 
+    public function testCustodyRejectsBytesThatDoNotMatchDeclaredDocumentType(): void
+    {
+        $db = TestDatabase::fresh();
+        [$sourceDir, $root] = $this->files();
+        try {
+            $invoice = $this->historicalInvoice($db);
+            $invalid = $sourceDir . '/not-a-pdf.pdf';
+            file_put_contents($invalid, 'plain text that is not a PDF');
+
+            $error = Assert::throws(
+                SifException::class,
+                fn (): array => (new HistoricalInvoiceDocumentCustodyService(
+                    new TransactionRunner($db),
+                    $root
+                ))->custody($invoice['uuid_factura'], 'PDF', $invalid),
+                422
+            );
+
+            Assert::stringContainsString('PDF signature', $error->getMessage());
+            Assert::same(0, (int) $db->query(
+                "SELECT COUNT(*) FROM factura_documents WHERE TIPUS='PDF'"
+            )->fetchColumn());
+        } finally {
+            $this->cleanup($sourceDir, $root);
+        }
+    }
+
     public function testCustodyRejectsNonHistoricalInvoice(): void
     {
         $db = TestDatabase::fresh();
