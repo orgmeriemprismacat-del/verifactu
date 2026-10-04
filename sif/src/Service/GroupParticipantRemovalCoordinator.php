@@ -51,44 +51,68 @@ final class GroupParticipantRemovalCoordinator
             throw SifException::validation('Invalid group removal expected fingerprint');
         }
 
-        $preview = $this->previewService->preview($sifDb, $uuidFactura, $idInsc);
-        $actualFingerprint = $this->fingerprints->calculate($preview);
-        if (!hash_equals($expectedFingerprint, $actualFingerprint)) {
-            throw SifException::conflict(
-                'Group participant removal preview changed before confirmation'
-            );
-        }
-
-        $plan = $this->decisionService->plan($preview, $decision);
-        if (($plan['executable'] ?? false) !== true) {
-            return [
-                'ok' => false,
-                'action' => 'confirm',
-                'status' => 'REVIEW_REQUIRED',
-                'fingerprint' => $actualFingerprint,
-                'plan' => $plan,
-            ];
-        }
-
         $decisionHash = $this->fingerprints->calculate($decision);
-        $execution = $this->executions->createOrReuse($sifDb, [
-            'idempotency_key' => $idempotencyKey,
-            'change_type' => 'REMOVE',
-            'uuid_factura' => $uuidFactura,
-            'id_insc' => $idInsc,
-            'idpag' => $preview['idpag'] ?? null,
-            'expected_fingerprint' => $actualFingerprint,
-            'decision_hash' => $decisionHash,
-            'correlation_id' => $correlationId,
-            'actor_id' => $actorId,
-            'plan' => $plan,
-        ]);
+        $execution = $this->executions->findByIdempotencyKey($sifDb, $idempotencyKey, true);
+        $preview = null;
+        $plan = null;
+        $actualFingerprint = $expectedFingerprint;
 
-        if ((string) $execution['STATUS'] === 'COMPLETED') {
-            return $this->storedExecutionResult($execution, true);
+        if ($execution !== null) {
+            if ((string) $execution['CHANGE_TYPE'] !== 'REMOVE'
+                || (string) $execution['UUID_FACTURA'] !== trim($uuidFactura)
+                || (int) $execution['ID_INSC'] !== $idInsc
+                || (string) $execution['DECISION_HASH'] !== $decisionHash
+                || (string) $execution['EXPECTED_FINGERPRINT'] !== $expectedFingerprint
+            ) {
+                throw SifException::conflict(
+                    'Group participant removal idempotency key belongs to another command'
+                );
+            }
+
+            $plan = json_decode((string) $execution['PLAN_JSON'], true);
+            if (!is_array($plan)) {
+                throw new \RuntimeException('Stored group participant removal plan is invalid');
+            }
+
+            if ((string) $execution['STATUS'] === 'COMPLETED') {
+                return $this->storedExecutionResult($execution, true);
+            }
+        } else {
+            $preview = $this->previewService->preview($sifDb, $uuidFactura, $idInsc);
+            $actualFingerprint = $this->fingerprints->calculate($preview);
+            if (!hash_equals($expectedFingerprint, $actualFingerprint)) {
+                throw SifException::conflict(
+                    'Group participant removal preview changed before confirmation'
+                );
+            }
+
+            $plan = $this->decisionService->plan($preview, $decision);
+            if (($plan['executable'] ?? false) !== true) {
+                return [
+                    'ok' => false,
+                    'action' => 'confirm',
+                    'status' => 'REVIEW_REQUIRED',
+                    'fingerprint' => $actualFingerprint,
+                    'plan' => $plan,
+                ];
+            }
+
+            $execution = $this->executions->createOrReuse($sifDb, [
+                'idempotency_key' => $idempotencyKey,
+                'change_type' => 'REMOVE',
+                'uuid_factura' => $uuidFactura,
+                'id_insc' => $idInsc,
+                'idpag' => $preview['idpag'] ?? null,
+                'expected_fingerprint' => $actualFingerprint,
+                'decision_hash' => $decisionHash,
+                'correlation_id' => $correlationId,
+                'actor_id' => $actorId,
+                'plan' => $plan,
+            ]);
         }
 
         $uuidExecution = (string) $execution['UUID_EXECUTION'];
+        $idpag = isset($execution['IDPAG']) ? (int) $execution['IDPAG'] : null;
         $results = [];
         $order = 1;
 
@@ -108,7 +132,7 @@ final class GroupParticipantRemovalCoordinator
                         array_merge($context, [
                             'uuid_execution' => $uuidExecution,
                             'uuid_factura' => $uuidFactura,
-                            'idpag' => $preview['idpag'] ?? null,
+                            'idpag' => $idpag,
                         ])
                     )
                 );
