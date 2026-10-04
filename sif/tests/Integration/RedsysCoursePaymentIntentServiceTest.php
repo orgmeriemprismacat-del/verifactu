@@ -6,6 +6,7 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
+use Prisma\Sif\Repository\UsocFinancingTermsRepository;
 use Prisma\Sif\Service\RedsysCoursePaymentIntentService;
 use Prisma\Sif\Service\RedsysDsOrderGenerator;
 use Prisma\Sif\Service\RedsysPaymentIntentService;
@@ -113,10 +114,61 @@ final class RedsysCoursePaymentIntentServiceTest
         }, 409);
 
         Assert::same(
-            'USOC course payment requires a dedicated USOC_ALUMNE intent with explicit entity amount.',
+            'USOC course payment requires prepared financing terms.',
             $exception->getMessage()
         );
         Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
+    public function testValidatedUsocWithPreparedTermsCreatesDedicatedUsocStudentIntent(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $terms = new UsocFinancingTermsRepository(new UuidGenerator());
+
+        $sifDb->beginTransaction();
+        $prepared = $terms->prepare(
+            $sifDb,
+            'req-usoc-checkout-terms',
+            710,
+            700,
+            '75.00',
+            '25.00',
+            'secretaria-test',
+            ['ADMIN'],
+            str_repeat('a', 64)
+        );
+        $sifDb->commit();
+
+        $result = $this->service($terms)->create(
+            $sifDb,
+            $this->legacyDb(false, '75.00', '0.00', 4, 1),
+            [
+                'idpag' => 700,
+                'requested_amount' => '75.00',
+                'terminal' => '1',
+                'ds_order' => '700000000009',
+            ]
+        );
+
+        Assert::same('USOC_ALUMNE', $result['source_type']);
+        Assert::same('75.00', $result['amount']);
+        Assert::same('25.00', $result['entity_amount']);
+
+        $intent = $sifDb->query(
+            "SELECT SOURCE_TYPE, SOURCE_ID, EXPECTED_AMOUNT, SNAPSHOT_JSON
+             FROM redsys_payment_intent
+             WHERE DS_ORDER = '700000000009'"
+        )->fetch(\PDO::FETCH_ASSOC);
+        $snapshot = json_decode((string) $intent['SNAPSHOT_JSON'], true);
+
+        Assert::same('USOC_ALUMNE', $intent['SOURCE_TYPE']);
+        Assert::same('710', (string) $intent['SOURCE_ID']);
+        Assert::same('75.00', number_format((float) $intent['EXPECTED_AMOUNT'], 2, '.', ''));
+        Assert::same('75.00', (string) $snapshot['usoc']['student_amount']);
+        Assert::same('25.00', (string) $snapshot['usoc']['entity_amount']);
+        Assert::same((string) $prepared['UUID_TERMS'], (string) $snapshot['usoc']['terms_uuid']);
+        Assert::same(4, (int) $snapshot['inscription']['TIPUS_DESC']);
+        Assert::same(1, (int) $snapshot['inscription']['VALID_DESC']);
     }
 
     public function testPendingUsocCannotStartPaymentBeforeValidation(): void
@@ -185,15 +237,19 @@ final class RedsysCoursePaymentIntentServiceTest
         }, 422);
     }
 
-    private function service(): RedsysCoursePaymentIntentService
-    {
+    private function service(
+        ?UsocFinancingTermsRepository $terms = null
+    ): RedsysCoursePaymentIntentService {
         return new RedsysCoursePaymentIntentService(
             new LegacyCourseSnapshotRepository(),
             new RedsysPaymentIntentService(
                 new RedsysPaymentIntentRepository(),
                 new UuidGenerator()
             ),
-            new RedsysDsOrderGenerator()
+            new RedsysDsOrderGenerator(),
+            null,
+            null,
+            $terms
         );
     }
 
