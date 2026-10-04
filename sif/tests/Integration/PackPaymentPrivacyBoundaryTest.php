@@ -140,4 +140,5 @@ final class PackPaymentPrivacyBoundaryTest
         Assert::stringContainsString("\$_GET['idPag']", $shared);
         Assert::stringContainsString('htmlspecialchars($view[\'title\']', $shared);
         Assert::stringContainsString('htmlspecialchars($view[\'message\']', $shared);
-    }}
+    }
+}
